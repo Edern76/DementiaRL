@@ -41,7 +41,7 @@ class GameObject:
         self.y = y
         self.char = char
         self.color = color
-        
+
     def move(self, dx, dy):
         if not myMap[self.x + dx][self.y + dy].blocked:
             self.x += dx
@@ -71,7 +71,7 @@ class Player(GameObject):
         elif self.hpRatio < 25 and self.hpRatio > 0:
             self.color = (255, 0, 0)
         elif self.hpRatio == 0:
-            self.color = (120, 0, 0)       
+            self.color = (120, 0, 0)
     
     def takeDamage(self, damage):
         self.hp -= damage
