@@ -118,7 +118,7 @@ while True :
     for object in objects:
         object.clear()
     getInput()
-
-        
+#cestdlamerde
     
+        
     
