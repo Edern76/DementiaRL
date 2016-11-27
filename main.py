@@ -29,7 +29,7 @@ MOVEMENT_KEYS = {
                  }
 
 WIDTH, HEIGHT, LIMIT = 120, 100, 20
-MAP_WIDTH, MAP_HEIGHT = 80, 45
+MAP_WIDTH, MAP_HEIGHT = 100, 60
 MID_WIDTH, MID_HEIGHT = int(WIDTH/2), int(HEIGHT/2)
 root = tdl.init(WIDTH, HEIGHT, 'Dementia (Temporary Name) | Prototype')
 con = tdl.Console(WIDTH, HEIGHT)
@@ -43,8 +43,9 @@ class GameObject:
         self.color = color
         
     def move(self, dx, dy):
-        self.x += dx
-        self.y += dy
+        if not myMap[self.x + dx][self.y + dy].blocked:
+            self.x += dx
+            self.y += dy
     
     def draw(self):
         con.draw_char(self.x, self.y, self.char, self.color, bg=None)
@@ -123,9 +124,7 @@ def Update():
     root.blit(con, 0, 0, WIDTH, HEIGHT, 0, 0)
 def makeMap():
     global myMap
-    myMap = [[Tile(False)
-              for y in range(MAP_HEIGHT) ]
-                for x in range(MAP_WIDTH)]
+    myMap = [[Tile(False) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)]
     myMap[30][22].blocked = True
     myMap[30][22].block_sight = True
     myMap[50][22].blocked = True
