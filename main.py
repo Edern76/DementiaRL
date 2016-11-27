@@ -29,6 +29,7 @@ MOVEMENT_KEYS = {
                  }
 
 WIDTH, HEIGHT, LIMIT = 120, 100, 20
+MAP_WIDTH, MAP_HEIGHT = 80, 45
 MID_WIDTH, MID_HEIGHT = int(WIDTH/2), int(HEIGHT/2)
 root = tdl.init(WIDTH, HEIGHT, 'Dementia (Temporary Name) | Prototype')
 con = tdl.Console(WIDTH, HEIGHT)
@@ -74,6 +75,13 @@ class Player(GameObject):
     def takeDamage(self, damage):
         self.hp -= damage
 
+class Tile:
+    def __init__(self, blocked, block_sight = None):
+        self.blocked = blocked
+        if block_sight is None:
+            block_sight = blocked
+            self.block_sight = block_sight
+
 def quitGame(message):
     raise SystemExit(str(message))
 def getInput():
@@ -105,11 +113,24 @@ def Update():
     con.draw_str(1, 1, '{} / {}'.format(player.hp, player.maxHP), fg = (255,0,0), bg = None)
     for object in objects:
         object.draw()
+    for y in range(MAP_HEIGHT):
+        for x in range(MAP_WIDTH):
+            wall = myMap[x][y].block_sight
+            if wall:
+                con.draw_char(x, y, '#')
+            else:
+                con.draw_char(x, y, '.')    
     root.blit(con, 0, 0, WIDTH, HEIGHT, 0, 0)
+def makeMap():
+    global myMap
+    myMap = [[Tile(False)
+              for y in range(MAP_HEIGHT) ]
+                for x in range(MAP_WIDTH)]    
     
 npc = GameObject(MID_WIDTH - 5, MID_HEIGHT, '@', (0, 200, 255))
 player = Player(MID_WIDTH, MID_HEIGHT, '@', 100)
 objects = [npc, player]
+makeMap()
 Update()
 
 while True :
