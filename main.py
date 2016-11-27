@@ -33,7 +33,7 @@ MAP_WIDTH, MAP_HEIGHT = 100, 60
 MID_WIDTH, MID_HEIGHT = int(WIDTH/2), int(HEIGHT/2)
 root = tdl.init(WIDTH, HEIGHT, 'Dementia (Temporary Name) | Prototype')
 con = tdl.Console(WIDTH, HEIGHT)
-playerX, playerY = int(WIDTH/2), int(HEIGHT/2)
+myMap = [[]]
 class GameObject:
     "A generic object, represented by a character"
     def __init__(self, x, y, char, color):
@@ -86,25 +86,22 @@ class Tile:
 def quitGame(message):
     raise SystemExit(str(message))
 def getInput():
-    global MOVEMENT_KEYS
-    global playerX
-    global playerY
     userInput = tdl.event.key_wait()
     if userInput.keychar.upper() in MOVEMENT_KEYS:
         keyX, keyY = MOVEMENT_KEYS[userInput.keychar.upper()]
         player.move(keyX, keyY)
     elif userInput.keychar.upper() ==  'ESCAPE':
         quitGame('Player pressed Escape')
-    elif userInput.keychar.upper() == 'ALT' and userInput.alt:
-        isFullscreen = tdl.getFullscreen()
-        print("Fullscreen is borked at the moment")
+    #elif userInput.keychar.upper() == 'ALT' and userInput.alt:
+        #isFullscreen = tdl.getFullscreen()
+        #print("Fullscreen is borked at the moment")
         #if isFullscreen :
             #set_fullscreen(False)
         #else:
            #set_fullscreen(True)
     elif userInput.keychar.upper() == 'F2':
         player.takeDamage(1)
-    for event in tdl.event.get():                    
+    for event in tdl.event.get():
         if event.type == 'QUIT':
             quitGame('Window has been closed')
 def Update():
@@ -120,7 +117,7 @@ def Update():
             else:
                 con.draw_char(x, y, '.')
     for object in objects:
-        object.draw()            
+        object.draw()
     root.blit(con, 0, 0, WIDTH, HEIGHT, 0, 0)
 def makeMap():
     global myMap
