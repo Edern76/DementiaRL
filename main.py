@@ -111,21 +111,25 @@ def Update():
     tdl.flush()
     player.changeColor()
     con.draw_str(1, 1, '{} / {}'.format(player.hp, player.maxHP), fg = (255,0,0), bg = None)
-    for object in objects:
-        object.draw()
     for y in range(MAP_HEIGHT):
         for x in range(MAP_WIDTH):
             wall = myMap[x][y].block_sight
             if wall:
                 con.draw_char(x, y, '#')
             else:
-                con.draw_char(x, y, '.')    
+                con.draw_char(x, y, '.')
+    for object in objects:
+        object.draw()            
     root.blit(con, 0, 0, WIDTH, HEIGHT, 0, 0)
 def makeMap():
     global myMap
     myMap = [[Tile(False)
               for y in range(MAP_HEIGHT) ]
-                for x in range(MAP_WIDTH)]    
+                for x in range(MAP_WIDTH)]
+    myMap[30][22].blocked = True
+    myMap[30][22].block_sight = True
+    myMap[50][22].blocked = True
+    myMap[50][22].block_sight = True    
     
 npc = GameObject(MID_WIDTH - 5, MID_HEIGHT, '@', (0, 200, 255))
 player = Player(MID_WIDTH, MID_HEIGHT, '@', 100)
