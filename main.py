@@ -60,7 +60,8 @@ class GameObject:
             self.y += dy
     
     def draw(self):
-        con.draw_char(self.x, self.y, self.char, self.color, bg=None)
+        if (self.x, self.y) in visibleTiles:
+            con.draw_char(self.x, self.y, self.char, self.color, bg=None)
         
     def clear(self):
         con.draw_char(self.x, self.y, ' ', self.color, bg=None)
@@ -135,6 +136,7 @@ MAX_ROOMS = 30
 class Tile:
     def __init__(self, blocked, block_sight = None):
         self.blocked = blocked
+        self.explored = False
         if block_sight is None:
             block_sight = blocked
             self.block_sight = block_sight
@@ -226,15 +228,17 @@ def Update():
                 visible = (x, y) in visibleTiles
                 wall = myMap[x][y].block_sight
                 if not visible:
-                    if wall:
-                        con.draw_char(x, y, '#', fg=color_dark_wall, bg=color_dark_ground)
-                    else:
-                        con.draw_char(x, y, None, fg=None, bg=color_dark_ground)
+                    if myMap[x][y].explored:
+                        if wall:
+                            con.draw_char(x, y, '#', fg=color_dark_wall, bg=color_dark_ground)
+                        else:
+                            con.draw_char(x, y, None, fg=None, bg=color_dark_ground)
                 else:
                     if wall:
-                        con.draw_char(x, y, '#', fg=color_light_wall, bg=color_light_ground)
+                            con.draw_char(x, y, '#', fg=color_light_wall, bg=color_light_ground)
                     else:
-                        con.draw_char(x, y, None, fg=None, bg=color_light_ground)
+                            con.draw_char(x, y, None, fg=None, bg=color_light_ground)
+                    myMap[x][y].explored = True        
     for object in objects:
         if (object.x, object.y) in visibleTiles:
             object.draw()
