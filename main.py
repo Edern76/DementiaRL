@@ -50,16 +50,21 @@ color_light_wall = (130, 110, 50)
 color_dark_ground = (66, 66, 66)
 color_light_ground = (200, 180, 50)
 
+gameState = 'playing'
+playerAction = None
+DEBUG = False #If true, displays a message each time a monster tries to take a turn (and fails to do so since AI isn't yet implemented)
+
 #_____________ CONSTANTS __________________
 
 class GameObject:
     "A generic object, represented by a character"
-    def __init__(self, x, y, char, color, blocks = False):
+    def __init__(self, x, y, char, color, name, blocks = False):
         self.x = x
         self.y = y
         self.char = char
         self.color = color
         self.blocks = blocks
+        self.name = name
 
     def move(self, dx, dy):
         if not isBlocked(self.x + dx, self.y + dy):
@@ -78,7 +83,7 @@ class Player(GameObject):
         self.maxHP = maxHP
         self.hp = self.maxHP
         self.color = (0, 255, 0)
-        GameObject.__init__(self, x, y, char, self.color)
+        GameObject.__init__(self, x, y, char, self.color, 'Player')
         
     def changeColor(self):
         self.hpRatio = ((self.hp / self.maxHP) * 100)
@@ -102,12 +107,8 @@ def quitGame(message):
 def getInput():
     global FOV_recompute
     userInput = tdl.event.key_wait()
-    if userInput.keychar.upper() in MOVEMENT_KEYS:
-        keyX, keyY = MOVEMENT_KEYS[userInput.keychar.upper()]
-        player.move(keyX, keyY)
-        FOV_recompute = True
-    elif userInput.keychar.upper() ==  'ESCAPE':
-        quitGame('Player pressed Escape')
+    if userInput.keychar.upper() ==  'ESCAPE':
+        return 'exit'
     #elif userInput.keychar.upper() == 'ALT' and userInput.alt:
         #isFullscreen = tdl.getFullscreen()
         #print("Fullscreen is borked at the moment")
@@ -117,9 +118,45 @@ def getInput():
             #set_fullscreen(True)
     elif userInput.keychar.upper() == 'F2':
         player.takeDamage(1)
+    elif userInput.keychar.upper() == 'F1':
+        global DEBUG
+        if DEBUG == False:
+            print('Monster turn debug is now on')
+            DEBUG = True
+        elif DEBUG == True:
+            print('Monster turn debug is now off')
+            DEBUG = False
+        else:
+            quitGame('Whatever you did, it went horribly wrong (DEBUG took an unexpected value)')    
+        FOV_recompute= True            
     for event in tdl.event.get():
         if event.type == 'QUIT':
             quitGame('Window has been closed')
+    if gameState == 'playing':
+        if userInput.keychar.upper() in MOVEMENT_KEYS:
+            keyX, keyY = MOVEMENT_KEYS[userInput.keychar.upper()]
+            moveOrAttack(keyX, keyY)
+            FOV_recompute = True #Don't ask why, but it's needed here to recompute FOV, despite not moving, or else Bad Things (trademark) happen.
+        else:
+            return 'didnt-take-turn'
+
+def moveOrAttack(dx, dy):
+    global FOV_recompute
+    x = player.x + dx
+    y = player.y + dy
+    
+    target = None
+    for object in objects:
+        if object.x == x and object.y == y:
+            target = object
+            break #Since we found the target, there's no point in continuing to search for it
+    
+    if target is not None:
+        print("The", target.name, "didn't seem to appreciate your way of socializing with an unknown lifeform.")
+    else:
+        player.move(dx, dy)         
+        
+    
 
 def isVisibleTile(x, y):
     global my_map
@@ -239,9 +276,9 @@ def placeObjects(room):
         
         if not isBlocked(x, y):
             if randint(0,100) < 80:
-                monster = GameObject(x, y, char = 'o', color = colors.desaturated_green, blocks = True)
+                monster = GameObject(x, y, char = 'o', color = colors.desaturated_green, name = 'orc', blocks = True)
             else:
-                monster = GameObject(x, y, char = 'T', color = colors.darker_green, blocks = True)
+                monster = GameObject(x, y, char = 'T', color = colors.darker_green,name = 'troll', blocks = True)
         
         objects.append(monster)
 #_____________ ROOM POPULATION _______________
@@ -289,7 +326,14 @@ while True :
     tdl.flush()
     for object in objects:
         object.clear()
-    getInput()
+    playerAction = getInput()
+    if playerAction == 'exit':
+        quitGame('Player pressed escape')
+    if gameState == 'playing' and playerAction != 'didnt-take-turn' and DEBUG == True: #Remove the DEBUG = True when implementing actual turns for monsters
+            for object in objects:                
+                if object != player:
+                    print("In the distance, you hear a", object.name, "emit a menacing growl")
+                
 
         
     
