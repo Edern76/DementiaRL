@@ -54,14 +54,15 @@ color_light_ground = (200, 180, 50)
 
 class GameObject:
     "A generic object, represented by a character"
-    def __init__(self, x, y, char, color):
+    def __init__(self, x, y, char, color, blocks = False):
         self.x = x
         self.y = y
         self.char = char
         self.color = color
+        self.blocks = blocks
 
     def move(self, dx, dy):
-        if not myMap[self.x + dx][self.y + dy].blocked:
+        if not isBlocked(self.x + dx, self.y + dy):
             self.x += dx
             self.y += dy
     
@@ -134,6 +135,15 @@ def isVisibleTile(x, y):
     else:
         return True
 
+def isBlocked(x, y): #With this function, making a check such as myMap[x][y].blocked is deprecated and should not be used anymore outside of this function (or FOV related stuff), since the latter does exactly the same job in addition to checking for blocking objects.
+    if myMap[x][y].blocked:
+        return True #If the Tile is already set as blocking, there's no point in making further checks
+    
+    for object in objects: #As all statements starting with this, ignore PyDev warning. However, please note that objects refers to the list of objects that we created and IS NOT defined by default in any library used (so don't call it out of the blue), contrary to object.
+        if object.blocks and object.x == x and object.y == y: #With this, we're checking every single object created, which might lead to performance issue. Fixing this could be one of many possible improvements, but this isn't a priority at the moment. 
+            return True
+    
+    return False
 #_____________ MAP CREATION __________________
 ROOM_MAX_SIZE = 10
 ROOM_MIN_SIZE = 6
@@ -184,7 +194,7 @@ def createVerticalTunnel(y1, y2, x):
         
 def makeMap():
     global myMap
-    myMap = [[Tile(True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)]
+    myMap = [[Tile(True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
     rooms = []
     numberRooms = 0
  
@@ -227,10 +237,11 @@ def placeObjects(room):
         x = randint(room.x1+1, room.x2-1)
         y = randint(room.y1+1, room.y2-1)
         
-        if randint(0,100) < 80:
-            monster = GameObject(x, y, 'o', colors.desaturated_green)
-        else:
-            monster = GameObject(x, y, 'T', colors.darker_green)
+        if not isBlocked(x, y):
+            if randint(0,100) < 80:
+                monster = GameObject(x, y, char = 'o', color = colors.desaturated_green, blocks = True)
+            else:
+                monster = GameObject(x, y, char = 'T', color = colors.darker_green, blocks = True)
         
         objects.append(monster)
 #_____________ ROOM POPULATION _______________
@@ -266,7 +277,7 @@ def Update():
             object.draw()
     root.blit(con, 0, 0, WIDTH, HEIGHT, 0, 0)
 
-player = Player(25, 23, '@', 100)
+player = Player(25, 23, '@', 100) #Do not add the blocks arg (or do any collision check involving the tile the player is standing on) until the player subclass hasn't been converted to a component. See part 5 (IIRC) of the tutorial.
 objects = [player]
 makeMap()
 Update()
