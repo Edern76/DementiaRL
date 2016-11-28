@@ -236,10 +236,11 @@ def Update():
                     else:
                         con.draw_char(x, y, None, fg=None, bg=color_light_ground)
     for object in objects:
-        object.draw()
+        if (object.x, object.y) in visibleTiles:
+            object.draw()
     root.blit(con, 0, 0, WIDTH, HEIGHT, 0, 0)
 
-npc = GameObject(MID_WIDTH - 5, MID_HEIGHT, 'X', (0, 200, 255))
+npc = GameObject(MID_WIDTH, MID_HEIGHT, 'X', (0, 200, 255))
 player = Player(25, 23, '@', 100)
 objects = [npc, player]
 makeMap()
