@@ -1,6 +1,9 @@
 import tdl
 from tdl import *
 from random import randint
+import colors
+
+#_____________ CONSTANTS __________________
 
 MOVEMENT_KEYS = {
                  #Standard arrows
@@ -39,12 +42,15 @@ FOV_recompute = True
 FOV_ALGO = 'BASIC'
 FOV_LIGHT_WALLS = True
 SIGHT_RADIUS = 10
+MAX_ROOM_MONSTERS = 3
 
 myMap = [[]]
 color_dark_wall = (28, 28, 28)
 color_light_wall = (130, 110, 50)
 color_dark_ground = (66, 66, 66)
 color_light_ground = (200, 180, 50)
+
+#_____________ CONSTANTS __________________
 
 class GameObject:
     "A generic object, represented by a character"
@@ -208,10 +214,26 @@ def makeMap():
                 else:
                     createVerticalTunnel(previous_y, new_y, previous_x)
                     createHorizontalTunnel(previous_x, new_x, new_y)
+            placeObjects(newRoom)
             rooms.append(newRoom)
             numberRooms += 1
 
 #_____________ MAP CREATION __________________
+
+#_____________ ROOM POPULATION _______________
+def placeObjects(room):
+    numMonsters = randint(0, MAX_ROOM_MONSTERS)
+    for i in range(numMonsters):
+        x = randint(room.x1+1, room.x2-1)
+        y = randint(room.y1+1, room.y2-1)
+        
+        if randint(0,100) < 80:
+            monster = GameObject(x, y, 'o', colors.desaturated_green)
+        else:
+            monster = GameObject(x, y, 'T', colors.darker_green)
+        
+        objects.append(monster)
+#_____________ ROOM POPULATION _______________
 
 def Update():
     global FOV_recompute
@@ -244,9 +266,8 @@ def Update():
             object.draw()
     root.blit(con, 0, 0, WIDTH, HEIGHT, 0, 0)
 
-npc = GameObject(MID_WIDTH, MID_HEIGHT, 'X', (0, 200, 255))
 player = Player(25, 23, '@', 100)
-objects = [npc, player]
+objects = [player]
 makeMap()
 Update()
 
