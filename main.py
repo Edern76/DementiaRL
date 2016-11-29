@@ -367,7 +367,7 @@ def placeObjects(room):
         objects.append(monster)
 #_____________ ROOM POPULATION _______________
 def playerDeath(player):
-    global game_state
+    global gameState
     print('You died!')
     gameState = 'dead'
     player.char = '%'
@@ -429,6 +429,7 @@ while True :
     for object in objects:
         object.clear()
     playerAction = getInput()
+    FOV_recompute = True #So as to avoid the blackscreen bug no matter which key we press
     if playerAction == 'exit':
         quitGame('Player pressed escape')
     if gameState == 'playing' and playerAction != 'didnt-take-turn':
