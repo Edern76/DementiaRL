@@ -4,6 +4,14 @@ from random import randint
 import colors
 import math
 from math import *
+import textwrap
+
+# Naming conventions :
+# MY_CONSTANT
+# myVariable
+# myFunction()
+# MyClass
+# Not dramatic if you forget about this (it happens to me too), but it makes reading code easier
 
 #_____________ CONSTANTS __________________
 
@@ -34,11 +42,27 @@ MOVEMENT_KEYS = {
                  'KP9': [1, -1],
                  }
 
-WIDTH, HEIGHT, LIMIT = 120, 100, 20
-MAP_WIDTH, MAP_HEIGHT = 100, 60
+WIDTH, HEIGHT, LIMIT = 170, 95, 20
+MAP_WIDTH, MAP_HEIGHT = 140, 60
 MID_WIDTH, MID_HEIGHT = int(WIDTH/2), int(HEIGHT/2)
+
+# - GUI Constants -
+BAR_WIDTH = 20
+
+PANEL_HEIGHT = 10
+PANEL_Y = HEIGHT - PANEL_HEIGHT
+
+MSG_X = BAR_WIDTH + 10
+MSG_WIDTH = WIDTH - BAR_WIDTH - 10
+MSG_HEIGHT = PANEL_HEIGHT - 1
+
+# - GUI Constants -
+
+# - Consoles -
 root = tdl.init(WIDTH, HEIGHT, 'Dementia (Temporary Name) | Prototype')
 con = tdl.Console(WIDTH, HEIGHT)
+panel = tdl.Console(WIDTH, PANEL_HEIGHT)
+# - Consoles
 
 FOV_recompute = True
 FOV_ALGO = 'BASIC'
@@ -55,7 +79,9 @@ color_light_ground = colors.darker_sepia
 
 gameState = 'playing'
 playerAction = None
-DEBUG = False #If true, displays a message each time a monster tries to take a turn (and fails to do so since AI isn't yet implemented)
+DEBUG = False #If true, enables debug messages
+
+gameMsgs = [] #List of game messages
 
 #_____________ CONSTANTS __________________
 
@@ -129,16 +155,16 @@ class Fighter: #All NPCs, enemies and the player
  
         if not self.owner.Player:
             if damage > 0:
-                print(self.owner.name.capitalize() + ' attacks you for ' + str(damage) + ' hit points.')
+                message(self.owner.name.capitalize() + ' attacks you for ' + str(damage) + ' hit points.', colors.orange)
                 target.Fighter.takeDamage(damage)
             else:
-                print(self.owner.name.capitalize() + ' attacks you but it has no effect!')
+                message(self.owner.name.capitalize() + ' attacks you but it has no effect!')
         else:
             if damage > 0:
-                print('You attack ' + target.name + ' for ' + str(damage) + ' hit points.')
+                message('You attack ' + target.name + ' for ' + str(damage) + ' hit points.', colors.dark_green)
                 target.Fighter.takeDamage(damage)
             else:
-                print('You attack ' + target.name + ' but it has no effect!')
+                message('You attack ' + target.name + ' but it has no effect!', colors.lighter_grey)
 class BasicMonster: #Basic monsters' AI
     def takeTurn(self):
         monster = self.owner
@@ -197,9 +223,11 @@ def getInput():
         global DEBUG
         if DEBUG == False:
             print('Monster turn debug is now on')
+            message("This is a very long message just to test Python 3 built-in textwrap function, which allows us to do great things such as splitting very long texts into multiple lines, so as it don't overflow outside of the console. Oh and, debug mode has been activated", colors.purple)
             DEBUG = True
         elif DEBUG == True:
             print('Monster turn debug is now off')
+            message('Debug mode is now off', colors.purple)
             DEBUG = False
         else:
             quitGame('Whatever you did, it went horribly wrong (DEBUG took an unexpected value)')    
@@ -364,13 +392,13 @@ def placeObjects(room):
 #_____________ ROOM POPULATION _______________
 def playerDeath(player):
     global gameState
-    print('You died!')
+    message('You died!', colors.red)
     gameState = 'dead'
     player.char = '%'
     player.color = colors.dark_red
  
 def monsterDeath(monster):
-    print(monster.name.capitalize() + ' is dead!')
+    message(monster.name.capitalize() + ' is dead!', colors.dark_sky)
     monster.char = '%'
     monster.color = colors.dark_red
     monster.blocks = False
@@ -379,13 +407,33 @@ def monsterDeath(monster):
     monster.Fighter = None
     monster.sendToBack()
 
-def Update():
+#_____________ GUI _______________
+def renderBar(x, y, totalWidth, name, value, maximum, barColor, backColor):
+    barWidth = int(float(value) / maximum * totalWidth) #Width of the bar is proportional to the ratio of the current value over the maximum value
+    panel.draw_rect(x, y, totalWidth, 1, None, bg = backColor)#Background of the bar
+    
+    if barWidth > 0:
+        panel.draw_rect(x, y, barWidth, 1, None, bg = barColor)#The actual bar
+        
+    text = name + ': ' + str(value) + '/' + str(maximum)
+    xCentered = x + (totalWidth - len(text))//2
+    panel.draw_str(xCentered, y, text, fg = colors.white, bg=None)
+    
+def message(newMsg, color = colors.white):
+    newMsgLines = textwrap.wrap(newMsg, MSG_WIDTH) #If message exceeds log width, split it into two or more lines
+    for line in newMsgLines:
+        if len(gameMsgs) == MSG_HEIGHT:
+            del gameMsgs[0] #Deletes the oldest message if the log is full
+    
+        gameMsgs.append((line, color))
+#_____________ GUI _______________
+
+def Update(lookX = None, lookY = None):
     global FOV_recompute
     global visibleTiles
     con.clear()
     tdl.flush()
     player.Player.changeColor()
-    con.draw_str(1, 1, '{} / {}'.format(player.Fighter.hp, player.Fighter.maxHP), fg = (255,0,0), bg = None)
     if FOV_recompute:
         FOV_recompute = False
         visibleTiles = tdl.map.quickFOV(player.x, player.y, isVisibleTile, fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
@@ -417,6 +465,20 @@ def Update():
                 object.draw()
     player.draw()
     root.blit(con, 0, 0, WIDTH, HEIGHT, 0, 0)
+    panel.clear(fg=colors.white, bg=colors.black)
+    # Draw log
+    msgY = 1
+    for (line, color) in gameMsgs:
+        panel.draw_str(MSG_X, msgY, line, bg=None, fg = color)
+        msgY += 1
+    # Draw GUI
+    
+    renderBar(1, 1, BAR_WIDTH, 'HP', player.Fighter.hp, player.Fighter.maxHP, player.color, colors.dark_gray)
+    # Look code
+    if lookX is not None and lookY is not None:
+        print('WIP')
+    root.blit(panel, 0, PANEL_Y, WIDTH, PANEL_HEIGHT, 0, 0)
+    
 
 playFight = Fighter( hp = 100, power=5, defense=3, deathFunction=playerDeath)
 playComp = Player()
@@ -427,6 +489,8 @@ makeMap()
 Update()
 
 FOV_recompute = True
+message('Zargothrox says : Prepare to get lost in the Realm of Madness !', colors.dark_red)
+
 
 while True :
     Update()
