@@ -367,7 +367,7 @@ def placeObjects(room):
         objects.append(monster)
 #_____________ ROOM POPULATION _______________
 def playerDeath(player):
-    global game_state
+    global gameState
     print('You died!')
     gameState = 'dead'
     player.char = '%'
