@@ -4,7 +4,6 @@ from random import randint
 import colors
 import math
 from math import *
-from dill import objects
 
 #_____________ CONSTANTS __________________
 
@@ -46,6 +45,7 @@ FOV_ALGO = 'BASIC'
 FOV_LIGHT_WALLS = True
 SIGHT_RADIUS = 10
 MAX_ROOM_MONSTERS = 3
+GRAPHICS = 'modern'
 
 myMap = [[]]
 color_dark_wall = colors.darkest_grey
@@ -61,7 +61,7 @@ DEBUG = False #If true, displays a message each time a monster tries to take a t
 
 class GameObject:
     "A generic object, represented by a character"
-    def __init__(self, x, y, char, color, name, blocks = False, Fighter = None, AI = None, power = None, defense=None): #Power and defense are only here to work with Player which is not yet a component
+    def __init__(self, x, y, char, name, color=colors.white, blocks = False, Fighter = None, AI = None, power = None, defense=None, Player = None): #Power and defense are only here to work with Player which is not yet a component
         self.x = x
         self.y = y
         self.char = char
@@ -69,11 +69,14 @@ class GameObject:
         self.blocks = blocks
         self.name = name
         self.Fighter = Fighter
+        self.Player = Player
         if self.Fighter:  #let the fighter component know who owns it
             self.Fighter.owner = self
         self.AI = AI
         if self.AI:  #let the AI component know who owns it
             self.AI.owner = self
+        if self.Player:
+            self.Player.owner = self    
             
     def moveTowards(self, target_x, target_y):
         dx = target_x - self.x
@@ -122,62 +125,47 @@ class Fighter: #All NPCs, enemies and the player
                 death(self.owner)
 
     def attack(self, target):
-        damage = self.power - player.defense
+        damage = self.power - target.Fighter.defense
  
-        if damage > 0:
-            print(self.owner.name.capitalize() + ' attacks you for ' + str(damage) + ' hit points.')
-            player.takeDamage(damage)
+        if not self.owner.Player:
+            if damage > 0:
+                print(self.owner.name.capitalize() + ' attacks you for ' + str(damage) + ' hit points.')
+                target.Fighter.takeDamage(damage)
+            else:
+                print(self.owner.name.capitalize() + ' attacks you but it has no effect!')
         else:
-            print(self.owner.name.capitalize() + ' attacks you but it has no effect!')
-
+            if damage > 0:
+                print('You attack ' + target.name + ' for ' + str(damage) + ' hit points.')
+                target.Fighter.takeDamage(damage)
+            else:
+                print('You attack ' + target.name + ' but it has no effect!')
 class BasicMonster: #Basic monsters' AI
     def takeTurn(self):
         monster = self.owner
         if (monster.x, monster.y) in visibleTiles:
             if monster.distanceTo(player) >= 2:
                 monster.moveTowards(player.x, player.y)
-            elif player.hp > 0:
+            elif player.Fighter.hp > 0:
                 monster.Fighter.attack(player)
 
-class Player(GameObject):
-    def __init__(self, x, y, char, maxHP, power, defense, deathFunction):
-        self.maxHP = maxHP
-        self.hp = self.maxHP
-        self.color = (0, 210, 0)
-        self.power = power
-        self.defense = defense
-        self.deathFunction = deathFunction
-        GameObject.__init__(self, x, y, char, self.color, 'Player')
+class Player:
+    def __init__(self):
+        if DEBUG:
+            print('Player component initialized')
         
     def changeColor(self):
-        self.hpRatio = ((self.hp / self.maxHP) * 100)
+        self.hpRatio = ((self.owner.Fighter.hp / self.owner.Fighter.maxHP) * 100)
         if self.hpRatio < 95 and self.hpRatio >= 75:
-            self.color = (120, 255, 0)
+            self.owner.color = (120, 255, 0)
         elif self.hpRatio < 75 and self.hpRatio >= 50:
-            self.color = (255, 255, 0)
+            self.owner.color = (255, 255, 0)
         elif self.hpRatio < 50 and self.hpRatio >= 25:
-            self.color = (255, 120, 0)
+            self.owner.color = (255, 120, 0)
         elif self.hpRatio < 25 and self.hpRatio > 0:
-            self.color = (255, 0, 0)
+            self.owner.color = (255, 0, 0)
         elif self.hpRatio == 0:
-            self.color = (120, 0, 0)
-    
-    def takeDamage(self, damage):
-        if damage > 0:
-            self.hp -= damage
-        if self.hp <= 0:
-            death=self.deathFunction
-            if death is not None:
-                death(self)
+            self.owner.color = (120, 0, 0)
 
-    def attack(self, target):
-        damage = self.power - target.Fighter.defense
- 
-        if damage > 0:
-            print('You attack ' + target.name + ' for ' + str(damage) + ' hit points.')
-            target.Fighter.takeDamage(damage)
-        else:
-            print('You attack ' + target.name + ' but it has no effect!')
 
 def quitGame(message):
     raise SystemExit(str(message))
@@ -194,8 +182,16 @@ def getInput():
             #set_fullscreen(False)
         #else:
             #set_fullscreen(True)
+    elif userInput.keychar.upper() == 'F3':
+        global GRAPHICS
+        if GRAPHICS == 'modern':
+            print('Graphics mode set to classic')
+            GRAPHICS = 'classic'
+        elif GRAPHICS == 'classic':
+            print('Graphics mode set to modern')
+            GRAPHICS = 'modern'         
     elif userInput.keychar.upper() == 'F2':
-        player.takeDamage(1)
+        player.Fighter.takeDamage(1)
         FOV_recompute = True
     elif userInput.keychar.upper() == 'F1':
         global DEBUG
@@ -232,7 +228,7 @@ def moveOrAttack(dx, dy):
                 break #Since we found the target, there's no point in continuing to search for it
     
     if target is not None:
-        player.attack(target)
+        player.Fighter.attack(target)
     else:
         player.move(dx, dy)         
         
@@ -367,7 +363,7 @@ def placeObjects(room):
         objects.append(monster)
 #_____________ ROOM POPULATION _______________
 def playerDeath(player):
-    global game_state
+    global gameState
     print('You died!')
     gameState = 'dead'
     player.char = '%'
@@ -388,8 +384,8 @@ def Update():
     global visibleTiles
     con.clear()
     tdl.flush()
-    player.changeColor()
-    con.draw_str(1, 1, '{} / {}'.format(player.hp, player.maxHP), fg = (255,0,0), bg = None)
+    player.Player.changeColor()
+    con.draw_str(1, 1, '{} / {}'.format(player.Fighter.hp, player.Fighter.maxHP), fg = (255,0,0), bg = None)
     if FOV_recompute:
         FOV_recompute = False
         visibleTiles = tdl.map.quickFOV(player.x, player.y, isVisibleTile, fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
@@ -402,12 +398,18 @@ def Update():
                         if wall:
                             con.draw_char(x, y, '#', fg=color_dark_wall, bg=color_dark_ground)
                         else:
-                            con.draw_char(x, y, None, fg=None, bg=color_dark_ground)
+                            if GRAPHICS == 'modern':
+                                con.draw_char(x, y, None, fg=None, bg=color_dark_ground)
+                            elif GRAPHICS == 'classic':
+                                con.draw_char(x, y, '.', fg=colors.dark_gray, bg=None)    
                 else:
                     if wall:
                             con.draw_char(x, y, '#', fg=color_light_wall, bg=color_light_ground)
                     else:
+                        if GRAPHICS == 'modern':
                             con.draw_char(x, y, None, fg=None, bg=color_light_ground)
+                        elif GRAPHICS == 'classic':
+                            con.draw_char(x, y, '.', fg=colors.white, bg=None)    
                     myMap[x][y].explored = True        
     for object in objects:
         if object != player:
@@ -416,7 +418,10 @@ def Update():
     player.draw()
     root.blit(con, 0, 0, WIDTH, HEIGHT, 0, 0)
 
-player = Player(25, 23, '@', 100, power=5, defense=3, deathFunction=playerDeath) #Do not add the blocks arg (or do any collision check involving the tile the player is standing on) until the player subclass hasn't been converted to a component. See part 5 (IIRC) of the tutorial.
+playFight = Fighter( hp = 100, power=5, defense=3, deathFunction=playerDeath)
+playComp = Player()
+player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = 'Hero', color = (0, 210, 0)) #Do not add the blocks arg (or do any collision check involving the tile the player is standing on) until the player subclass hasn't been converted to a component. See part 5 (IIRC) of the tutorial.
+
 objects = [player]
 makeMap()
 Update()
@@ -429,6 +434,7 @@ while True :
     for object in objects:
         object.clear()
     playerAction = getInput()
+    FOV_recompute = True #So as to avoid the blackscreen bug no matter which key we press
     if playerAction == 'exit':
         quitGame('Player pressed escape')
     if gameState == 'playing' and playerAction != 'didnt-take-turn':
