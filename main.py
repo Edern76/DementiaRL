@@ -81,13 +81,16 @@ gameState = 'playing'
 playerAction = None
 DEBUG = False #If true, enables debug messages
 
+lookCursor = None
+
 gameMsgs = [] #List of game messages
+
 
 #_____________ CONSTANTS __________________
 
 class GameObject:
     "A generic object, represented by a character"
-    def __init__(self, x, y, char, name, color=colors.white, blocks = False, Fighter = None, AI = None, power = None, defense=None, Player = None): #Power and defense are only here to work with Player which is not yet a component
+    def __init__(self, x, y, char, name, color=colors.white, blocks = False, Fighter = None, AI = None, power = None, defense=None, Player = None, Ghost = False): #Power and defense are to be deleted, since they are redundant with the Fighter component
         self.x = x
         self.y = y
         self.char = char
@@ -96,6 +99,7 @@ class GameObject:
         self.name = name
         self.Fighter = Fighter
         self.Player = Player
+        self.ghost = Ghost
         if self.Fighter:  #let the fighter component know who owns it
             self.Fighter.owner = self
         self.AI = AI
@@ -113,7 +117,7 @@ class GameObject:
         self.move(dx, dy)
 
     def move(self, dx, dy):
-        if not isBlocked(self.x + dx, self.y + dy):
+        if not isBlocked(self.x + dx, self.y + dy) or self.ghost:
             self.x += dx
             self.y += dy
     
@@ -199,7 +203,7 @@ def quitGame(message):
 def getInput():
     global FOV_recompute
     userInput = tdl.event.key_wait()
-    if userInput.keychar.upper() ==  'ESCAPE':
+    if userInput.keychar.upper() ==  'ESCAPE' and gameState != 'looking':
         return 'exit'
     #elif userInput.keychar.upper() == 'ALT' and userInput.alt:
         #isFullscreen = tdl.getFullscreen()
@@ -216,7 +220,7 @@ def getInput():
         elif GRAPHICS == 'classic':
             print('Graphics mode set to modern')
             GRAPHICS = 'modern'         
-    elif userInput.keychar.upper() == 'F2':
+    elif userInput.keychar.upper() == 'F2' and gameState != 'looking':
         player.Fighter.takeDamage(1)
         FOV_recompute = True
     elif userInput.keychar.upper() == 'F1':
@@ -232,6 +236,26 @@ def getInput():
         else:
             quitGame('Whatever you did, it went horribly wrong (DEBUG took an unexpected value)')    
         FOV_recompute= True            
+    elif userInput.keychar == 'l' and gameState == 'playing':
+        global gameState
+        global lookCursor
+        gameState = 'looking'
+        if DEBUG == True:
+            message('Look mode', colors.purple)
+        lookCursor = GameObject(x = player.x, y = player.y, char = 'X', name = 'cursor', color = colors.yellow, Ghost = True)
+        objects.append(lookCursor)
+    if gameState ==  'looking':
+        global lookCursor
+        if userInput.keychar.upper() == 'ESCAPE':
+            global gameState
+            gameState = 'playing'
+            objects.remove(lookCursor)
+            del lookCursor
+            message('Exited look mode', colors.purple)
+        elif userInput.keychar.upper() in MOVEMENT_KEYS:
+            dx, dy = MOVEMENT_KEYS[userInput.keychar.upper()]
+            lookCursor.move(dx, dy)
+        
     for event in tdl.event.get():
         if event.type == 'QUIT':
             quitGame('Window has been closed')
@@ -428,7 +452,7 @@ def message(newMsg, color = colors.white):
         gameMsgs.append((line, color))
 #_____________ GUI _______________
 
-def Update(lookX = None, lookY = None):
+def Update():
     global FOV_recompute
     global visibleTiles
     con.clear()
@@ -475,10 +499,18 @@ def Update(lookX = None, lookY = None):
     
     renderBar(1, 1, BAR_WIDTH, 'HP', player.Fighter.hp, player.Fighter.maxHP, player.color, colors.dark_gray)
     # Look code
-    if lookX is not None and lookY is not None:
-        print('WIP')
+    if gameState == 'looking' and lookCursor != None:
+        global lookCursor
+        lookCursor.draw()
+        panel.draw_str(1, 0, GetNamesUnderLookCursor(), bg=None, fg = colors.yellow)
+        
     root.blit(panel, 0, PANEL_Y, WIDTH, PANEL_HEIGHT, 0, 0)
     
+def GetNamesUnderLookCursor():
+    names = [obj.name for obj in objects
+                if obj.x == lookCursor.x and obj.y == lookCursor.y and (obj.x, obj.y in visibleTiles) and obj != lookCursor]
+    names = ', '.join(names)
+    return names.capitalize()
 
 playFight = Fighter( hp = 100, power=5, defense=3, deathFunction=playerDeath)
 playComp = Player()
