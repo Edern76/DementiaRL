@@ -2,6 +2,9 @@ import tdl
 from tdl import *
 from random import randint
 import colors
+import math
+from math import *
+from dill import objects
 
 #_____________ CONSTANTS __________________
 
@@ -45,10 +48,10 @@ SIGHT_RADIUS = 10
 MAX_ROOM_MONSTERS = 3
 
 myMap = [[]]
-color_dark_wall = (28, 28, 28)
-color_light_wall = (130, 110, 50)
-color_dark_ground = (66, 66, 66)
-color_light_ground = (200, 180, 50)
+color_dark_wall = colors.darkest_grey
+color_light_wall = colors.darker_grey
+color_dark_ground = colors.darkest_sepia
+color_light_ground = colors.darker_sepia
 
 gameState = 'playing'
 playerAction = None
@@ -58,13 +61,27 @@ DEBUG = False #If true, displays a message each time a monster tries to take a t
 
 class GameObject:
     "A generic object, represented by a character"
-    def __init__(self, x, y, char, color, name, blocks = False):
+    def __init__(self, x, y, char, color, name, blocks = False, Fighter = None, AI = None, power = None, defense=None): #Power and defense are only here to work with Player which is not yet a component
         self.x = x
         self.y = y
         self.char = char
         self.color = color
         self.blocks = blocks
         self.name = name
+        self.Fighter = Fighter
+        if self.Fighter:  #let the fighter component know who owns it
+            self.Fighter.owner = self
+        self.AI = AI
+        if self.AI:  #let the AI component know who owns it
+            self.AI.owner = self
+            
+    def moveTowards(self, target_x, target_y):
+        dx = target_x - self.x
+        dy = target_y - self.y
+        distance = math.sqrt(dx ** 2 + dy ** 2)
+        dx = int(round(dx / distance))
+        dy = int(round(dy / distance))
+        self.move(dx, dy)
 
     def move(self, dx, dy):
         if not isBlocked(self.x + dx, self.y + dy):
@@ -78,11 +95,58 @@ class GameObject:
     def clear(self):
         con.draw_char(self.x, self.y, ' ', self.color, bg=None)
 
+    def distanceTo(self, other):
+        dx = other.x - self.x
+        dy = other.y - self.y
+        return math.sqrt(dx ** 2 + dy ** 2)
+            
+    def sendToBack(self): #used to make anything appear over corpses
+        global objects
+        objects.remove(self)
+        objects.insert(0, self)
+
+class Fighter: #All NPCs, enemies and the player
+    def __init__(self, hp, defense, power, deathFunction=None):
+        self.maxHP = hp
+        self.hp = hp
+        self.defense = defense
+        self.power = power
+        self.deathFunction = deathFunction
+
+    def takeDamage(self, damage):
+        if damage > 0:
+            self.hp -= damage
+        if self.hp <= 0:
+            death=self.deathFunction
+            if death is not None:
+                death(self.owner)
+
+    def attack(self, target):
+        damage = self.power - player.defense
+ 
+        if damage > 0:
+            print(self.owner.name.capitalize() + ' attacks you for ' + str(damage) + ' hit points.')
+            player.takeDamage(damage)
+        else:
+            print(self.owner.name.capitalize() + ' attacks you but it has no effect!')
+
+class BasicMonster: #Basic monsters' AI
+    def takeTurn(self):
+        monster = self.owner
+        if (monster.x, monster.y) in visibleTiles:
+            if monster.distanceTo(player) >= 2:
+                monster.moveTowards(player.x, player.y)
+            elif player.hp > 0:
+                monster.Fighter.attack(player)
+
 class Player(GameObject):
-    def __init__(self, x, y, char, maxHP):
+    def __init__(self, x, y, char, maxHP, power, defense, deathFunction):
         self.maxHP = maxHP
         self.hp = self.maxHP
-        self.color = (0, 255, 0)
+        self.color = (0, 210, 0)
+        self.power = power
+        self.defense = defense
+        self.deathFunction = deathFunction
         GameObject.__init__(self, x, y, char, self.color, 'Player')
         
     def changeColor(self):
@@ -99,7 +163,21 @@ class Player(GameObject):
             self.color = (120, 0, 0)
     
     def takeDamage(self, damage):
-        self.hp -= damage
+        if damage > 0:
+            self.hp -= damage
+        if self.hp <= 0:
+            death=self.deathFunction
+            if death is not None:
+                death(self)
+
+    def attack(self, target):
+        damage = self.power - target.Fighter.defense
+ 
+        if damage > 0:
+            print('You attack ' + target.name + ' for ' + str(damage) + ' hit points.')
+            target.Fighter.takeDamage(damage)
+        else:
+            print('You attack ' + target.name + ' but it has no effect!')
 
 def quitGame(message):
     raise SystemExit(str(message))
@@ -118,6 +196,7 @@ def getInput():
             #set_fullscreen(True)
     elif userInput.keychar.upper() == 'F2':
         player.takeDamage(1)
+        FOV_recompute = True
     elif userInput.keychar.upper() == 'F1':
         global DEBUG
         if DEBUG == False:
@@ -147,19 +226,20 @@ def moveOrAttack(dx, dy):
     
     target = None
     for object in objects:
-        if object.x == x and object.y == y:
-            target = object
-            break #Since we found the target, there's no point in continuing to search for it
+        if object != player:
+            if object.Fighter and object.x == x and object.y == y:
+                target = object
+                break #Since we found the target, there's no point in continuing to search for it
     
     if target is not None:
-        print("The", target.name, "didn't seem to appreciate your way of socializing with an unknown lifeform.")
+        player.attack(target)
     else:
         player.move(dx, dy)         
         
     
 
 def isVisibleTile(x, y):
-    global my_map
+    global myMap
  
     if x >= MAP_WIDTH or x < 0:
         return False
@@ -276,12 +356,32 @@ def placeObjects(room):
         
         if not isBlocked(x, y):
             if randint(0,100) < 80:
-                monster = GameObject(x, y, char = 'o', color = colors.desaturated_green, name = 'orc', blocks = True)
+                fighterComponent = Fighter(hp=10, defense=0, power=3, deathFunction = monsterDeath)
+                AI_component = BasicMonster()
+                monster = GameObject(x, y, char = 'o', color = colors.desaturated_green, name = 'orc', blocks = True, Fighter=fighterComponent, AI = AI_component)
             else:
-                monster = GameObject(x, y, char = 'T', color = colors.darker_green,name = 'troll', blocks = True)
+                fighterComponent = Fighter(hp=16, defense=1, power=4, deathFunction = monsterDeath)
+                AI_component = BasicMonster()
+                monster = GameObject(x, y, char = 'T', color = colors.darker_green,name = 'troll', blocks = True, Fighter = fighterComponent, AI = AI_component)
         
         objects.append(monster)
 #_____________ ROOM POPULATION _______________
+def playerDeath(player):
+    global game_state
+    print('You died!')
+    gameState = 'dead'
+    player.char = '%'
+    player.color = colors.dark_red
+ 
+def monsterDeath(monster):
+    print(monster.name.capitalize() + ' is dead!')
+    monster.char = '%'
+    monster.color = colors.dark_red
+    monster.blocks = False
+    monster.AI = None
+    monster.name = 'remains of ' + monster.name
+    monster.Fighter = None
+    monster.sendToBack()
 
 def Update():
     global FOV_recompute
@@ -310,11 +410,13 @@ def Update():
                             con.draw_char(x, y, None, fg=None, bg=color_light_ground)
                     myMap[x][y].explored = True        
     for object in objects:
-        if (object.x, object.y) in visibleTiles:
-            object.draw()
+        if object != player:
+            if (object.x, object.y) in visibleTiles:
+                object.draw()
+    player.draw()
     root.blit(con, 0, 0, WIDTH, HEIGHT, 0, 0)
 
-player = Player(25, 23, '@', 100) #Do not add the blocks arg (or do any collision check involving the tile the player is standing on) until the player subclass hasn't been converted to a component. See part 5 (IIRC) of the tutorial.
+player = Player(25, 23, '@', 100, power=5, defense=3, deathFunction=playerDeath) #Do not add the blocks arg (or do any collision check involving the tile the player is standing on) until the player subclass hasn't been converted to a component. See part 5 (IIRC) of the tutorial.
 objects = [player]
 makeMap()
 Update()
@@ -329,12 +431,7 @@ while True :
     playerAction = getInput()
     if playerAction == 'exit':
         quitGame('Player pressed escape')
-    if gameState == 'playing' and playerAction != 'didnt-take-turn' and DEBUG == True: #Remove the DEBUG = True when implementing actual turns for monsters
-            for object in objects:                
-                if object != player:
-                    print("In the distance, you hear a", object.name, "emit a menacing growl")
-                
-
-        
-    
-    
+    if gameState == 'playing' and playerAction != 'didnt-take-turn':
+        for object in objects:
+            if object.AI:
+                object.AI.takeTurn()
