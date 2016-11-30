@@ -4,6 +4,7 @@ from random import randint
 import colors
 import math
 from math import *
+import modules.useFunctions
 import textwrap
 
 # Naming conventions :
@@ -174,6 +175,10 @@ class Fighter: #All NPCs, enemies and the player
                 target.Fighter.takeDamage(damage)
             else:
                 message('You attack ' + target.name + ' but it has no effect!', colors.lighter_grey)
+        def heal(amount):
+            self.hp += amount
+            if self.hp > self.maxHP:
+                self.hp = self.maxHP 
 class BasicMonster: #Basic monsters' AI
     def takeTurn(self):
         monster = self.owner
@@ -202,6 +207,8 @@ class Player:
             self.owner.color = (120, 0, 0)
 
 class Item:
+    def __init__(self, useFunction = None):
+        self.useFunction = useFunction
     def pickUp(self):
         if len(inventory)>=26:
             message('Your bag already feels really heavy, you cannot pick up' + self.owner.name + '.', colors.red)
@@ -209,6 +216,13 @@ class Item:
             inventory.append(self.owner)
             objects.remove(self.owner)
             message('You picked up a ' + self.owner.name + '!', colors.green)
+    def use(self):
+        if self.useFunction is None:
+            message('The' + self.owner.name + 'cannot be used !')
+        else:
+            if self.useFunction() != 'cancelled':
+                inventory.remove(self.owner)
+            
 
 def quitGame(message):
     raise SystemExit(str(message))
@@ -440,7 +454,7 @@ def placeObjects(room):
         y = randint(room.y1+1, room.y2-1)
         if not isBlocked(x, y):
             itemComponent = Item()
-            item = GameObject(x, y, '*', 'healing potion', colors.violet, Item = itemComponent)
+            item = GameObject(x, y, '!', 'healing potion', colors.violet, Item(useFunction = modules.useFunctions.castHeal(healAmount = 4, target = player)))
  
             objects.append(item)
             item.sendToBack()
@@ -486,13 +500,13 @@ def menu(header, options, width):
     if len(options) > 26: raise ValueError('Cannot have a menu with more than 26 options')
     headerWrapped = textwrap.wrap(header, width)
     headerHeight = len(headerWrapped)
-    height = len(options) + headerHeight
+    height = len(options) + headerHeight + 1
     window = tdl.Console(width, height)
     window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
     for i, line in enumerate(headerWrapped):
         window.draw_str(0, 0+i, headerWrapped[i])
 
-    y = headerHeight
+    y = headerHeight + 1
     letterIndex = ord('a')
     for optionText in options:
         text = '(' + chr(letterIndex) + ') ' + optionText
@@ -506,9 +520,9 @@ def menu(header, options, width):
 
     tdl.flush()
     key = tdl.event.key_wait()
-    key_char = key.char
-    if key_char == '':
-        key_char = ' ' # placeholder
+    keyChar = key.char
+    if keyChar == '':
+        keyChar = ' ' # placeholder
 
 def inventoryMenu(header):
     #show a menu with each item of the inventory as an option
