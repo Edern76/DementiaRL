@@ -73,6 +73,13 @@ MAX_ROOM_MONSTERS = 3
 MAX_ROOM_ITEMS = 2
 GRAPHICS = 'modern'
 
+# - Spells -
+LIGHTNING_DAMAGE = 20
+LIGHTNING_RANGE = 5
+CONFUSE_NUMBER_TURNS = 10
+CONFUSE_RANGE = 8
+# - Spells -
+
 myMap = [[]]
 color_dark_wall = colors.darkest_grey
 color_light_wall = colors.darker_grey
@@ -89,6 +96,17 @@ gameMsgs = [] #List of game messages
 
 
 #_____________ CONSTANTS __________________
+def closestMonster(max_range):
+    closestEnemy = None
+    closestDistance = max_range + 1
+
+    for object in objects:
+        if object.Fighter and not object == player and (object.x, object.y) in visibleTiles:
+            dist = player.distanceTo(object)
+            if dist < closestDistance:
+                closestEnemy = object
+                closestDistance = dist
+    return closestEnemy
 
 class GameObject:
     "A generic object, represented by a character"
@@ -179,14 +197,31 @@ class Fighter: #All NPCs, enemies and the player
         self.hp += amount
         if self.hp > self.maxHP:
             self.hp = self.maxHP
+
 class BasicMonster: #Basic monsters' AI
     def takeTurn(self):
         monster = self.owner
-        if (monster.x, monster.y) in visibleTiles:
+        if (monster.x, monster.y) in visibleTiles: #chasing the player
             if monster.distanceTo(player) >= 2:
                 monster.moveTowards(player.x, player.y)
             elif player.Fighter.hp > 0:
                 monster.Fighter.attack(player)
+        else:
+            monster.move(randint(-1, 1), randint(-1, 1)) #wandering
+
+class ConfusedMonster:
+    def __init__(self, old_AI, numberTurns=CONFUSE_NUMBER_TURNS):
+        self.old_AI = old_AI
+        self.numberTurns = numberTurns
+ 
+    def takeTurn(self):
+        if self.numberTurns > 0:  
+            self.owner.move(randint(-1, 1), randint(-1, 1))
+            self.numberTurns -= 1
+ 
+        else:
+            self.owner.AI = self.old_AI
+            message('The ' + self.owner.name + ' is no longer confused!', colors.red)
 
 class Player:
     def __init__(self):
@@ -294,10 +329,10 @@ def getInput():
         else:
             if userInput.keychar.upper()== 'SPACE':
                 for object in objects:
-                    if object.x == player.x and object.y == player.y:
+                    if object.x == player.x and object.y == player.y and object.Item is not None:
                         object.Item.pickUp()
                         break
-            elif userInput.keychar == 'I':
+            elif userInput.keychar.upper() == 'I':
                 chosenItem = inventoryMenu('Press the key next to an item to use it, or any other to cancel.\n')
                 if chosenItem is not None:
                     chosenItem.use()
@@ -345,6 +380,7 @@ def isBlocked(x, y): #With this function, making a check such as myMap[x][y].blo
             return True
     
     return False
+
 def castHeal(healAmount = 5):
     if player.Fighter.hp == player.Fighter.maxHP:
         message('You are already at full health')
@@ -352,6 +388,24 @@ def castHeal(healAmount = 5):
     else:
         message('You are healed for {} HP !'.format(healAmount), colors.light_green)
         player.Fighter.heal(healAmount)
+
+def castLightning():
+    target = closestMonster(LIGHTNING_RANGE)
+    if target is None:
+        message('Your magic fizzles: there is no enemy near enough to strike', colors.red)
+        return 'cancelled'
+    message('A lightning bolt strikes the ' + target.name + ' with a heavy thunder ! It is shock and suffers ' + str(LIGHTNING_DAMAGE) + ' shock damage.', colors.light_blue)
+    target.Fighter.takeDamage(LIGHTNING_DAMAGE)
+
+def castConfuse():
+    target = closestMonster(CONFUSE_RANGE)
+    if target is None:
+        message('No enemy is close enough to confuse.', colors.red)
+        return 'cancelled'
+    old_AI = target.AI
+    target.AI = ConfusedMonster(old_AI)
+    target.AI.owner = target
+    message('The ' + target.name + ' starts wandering around as he seems to lose all bound with reality.', colors.light_violet)
 #_____________ MAP CREATION __________________
 ROOM_MAX_SIZE = 10
 ROOM_MIN_SIZE = 6
@@ -462,7 +516,13 @@ def placeObjects(room):
         x = randint(room.x1+1, room.x2-1)
         y = randint(room.y1+1, room.y2-1)
         if not isBlocked(x, y):
-            item = GameObject(x, y, '!', 'healing potion', colors.violet, Item = Item(useFunction = castHeal), blocks = False)
+            dice = randint(0, 100)
+            if dice < 70 :
+                item = GameObject(x, y, '!', 'healing potion', colors.violet, Item = Item(useFunction = castHeal), blocks = False)
+            elif dice < 70 + 15:
+                item = GameObject(x, y, '~', 'scroll of lightning bolt', colors.light_yellow, Item = Item(useFunction = castLightning), blocks = False)
+            else:
+                item = GameObject(x, y, '~', 'scroll of confusion', colors.light_yellow, Item = Item(useFunction = castConfuse), blocks = False)
  
             objects.append(item)
             item.sendToBack()
