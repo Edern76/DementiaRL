@@ -174,10 +174,11 @@ class Fighter: #All NPCs, enemies and the player
                 target.Fighter.takeDamage(damage)
             else:
                 message('You attack ' + target.name + ' but it has no effect!', colors.lighter_grey)
-        def heal(amount):
-            self.hp += amount
-            if self.hp > self.maxHP:
-                self.hp = self.maxHP 
+                
+    def heal(self, amount):
+        self.hp += amount
+        if self.hp > self.maxHP:
+            self.hp = self.maxHP
 class BasicMonster: #Basic monsters' AI
     def takeTurn(self):
         monster = self.owner
@@ -296,8 +297,10 @@ def getInput():
                     if object.x == player.x and object.y == player.y:
                         object.Item.pickUp()
                         break
-            elif userInput.keychar.upper() == 'I':
-                inventoryMenu('Press the key next to an item to use it, or any other to cancel.\n')
+            elif userInput.keychar == 'I':
+                chosenItem = inventoryMenu('Press the key next to an item to use it, or any other to cancel.\n')
+                if chosenItem is not None:
+                    chosenItem.use()
             return 'didnt-take-turn'
 
 def moveOrAttack(dx, dy):
@@ -442,7 +445,7 @@ def placeObjects(room):
         x = randint(room.x1+1, room.x2-1)
         y = randint(room.y1+1, room.y2-1)
         
-        if not isBlocked(x, y):
+        if not isBlocked(x, y) and (x, y) != (player.x, player.y):
             if randint(0,100) < 80:
                 fighterComponent = Fighter(hp=10, defense=0, power=3, deathFunction = monsterDeath)
                 AI_component = BasicMonster()
@@ -459,7 +462,7 @@ def placeObjects(room):
         x = randint(room.x1+1, room.x2-1)
         y = randint(room.y1+1, room.y2-1)
         if not isBlocked(x, y):
-            item = GameObject(x, y, '!', 'healing potion', colors.violet, Item = Item(useFunction = castHeal), blocks = False) #BROKEN
+            item = GameObject(x, y, '!', 'healing potion', colors.violet, Item = Item(useFunction = castHeal), blocks = False)
  
             objects.append(item)
             item.sendToBack()
@@ -518,6 +521,7 @@ def menu(header, options, width):
         window.draw_str(0, y, text, bg=None)
         y += 1
         letterIndex += 1
+    
 
     x = MID_WIDTH - int(width/2)
     y = MID_HEIGHT - int(height/2)
@@ -527,7 +531,11 @@ def menu(header, options, width):
     key = tdl.event.key_wait()
     keyChar = key.char
     if keyChar == '':
-        keyChar = ' ' # placeholder
+        keyChar = ' '
+    index = ord(keyChar) - ord('a')
+    if index >= 0 and index < len(options):
+        return index
+    return None
 
 def inventoryMenu(header):
     #show a menu with each item of the inventory as an option
@@ -536,6 +544,10 @@ def inventoryMenu(header):
     else:
         options = [item.name for item in inventory]
     index = menu(header, options, INVENTORY_WIDTH)
+    if index is None or len(inventory) == 0:
+        return None
+    else:
+        return inventory[index].Item
 #_____________ GUI _______________
 
 def Update():
