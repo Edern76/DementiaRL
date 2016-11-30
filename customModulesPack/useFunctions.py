@@ -1,7 +1,10 @@
+#SOMEWHAT BROKEN
+
 import colors
-from main import message
+
 
 def castHeal(target, healAmount = 5):
+    from main import message
     if target.Fighter.hp == target.Fighter.maxHP:
         message('You are already at full health')
         return 'cancelled'

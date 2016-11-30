@@ -4,7 +4,7 @@ from random import randint
 import colors
 import math
 from math import *
-import modules.useFunctions
+from customModulesPack.useFunctions import castHeal
 import textwrap
 
 # Naming conventions :
@@ -454,7 +454,7 @@ def placeObjects(room):
         y = randint(room.y1+1, room.y2-1)
         if not isBlocked(x, y):
             itemComponent = Item()
-            item = GameObject(x, y, '!', 'healing potion', colors.violet, Item(useFunction = modules.useFunctions.castHeal(healAmount = 4, target = player)))
+            item = GameObject(x, y, '!', 'healing potion', colors.violet, Item(useFunction = castHeal)
  
             objects.append(item)
             item.sendToBack()
