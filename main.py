@@ -14,7 +14,6 @@ import textwrap
 # Not dramatic if you forget about this (it happens to me too), but it makes reading code easier
 
 #_____________ CONSTANTS __________________
-
 MOVEMENT_KEYS = {
                  #Standard arrows
                  'UP': [0, -1],
@@ -40,6 +39,7 @@ MOVEMENT_KEYS = {
                  'KP7': [-1, -1],
                  'KP8': [0, -1],
                  'KP9': [1, -1],
+                 
                  }
 
 WIDTH, HEIGHT, LIMIT = 170, 95, 20
@@ -56,6 +56,7 @@ MSG_X = BAR_WIDTH + 10
 MSG_WIDTH = WIDTH - BAR_WIDTH - 10
 MSG_HEIGHT = PANEL_HEIGHT - 1
 
+INVENTORY_WIDTH = 50
 # - GUI Constants -
 
 # - Consoles -
@@ -69,6 +70,7 @@ FOV_ALGO = 'BASIC'
 FOV_LIGHT_WALLS = True
 SIGHT_RADIUS = 10
 MAX_ROOM_MONSTERS = 3
+MAX_ROOM_ITEMS = 2
 GRAPHICS = 'modern'
 
 myMap = [[]]
@@ -90,7 +92,7 @@ gameMsgs = [] #List of game messages
 
 class GameObject:
     "A generic object, represented by a character"
-    def __init__(self, x, y, char, name, color=colors.white, blocks = False, Fighter = None, AI = None, power = None, defense=None, Player = None, Ghost = False): #Power and defense are to be deleted, since they are redundant with the Fighter component
+    def __init__(self, x, y, char, name, color=colors.white, blocks = False, Fighter = None, AI = None, Player = None, Ghost = False, Item = None):
         self.x = x
         self.y = y
         self.char = char
@@ -100,13 +102,16 @@ class GameObject:
         self.Fighter = Fighter
         self.Player = Player
         self.ghost = Ghost
+        self.Item = Item
         if self.Fighter:  #let the fighter component know who owns it
             self.Fighter.owner = self
         self.AI = AI
         if self.AI:  #let the AI component know who owns it
             self.AI.owner = self
         if self.Player:
-            self.Player.owner = self    
+            self.Player.owner = self
+        if self.Item:
+            self.Item.owner = self 
             
     def moveTowards(self, target_x, target_y):
         dx = target_x - self.x
@@ -169,6 +174,11 @@ class Fighter: #All NPCs, enemies and the player
                 target.Fighter.takeDamage(damage)
             else:
                 message('You attack ' + target.name + ' but it has no effect!', colors.lighter_grey)
+                
+    def heal(self, amount):
+        self.hp += amount
+        if self.hp > self.maxHP:
+            self.hp = self.maxHP
 class BasicMonster: #Basic monsters' AI
     def takeTurn(self):
         monster = self.owner
@@ -196,6 +206,23 @@ class Player:
         elif self.hpRatio == 0:
             self.owner.color = (120, 0, 0)
 
+class Item:
+    def __init__(self, useFunction = None):
+        self.useFunction = useFunction
+    def pickUp(self):
+        if len(inventory)>=26:
+            message('Your bag already feels really heavy, you cannot pick up' + self.owner.name + '.', colors.red)
+        else:
+            inventory.append(self.owner)
+            objects.remove(self.owner)
+            message('You picked up a ' + self.owner.name + '!', colors.green)
+    def use(self):
+        if self.useFunction is None:
+            message('The' + self.owner.name + 'cannot be used !')
+        else:
+            if self.useFunction() != 'cancelled':
+                inventory.remove(self.owner)
+            
 
 def quitGame(message):
     raise SystemExit(str(message))
@@ -265,6 +292,15 @@ def getInput():
             moveOrAttack(keyX, keyY)
             FOV_recompute = True #Don't ask why, but it's needed here to recompute FOV, despite not moving, or else Bad Things (trademark) happen.
         else:
+            if userInput.keychar.upper()== 'SPACE':
+                for object in objects:
+                    if object.x == player.x and object.y == player.y:
+                        object.Item.pickUp()
+                        break
+            elif userInput.keychar == 'I':
+                chosenItem = inventoryMenu('Press the key next to an item to use it, or any other to cancel.\n')
+                if chosenItem is not None:
+                    chosenItem.use()
             return 'didnt-take-turn'
 
 def moveOrAttack(dx, dy):
@@ -309,6 +345,13 @@ def isBlocked(x, y): #With this function, making a check such as myMap[x][y].blo
             return True
     
     return False
+def castHeal(healAmount = 5):
+    if player.Fighter.hp == player.Fighter.maxHP:
+        message('You are already at full health')
+        return 'cancelled'
+    else:
+        message('You are healed for {} HP !'.format(healAmount), colors.light_green)
+        player.Fighter.heal(healAmount)
 #_____________ MAP CREATION __________________
 ROOM_MAX_SIZE = 10
 ROOM_MIN_SIZE = 6
@@ -395,14 +438,14 @@ def makeMap():
 
 #_____________ MAP CREATION __________________
 
-#_____________ ROOM POPULATION _______________
+#_____________ ROOM POPULATION + ITEMS GENERATION_______________
 def placeObjects(room):
     numMonsters = randint(0, MAX_ROOM_MONSTERS)
     for i in range(numMonsters):
         x = randint(room.x1+1, room.x2-1)
         y = randint(room.y1+1, room.y2-1)
         
-        if not isBlocked(x, y):
+        if not isBlocked(x, y) and (x, y) != (player.x, player.y):
             if randint(0,100) < 80:
                 fighterComponent = Fighter(hp=10, defense=0, power=3, deathFunction = monsterDeath)
                 AI_component = BasicMonster()
@@ -413,7 +456,17 @@ def placeObjects(room):
                 monster = GameObject(x, y, char = 'T', color = colors.darker_green,name = 'troll', blocks = True, Fighter = fighterComponent, AI = AI_component)
         
         objects.append(monster)
-#_____________ ROOM POPULATION _______________
+    
+    num_items = randint(0, MAX_ROOM_ITEMS)
+    for i in range(num_items):
+        x = randint(room.x1+1, room.x2-1)
+        y = randint(room.y1+1, room.y2-1)
+        if not isBlocked(x, y):
+            item = GameObject(x, y, '!', 'healing potion', colors.violet, Item = Item(useFunction = castHeal), blocks = False)
+ 
+            objects.append(item)
+            item.sendToBack()
+#_____________ ROOM POPULATION + ITEMS GENERATION_______________
 def playerDeath(player):
     global gameState
     message('You died!', colors.red)
@@ -450,6 +503,51 @@ def message(newMsg, color = colors.white):
             del gameMsgs[0] #Deletes the oldest message if the log is full
     
         gameMsgs.append((line, color))
+
+def menu(header, options, width):
+    if len(options) > 26: raise ValueError('Cannot have a menu with more than 26 options')
+    headerWrapped = textwrap.wrap(header, width)
+    headerHeight = len(headerWrapped)
+    height = len(options) + headerHeight + 1
+    window = tdl.Console(width, height)
+    window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
+    for i, line in enumerate(headerWrapped):
+        window.draw_str(0, 0+i, headerWrapped[i])
+
+    y = headerHeight + 1
+    letterIndex = ord('a')
+    for optionText in options:
+        text = '(' + chr(letterIndex) + ') ' + optionText
+        window.draw_str(0, y, text, bg=None)
+        y += 1
+        letterIndex += 1
+    
+
+    x = MID_WIDTH - int(width/2)
+    y = MID_HEIGHT - int(height/2)
+    root.blit(window, x, y, width, height, 0, 0)
+
+    tdl.flush()
+    key = tdl.event.key_wait()
+    keyChar = key.char
+    if keyChar == '':
+        keyChar = ' '
+    index = ord(keyChar) - ord('a')
+    if index >= 0 and index < len(options):
+        return index
+    return None
+
+def inventoryMenu(header):
+    #show a menu with each item of the inventory as an option
+    if len(inventory) == 0:
+        options = ['Inventory is empty.']
+    else:
+        options = [item.name for item in inventory]
+    index = menu(header, options, INVENTORY_WIDTH)
+    if index is None or len(inventory) == 0:
+        return None
+    else:
+        return inventory[index].Item
 #_____________ GUI _______________
 
 def Update():
@@ -468,7 +566,10 @@ def Update():
                 if not visible:
                     if myMap[x][y].explored:
                         if wall:
-                            con.draw_char(x, y, '#', fg=color_dark_wall, bg=color_dark_ground)
+                            if GRAPHICS == 'modern':
+                                con.draw_char(x, y, '#', fg=color_dark_wall, bg=color_dark_ground)
+                            elif GRAPHICS == 'classic':
+                                con.draw_char(x, y, '#', fg=colors.dark_gray, bg=None)
                         else:
                             if GRAPHICS == 'modern':
                                 con.draw_char(x, y, None, fg=None, bg=color_dark_ground)
@@ -476,7 +577,10 @@ def Update():
                                 con.draw_char(x, y, '.', fg=colors.dark_gray, bg=None)    
                 else:
                     if wall:
+                        if GRAPHICS == 'modern':
                             con.draw_char(x, y, '#', fg=color_light_wall, bg=color_light_ground)
+                        elif GRAPHICS == 'classic':
+                            con.draw_char(x, y, '#', fg=colors.white, bg=None)
                     else:
                         if GRAPHICS == 'modern':
                             con.draw_char(x, y, None, fg=None, bg=color_light_ground)
@@ -512,13 +616,17 @@ def GetNamesUnderLookCursor():
     names = ', '.join(names)
     return names.capitalize()
 
+
+#______ INITIALIZATION AND MAIN LOOP________
 playFight = Fighter( hp = 100, power=5, defense=3, deathFunction=playerDeath)
 playComp = Player()
-player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = 'Hero', color = (0, 210, 0)) #Do not add the blocks arg (or do any collision check involving the tile the player is standing on) until the player subclass hasn't been converted to a component. See part 5 (IIRC) of the tutorial.
+player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = 'Hero', color = (0, 210, 0))
 
 objects = [player]
 makeMap()
 Update()
+
+inventory = []
 
 FOV_recompute = True
 message('Zargothrox says : Prepare to get lost in the Realm of Madness !', colors.dark_red)
