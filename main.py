@@ -4,7 +4,6 @@ from random import randint
 import colors
 import math
 from math import *
-from customModulesPack.useFunctions import castHeal
 import textwrap
 
 # Naming conventions :
@@ -343,6 +342,13 @@ def isBlocked(x, y): #With this function, making a check such as myMap[x][y].blo
             return True
     
     return False
+def castHeal(healAmount = 5):
+    if player.Fighter.hp == player.Fighter.maxHP:
+        message('You are already at full health')
+        return 'cancelled'
+    else:
+        message('You are healed for {} HP !'.format(healAmount), colors.light_green)
+        player.Fighter.heal(healAmount)
 #_____________ MAP CREATION __________________
 ROOM_MAX_SIZE = 10
 ROOM_MIN_SIZE = 6
@@ -453,8 +459,7 @@ def placeObjects(room):
         x = randint(room.x1+1, room.x2-1)
         y = randint(room.y1+1, room.y2-1)
         if not isBlocked(x, y):
-            itemComponent = Item()
-            item = GameObject(x, y, '!', 'healing potion', colors.violet, Item(useFunction = castHeal)
+            item = GameObject(x, y, '!', 'healing potion', colors.violet, Item = Item(useFunction = castHeal), blocks = False) #BROKEN
  
             objects.append(item)
             item.sendToBack()
@@ -603,7 +608,7 @@ def GetNamesUnderLookCursor():
 #______ INITIALIZATION AND MAIN LOOP________
 playFight = Fighter( hp = 100, power=5, defense=3, deathFunction=playerDeath)
 playComp = Player()
-player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = 'Hero', color = (0, 210, 0)) #Do not add the blocks arg (or do any collision check involving the tile the player is standing on) until the player subclass hasn't been converted to a component. See part 5 (IIRC) of the tutorial.
+player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = 'Hero', color = (0, 210, 0))
 
 objects = [player]
 makeMap()
