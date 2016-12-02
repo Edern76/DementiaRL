@@ -5,6 +5,7 @@ import colors
 import math
 from math import *
 import textwrap
+import time
 
 # Naming conventions :
 # MY_CONSTANT
@@ -70,7 +71,7 @@ FOV_ALGO = 'BASIC'
 FOV_LIGHT_WALLS = True
 SIGHT_RADIUS = 10
 MAX_ROOM_MONSTERS = 3
-MAX_ROOM_ITEMS = 2
+MAX_ROOM_ITEMS = 5
 GRAPHICS = 'modern'
 
 # - Spells -
@@ -95,6 +96,7 @@ cursor = None
 
 gameMsgs = [] #List of game messages
 tilesInRange = []
+explodingTiles = []
 
 
 #_____________ CONSTANTS __________________
@@ -339,7 +341,11 @@ def getInput():
     elif userInput.keychar.upper() == 'F4' and DEBUG and not tdl.event.isWindowClosed(): #For some reason, Bad Things (tm) happen if you don't perform a tdl.event.isWindowClosed() check here. Yeah, don't ask why.
         castCreateOrc()
         return 'didnt-take-turn'
-    elif userInput.keychar == 'A' and gameState == 'playing':
+    elif userInput.keychar.upper() == 'F5' and DEBUG and not tdl.event.isWindowClosed(): #Don't know if tdl.event.isWindowClosed() is necessary here but added it just to be sure
+        player.Fighter.maxHP += 1000
+        player.Fighter.hp = player.Fighter.maxHP
+        message('Healed player and increased their maximum HP value by 1000', colors.purple)
+    elif userInput.keychar == 'A' and gameState == 'playing' and DEBUG and not tdl.event.isWindowClosed():
         castArmageddon()         
     elif userInput.keychar == 'l' and gameState == 'playing':
         global gameState
@@ -491,27 +497,49 @@ def castArmageddon(radius = 4, damage = 40):
             return 'cancelled'
         elif key.keychar.upper() == 'Y':
             invalid = False
-        else:
-            message('Please press a valid key (Y or N)')
+        elif key.keychar.upper() not in ('Y', 'N'):
+            message('Please press a valid key (Y or N)')#Displays regardless of if a valid hcoice has been made, to be fixed
             FOV_recompute = True
             Update()
-        
+            
     radmax = radius + 2
+    global explodingTiles
+    global gameState
     for x in range (player.x - radmax, player.x + radmax):
         for y in range (player.y - radmax, player.y + radmax):
-            if tileDistance(player.x, player.y, x, y) <= radius and not myMap[x][y].unbreakable:
-                myMap[x][y].blocked = False
-                myMap[x][y].block_sight = False
-                for obj in objects:
-                    if obj.Fighter and obj.x == x and obj.y == y: 
-                        if obj != player:
-                            message('The {} gets smited for {} damage !'.format(obj.name, damage), colors.light_blue)
-                        else:
-                            message('You get smited for {} damage !'.format(damage), colors.orange)
-                        obj.Fighter.takeDamage(damage)
-                    
-    
-    
+            try: #Execute code below try if no error is encountered
+                if tileDistance(player.x, player.y, x, y) <= radius and not myMap[x][y].unbreakable:
+                    myMap[x][y].blocked = False
+                    myMap[x][y].block_sight = False
+                    if x in range (1, MAP_WIDTH-1) and y in range (1,MAP_HEIGHT - 1):
+                        explodingTiles.append((x,y))
+                    for obj in objects:
+                        if obj.Fighter and obj.x == x and obj.y == y: 
+                            try:
+                                if obj != player:
+                                    message('The {} gets smited for {} damage !'.format(obj.name, damage), colors.light_blue)
+                                else:
+                                    message('You get smited for {} damage !'.format(damage), colors.orange)        
+                                obj.Fighter.takeDamage(damage)
+                            except AttributeError: #If it tries to access a non-existing object (aka outside of the map)
+                                continue
+            except IndexError: #If an IndexError is encountered (aka if the function tries to access a tile outside of the map), execute code below except
+                continue   #Go to next loop iteration and ignore the problematic value     
+    #Display explosion eye-candy, this could get it's own function
+    gameState = 'exploding'
+    global FOV_recompute
+    for obj in objects :
+        obj.clear()
+    con.clear()
+    FOV_recompute = True
+    Update()
+    tdl.flush()
+    time.sleep(.125) #Wait for 0.125 seconds
+    explodingTiles = []
+    if player.Fighter.hp > 0:
+        gameState = 'playing'
+    else:
+        gameState = 'dead'
     
 def createOrc(x, y):
     fighterComponent = Fighter(hp=10, defense=0, power=3, deathFunction = monsterDeath)
@@ -656,7 +684,7 @@ def placeObjects(room):
                     item = GameObject(x, y, '~', 'scroll of lightning bolt', colors.light_yellow, Item = Item(useFunction = castLightning), blocks = False)
                 elif scrollDice < 25 + 25:
                     item = GameObject(x, y, '~', 'scroll of confusion', colors.light_yellow, Item = Item(useFunction = castConfuse), blocks = False)
-                else:
+                elif scrollDice < 25+25+25:
                     fireballDice = randint(0, 100)
                     if fireballDice < 20:
                         item = GameObject(x, y, '~', 'scroll of lesser fireball', colors.light_yellow, Item = Item(castFireball, 2, 6), blocks = False)
@@ -664,6 +692,10 @@ def placeObjects(room):
                         item = GameObject(x, y, '~', 'scroll of fireball', colors.light_yellow, Item = Item(castFireball), blocks = False)
                     else:
                         item = GameObject(x, y, '~', 'scroll of greater fireball', colors.light_yellow, Item = Item(castFireball, 4, 24), blocks = False)
+                elif scrollDice < 25+25+25+10:
+                    item = GameObject(x, y, '~', 'scroll of armageddon', colors.red, Item = Item(castArmageddon), blocks = False)
+                else:
+                    item = None
             else:
                 item = None
             if item is not None:            
@@ -794,7 +826,10 @@ def Update():
                     inRange = (x, y) in tilesInRange
                     if inRange and not wall:
                         con.draw_char(x, y, None, fg=None, bg=colors.green)
-                            
+                elif gameState == 'exploding':
+                    exploded = (x,y) in explodingTiles
+                    if exploded:
+                        con.draw_char(x, y, '*', fg=colors.red, bg = None)
                         
     for object in objects:
         if object != player:
