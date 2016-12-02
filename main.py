@@ -279,6 +279,11 @@ class Item:
                     inventory.remove(self.owner)
 
 def quitGame(message):
+    global objects
+    global inventory
+    for obj in objects:
+        del obj
+    inventory = []
     raise SystemExit(str(message))
 
 def getInput():
@@ -298,32 +303,33 @@ def getInput():
         if GRAPHICS == 'modern':
             print('Graphics mode set to classic')
             GRAPHICS = 'classic'
+            return 'didnt-take-turn'
         elif GRAPHICS == 'classic':
             print('Graphics mode set to modern')
-            GRAPHICS = 'modern'         
+            GRAPHICS = 'modern'
+            return 'didnt-take-turn'    
     elif userInput.keychar.upper() == 'F2' and gameState != 'looking':
         player.Fighter.takeDamage(1)
         FOV_recompute = True
+        return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'F1':
         global DEBUG
         if not DEBUG:
             print('Monster turn debug is now on')
             message("This is a very long message just to test Python 3 built-in textwrap function, which allows us to do great things such as splitting very long texts into multiple lines, so as it don't overflow outside of the console. Oh and, debug mode has been activated", colors.purple)
             DEBUG = True
+            return 'didnt-take-turn'
         elif DEBUG:
             print('Monster turn debug is now off')
             message('Debug mode is now off', colors.purple)
             DEBUG = False
+            return 'didnt-take-turn' 
         else:
             quitGame('Whatever you did, it went horribly wrong (DEBUG took an unexpected value)')    
         FOV_recompute= True
-    elif userInput.keychar.upper() == 'T' and DEBUG:
-        test = targetTile(maxRange = 4)
-        if test != 'cancelled':
-            (x,y) = test
-            message('The targeted tile is {};{}'.format(x,y), colors.purple)
-    elif userInput.keychar.upper() == 'F4' and DEBUG:
-        castCreateOrc()        
+    elif userInput.keychar.upper() == 'F4' and DEBUG and not tdl.event.isWindowClosed():
+        castCreateOrc()
+        return 'didnt-take-turn'
              
     elif userInput.keychar == 'l' and gameState == 'playing':
         global gameState
@@ -333,6 +339,7 @@ def getInput():
             message('Look mode', colors.purple)
         lookCursor = GameObject(x = player.x, y = player.y, char = 'X', name = 'cursor', color = colors.yellow, Ghost = True)
         objects.append(lookCursor)
+        return 'didnt-take-turn'
     if gameState ==  'looking':
         global lookCursor
         if userInput.keychar.upper() == 'ESCAPE':
@@ -341,25 +348,26 @@ def getInput():
             objects.remove(lookCursor)
             del lookCursor
             message('Exited look mode', colors.purple)
+            return 'didnt-take-turn'
         elif userInput.keychar.upper() in MOVEMENT_KEYS:
             dx, dy = MOVEMENT_KEYS[userInput.keychar.upper()]
-            lookCursor.move(dx, dy)        
+            lookCursor.move(dx, dy)
+            return 'didnt-take-turn'
     if gameState == 'playing':
         if userInput.keychar.upper() in MOVEMENT_KEYS:
             keyX, keyY = MOVEMENT_KEYS[userInput.keychar.upper()]
             moveOrAttack(keyX, keyY)
             FOV_recompute = True #Don't ask why, but it's needed here to recompute FOV, despite not moving, or else Bad Things (trademark) happen.
-        else:
-            if userInput.keychar.upper()== 'SPACE':
-                for object in objects:
-                    if object.x == player.x and object.y == player.y and object.Item is not None:
-                        object.Item.pickUp()
-                        break
-            elif userInput.keychar.upper() == 'I':
-                chosenItem = inventoryMenu('Press the key next to an item to use it, or any other to cancel.\n')
-                if chosenItem is not None:
-                    chosenItem.use()
-            return 'didnt-take-turn'
+        elif userInput.keychar.upper()== 'SPACE':
+            for object in objects:
+                if object.x == player.x and object.y == player.y and object.Item is not None:
+                    object.Item.pickUp()
+                    break
+        elif userInput.keychar.upper() == 'I':
+            chosenItem = inventoryMenu('Press the key next to an item to use it, or any other to cancel.\n')
+            if chosenItem is not None:
+                chosenItem.use()
+            
 
 def moveOrAttack(dx, dy):
     global FOV_recompute
@@ -838,4 +846,5 @@ while not tdl.event.isWindowClosed():
             if object.AI:
                 object.AI.takeTurn()
 
+DEBUG = False
 quitGame('Window has been closed')
