@@ -100,6 +100,47 @@ explodingTiles = []
 
 
 #_____________ CONSTANTS __________________
+def newGame():
+    global player, inventory, gameMsgs, gameState, FOV_recompute, level
+    playFight = Fighter( hp = 100, power=5, defense=3, deathFunction=playerDeath)
+    playComp = Player()
+    player = GameObject(0, 0, '@', Fighter = playFight, Player = playComp, name = 'Hero', color = (0, 210, 0))
+    gameState = 'playing'
+    level = 1
+    makeMap()
+    Update()
+    inventory = []
+    message('Zargothrox says : Prepare to get lost in the Realm of Madness !', colors.dark_red)
+    FOV_recompute = True 
+
+def playGame():
+    global key
+    playerAction = None
+    key = tdl.event.key_wait()
+    while not tdl.event.isWindowClosed():
+        Update()
+        tdl.flush()
+        for object in objects:
+            object.clear()
+        playerAction = getInput()
+        FOV_recompute = True #So as to avoid the blackscreen bug no matter which key we press
+        if playerAction == 'exit':
+            quitGame('Player pressed escape')
+        if gameState == 'playing' and playerAction != 'didnt-take-turn':
+            for object in objects:
+                if object.AI:
+                    object.AI.takeTurn()
+
+def nextLevel():
+    global level
+    message('You take a moment to rest, and recover your strength.', colors.light_violet)
+    player.Fighter.heal(player.Fighter.maxHP / 2)
+ 
+    message('After a rare moment of peace, you descend deeper into the heart of the dungeon...', colors.red)
+    level += 1
+    makeMap()
+    Update()
+
 def closestMonster(max_range):
     closestEnemy = None
     closestDistance = max_range + 1
@@ -114,7 +155,7 @@ def closestMonster(max_range):
 
 class GameObject:
     "A generic object, represented by a character"
-    def __init__(self, x, y, char, name, color=colors.white, blocks = False, Fighter = None, AI = None, Player = None, Ghost = False, Item = None):
+    def __init__(self, x, y, char, name, color=colors.white, blocks = False, Fighter = None, AI = None, Player = None, Ghost = False, Item = None, alwaysVisible = False):
         self.x = x
         self.y = y
         self.char = char
@@ -125,6 +166,7 @@ class GameObject:
         self.Player = Player
         self.ghost = Ghost
         self.Item = Item
+        self.alwaysVisible = alwaysVisible
         if self.Fighter:  #let the fighter component know who owns it
             self.Fighter.owner = self
         self.AI = AI
@@ -149,7 +191,7 @@ class GameObject:
             self.y += dy
     
     def draw(self):
-        if (self.x, self.y) in visibleTiles:
+        if ((self.x, self.y) in visibleTiles) or (self.alwaysVisible and myMap[self.x][self.y].explored):
             con.draw_char(self.x, self.y, self.char, self.color, bg=None)
         
     def clear(self):
@@ -379,6 +421,8 @@ def getInput():
                 if object.x == player.x and object.y == player.y and object.Item is not None:
                     object.Item.pickUp()
                     break
+                elif stairs.x == player.x and stairs.y == player.y:
+                    nextLevel()
         elif userInput.keychar.upper() == 'I':
             chosenItem = inventoryMenu('Press the key next to an item to use it, or any other to cancel.\n')
             if chosenItem is not None:
@@ -608,6 +652,9 @@ def createVerticalTunnel(y1, y2, x):
         
 def makeMap():
     global myMap
+    global objects
+    global stairs
+    objects = [player]
     myMap = [[Tile(True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
     rooms = []
     numberRooms = 0
@@ -648,6 +695,9 @@ def makeMap():
             placeObjects(newRoom)
             rooms.append(newRoom)
             numberRooms += 1
+    stairs = GameObject(new_x, new_y, '<', 'stairs', colors.light_grey, alwaysVisible=True)
+    objects.append(stairs)
+    stairs.sendToBack()
 
 #_____________ MAP CREATION __________________
 
@@ -688,7 +738,7 @@ def placeObjects(room):
                     fireballDice = randint(0, 100)
                     if fireballDice < 20:
                         item = GameObject(x, y, '~', 'scroll of lesser fireball', colors.light_yellow, Item = Item(castFireball, 2, 6), blocks = False)
-                    elif fireballDice < 20 + 30:
+                    elif fireballDice < 20 + 50:
                         item = GameObject(x, y, '~', 'scroll of fireball', colors.light_yellow, Item = Item(castFireball), blocks = False)
                     else:
                         item = GameObject(x, y, '~', 'scroll of greater fireball', colors.light_yellow, Item = Item(castFireball, 4, 24), blocks = False)
@@ -825,7 +875,7 @@ def Update():
                 if gameState == 'targeting':
                     inRange = (x, y) in tilesInRange
                     if inRange and not wall:
-                        con.draw_char(x, y, None, fg=None, bg=colors.green)
+                        con.draw_char(x, y, None, fg=None, bg=colors.darker_amber)
                 elif gameState == 'exploding':
                     exploded = (x,y) in explodingTiles
                     if exploded:
@@ -846,6 +896,7 @@ def Update():
     # Draw GUI
     
     renderBar(1, 1, BAR_WIDTH, 'HP', player.Fighter.hp, player.Fighter.maxHP, player.color, colors.dark_gray)
+    panel.draw_str(1, 3, 'Dungeon level: ' + str(level), fg = colors.white)
     # Look code
     if gameState == 'looking' and lookCursor != None:
         global lookCursor
@@ -925,33 +976,8 @@ def targetMonster(maxRange = None):
                
 
 #______ INITIALIZATION AND MAIN LOOP________
-playFight = Fighter( hp = 100, power=5, defense=3, deathFunction=playerDeath)
-playComp = Player()
-player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = 'Hero', color = (0, 210, 0))
-
-objects = [player]
-makeMap()
-Update()
-
-inventory = []
-
+newGame()
+playGame()
 FOV_recompute = True
-message('Zargothrox says : Prepare to get lost in the Realm of Madness !', colors.dark_red)
-
-
-while not tdl.event.isWindowClosed():
-    Update()
-    tdl.flush()
-    for object in objects:
-        object.clear()
-    playerAction = getInput()
-    FOV_recompute = True #So as to avoid the blackscreen bug no matter which key we press
-    if playerAction == 'exit':
-        quitGame('Player pressed escape')
-    if gameState == 'playing' and playerAction != 'didnt-take-turn':
-        for object in objects:
-            if object.AI:
-                object.AI.takeTurn()
-
 DEBUG = False
 quitGame('Window has been closed')
