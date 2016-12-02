@@ -526,20 +526,7 @@ def castArmageddon(radius = 4, damage = 40):
             except IndexError: #If an IndexError is encountered (aka if the function tries to access a tile outside of the map), execute code below except
                 continue   #Go to next loop iteration and ignore the problematic value     
     #Display explosion eye-candy, this could get it's own function
-    gameState = 'exploding'
-    global FOV_recompute
-    for obj in objects :
-        obj.clear()
-    con.clear()
-    FOV_recompute = True
-    Update()
-    tdl.flush()
-    time.sleep(.125) #Wait for 0.125 seconds
-    explodingTiles = []
-    if player.Fighter.hp > 0:
-        gameState = 'playing'
-    else:
-        gameState = 'dead'
+    explode()
     
 def createOrc(x, y):
     fighterComponent = Fighter(hp=10, defense=0, power=3, deathFunction = monsterDeath)
@@ -555,6 +542,24 @@ def castCreateOrc():
         (x,y) = target
         monster = createOrc(x, y)
         objects.append(monster)
+
+def explode():
+    global gameState
+    global explodingTiles
+    global FOV_recompute
+    gameState = 'exploding'
+    for obj in objects :
+        obj.clear()
+    con.clear()
+    FOV_recompute = True
+    Update()
+    tdl.flush()
+    time.sleep(.125) #Wait for 0.125 seconds
+    explodingTiles = []
+    if player.Fighter.hp > 0:
+        gameState = 'playing'
+    else:
+        gameState = 'dead'
 #_____________ MAP CREATION __________________
 ROOM_MAX_SIZE = 10
 ROOM_MIN_SIZE = 6
