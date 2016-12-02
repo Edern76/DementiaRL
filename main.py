@@ -5,6 +5,7 @@ import colors
 import math
 from math import *
 import textwrap
+import time
 
 # Naming conventions :
 # MY_CONSTANT
@@ -70,7 +71,7 @@ FOV_ALGO = 'BASIC'
 FOV_LIGHT_WALLS = True
 SIGHT_RADIUS = 10
 MAX_ROOM_MONSTERS = 3
-MAX_ROOM_ITEMS = 2
+MAX_ROOM_ITEMS = 5
 GRAPHICS = 'modern'
 
 # - Spells -
@@ -95,6 +96,7 @@ cursor = None
 
 gameMsgs = [] #List of game messages
 tilesInRange = []
+explodingTiles = []
 
 
 #_____________ CONSTANTS __________________
@@ -264,21 +266,35 @@ class Item:
     def use(self):
         if self.useFunction is None:
             message('The' + self.owner.name + 'cannot be used !')
+            return 'cancelled'
         else:
             if self.arg1 is None:
                 if self.useFunction() != 'cancelled':
                     inventory.remove(self.owner)
+                else:
+                    return 'cancelled'
             elif self.arg2 is None and self.arg1 is not None:
                 if self.useFunction(self.arg1) != 'cancelled':
                     inventory.remove(self.owner)
+                else:
+                    return 'cancelled'
             elif self.arg3 is None and self.arg2 is not None:
                 if self.useFunction(self.arg1, self.arg2) != 'cancelled':
                     inventory.remove(self.owner)
+                else:
+                    return 'cancelled'
             elif self.arg3 is not None:
                 if self.useFunction(self.arg1, self.arg2, self.arg3) != 'cancelled':
                     inventory.remove(self.owner)
+                else:
+                    return 'cancelled'
 
 def quitGame(message):
+    global objects
+    global inventory
+    for obj in objects:
+        del obj
+    inventory = []
     raise SystemExit(str(message))
 
 def getInput():
@@ -298,33 +314,39 @@ def getInput():
         if GRAPHICS == 'modern':
             print('Graphics mode set to classic')
             GRAPHICS = 'classic'
+            return 'didnt-take-turn'
         elif GRAPHICS == 'classic':
             print('Graphics mode set to modern')
-            GRAPHICS = 'modern'         
+            GRAPHICS = 'modern'
+            return 'didnt-take-turn'    
     elif userInput.keychar.upper() == 'F2' and gameState != 'looking':
         player.Fighter.takeDamage(1)
         FOV_recompute = True
+        return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'F1':
         global DEBUG
         if not DEBUG:
             print('Monster turn debug is now on')
             message("This is a very long message just to test Python 3 built-in textwrap function, which allows us to do great things such as splitting very long texts into multiple lines, so as it don't overflow outside of the console. Oh and, debug mode has been activated", colors.purple)
             DEBUG = True
+            return 'didnt-take-turn'
         elif DEBUG:
             print('Monster turn debug is now off')
             message('Debug mode is now off', colors.purple)
             DEBUG = False
+            return 'didnt-take-turn' 
         else:
             quitGame('Whatever you did, it went horribly wrong (DEBUG took an unexpected value)')    
         FOV_recompute= True
-    elif userInput.keychar.upper() == 'T' and DEBUG:
-        test = targetTile(maxRange = 4)
-        if test != 'cancelled':
-            (x,y) = test
-            message('The targeted tile is {};{}'.format(x,y), colors.purple)
-    elif userInput.keychar.upper() == 'F4' and DEBUG:
-        castCreateOrc()        
-             
+    elif userInput.keychar.upper() == 'F4' and DEBUG and not tdl.event.isWindowClosed(): #For some reason, Bad Things (tm) happen if you don't perform a tdl.event.isWindowClosed() check here. Yeah, don't ask why.
+        castCreateOrc()
+        return 'didnt-take-turn'
+    elif userInput.keychar.upper() == 'F5' and DEBUG and not tdl.event.isWindowClosed(): #Don't know if tdl.event.isWindowClosed() is necessary here but added it just to be sure
+        player.Fighter.maxHP += 1000
+        player.Fighter.hp = player.Fighter.maxHP
+        message('Healed player and increased their maximum HP value by 1000', colors.purple)
+    elif userInput.keychar == 'A' and gameState == 'playing' and DEBUG and not tdl.event.isWindowClosed():
+        castArmageddon()         
     elif userInput.keychar == 'l' and gameState == 'playing':
         global gameState
         global lookCursor
@@ -333,6 +355,7 @@ def getInput():
             message('Look mode', colors.purple)
         lookCursor = GameObject(x = player.x, y = player.y, char = 'X', name = 'cursor', color = colors.yellow, Ghost = True)
         objects.append(lookCursor)
+        return 'didnt-take-turn'
     if gameState ==  'looking':
         global lookCursor
         if userInput.keychar.upper() == 'ESCAPE':
@@ -341,26 +364,31 @@ def getInput():
             objects.remove(lookCursor)
             del lookCursor
             message('Exited look mode', colors.purple)
+            return 'didnt-take-turn'
         elif userInput.keychar.upper() in MOVEMENT_KEYS:
             dx, dy = MOVEMENT_KEYS[userInput.keychar.upper()]
-            lookCursor.move(dx, dy)        
+            lookCursor.move(dx, dy)
+            return 'didnt-take-turn'
     if gameState == 'playing':
         if userInput.keychar.upper() in MOVEMENT_KEYS:
             keyX, keyY = MOVEMENT_KEYS[userInput.keychar.upper()]
             moveOrAttack(keyX, keyY)
             FOV_recompute = True #Don't ask why, but it's needed here to recompute FOV, despite not moving, or else Bad Things (trademark) happen.
+        elif userInput.keychar.upper()== 'SPACE':
+            for object in objects:
+                if object.x == player.x and object.y == player.y and object.Item is not None:
+                    object.Item.pickUp()
+                    break
+        elif userInput.keychar.upper() == 'I':
+            chosenItem = inventoryMenu('Press the key next to an item to use it, or any other to cancel.\n')
+            if chosenItem is not None:
+                using = chosenItem.use()
+                if using == 'cancelled':
+                    return 'didnt-take-turn'
+            else:
+                return 'didnt-take-turn'
         else:
-            if userInput.keychar.upper()== 'SPACE':
-                for object in objects:
-                    if object.x == player.x and object.y == player.y and object.Item is not None:
-                        object.Item.pickUp()
-                        break
-            elif userInput.keychar.upper() == 'I':
-                chosenItem = inventoryMenu('Press the key next to an item to use it, or any other to cancel.\n')
-                if chosenItem is not None:
-                    chosenItem.use()
-            return 'didnt-take-turn'
-
+            return 'didnt-take-turn'    
 def moveOrAttack(dx, dy):
     global FOV_recompute
     x = player.x + dx
@@ -404,6 +432,12 @@ def isBlocked(x, y): #With this function, making a check such as myMap[x][y].blo
     
     return False
 
+def tileDistance(x1, y1, x2, y2):
+        dx = x2 - x1
+        dy = y2 - y1
+        return math.sqrt(dx ** 2 + dy ** 2)
+    
+
 def castHeal(healAmount = 5):
     if player.Fighter.hp == player.Fighter.maxHP:
         message('You are already at full health')
@@ -424,7 +458,7 @@ def castConfuse():
     message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
     target = targetMonster(maxRange = CONFUSE_RANGE)
     if target is None:
-        message('No enemy is close enough to confuse.', colors.red)
+        message('Invalid target.', colors.red)
         return 'cancelled'
     old_AI = target.AI
     target.AI = ConfusedMonster(old_AI)
@@ -446,7 +480,67 @@ def castFireball(radius = 3, damage = 12):
                 else:
                     message('You get burned for {} damage !'.format(damage), colors.orange)
                 obj.Fighter.takeDamage(damage)
-
+                
+def castArmageddon(radius = 4, damage = 40):
+    global FOV_recompute
+    message('As you begin to read the scroll, the runes inscribed on it start emitting a very bright crimson light. Continue (Y/N)', colors.dark_red)
+    FOV_recompute = True
+    Update()
+    tdl.flush()
+    invalid = True
+    while invalid:
+        key = tdl.event.key_wait()
+        if key.keychar.upper() == 'N':
+            message('Good idea.', colors.dark_red)
+            FOV_recompute = True
+            Update()
+            return 'cancelled'
+        elif key.keychar.upper() == 'Y':
+            invalid = False
+        elif key.keychar.upper() not in ('Y', 'N'):
+            message('Please press a valid key (Y or N)')#Displays regardless of if a valid hcoice has been made, to be fixed
+            FOV_recompute = True
+            Update()
+            
+    radmax = radius + 2
+    global explodingTiles
+    global gameState
+    for x in range (player.x - radmax, player.x + radmax):
+        for y in range (player.y - radmax, player.y + radmax):
+            try: #Execute code below try if no error is encountered
+                if tileDistance(player.x, player.y, x, y) <= radius and not myMap[x][y].unbreakable:
+                    myMap[x][y].blocked = False
+                    myMap[x][y].block_sight = False
+                    if x in range (1, MAP_WIDTH-1) and y in range (1,MAP_HEIGHT - 1):
+                        explodingTiles.append((x,y))
+                    for obj in objects:
+                        if obj.Fighter and obj.x == x and obj.y == y: 
+                            try:
+                                if obj != player:
+                                    message('The {} gets smited for {} damage !'.format(obj.name, damage), colors.light_blue)
+                                else:
+                                    message('You get smited for {} damage !'.format(damage), colors.orange)        
+                                obj.Fighter.takeDamage(damage)
+                            except AttributeError: #If it tries to access a non-existing object (aka outside of the map)
+                                continue
+            except IndexError: #If an IndexError is encountered (aka if the function tries to access a tile outside of the map), execute code below except
+                continue   #Go to next loop iteration and ignore the problematic value     
+    #Display explosion eye-candy, this could get it's own function
+    gameState = 'exploding'
+    global FOV_recompute
+    for obj in objects :
+        obj.clear()
+    con.clear()
+    FOV_recompute = True
+    Update()
+    tdl.flush()
+    time.sleep(.125) #Wait for 0.125 seconds
+    explodingTiles = []
+    if player.Fighter.hp > 0:
+        gameState = 'playing'
+    else:
+        gameState = 'dead'
+    
 def createOrc(x, y):
     fighterComponent = Fighter(hp=10, defense=0, power=3, deathFunction = monsterDeath)
     AI_component = BasicMonster()
@@ -456,7 +550,7 @@ def createOrc(x, y):
 def castCreateOrc():
     target = targetTile()
     if target == 'cancelled':
-        return cancelled
+        return 'cancelled'
     else:
         (x,y) = target
         monster = createOrc(x, y)
@@ -474,7 +568,8 @@ class Tile:
         if block_sight is None:
             block_sight = blocked
             self.block_sight = block_sight
-            
+        else:
+            self.block_sight = block_sight    
 
 class Rectangle:
     def __init__(self, x, y, w, h):
@@ -516,6 +611,13 @@ def makeMap():
     myMap = [[Tile(True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
     rooms = []
     numberRooms = 0
+    
+    for y in range (MAP_HEIGHT):
+        myMap[0][y].unbreakable = True
+        myMap[MAP_WIDTH-1][y].unbreakable = True
+    for x in range(MAP_WIDTH):
+        myMap[x][0].unbreakable = True
+        myMap[x][MAP_HEIGHT-1].unbreakable = True #Borders of the map cannot be broken
  
     for r in range(MAX_ROOMS):
         w = randint(ROOM_MIN_SIZE, ROOM_MAX_SIZE)
@@ -582,7 +684,7 @@ def placeObjects(room):
                     item = GameObject(x, y, '~', 'scroll of lightning bolt', colors.light_yellow, Item = Item(useFunction = castLightning), blocks = False)
                 elif scrollDice < 25 + 25:
                     item = GameObject(x, y, '~', 'scroll of confusion', colors.light_yellow, Item = Item(useFunction = castConfuse), blocks = False)
-                else:
+                elif scrollDice < 25+25+25:
                     fireballDice = randint(0, 100)
                     if fireballDice < 20:
                         item = GameObject(x, y, '~', 'scroll of lesser fireball', colors.light_yellow, Item = Item(castFireball, 2, 6), blocks = False)
@@ -590,6 +692,10 @@ def placeObjects(room):
                         item = GameObject(x, y, '~', 'scroll of fireball', colors.light_yellow, Item = Item(castFireball), blocks = False)
                     else:
                         item = GameObject(x, y, '~', 'scroll of greater fireball', colors.light_yellow, Item = Item(castFireball, 4, 24), blocks = False)
+                elif scrollDice < 25+25+25+10:
+                    item = GameObject(x, y, '~', 'scroll of armageddon', colors.red, Item = Item(castArmageddon), blocks = False)
+                else:
+                    item = None
             else:
                 item = None
             if item is not None:            
@@ -720,7 +826,10 @@ def Update():
                     inRange = (x, y) in tilesInRange
                     if inRange and not wall:
                         con.draw_char(x, y, None, fg=None, bg=colors.green)
-                            
+                elif gameState == 'exploding':
+                    exploded = (x,y) in explodingTiles
+                    if exploded:
+                        con.draw_char(x, y, '*', fg=colors.red, bg = None)
                         
     for object in objects:
         if object != player:
@@ -756,6 +865,10 @@ def targetTile(maxRange = None):
     global cursor
     global tilesInRange
     global FOV_recompute
+    
+    if maxRange == 0:
+        return (player.x, player.y)
+    
     gameState = 'targeting'
     cursor = GameObject(x = player.x, y = player.y, char = 'X', name = 'cursor', color = colors.yellow, Ghost = True)
     objects.append(cursor)
@@ -765,6 +878,8 @@ def targetTile(maxRange = None):
     FOV_recompute= True
     Update()
     tdl.flush()
+    
+    
     
     while gameState == 'targeting':
         FOV_recompute = True
@@ -838,4 +953,5 @@ while not tdl.event.isWindowClosed():
             if object.AI:
                 object.AI.takeTurn()
 
+DEBUG = False
 quitGame('Window has been closed')
