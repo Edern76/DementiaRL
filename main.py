@@ -91,8 +91,10 @@ playerAction = None
 DEBUG = False #If true, enables debug messages
 
 lookCursor = None
+cursor = None
 
 gameMsgs = [] #List of game messages
+tilesInRange = []
 
 
 #_____________ CONSTANTS __________________
@@ -154,6 +156,11 @@ class GameObject:
     def distanceTo(self, other):
         dx = other.x - self.x
         dy = other.y - self.y
+        return math.sqrt(dx ** 2 + dy ** 2)
+    
+    def distanceToCoords(self, x, y):
+        dx = x - self.x
+        dy = y - self.y
         return math.sqrt(dx ** 2 + dy ** 2)
             
     def sendToBack(self): #used to make anything appear over corpses
@@ -242,8 +249,11 @@ class Player:
             self.owner.color = (120, 0, 0)
 
 class Item:
-    def __init__(self, useFunction = None):
+    def __init__(self, useFunction = None,  arg1 = None, arg2 = None, arg3 = None):
         self.useFunction = useFunction
+        self.arg1 = arg1
+        self.arg2 = arg2
+        self.arg3 = arg3
     def pickUp(self):
         if len(inventory)>=26:
             message('Your bag already feels really heavy, you cannot pick up' + self.owner.name + '.', colors.red)
@@ -255,9 +265,18 @@ class Item:
         if self.useFunction is None:
             message('The' + self.owner.name + 'cannot be used !')
         else:
-            if self.useFunction() != 'cancelled':
-                inventory.remove(self.owner)
-            
+            if self.arg1 is None:
+                if self.useFunction() != 'cancelled':
+                    inventory.remove(self.owner)
+            elif self.arg2 is None and self.arg1 is not None:
+                if self.useFunction(self.arg1) != 'cancelled':
+                    inventory.remove(self.owner)
+            elif self.arg3 is None and self.arg2 is not None:
+                if self.useFunction(self.arg1, self.arg2) != 'cancelled':
+                    inventory.remove(self.owner)
+            elif self.arg3 is not None:
+                if self.useFunction(self.arg1, self.arg2, self.arg3) != 'cancelled':
+                    inventory.remove(self.owner)
 
 def quitGame(message):
     raise SystemExit(str(message))
@@ -287,17 +306,25 @@ def getInput():
         FOV_recompute = True
     elif userInput.keychar.upper() == 'F1':
         global DEBUG
-        if DEBUG == False:
+        if not DEBUG:
             print('Monster turn debug is now on')
             message("This is a very long message just to test Python 3 built-in textwrap function, which allows us to do great things such as splitting very long texts into multiple lines, so as it don't overflow outside of the console. Oh and, debug mode has been activated", colors.purple)
             DEBUG = True
-        elif DEBUG == True:
+        elif DEBUG:
             print('Monster turn debug is now off')
             message('Debug mode is now off', colors.purple)
             DEBUG = False
         else:
             quitGame('Whatever you did, it went horribly wrong (DEBUG took an unexpected value)')    
-        FOV_recompute= True            
+        FOV_recompute= True
+    elif userInput.keychar.upper() == 'T' and DEBUG:
+        test = targetTile(maxRange = 4)
+        if test != 'cancelled':
+            (x,y) = test
+            message('The targeted tile is {};{}'.format(x,y), colors.purple)
+    elif userInput.keychar.upper() == 'F4' and DEBUG:
+        castCreateOrc()        
+             
     elif userInput.keychar == 'l' and gameState == 'playing':
         global gameState
         global lookCursor
@@ -316,11 +343,7 @@ def getInput():
             message('Exited look mode', colors.purple)
         elif userInput.keychar.upper() in MOVEMENT_KEYS:
             dx, dy = MOVEMENT_KEYS[userInput.keychar.upper()]
-            lookCursor.move(dx, dy)
-        
-    for event in tdl.event.get():
-        if event.type == 'QUIT':
-            quitGame('Window has been closed')
+            lookCursor.move(dx, dy)        
     if gameState == 'playing':
         if userInput.keychar.upper() in MOVEMENT_KEYS:
             keyX, keyY = MOVEMENT_KEYS[userInput.keychar.upper()]
@@ -394,11 +417,12 @@ def castLightning():
     if target is None:
         message('Your magic fizzles: there is no enemy near enough to strike', colors.red)
         return 'cancelled'
-    message('A lightning bolt strikes the ' + target.name + ' with a heavy thunder ! It is shock and suffers ' + str(LIGHTNING_DAMAGE) + ' shock damage.', colors.light_blue)
+    message('A lightning bolt strikes the ' + target.name + ' with a heavy thunder ! It is shocked and suffers ' + str(LIGHTNING_DAMAGE) + ' shock damage.', colors.light_blue)
     target.Fighter.takeDamage(LIGHTNING_DAMAGE)
 
 def castConfuse():
-    target = closestMonster(CONFUSE_RANGE)
+    message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
+    target = targetMonster(maxRange = CONFUSE_RANGE)
     if target is None:
         message('No enemy is close enough to confuse.', colors.red)
         return 'cancelled'
@@ -406,6 +430,37 @@ def castConfuse():
     target.AI = ConfusedMonster(old_AI)
     target.AI.owner = target
     message('The ' + target.name + ' starts wandering around as he seems to lose all bound with reality.', colors.light_violet)
+
+def castFireball(radius = 3, damage = 12):
+    message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
+    target = targetTile(maxRange = 4)
+    if target == 'cancelled':
+        message('Spell casting cancelled')
+        return target
+    else:
+        (x,y) = target
+        for obj in objects:
+            if obj.distanceToCoords(x, y) <= radius and obj.Fighter:
+                if obj != player:
+                    message('The {} gets burned for {} damage !'.format(obj.name, damage), colors.light_blue)
+                else:
+                    message('You get burned for {} damage !'.format(damage), colors.orange)
+                obj.Fighter.takeDamage(damage)
+
+def createOrc(x, y):
+    fighterComponent = Fighter(hp=10, defense=0, power=3, deathFunction = monsterDeath)
+    AI_component = BasicMonster()
+    monster = GameObject(x, y, char = 'o', color = colors.desaturated_green, name = 'orc', blocks = True, Fighter=fighterComponent, AI = AI_component)
+    return monster
+
+def castCreateOrc():
+    target = targetTile()
+    if target == 'cancelled':
+        return cancelled
+    else:
+        (x,y) = target
+        monster = createOrc(x, y)
+        objects.append(monster)
 #_____________ MAP CREATION __________________
 ROOM_MAX_SIZE = 10
 ROOM_MIN_SIZE = 6
@@ -415,9 +470,11 @@ class Tile:
     def __init__(self, blocked, block_sight = None):
         self.blocked = blocked
         self.explored = False
+        self.unbreakable = False
         if block_sight is None:
             block_sight = blocked
             self.block_sight = block_sight
+            
 
 class Rectangle:
     def __init__(self, x, y, w, h):
@@ -501,9 +558,7 @@ def placeObjects(room):
         
         if not isBlocked(x, y) and (x, y) != (player.x, player.y):
             if randint(0,100) < 80:
-                fighterComponent = Fighter(hp=10, defense=0, power=3, deathFunction = monsterDeath)
-                AI_component = BasicMonster()
-                monster = GameObject(x, y, char = 'o', color = colors.desaturated_green, name = 'orc', blocks = True, Fighter=fighterComponent, AI = AI_component)
+                monster = createOrc(x, y)
             else:
                 fighterComponent = Fighter(hp=16, defense=1, power=4, deathFunction = monsterDeath)
                 AI_component = BasicMonster()
@@ -517,15 +572,29 @@ def placeObjects(room):
         y = randint(room.y1+1, room.y2-1)
         if not isBlocked(x, y):
             dice = randint(0, 100)
-            if dice < 70 :
+            if dice < 30 :
+                #Spawn a potion
                 item = GameObject(x, y, '!', 'healing potion', colors.violet, Item = Item(useFunction = castHeal), blocks = False)
-            elif dice < 70 + 15:
-                item = GameObject(x, y, '~', 'scroll of lightning bolt', colors.light_yellow, Item = Item(useFunction = castLightning), blocks = False)
+            elif dice < 30 + 65:
+                #Spawn a scroll
+                scrollDice = randint(0, 100)
+                if scrollDice < 25:
+                    item = GameObject(x, y, '~', 'scroll of lightning bolt', colors.light_yellow, Item = Item(useFunction = castLightning), blocks = False)
+                elif scrollDice < 25 + 25:
+                    item = GameObject(x, y, '~', 'scroll of confusion', colors.light_yellow, Item = Item(useFunction = castConfuse), blocks = False)
+                else:
+                    fireballDice = randint(0, 100)
+                    if fireballDice < 20:
+                        item = GameObject(x, y, '~', 'scroll of lesser fireball', colors.light_yellow, Item = Item(castFireball, 2, 6), blocks = False)
+                    elif fireballDice < 20 + 30:
+                        item = GameObject(x, y, '~', 'scroll of fireball', colors.light_yellow, Item = Item(castFireball), blocks = False)
+                    else:
+                        item = GameObject(x, y, '~', 'scroll of greater fireball', colors.light_yellow, Item = Item(castFireball, 4, 24), blocks = False)
             else:
-                item = GameObject(x, y, '~', 'scroll of confusion', colors.light_yellow, Item = Item(useFunction = castConfuse), blocks = False)
- 
-            objects.append(item)
-            item.sendToBack()
+                item = None
+            if item is not None:            
+                objects.append(item)
+                item.sendToBack()
 #_____________ ROOM POPULATION + ITEMS GENERATION_______________
 def playerDeath(player):
     global gameState
@@ -591,7 +660,7 @@ def menu(header, options, width):
     key = tdl.event.key_wait()
     keyChar = key.char
     if keyChar == '':
-        keyChar = ' '
+        keyChar = ' '    
     index = ord(keyChar) - ord('a')
     if index >= 0 and index < len(options):
         return index
@@ -646,7 +715,13 @@ def Update():
                             con.draw_char(x, y, None, fg=None, bg=color_light_ground)
                         elif GRAPHICS == 'classic':
                             con.draw_char(x, y, '.', fg=colors.white, bg=None)    
-                    myMap[x][y].explored = True        
+                    myMap[x][y].explored = True
+                if gameState == 'targeting':
+                    inRange = (x, y) in tilesInRange
+                    if inRange and not wall:
+                        con.draw_char(x, y, None, fg=None, bg=colors.green)
+                            
+                        
     for object in objects:
         if object != player:
             if (object.x, object.y) in visibleTiles:
@@ -676,6 +751,63 @@ def GetNamesUnderLookCursor():
     names = ', '.join(names)
     return names.capitalize()
 
+def targetTile(maxRange = None):
+    global gameState
+    global cursor
+    global tilesInRange
+    global FOV_recompute
+    gameState = 'targeting'
+    cursor = GameObject(x = player.x, y = player.y, char = 'X', name = 'cursor', color = colors.yellow, Ghost = True)
+    objects.append(cursor)
+    for (rx, ry) in visibleTiles:
+            if maxRange is None or player.distanceToCoords(rx,ry) <= maxRange:
+                tilesInRange.append((rx, ry))
+    FOV_recompute= True
+    Update()
+    tdl.flush()
+    
+    while gameState == 'targeting':
+        FOV_recompute = True
+        key = tdl.event.key_wait()
+        if key.keychar.upper() == 'ESCAPE':
+            gameState = 'playing'
+            objects.remove(cursor)
+            del cursor
+            tilesInRange = []
+            con.clear()
+            Update()
+            return 'cancelled'
+        elif key.keychar.upper() in MOVEMENT_KEYS:
+            dx, dy = MOVEMENT_KEYS[key.keychar.upper()]
+            if (cursor.x + dx, cursor.y + dy) in tilesInRange and (maxRange is None or player.distanceTo(cursor) <= maxRange):
+                cursor.move(dx, dy)
+                Update()
+                tdl.flush()
+                for object in objects:
+                    object.clear
+                con.clear()    
+        elif key.keychar.upper() == 'ENTER':
+            gameState = 'playing'
+            x = cursor.x
+            y = cursor.y
+            tilesInRange = []
+            gameState = 'playing'
+            objects.remove(cursor)
+            del cursor
+            con.clear()
+            Update()
+            return (x, y)
+        
+def targetMonster(maxRange = None):
+    target = targetTile(maxRange)
+    if target == 'cancelled':
+        return None
+    else:
+        (x,y) = target
+        for obj in objects:
+            if obj.x == x and obj.y == y and obj.Fighter and obj != player:
+                return obj
+               
 
 #______ INITIALIZATION AND MAIN LOOP________
 playFight = Fighter( hp = 100, power=5, defense=3, deathFunction=playerDeath)
@@ -692,7 +824,7 @@ FOV_recompute = True
 message('Zargothrox says : Prepare to get lost in the Realm of Madness !', colors.dark_red)
 
 
-while True :
+while not tdl.event.isWindowClosed():
     Update()
     tdl.flush()
     for object in objects:
@@ -705,3 +837,5 @@ while True :
         for object in objects:
             if object.AI:
                 object.AI.takeTurn()
+
+quitGame('Window has been closed')
