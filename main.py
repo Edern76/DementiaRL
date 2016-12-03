@@ -899,6 +899,10 @@ def inventoryMenu(header):
     else:
         return inventory[index].Item
 #_____________ GUI _______________
+def initializeFOV():
+    global FOV_recompute, visibleTiles
+    FOV_recompute = True
+    visibleTiles = tdl.map.quickFOV(player.x, player.y, isVisibleTile, fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
 
 def Update():
     global FOV_recompute
@@ -1040,51 +1044,56 @@ def targetMonster(maxRange = None):
                
 
 #______ INITIALIZATION AND MAIN LOOP________
-playFight = Fighter( hp = 100, power=5, defense=3, deathFunction=playerDeath)
-playComp = Player()
-player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = 'Hero', color = (0, 210, 0))
+def newGame():
+    global objects, inventory, gameMsgs, gameState, player
+    playFight = Fighter( hp = 100, power=5, defense=3, deathFunction=playerDeath)
+    playComp = Player()
+    player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = 'Hero', color = (0, 210, 0))
 
-objects = [player]
-makeMap()
-Update()
-
-inventory = []
-
-FOV_recompute = True
-message('Zargothrox says : Prepare to get lost in the Realm of Madness !', colors.dark_red)
-if hiroshimanNumber == 1:
-    message('You suddenly feel uneasy.', colors.dark_red)
-
-
-while not tdl.event.isWindowClosed():
+    objects = [player]
+    makeMap()
     Update()
-    tdl.flush()
-    for object in objects:
-        object.clear()
-    playerAction = getInput()
-    FOV_recompute = True #So as to avoid the blackscreen bug no matter which key we press
-    if playerAction == 'exit':
-        quitGame('Player pressed escape')
-    if gameState == 'playing' and playerAction != 'didnt-take-turn':
-        for object in objects:
-            if object.AI:
-                object.AI.takeTurn()
-            if object.Fighter and object.Fighter.frozen:
-                object.Fighter.freezeCooldown -= 1
-                if object.Fighter.freezeCooldown < 0:
-                    object.Fighter.freezeCooldown = 0
-                if object.Fighter.freezeCooldown == 0:
-                    object.Fighter.frozen = False
-                    message(object.name.capitalize() + "'s ice shatters !")
-            if object.Fighter and object.Fighter.burning:
-                object.Fighter.burnCooldown -= 1
-                object.Fighter.takeDamage(3)
-                message('The ' + object.name + ' keeps burning !')
-                if object.Fighter.burnCooldown < 0:
-                    object.Fighter.burnCooldown = 0
-                if object.Fighter.burnCooldown == 0:
-                    object.Fighter.burning = False
-                    message(object.name.capitalize() + "'s flames die down") 
 
-DEBUG = False
-quitGame('Window has been closed')
+    inventory = []
+
+    FOV_recompute = True
+    message('Zargothrox says : Prepare to get lost in the Realm of Madness !', colors.dark_red)
+    if hiroshimanNumber == 1:
+        message('You suddenly feel uneasy.', colors.dark_red)
+
+def playGame():
+    while not tdl.event.isWindowClosed():
+        Update()
+        tdl.flush()
+        for object in objects:
+            object.clear()
+        playerAction = getInput()
+        FOV_recompute = True #So as to avoid the blackscreen bug no matter which key we press
+        if playerAction == 'exit':
+            quitGame('Player pressed escape')
+        if gameState == 'playing' and playerAction != 'didnt-take-turn':
+            for object in objects:
+                if object.AI:
+                    object.AI.takeTurn()
+                if object.Fighter and object.Fighter.frozen:
+                    object.Fighter.freezeCooldown -= 1
+                    if object.Fighter.freezeCooldown < 0:
+                        object.Fighter.freezeCooldown = 0
+                    if object.Fighter.freezeCooldown == 0:
+                        object.Fighter.frozen = False
+                        message(object.name.capitalize() + "'s ice shatters !")
+                    if object.Fighter and object.Fighter.burning:
+                        object.Fighter.burnCooldown -= 1
+                        object.Fighter.takeDamage(3)
+                        message('The ' + object.name + ' keeps burning !')
+                        if object.Fighter.burnCooldown < 0:
+                            object.Fighter.burnCooldown = 0
+                        if object.Fighter.burnCooldown == 0:
+                            object.Fighter.burning = False
+                            message(object.name.capitalize() + "'s flames die down") 
+
+    DEBUG = False
+    quitGame('Window has been closed')
+    
+newGame()
+playGame()
