@@ -177,8 +177,12 @@ class Fighter: #All NPCs, enemies and the player
         self.defense = defense
         self.power = power
         self.deathFunction = deathFunction
+        
         self.frozen = False
         self.freezeCooldown = 0
+        
+        self.burning = False
+        self.burnCooldown = 0
         
     def takeDamage(self, damage):
         if damage > 0:
@@ -518,6 +522,10 @@ def castFireball(radius = 3, damage = 12):
                 else:
                     message('You get burned for {} damage !'.format(damage), colors.orange)
                 obj.Fighter.takeDamage(damage)
+                if obj.Fighter and randint(0, 100) > 50 and not obj.Fighter.burning:
+                    obj.Fighter.burning = True
+                    obj.Fighter.burnCooldown = 4
+                    message('The ' + obj.name + 'is set afire')
                 
 def castArmageddon(radius = 4, damage = 40):
     global FOV_recompute
@@ -1067,7 +1075,16 @@ while not tdl.event.isWindowClosed():
                     object.Fighter.freezeCooldown = 0
                 if object.Fighter.freezeCooldown == 0:
                     object.Fighter.frozen = False
-                    message(object.name.capitalize() + "'s ice shatters !") 
+                    message(object.name.capitalize() + "'s ice shatters !")
+            if object.Fighter and object.Fighter.burning:
+                object.Fighter.burnCooldown -= 1
+                object.Fighter.takeDamage(3)
+                message('The ' + object.name + ' keeps burning !')
+                if object.Fighter.burnCooldown < 0:
+                    object.Fighter.burnCooldown = 0
+                if object.Fighter.burnCooldown == 0:
+                    object.Fighter.burning = False
+                    message(object.name.capitalize() + "'s flames die down") 
 
 DEBUG = False
 quitGame('Window has been closed')
