@@ -144,7 +144,9 @@ class GameObject:
         self.move(dx, dy)
 
     def move(self, dx, dy):
-        if not isBlocked(self.x + dx, self.y + dy) or self.ghost:
+        if self.Fighter and self.Fighter.frozen:
+            pass
+        elif not isBlocked(self.x + dx, self.y + dy) or self.ghost:
             self.x += dx
             self.y += dy
     
@@ -177,7 +179,9 @@ class Fighter: #All NPCs, enemies and the player
         self.defense = defense
         self.power = power
         self.deathFunction = deathFunction
-
+        self.frozen = False
+        self.freezeCooldown = 0
+        
     def takeDamage(self, damage):
         if damage > 0:
             self.hp -= damage
@@ -189,19 +193,20 @@ class Fighter: #All NPCs, enemies and the player
     def attack(self, target):
         damage = self.power - target.Fighter.defense
  
-        if not self.owner.Player:
-            if damage > 0:
-                message(self.owner.name.capitalize() + ' attacks you for ' + str(damage) + ' hit points.', colors.orange)
-                target.Fighter.takeDamage(damage)
+        if not self.frozen:
+            if not self.owner.Player:
+                if damage > 0:
+                    message(self.owner.name.capitalize() + ' attacks you for ' + str(damage) + ' hit points.', colors.orange)
+                    target.Fighter.takeDamage(damage)
+                else:
+                    message(self.owner.name.capitalize() + ' attacks you but it has no effect!')
             else:
-                message(self.owner.name.capitalize() + ' attacks you but it has no effect!')
-        else:
-            if damage > 0:
-                message('You attack ' + target.name + ' for ' + str(damage) + ' hit points.', colors.dark_green)
-                target.Fighter.takeDamage(damage)
-            else:
-                message('You attack ' + target.name + ' but it has no effect!', colors.lighter_grey)
-                
+                if damage > 0:
+                    message('You attack ' + target.name + ' for ' + str(damage) + ' hit points.', colors.dark_green)
+                    target.Fighter.takeDamage(damage)
+                else:
+                    message('You attack ' + target.name + ' but it has no effect!', colors.lighter_grey)
+        
     def heal(self, amount):
         self.hp += amount
         if self.hp > self.maxHP:
@@ -345,6 +350,12 @@ def getInput():
         player.Fighter.maxHP += 1000
         player.Fighter.hp = player.Fighter.maxHP
         message('Healed player and increased their maximum HP value by 1000', colors.purple)
+    elif userInput.keychar.upper() == "F6" and DEBUG and not tdl.event.isWindowClosed():
+        player.Fighter.frozen = True
+        player.Fighter.freezeCooldown = 3
+        return 'didnt-take-turn'
+    elif userInput.keychar.upper() == "W" :
+        return None 
     elif userInput.keychar == 'A' and gameState == 'playing' and DEBUG and not tdl.event.isWindowClosed():
         castArmageddon()         
     elif userInput.keychar == 'l' and gameState == 'playing':
@@ -438,6 +449,7 @@ def tileDistance(x1, y1, x2, y2):
         return math.sqrt(dx ** 2 + dy ** 2)
     
 
+
 def castHeal(healAmount = 5):
     if player.Fighter.hp == player.Fighter.maxHP:
         message('You are already at full health')
@@ -465,6 +477,20 @@ def castConfuse():
     target.AI.owner = target
     message('The ' + target.name + ' starts wandering around as he seems to lose all bound with reality.', colors.light_violet)
 
+def castFreeze():
+    message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
+    target = targetMonster(maxRange = None)
+    if target is None:
+        message('Invalid target.', colors.red)
+        return 'cancelled'
+    if not target.Fighter.frozen:
+        target.Fighter.frozen = True
+        target.Fighter.freezeCooldown = 3
+        message("The " + target.name + " is frozen !", colors.light_violet)
+    else:
+        message("The " + target.name + " is already frozen.")
+        return 'cancelled'
+    
 def castFireball(radius = 3, damage = 12):
     message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
     target = targetTile(maxRange = 4)
@@ -688,11 +714,11 @@ def placeObjects(room):
             elif dice < 30 + 65:
                 #Spawn a scroll
                 scrollDice = randint(0, 100)
-                if scrollDice < 25:
+                if scrollDice < 12:
                     item = GameObject(x, y, '~', 'scroll of lightning bolt', colors.light_yellow, Item = Item(useFunction = castLightning), blocks = False)
-                elif scrollDice < 25 + 25:
+                elif scrollDice < 12 + 12:
                     item = GameObject(x, y, '~', 'scroll of confusion', colors.light_yellow, Item = Item(useFunction = castConfuse), blocks = False)
-                elif scrollDice < 25+25+25:
+                elif scrollDice < 12+12+25:
                     fireballDice = randint(0, 100)
                     if fireballDice < 20:
                         item = GameObject(x, y, '~', 'scroll of lesser fireball', colors.light_yellow, Item = Item(castFireball, 2, 6), blocks = False)
@@ -700,8 +726,10 @@ def placeObjects(room):
                         item = GameObject(x, y, '~', 'scroll of fireball', colors.light_yellow, Item = Item(castFireball), blocks = False)
                     else:
                         item = GameObject(x, y, '~', 'scroll of greater fireball', colors.light_yellow, Item = Item(castFireball, 4, 24), blocks = False)
-                elif scrollDice < 25+25+25+10:
+                elif scrollDice < 12+12+25+10:
                     item = GameObject(x, y, '~', 'scroll of armageddon', colors.red, Item = Item(castArmageddon), blocks = False)
+                elif scrollDice < 12+12+25+10+25:
+                    item = GameObject(x, y, '~', 'scroll of ice bolt', colors.light_cyan, Item = Item(castFreeze), blocks = False)
                 else:
                     item = None
             else:
@@ -960,6 +988,13 @@ while not tdl.event.isWindowClosed():
         for object in objects:
             if object.AI:
                 object.AI.takeTurn()
+            if object.Fighter and object.Fighter.frozen:
+                object.Fighter.freezeCooldown -= 1
+                if object.Fighter.freezeCooldown < 0:
+                    object.Fighter.freezeCooldown = 0
+                if object.Fighter.freezeCooldown == 0:
+                    object.Fighter.frozen = False
+                    message(object.name.capitalize() + "'s ice shatters !") 
 
 DEBUG = False
 quitGame('Window has been closed')
