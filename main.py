@@ -529,10 +529,13 @@ def castArmageddon(radius = 4, damage = 40):
     explode()
     
 def createOrc(x, y):
-    fighterComponent = Fighter(hp=10, defense=0, power=3, deathFunction = monsterDeath)
-    AI_component = BasicMonster()
-    monster = GameObject(x, y, char = 'o', color = colors.desaturated_green, name = 'orc', blocks = True, Fighter=fighterComponent, AI = AI_component)
-    return monster
+    if x != player.x or y != player.y:
+        fighterComponent = Fighter(hp=10, defense=0, power=3, deathFunction = monsterDeath)
+        AI_component = BasicMonster()
+        monster = GameObject(x, y, char = 'o', color = colors.desaturated_green, name = 'orc', blocks = True, Fighter=fighterComponent, AI = AI_component)
+        return monster
+    else:
+        return 'cancelled'
 
 def castCreateOrc():
     target = targetTile()
