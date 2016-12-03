@@ -1,11 +1,8 @@
-import tdl
+import tdl, colors, math, textwrap, time
 from tdl import *
 from random import randint
-import colors
-import math
 from math import *
-import textwrap
-import time
+
 
 # Naming conventions :
 # MY_CONSTANT
@@ -97,6 +94,7 @@ cursor = None
 gameMsgs = [] #List of game messages
 tilesInRange = []
 explodingTiles = []
+hiroshimanNumber = 0
 
 
 #_____________ CONSTANTS __________________
@@ -179,8 +177,12 @@ class Fighter: #All NPCs, enemies and the player
         self.defense = defense
         self.power = power
         self.deathFunction = deathFunction
+        
         self.frozen = False
         self.freezeCooldown = 0
+        
+        self.burning = False
+        self.burnCooldown = 0
         
     def takeDamage(self, damage):
         if damage > 0:
@@ -222,6 +224,17 @@ class BasicMonster: #Basic monsters' AI
                 monster.Fighter.attack(player)
         else:
             monster.move(randint(-1, 1), randint(-1, 1)) #wandering
+
+class SplosionAI:
+    def takeTurn(self):
+        monster = self.owner
+        if (monster.x, monster.y) in visibleTiles: #chasing the player
+            if monster.distanceTo(player) >= 3:
+                monster.moveTowards(player.x, player.y)
+            elif player.Fighter.hp > 0 and not monster.Fighter.frozen:
+                monsterArmageddon(monster.name, monster.x, monster.y)
+        else:
+            monster.move(randint(-1, 1), randint(-1, 1))
 
 class ConfusedMonster:
     def __init__(self, old_AI, numberTurns=CONFUSE_NUMBER_TURNS):
@@ -354,6 +367,9 @@ def getInput():
         player.Fighter.frozen = True
         player.Fighter.freezeCooldown = 3
         return 'didnt-take-turn'
+    elif userInput.keychar.upper() == 'F7' and DEBUG and not tdl.event.isWindowClosed():
+        castCreateHiroshiman()
+        return 'didnt-take-turn'
     elif userInput.keychar.upper() == "W" :
         return None 
     elif userInput.keychar == 'A' and gameState == 'playing' and DEBUG and not tdl.event.isWindowClosed():
@@ -485,7 +501,7 @@ def castFreeze():
         return 'cancelled'
     if not target.Fighter.frozen:
         target.Fighter.frozen = True
-        target.Fighter.freezeCooldown = 3
+        target.Fighter.freezeCooldown = 4 #Actually 3 turns since this begins ticking down the turn the spell is casted
         message("The " + target.name + " is frozen !", colors.light_violet)
     else:
         message("The " + target.name + " is already frozen.")
@@ -506,6 +522,10 @@ def castFireball(radius = 3, damage = 12):
                 else:
                     message('You get burned for {} damage !'.format(damage), colors.orange)
                 obj.Fighter.takeDamage(damage)
+                if obj.Fighter and randint(0, 100) > 50 and not obj.Fighter.burning:
+                    obj.Fighter.burning = True
+                    obj.Fighter.burnCooldown = 4
+                    message('The ' + obj.name + 'is set afire')
                 
 def castArmageddon(radius = 4, damage = 40):
     global FOV_recompute
@@ -554,11 +574,53 @@ def castArmageddon(radius = 4, damage = 40):
     #Display explosion eye-candy, this could get it's own function
     explode()
     
+def monsterArmageddon(monsterName ,monsterX, monsterY, radius = 4, damage = 40):
+    radmax = radius + 2
+    message(monsterName.capitalize() + ' recites an arcane formula and explodes !', colors.red)
+    global explodingTile
+    global gameState
+    global FOV_recompute
+    FOV_recompute = True
+    for x in range (monsterX - radmax, monsterX + radmax):
+        for y in range (monsterY - radmax, monsterY + radmax):
+            try: #Execute code below try if no error is encountered
+                if tileDistance(monsterX, monsterY, x, y) <= radius and not myMap[x][y].unbreakable:
+                    myMap[x][y].blocked = False
+                    myMap[x][y].block_sight = False
+                    if x in range (1, MAP_WIDTH-1) and y in range (1,MAP_HEIGHT - 1):
+                        explodingTiles.append((x,y))
+                    for obj in objects:
+                        if obj.Fighter and obj.x == x and obj.y == y: 
+                            try:
+                                if obj != player:
+                                    message('The explosion deals {} damage to {} !'.format(damage, obj.name))
+                                else:
+                                    message('The explosion deals {} damage to you !'.format(damage), colors.orange)        
+                                obj.Fighter.takeDamage(damage)
+                            except AttributeError: #If it tries to access a non-existing object (aka outside of the map)
+                                continue
+            except IndexError: #If an IndexError is encountered (aka if the function tries to access a tile outside of the map), execute code below except
+                continue   #Go to next loop iteration and ignore the problematic value     
+    #Display explosion eye-candy, this could get it's own function
+    explode()
+    
+    
+# Add push monster spell (create an invisble projectile that pass through a monster, when the said projectile hits a wall, teleport monster to the projectile position and deal X damage to the said monster.)
+    
 def createOrc(x, y):
     if x != player.x or y != player.y:
         fighterComponent = Fighter(hp=10, defense=0, power=3, deathFunction = monsterDeath)
         AI_component = BasicMonster()
         monster = GameObject(x, y, char = 'o', color = colors.desaturated_green, name = 'orc', blocks = True, Fighter=fighterComponent, AI = AI_component)
+        return monster
+    else:
+        return 'cancelled'
+    
+def createHiroshiman(x, y):
+    if x != player.x or y != player.y:
+        fighterComponent = Fighter(hp=150, defense=0, power=3, deathFunction = monsterDeath)
+        AI_component = SplosionAI()
+        monster = GameObject(x, y, char = 'H', color = colors.red, name = 'Hiroshiman', blocks = True, Fighter=fighterComponent, AI = AI_component)
         return monster
     else:
         return 'cancelled'
@@ -571,6 +633,16 @@ def castCreateOrc():
         (x,y) = target
         monster = createOrc(x, y)
         objects.append(monster)
+
+def castCreateHiroshiman():
+    target = targetTile()
+    if target == 'cancelled':
+        return 'cancelled'
+    else:
+        (x,y) = target
+        monster = createHiroshiman(x, y)
+        objects.append(monster)        
+        
 
 def explode():
     global gameState
@@ -585,6 +657,7 @@ def explode():
     tdl.flush()
     time.sleep(.125) #Wait for 0.125 seconds
     explodingTiles = []
+    FOV_recompute = True
     if player.Fighter.hp > 0:
         gameState = 'playing'
     else:
@@ -693,14 +766,20 @@ def placeObjects(room):
         y = randint(room.y1+1, room.y2-1)
         
         if not isBlocked(x, y) and (x, y) != (player.x, player.y):
-            if randint(0,100) < 80:
+            monsterDice = randint(0,100)
+            if monsterDice < 80:
                 monster = createOrc(x, y)
+            elif monsterDice < 90 and hiroshimanNumber == 0:
+                global hiroshimanNumber
+                monster = createHiroshiman(x, y)
+                hiroshimanNumber = 1
             else:
                 fighterComponent = Fighter(hp=16, defense=1, power=4, deathFunction = monsterDeath)
                 AI_component = BasicMonster()
                 monster = GameObject(x, y, char = 'T', color = colors.darker_green,name = 'troll', blocks = True, Fighter = fighterComponent, AI = AI_component)
         
-        objects.append(monster)
+        if monster != 'cancelled':
+            objects.append(monster)
     
     num_items = randint(0, MAX_ROOM_ITEMS)
     for i in range(num_items):
@@ -973,6 +1052,8 @@ inventory = []
 
 FOV_recompute = True
 message('Zargothrox says : Prepare to get lost in the Realm of Madness !', colors.dark_red)
+if hiroshimanNumber == 1:
+    message('You suddenly feel uneasy.', colors.dark_red)
 
 
 while not tdl.event.isWindowClosed():
@@ -994,7 +1075,16 @@ while not tdl.event.isWindowClosed():
                     object.Fighter.freezeCooldown = 0
                 if object.Fighter.freezeCooldown == 0:
                     object.Fighter.frozen = False
-                    message(object.name.capitalize() + "'s ice shatters !") 
+                    message(object.name.capitalize() + "'s ice shatters !")
+            if object.Fighter and object.Fighter.burning:
+                object.Fighter.burnCooldown -= 1
+                object.Fighter.takeDamage(3)
+                message('The ' + object.name + ' keeps burning !')
+                if object.Fighter.burnCooldown < 0:
+                    object.Fighter.burnCooldown = 0
+                if object.Fighter.burnCooldown == 0:
+                    object.Fighter.burning = False
+                    message(object.name.capitalize() + "'s flames die down") 
 
 DEBUG = False
 quitGame('Window has been closed')
