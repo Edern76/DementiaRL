@@ -97,6 +97,8 @@ explodingTiles = []
 hiroshimanNumber = 0
 FOV_recompute = True
 inventory = []
+stairs = None
+hiroshimanHasAppeared = False
 
 
 #_____________ CONSTANTS __________________
@@ -114,7 +116,7 @@ def closestMonster(max_range):
 
 class GameObject:
     "A generic object, represented by a character"
-    def __init__(self, x, y, char, name, color=colors.white, blocks = False, Fighter = None, AI = None, Player = None, Ghost = False, Item = None):
+    def __init__(self, x, y, char, name, color = colors.white, blocks = False, Fighter = None, AI = None, Player = None, Ghost = False, Item = None, alwaysVisible = False, darkColor = None):
         self.x = x
         self.y = y
         self.char = char
@@ -125,6 +127,8 @@ class GameObject:
         self.Player = Player
         self.ghost = Ghost
         self.Item = Item
+        self.alwaysVisible = alwaysVisible
+        self.darkColor = darkColor
         if self.Fighter:  #let the fighter component know who owns it
             self.Fighter.owner = self
         self.AI = AI
@@ -153,6 +157,8 @@ class GameObject:
     def draw(self):
         if (self.x, self.y) in visibleTiles:
             con.draw_char(self.x, self.y, self.char, self.color, bg=None)
+        elif self.alwaysVisible and myMap[self.x][self.y].explored:
+            con.draw_char(self.x, self.y, self.char, self.darkColor, bg=None)
         
     def clear(self):
         con.draw_char(self.x, self.y, ' ', self.color, bg=None)
@@ -418,6 +424,8 @@ def getInput():
                 if object.x == player.x and object.y == player.y and object.Item is not None:
                     object.Item.pickUp()
                     break
+                elif stairs.x == player.x and stairs.y == player.y:
+                    nextLevel()
             FOV_recompute = True
         elif userInput.keychar.upper() == 'I':
             chosenItem = inventoryMenu('Press the key next to an item to use it, or any other to cancel.\n')
@@ -433,6 +441,7 @@ def getInput():
             FOV_recompute = True
             return 'didnt-take-turn'
     FOV_recompute = True
+
 def moveOrAttack(dx, dy):
     global FOV_recompute
     x = player.x + dx
@@ -731,10 +740,11 @@ def createVerticalTunnel(y1, y2, x):
         myMap[x][y].block_sight = False
         
 def makeMap():
-    global myMap
+    global myMap, stairs, objects
     myMap = [[Tile(True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
     rooms = []
     numberRooms = 0
+    objects = [player]
     
     for y in range (MAP_HEIGHT):
         myMap[0][y].unbreakable = True
@@ -772,6 +782,9 @@ def makeMap():
             placeObjects(newRoom)
             rooms.append(newRoom)
             numberRooms += 1
+    stairs = GameObject(new_x, new_y, '<', 'stairs', colors.white, alwaysVisible = True, darkColor = colors.dark_grey)
+    objects.append(stairs)
+    stairs.sendToBack() 
 
 #_____________ MAP CREATION __________________
 
@@ -786,7 +799,7 @@ def placeObjects(room):
             monsterDice = randint(0,100)
             if monsterDice < 80:
                 monster = createOrc(x, y)
-            elif monsterDice < 90 and hiroshimanNumber == 0:
+            elif monsterDice < 90 and hiroshimanNumber == 0 and dungeonLevel > 2:
                 global hiroshimanNumber
                 monster = createHiroshiman(x, y)
                 hiroshimanNumber = 1
@@ -920,6 +933,7 @@ def initializeFOV():
     global FOV_recompute, visibleTiles
     FOV_recompute = True
     visibleTiles = tdl.map.quickFOV(player.x, player.y, isVisibleTile, fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
+    con.clear()
 
 def Update():
     global FOV_recompute
@@ -969,7 +983,7 @@ def Update():
                         
     for object in objects:
         if object != player:
-            if (object.x, object.y) in visibleTiles:
+            if (object.x, object.y) in visibleTiles or (object.alwaysVisible and myMap[object.x][object.y].explored):
                 object.draw()
     player.draw()
     root.blit(con, 0, 0, WIDTH, HEIGHT, 0, 0)
@@ -980,7 +994,7 @@ def Update():
         panel.draw_str(MSG_X, msgY, line, bg=None, fg = color)
         msgY += 1
     # Draw GUI
-    
+    panel.draw_str(1, 3, 'Dungeon level: ' + str(dungeonLevel), colors.white)
     renderBar(1, 1, BAR_WIDTH, 'HP', player.Fighter.hp, player.Fighter.maxHP, player.color, colors.dark_gray)
     # Look code
     if gameState == 'looking' and lookCursor != None:
@@ -1062,12 +1076,13 @@ def targetMonster(maxRange = None):
 
 #______ INITIALIZATION AND MAIN LOOP________
 def newGame():
-    global objects, inventory, gameMsgs, gameState, player
+    global objects, inventory, gameMsgs, gameState, player, dungeonLevel
     playFight = Fighter( hp = 100, power=5, defense=3, deathFunction=playerDeath)
     playComp = Player()
     player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = 'Hero', color = (0, 210, 0))
 
     objects = [player]
+    dungeonLevel = 1 
     makeMap()
     Update()
 
@@ -1076,8 +1091,17 @@ def newGame():
     FOV_recompute = True
     initializeFOV()
     message('Zargothrox says : Prepare to get lost in the Realm of Madness !', colors.dark_red)
-    if hiroshimanNumber == 1:
+
+def nextLevel():
+    global dungeonLevel
+    message('After a rare moment of peace, you descend deeper into the heart of the dungeon...', colors.red)
+    dungeonLevel += 1
+    makeMap()  #create a fresh new level!
+    if hiroshimanNumber == 1 and not hiroshimanHasAppeared:
+        global hiroshimanHasAppeared
         message('You suddenly feel uneasy.', colors.dark_red)
+        hiroshimanHasAppeared = True
+    initializeFOV()
 
 def playGame():
     while not tdl.event.isWindowClosed():
@@ -1108,8 +1132,7 @@ def playGame():
                             object.Fighter.burnCooldown = 0
                         if object.Fighter.burnCooldown == 0:
                             object.Fighter.burning = False
-                            message(object.name.capitalize() + "'s flames die down") 
-
+                            message(object.name.capitalize() + "'s flames die down")
     DEBUG = False
     quitGame('Window has been closed')
     
