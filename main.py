@@ -497,7 +497,7 @@ def castFreeze():
         return 'cancelled'
     if not target.Fighter.frozen:
         target.Fighter.frozen = True
-        target.Fighter.freezeCooldown = 3
+        target.Fighter.freezeCooldown = 4 #Actually 3 turns since this begins ticking down the turn the spell is casted
         message("The " + target.name + " is frozen !", colors.light_violet)
     else:
         message("The " + target.name + " is already frozen.")
