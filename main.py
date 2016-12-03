@@ -95,6 +95,8 @@ gameMsgs = [] #List of game messages
 tilesInRange = []
 explodingTiles = []
 hiroshimanNumber = 0
+FOV_recompute = True
+inventory = []
 
 
 #_____________ CONSTANTS __________________
@@ -332,10 +334,12 @@ def getInput():
         if GRAPHICS == 'modern':
             print('Graphics mode set to classic')
             GRAPHICS = 'classic'
+            FOV_recompute = True
             return 'didnt-take-turn'
         elif GRAPHICS == 'classic':
             print('Graphics mode set to modern')
             GRAPHICS = 'modern'
+            FOV_recompute = True
             return 'didnt-take-turn'    
     elif userInput.keychar.upper() == 'F2' and gameState != 'looking':
         player.Fighter.takeDamage(1)
@@ -347,28 +351,34 @@ def getInput():
             print('Monster turn debug is now on')
             message("This is a very long message just to test Python 3 built-in textwrap function, which allows us to do great things such as splitting very long texts into multiple lines, so as it don't overflow outside of the console. Oh and, debug mode has been activated", colors.purple)
             DEBUG = True
+            FOV_recompute = True
             return 'didnt-take-turn'
         elif DEBUG:
             print('Monster turn debug is now off')
             message('Debug mode is now off', colors.purple)
             DEBUG = False
+            FOV_recompute = True
             return 'didnt-take-turn' 
         else:
             quitGame('Whatever you did, it went horribly wrong (DEBUG took an unexpected value)')    
         FOV_recompute= True
     elif userInput.keychar.upper() == 'F4' and DEBUG and not tdl.event.isWindowClosed(): #For some reason, Bad Things (tm) happen if you don't perform a tdl.event.isWindowClosed() check here. Yeah, don't ask why.
         castCreateOrc()
+        FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'F5' and DEBUG and not tdl.event.isWindowClosed(): #Don't know if tdl.event.isWindowClosed() is necessary here but added it just to be sure
         player.Fighter.maxHP += 1000
         player.Fighter.hp = player.Fighter.maxHP
         message('Healed player and increased their maximum HP value by 1000', colors.purple)
+        FOV_recompute = True
     elif userInput.keychar.upper() == "F6" and DEBUG and not tdl.event.isWindowClosed():
         player.Fighter.frozen = True
         player.Fighter.freezeCooldown = 3
+        FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'F7' and DEBUG and not tdl.event.isWindowClosed():
         castCreateHiroshiman()
+        FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == "W" :
         return None 
@@ -382,6 +392,7 @@ def getInput():
             message('Look mode', colors.purple)
         lookCursor = GameObject(x = player.x, y = player.y, char = 'X', name = 'cursor', color = colors.yellow, Ghost = True)
         objects.append(lookCursor)
+        FOV_recompute = True
         return 'didnt-take-turn'
     if gameState ==  'looking':
         global lookCursor
@@ -391,6 +402,7 @@ def getInput():
             objects.remove(lookCursor)
             del lookCursor
             message('Exited look mode', colors.purple)
+            FOV_recompute = True
             return 'didnt-take-turn'
         elif userInput.keychar.upper() in MOVEMENT_KEYS:
             dx, dy = MOVEMENT_KEYS[userInput.keychar.upper()]
@@ -406,16 +418,21 @@ def getInput():
                 if object.x == player.x and object.y == player.y and object.Item is not None:
                     object.Item.pickUp()
                     break
+            FOV_recompute = True
         elif userInput.keychar.upper() == 'I':
             chosenItem = inventoryMenu('Press the key next to an item to use it, or any other to cancel.\n')
             if chosenItem is not None:
                 using = chosenItem.use()
                 if using == 'cancelled':
+                    FOV_recompute = True
                     return 'didnt-take-turn'
             else:
+                FOV_recompute = True
                 return 'didnt-take-turn'
         else:
-            return 'didnt-take-turn'    
+            FOV_recompute = True
+            return 'didnt-take-turn'
+    FOV_recompute = True
 def moveOrAttack(dx, dy):
     global FOV_recompute
     x = player.x + dx
@@ -899,6 +916,10 @@ def inventoryMenu(header):
     else:
         return inventory[index].Item
 #_____________ GUI _______________
+def initializeFOV():
+    global FOV_recompute, visibleTiles
+    FOV_recompute = True
+    visibleTiles = tdl.map.quickFOV(player.x, player.y, isVisibleTile, fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
 
 def Update():
     global FOV_recompute
@@ -1040,51 +1061,57 @@ def targetMonster(maxRange = None):
                
 
 #______ INITIALIZATION AND MAIN LOOP________
-playFight = Fighter( hp = 100, power=5, defense=3, deathFunction=playerDeath)
-playComp = Player()
-player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = 'Hero', color = (0, 210, 0))
+def newGame():
+    global objects, inventory, gameMsgs, gameState, player
+    playFight = Fighter( hp = 100, power=5, defense=3, deathFunction=playerDeath)
+    playComp = Player()
+    player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = 'Hero', color = (0, 210, 0))
 
-objects = [player]
-makeMap()
-Update()
-
-inventory = []
-
-FOV_recompute = True
-message('Zargothrox says : Prepare to get lost in the Realm of Madness !', colors.dark_red)
-if hiroshimanNumber == 1:
-    message('You suddenly feel uneasy.', colors.dark_red)
-
-
-while not tdl.event.isWindowClosed():
+    objects = [player]
+    makeMap()
     Update()
-    tdl.flush()
-    for object in objects:
-        object.clear()
-    playerAction = getInput()
-    FOV_recompute = True #So as to avoid the blackscreen bug no matter which key we press
-    if playerAction == 'exit':
-        quitGame('Player pressed escape')
-    if gameState == 'playing' and playerAction != 'didnt-take-turn':
-        for object in objects:
-            if object.AI:
-                object.AI.takeTurn()
-            if object.Fighter and object.Fighter.frozen:
-                object.Fighter.freezeCooldown -= 1
-                if object.Fighter.freezeCooldown < 0:
-                    object.Fighter.freezeCooldown = 0
-                if object.Fighter.freezeCooldown == 0:
-                    object.Fighter.frozen = False
-                    message(object.name.capitalize() + "'s ice shatters !")
-            if object.Fighter and object.Fighter.burning:
-                object.Fighter.burnCooldown -= 1
-                object.Fighter.takeDamage(3)
-                message('The ' + object.name + ' keeps burning !')
-                if object.Fighter.burnCooldown < 0:
-                    object.Fighter.burnCooldown = 0
-                if object.Fighter.burnCooldown == 0:
-                    object.Fighter.burning = False
-                    message(object.name.capitalize() + "'s flames die down") 
 
-DEBUG = False
-quitGame('Window has been closed')
+    inventory = []
+
+    FOV_recompute = True
+    initializeFOV()
+    message('Zargothrox says : Prepare to get lost in the Realm of Madness !', colors.dark_red)
+    if hiroshimanNumber == 1:
+        message('You suddenly feel uneasy.', colors.dark_red)
+
+def playGame():
+    while not tdl.event.isWindowClosed():
+        Update()
+        tdl.flush()
+        for object in objects:
+            object.clear()
+        playerAction = getInput()
+        FOV_recompute = True #So as to avoid the blackscreen bug no matter which key we press
+        if playerAction == 'exit':
+            quitGame('Player pressed escape')
+        if gameState == 'playing' and playerAction != 'didnt-take-turn':
+            for object in objects:
+                if object.AI:
+                    object.AI.takeTurn()
+                if object.Fighter and object.Fighter.frozen:
+                    object.Fighter.freezeCooldown -= 1
+                    if object.Fighter.freezeCooldown < 0:
+                        object.Fighter.freezeCooldown = 0
+                    if object.Fighter.freezeCooldown == 0:
+                        object.Fighter.frozen = False
+                        message(object.name.capitalize() + "'s ice shatters !")
+                    if object.Fighter and object.Fighter.burning:
+                        object.Fighter.burnCooldown -= 1
+                        object.Fighter.takeDamage(3)
+                        message('The ' + object.name + ' keeps burning !')
+                        if object.Fighter.burnCooldown < 0:
+                            object.Fighter.burnCooldown = 0
+                        if object.Fighter.burnCooldown == 0:
+                            object.Fighter.burning = False
+                            message(object.name.capitalize() + "'s flames die down") 
+
+    DEBUG = False
+    quitGame('Window has been closed')
+    
+newGame()
+playGame()
