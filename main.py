@@ -1,11 +1,8 @@
-import tdl
+import tdl, colors, math, textwrap, time
 from tdl import *
 from random import randint
-import colors
-import math
 from math import *
-import textwrap
-import time
+
 
 # Naming conventions :
 # MY_CONSTANT
