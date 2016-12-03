@@ -551,6 +551,8 @@ def castArmageddon(radius = 4, damage = 40):
     #Display explosion eye-candy, this could get it's own function
     explode()
     
+# Add push monster spell (create an invisble projectile that pass throguh a monster, when the said projectile hits a wall, teleport monster to the projectile position and deal X damage to the said monster.)
+    
 def createOrc(x, y):
     if x != player.x or y != player.y:
         fighterComponent = Fighter(hp=10, defense=0, power=3, deathFunction = monsterDeath)
