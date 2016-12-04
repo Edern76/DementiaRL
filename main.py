@@ -436,6 +436,7 @@ def getInput():
         elif userInput.keychar.upper() in MOVEMENT_KEYS:
             dx, dy = MOVEMENT_KEYS[userInput.keychar.upper()]
             lookCursor.move(dx, dy)
+            FOV_recompute = True
             return 'didnt-take-turn'
     if gameState == 'playing':
         if userInput.keychar.upper() in MOVEMENT_KEYS:
@@ -829,6 +830,27 @@ def makeMap():
 #_____________ MAP CREATION __________________
 
 #_____________ ROOM POPULATION + ITEMS GENERATION_______________
+monsterChances = {'orc': 80, 'troll': 20}
+itemChances = {'potion': 30, 'scroll': 65, 'none': 5}
+scrollChances = {'lightning': 12, 'confuse': 12, 'fireball': 25, 'armageddon': 10, 'ice': 25, 'none': 1}
+fireballChances = {'lesser': 20, 'normal': 50, 'greater': 20}
+potionChances = {'heal': 100}
+
+def randomChoiceIndex(chances):
+    dice = randint(1, sum(chances))
+    runningSum = 0
+    choice = 0
+    for chance in chances:
+        runningSum += chance
+        if dice <= runningSum:
+            return choice
+        choice += 1
+
+def randomChoice(chancesDictionnary):
+    chances = chancesDictionnary.values()
+    strings = list(chancesDictionnary.keys())
+    return strings[randomChoiceIndex(chances)]
+
 def placeObjects(room):
     numMonsters = randint(0, MAX_ROOM_MONSTERS)
     for i in range(numMonsters):
@@ -836,14 +858,14 @@ def placeObjects(room):
         y = randint(room.y1+1, room.y2-1)
         
         if not isBlocked(x, y) and (x, y) != (player.x, player.y):
-            monsterDice = randint(0,100)
-            if monsterDice < 80:
+            monsterChoice = randomChoice(monsterChances)
+            if monsterChoice == 'orc':
                 monster = createOrc(x, y)
-            elif monsterDice < 90 and hiroshimanNumber == 0 and dungeonLevel > 2:
-                global hiroshimanNumber
-                monster = createHiroshiman(x, y)
-                hiroshimanNumber = 1
-            else:
+            #elif monsterDice < 90 and hiroshimanNumber == 0 and dungeonLevel > 2:
+                #global hiroshimanNumber
+                #monster = createHiroshiman(x, y)
+                #hiroshimanNumber = 1
+            elif monsterChoice == 'troll':
                 fighterComponent = Fighter(hp=16, defense=1, power=4, xp = 100, deathFunction = monsterDeath)
                 AI_component = BasicMonster()
                 monster = GameObject(x, y, char = 'T', color = colors.darker_green,name = 'troll', blocks = True, Fighter = fighterComponent, AI = AI_component)
@@ -856,32 +878,34 @@ def placeObjects(room):
         x = randint(room.x1+1, room.x2-1)
         y = randint(room.y1+1, room.y2-1)
         if not isBlocked(x, y):
-            dice = randint(0, 100)
-            if dice < 30 :
+            itemChoice = randomChoice(itemChances)
+            if itemChoice == 'potion':
                 #Spawn a potion
-                item = GameObject(x, y, '!', 'healing potion', colors.violet, Item = Item(useFunction = castHeal), blocks = False)
-            elif dice < 30 + 65:
+                potionChoice = randomChoice(potionChances)
+                if potionChoice == 'heal':
+                    item = GameObject(x, y, '!', 'healing potion', colors.violet, Item = Item(useFunction = castHeal), blocks = False)
+            elif itemChoice == 'scroll':
                 #Spawn a scroll
-                scrollDice = randint(0, 100)
-                if scrollDice < 12:
+                scrollChoice = randomChoice(scrollChances)
+                if scrollChoice == 'lightning':
                     item = GameObject(x, y, '~', 'scroll of lightning bolt', colors.light_yellow, Item = Item(useFunction = castLightning), blocks = False)
-                elif scrollDice < 12 + 12:
+                elif scrollChoice == 'confuse':
                     item = GameObject(x, y, '~', 'scroll of confusion', colors.light_yellow, Item = Item(useFunction = castConfuse), blocks = False)
-                elif scrollDice < 12+12+25:
-                    fireballDice = randint(0, 100)
-                    if fireballDice < 20:
+                elif scrollChoice == 'fireball':
+                    fireballChoice = randomChoice(fireballChances)
+                    if fireballChoice == 'lesser':
                         item = GameObject(x, y, '~', 'scroll of lesser fireball', colors.light_yellow, Item = Item(castFireball, 2, 6), blocks = False)
-                    elif fireballDice < 20 + 30:
+                    elif fireballChoice == 'normal':
                         item = GameObject(x, y, '~', 'scroll of fireball', colors.light_yellow, Item = Item(castFireball), blocks = False)
-                    else:
+                    elif fireballChoice == 'greater':
                         item = GameObject(x, y, '~', 'scroll of greater fireball', colors.light_yellow, Item = Item(castFireball, 4, 24), blocks = False)
-                elif scrollDice < 12+12+25+10:
+                elif scrollChoice == 'armageddon':
                     item = GameObject(x, y, '~', 'scroll of armageddon', colors.red, Item = Item(castArmageddon), blocks = False)
-                elif scrollDice < 12+12+25+10+25:
+                elif scrollChoice == 'ice':
                     item = GameObject(x, y, '~', 'scroll of ice bolt', colors.light_cyan, Item = Item(castFreeze), blocks = False)
-                else:
+                elif scrollChoice == 'none':
                     item = None
-            else:
+            elif itemChoice == 'none':
                 item = None
             if item is not None:            
                 objects.append(item)
@@ -1080,6 +1104,7 @@ def Update():
         msgY += 1
     # Draw GUI
     panel.draw_str(1, 3, 'Dungeon level: ' + str(dungeonLevel), colors.white)
+    panel.draw_str(1, 5, 'Player level: ' + str(player.level), colors.white)
     renderBar(1, 1, BAR_WIDTH, 'HP', player.Fighter.hp, player.Fighter.maxHP, player.color, colors.dark_gray)
     # Look code
     if gameState == 'looking' and lookCursor != None:
