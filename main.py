@@ -928,6 +928,44 @@ def inventoryMenu(header):
         return None
     else:
         return inventory[index].Item
+
+def msgBox(text, width = 50):
+    menu(text, [], width)
+    
+def drawCentered (cons = con , y = 1, text = "Lorem Ipsum", fg = None, bg = None):
+    xCentered = (WIDTH - len(text))//2
+    cons.draw_str(xCentered, y, text, fg, bg)
+
+def mainMenu():
+    choices = ['New Game', 'Continue', 'Quit']
+    index = 0
+    while not tdl.event.isWindowClosed():
+        root.clear()
+        drawCentered(cons =  root, y = 15, text = 'Dementia', fg = colors.white, bg = None)
+        drawCentered(cons = root, y = 44, text = choices[0], fg = colors.white, bg = None)
+        drawCentered(cons = root, y = 45, text = choices[1], fg  = colors.white, bg = None)
+        drawCentered(cons = root, y = 46, text = choices[2], fg = colors.white, bg = None)
+        drawCentered(cons = root, y = 44 + index, text=choices[index], fg = colors.black, bg = colors.white)
+        tdl.flush()
+        key = tdl.event.key_wait()
+        if key.keychar.upper() == "DOWN":
+            index += 1
+        elif key.keychar.upper() == "UP":
+            index -= 1
+        if index < 0:
+            index = 2
+        if index > 2:
+            index = 0
+        if key.keychar.upper() == "ENTER":
+            if index == 0:
+                newGame()
+                playGame()
+            elif index == 1:
+                pass #TODO : Add load code
+            elif index == 2:
+                raise SystemExit("Choosed Quit on the main menu")
+        tdl.flush()
+        
 #_____________ GUI _______________
 def initializeFOV():
     global FOV_recompute, visibleTiles
@@ -1136,5 +1174,4 @@ def playGame():
     DEBUG = False
     quitGame('Window has been closed')
     
-newGame()
-playGame()
+mainMenu()
