@@ -58,6 +58,7 @@ MSG_HEIGHT = PANEL_HEIGHT - 1
 INVENTORY_WIDTH = 50
 
 LEVEL_SCREEN_WIDTH = 40
+CHARACTER_SCREEN_WIDTH = 30
 # - GUI Constants -
 
 # - Consoles -
@@ -403,6 +404,7 @@ def getInput():
         FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == "W" or userInput.keychar.upper() == 'KP5':
+        FOV_recompute = True
         return None 
     elif userInput.keychar == 'A' and gameState == 'playing' and DEBUG and not tdl.event.isWindowClosed():
         castArmageddon()         
@@ -416,6 +418,11 @@ def getInput():
         objects.append(lookCursor)
         FOV_recompute = True
         return 'didnt-take-turn'
+    elif userInput.keychar.upper() == 'C':
+        levelUp_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
+        menu('Character Information\n\nLevel: ' + str(player.level) + '\nExperience: ' + str(player.Fighter.xp) +
+                    '\nExperience to level up: ' + str(levelUp_xp) + '\n\nMaximum HP: ' + str(player.Fighter.maxHP) +
+                    '\nAttack: ' + str(player.Fighter.power) + '\nDefense: ' + str(player.Fighter.defense), [], CHARACTER_SCREEN_WIDTH)
     if gameState ==  'looking':
         global lookCursor
         if userInput.keychar.upper() == 'ESCAPE':
