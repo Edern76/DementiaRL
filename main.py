@@ -1,7 +1,8 @@
-import tdl, colors, math, textwrap, time
+import tdl, colors, math, textwrap, time, os, shelve
 from tdl import *
 from random import randint
 from math import *
+from os import makedirs
 
 
 # Naming conventions :
@@ -99,6 +100,13 @@ FOV_recompute = True
 inventory = []
 stairs = None
 hiroshimanHasAppeared = False
+player = None
+
+curDir = os.path.dirname(__file__)
+relDirPath = "save"
+relPath = "save/savegame"
+absDirPath = os.path.join(curDir, relDirPath)
+absFilePath = os.path.join(curDir, relPath)
 
 
 #_____________ CONSTANTS __________________
@@ -318,6 +326,7 @@ class Item:
 def quitGame(message):
     global objects
     global inventory
+    saveGame()
     for obj in objects:
         del obj
     inventory = []
@@ -463,7 +472,6 @@ def moveOrAttack(dx, dy):
 
 def isVisibleTile(x, y):
     global myMap
- 
     if x >= MAP_WIDTH or x < 0:
         return False
     elif y >= MAP_HEIGHT or y < 0:
@@ -888,6 +896,8 @@ def menu(header, options, width):
     if len(options) > 26: raise ValueError('Cannot have a menu with more than 26 options')
     headerWrapped = textwrap.wrap(header, width)
     headerHeight = len(headerWrapped)
+    if header == "":
+        headerHeight = 0
     height = len(options) + headerHeight + 1
     window = tdl.Console(width, height)
     window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
@@ -928,6 +938,49 @@ def inventoryMenu(header):
         return None
     else:
         return inventory[index].Item
+
+def msgBox(text, width = 50):
+    menu(text, [], width)
+    
+def drawCentered (cons = con , y = 1, text = "Lorem Ipsum", fg = None, bg = None):
+    xCentered = (WIDTH - len(text))//2
+    cons.draw_str(xCentered, y, text, fg, bg)
+
+def mainMenu():
+    choices = ['New Game', 'Continue', 'Quit']
+    index = 0
+    while not tdl.event.isWindowClosed():
+        root.clear()
+        drawCentered(cons =  root, y = 15, text = 'Dementia', fg = colors.white, bg = None)
+        drawCentered(cons = root, y = 44, text = choices[0], fg = colors.white, bg = None)
+        drawCentered(cons = root, y = 45, text = choices[1], fg  = colors.white, bg = None)
+        drawCentered(cons = root, y = 46, text = choices[2], fg = colors.white, bg = None)
+        drawCentered(cons = root, y = 44 + index, text=choices[index], fg = colors.black, bg = colors.white)
+        tdl.flush()
+        key = tdl.event.key_wait()
+        if key.keychar.upper() == "DOWN":
+            index += 1
+        elif key.keychar.upper() == "UP":
+            index -= 1
+        if index < 0:
+            index = 2
+        if index > 2:
+            index = 0
+        if key.keychar.upper() == "ENTER":
+            if index == 0:
+                newGame()
+                playGame()
+            elif index == 1:
+                try:
+                    loadGame()
+                except:
+                    msgBox("\n No saved game to load.\n", 24)
+                    continue
+                playGame()
+            elif index == 2:
+                raise SystemExit("Choosed Quit on the main menu")
+        tdl.flush()
+        
 #_____________ GUI _______________
 def initializeFOV():
     global FOV_recompute, visibleTiles
@@ -1075,6 +1128,22 @@ def targetMonster(maxRange = None):
                
 
 #______ INITIALIZATION AND MAIN LOOP________
+def saveGame():
+    
+    if not os.path.exists(absDirPath):
+        os.makedirs(absDirPath)
+    
+    file = shelve.open(absFilePath, "n")
+    file["dungeonLevel"] = dungeonLevel
+    file["myMap"] = myMap
+    file["objects"] = objects
+    file["playerIndex"] = objects.index(player)
+    file["inventory"] = inventory
+    file["gameMsgs"] = gameMsgs
+    file["gameState"] = gameState
+    
+    file.close()
+
 def newGame():
     global objects, inventory, gameMsgs, gameState, player, dungeonLevel
     playFight = Fighter( hp = 100, power=5, defense=3, deathFunction=playerDeath)
@@ -1091,6 +1160,20 @@ def newGame():
     FOV_recompute = True
     initializeFOV()
     message('Zargothrox says : Prepare to get lost in the Realm of Madness !', colors.dark_red)
+
+def loadGame():
+    global objects, inventory, gameMsgs, gameState, player, dungeonLevel
+    
+    file = shelve.open(absFilePath, "r")
+    dungeonLevel = file["dungeonLevel"]
+    myMap = file["myMap"]
+    objects = file["objects"]
+    player = objects[file["playerIndex"]]
+    inventory = file["inventory"]
+    gameMsgs = file["gameMsgs"]
+    gameState = file["gameState"]
+    
+    initializeFOV()
 
 def nextLevel():
     global dungeonLevel
@@ -1136,5 +1219,4 @@ def playGame():
     DEBUG = False
     quitGame('Window has been closed')
     
-newGame()
-playGame()
+mainMenu()
