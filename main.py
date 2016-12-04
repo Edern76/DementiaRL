@@ -56,6 +56,8 @@ MSG_WIDTH = WIDTH - BAR_WIDTH - 10
 MSG_HEIGHT = PANEL_HEIGHT - 1
 
 INVENTORY_WIDTH = 50
+
+LEVEL_SCREEN_WIDTH = 40
 # - GUI Constants -
 
 # - Consoles -
@@ -71,6 +73,8 @@ SIGHT_RADIUS = 10
 MAX_ROOM_MONSTERS = 3
 MAX_ROOM_ITEMS = 5
 GRAPHICS = 'modern'
+LEVEL_UP_BASE = 200
+LEVEL_UP_FACTOR = 150
 
 # - Spells -
 LIGHTNING_DAMAGE = 20
@@ -187,12 +191,13 @@ class GameObject:
         objects.insert(0, self)
 
 class Fighter: #All NPCs, enemies and the player
-    def __init__(self, hp, defense, power, deathFunction=None):
+    def __init__(self, hp, defense, power, xp, deathFunction=None):
         self.maxHP = hp
         self.hp = hp
         self.defense = defense
         self.power = power
         self.deathFunction = deathFunction
+        self.xp = xp
         
         self.frozen = False
         self.freezeCooldown = 0
@@ -207,6 +212,8 @@ class Fighter: #All NPCs, enemies and the player
             death=self.deathFunction
             if death is not None:
                 death(self.owner)
+            if self.owner != player:
+                player.Fighter.xp += self.xp
 
     def attack(self, target):
         damage = self.power - target.Fighter.defense
@@ -395,7 +402,7 @@ def getInput():
         castCreateHiroshiman()
         FOV_recompute = True
         return 'didnt-take-turn'
-    elif userInput.keychar.upper() == "W" :
+    elif userInput.keychar.upper() == "W" or userInput.keychar.upper() == 'KP5':
         return None 
     elif userInput.keychar == 'A' and gameState == 'playing' and DEBUG and not tdl.event.isWindowClosed():
         castArmageddon()         
@@ -466,9 +473,29 @@ def moveOrAttack(dx, dy):
     if target is not None:
         player.Fighter.attack(target)
     else:
-        player.move(dx, dy)         
-        
-    
+        player.move(dx, dy)
+
+def checkLevelUp():
+    levelUp_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
+    if player.Fighter.xp >= levelUp_xp:
+        player.level += 1
+        player.Fighter.xp -= levelUp_xp
+        message('Your battle skills grow stronger! You reached level ' + str(player.level) + '!', colors.yellow)
+
+        choice = None
+        while choice == None:
+            choice = menu('Level up! Choose a stat to raise:\n',
+                ['Constitution (+20 HP, from ' + str(player.Fighter.maxHP) + ')',
+                'Strength (+1 attack, from ' + str(player.Fighter.power) + ')',
+                'Agility (+1 defense, from ' + str(player.Fighter.defense) + ')'], LEVEL_SCREEN_WIDTH)
+ 
+        if choice == 0:
+            player.Fighter.maxHP += 20
+            player.Fighter.hp += 20
+        elif choice == 1:
+            player.Fighter.power += 1
+        elif choice == 2:
+            player.Fighter.defense += 1
 
 def isVisibleTile(x, y):
     global myMap
@@ -497,8 +524,6 @@ def tileDistance(x1, y1, x2, y2):
         dx = x2 - x1
         dy = y2 - y1
         return math.sqrt(dx ** 2 + dy ** 2)
-    
-
 
 def castHeal(healAmount = 5):
     if player.Fighter.hp == player.Fighter.maxHP:
@@ -643,7 +668,7 @@ def monsterArmageddon(monsterName ,monsterX, monsterY, radius = 4, damage = 40):
     
 def createOrc(x, y):
     if x != player.x or y != player.y:
-        fighterComponent = Fighter(hp=10, defense=0, power=3, deathFunction = monsterDeath)
+        fighterComponent = Fighter(hp=10, defense=0, power=3, xp = 35, deathFunction = monsterDeath)
         AI_component = BasicMonster()
         monster = GameObject(x, y, char = 'o', color = colors.desaturated_green, name = 'orc', blocks = True, Fighter=fighterComponent, AI = AI_component)
         return monster
@@ -652,7 +677,7 @@ def createOrc(x, y):
     
 def createHiroshiman(x, y):
     if x != player.x or y != player.y:
-        fighterComponent = Fighter(hp=150, defense=0, power=3, deathFunction = monsterDeath)
+        fighterComponent = Fighter(hp=150, defense=0, power=3, xp = 500, deathFunction = monsterDeath)
         AI_component = SplosionAI()
         monster = GameObject(x, y, char = 'H', color = colors.red, name = 'Hiroshiman', blocks = True, Fighter=fighterComponent, AI = AI_component)
         return monster
@@ -812,7 +837,7 @@ def placeObjects(room):
                 monster = createHiroshiman(x, y)
                 hiroshimanNumber = 1
             else:
-                fighterComponent = Fighter(hp=16, defense=1, power=4, deathFunction = monsterDeath)
+                fighterComponent = Fighter(hp=16, defense=1, power=4, xp = 100, deathFunction = monsterDeath)
                 AI_component = BasicMonster()
                 monster = GameObject(x, y, char = 'T', color = colors.darker_green,name = 'troll', blocks = True, Fighter = fighterComponent, AI = AI_component)
         
@@ -978,7 +1003,7 @@ def mainMenu():
                     continue
                 playGame()
             elif index == 2:
-                raise SystemExit("Choosed Quit on the main menu")
+                raise SystemExit("Chose Quit on the main menu")
         tdl.flush()
         
 #_____________ GUI _______________
@@ -1146,9 +1171,10 @@ def saveGame():
 
 def newGame():
     global objects, inventory, gameMsgs, gameState, player, dungeonLevel
-    playFight = Fighter( hp = 100, power=5, defense=3, deathFunction=playerDeath)
+    playFight = Fighter( hp = 100, power=5, defense=3, deathFunction=playerDeath, xp=0)
     playComp = Player()
     player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = 'Hero', color = (0, 210, 0))
+    player.level = 1
 
     objects = [player]
     dungeonLevel = 1 
@@ -1189,6 +1215,7 @@ def nextLevel():
 def playGame():
     while not tdl.event.isWindowClosed():
         Update()
+        checkLevelUp()
         tdl.flush()
         for object in objects:
             object.clear()
