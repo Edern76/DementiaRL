@@ -591,7 +591,7 @@ def castFireball(radius = 3, damage = 12):
                 if obj.Fighter and randint(0, 100) > 50 and not obj.Fighter.burning:
                     obj.Fighter.burning = True
                     obj.Fighter.burnCooldown = 4
-                    message('The ' + obj.name + 'is set afire')
+                    message('The ' + obj.name + ' is set afire')
                 
 def castArmageddon(radius = 4, damage = 40):
     global FOV_recompute
@@ -895,7 +895,7 @@ def playerDeath(player):
     player.color = colors.dark_red
  
 def monsterDeath(monster):
-    message(monster.name.capitalize() + ' is dead!', colors.dark_sky)
+    message(monster.name.capitalize() + ' is dead! You gain ' + str(monster.Fighter.xp) + ' XP.', colors.dark_sky)
     monster.char = '%'
     monster.color = colors.dark_red
     monster.blocks = False
@@ -1060,7 +1060,7 @@ def Update():
                 if gameState == 'targeting':
                     inRange = (x, y) in tilesInRange
                     if inRange and not wall:
-                        con.draw_char(x, y, None, fg=None, bg=colors.green)
+                        con.draw_char(x, y, None, fg=None, bg=colors.darker_yellow)
                 elif gameState == 'exploding':
                     exploded = (x,y) in explodingTiles
                     if exploded:
@@ -1240,7 +1240,7 @@ def playGame():
                         object.Fighter.freezeCooldown = 0
                     if object.Fighter.freezeCooldown == 0:
                         object.Fighter.frozen = False
-                        message(object.name.capitalize() + "'s ice shatters !")
+                        message(object.name.capitalize() + "'s ice shatters !", colors.light_violet)
                     if object.Fighter and object.Fighter.burning:
                         object.Fighter.burnCooldown -= 1
                         object.Fighter.takeDamage(3)
@@ -1249,7 +1249,7 @@ def playGame():
                             object.Fighter.burnCooldown = 0
                         if object.Fighter.burnCooldown == 0:
                             object.Fighter.burning = False
-                            message(object.name.capitalize() + "'s flames die down")
+                            message(object.name.capitalize() + "'s flames die down", colors.darker_orange)
     DEBUG = False
     quitGame('Window has been closed')
     
