@@ -100,6 +100,13 @@ FOV_recompute = True
 inventory = []
 stairs = None
 hiroshimanHasAppeared = False
+player = None
+
+curDir = os.path.dirname(__file__)
+relDirPath = "save"
+relPath = "save/savegame"
+absDirPath = os.path.join(curDir, relDirPath)
+absFilePath = os.path.join(curDir, relPath)
 
 
 #_____________ CONSTANTS __________________
@@ -465,7 +472,6 @@ def moveOrAttack(dx, dy):
 
 def isVisibleTile(x, y):
     global myMap
- 
     if x >= MAP_WIDTH or x < 0:
         return False
     elif y >= MAP_HEIGHT or y < 0:
@@ -890,6 +896,8 @@ def menu(header, options, width):
     if len(options) > 26: raise ValueError('Cannot have a menu with more than 26 options')
     headerWrapped = textwrap.wrap(header, width)
     headerHeight = len(headerWrapped)
+    if header == "":
+        headerHeight = 0
     height = len(options) + headerHeight + 1
     window = tdl.Console(width, height)
     window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
@@ -963,7 +971,12 @@ def mainMenu():
                 newGame()
                 playGame()
             elif index == 1:
-                pass #TODO : Add load code
+                try:
+                    loadGame()
+                except:
+                    msgBox("\n No saved game to load.\n", 24)
+                    continue
+                playGame()
             elif index == 2:
                 raise SystemExit("Choosed Quit on the main menu")
         tdl.flush()
@@ -1116,22 +1129,19 @@ def targetMonster(maxRange = None):
 
 #______ INITIALIZATION AND MAIN LOOP________
 def saveGame():
-    curDir = os.path.dirname(__file__)
-    relDirPath = "save"
-    relPath = "save/savegame"
-    absDirPath = os.path.join(curDir, relDirPath)
-    absFilePath = os.path.join(curDir, relPath)
     
     if not os.path.exists(absDirPath):
         os.makedirs(absDirPath)
     
     file = shelve.open(absFilePath, "n")
+    file["dungeonLevel"] = dungeonLevel
     file["myMap"] = myMap
     file["objects"] = objects
     file["playerIndex"] = objects.index(player)
     file["inventory"] = inventory
     file["gameMsgs"] = gameMsgs
     file["gameState"] = gameState
+    
     file.close()
 
 def newGame():
@@ -1150,6 +1160,20 @@ def newGame():
     FOV_recompute = True
     initializeFOV()
     message('Zargothrox says : Prepare to get lost in the Realm of Madness !', colors.dark_red)
+
+def loadGame():
+    global objects, inventory, gameMsgs, gameState, player, dungeonLevel
+    
+    file = shelve.open(absFilePath, "r")
+    dungeonLevel = file["dungeonLevel"]
+    myMap = file["myMap"]
+    objects = file["objects"]
+    player = objects[file["playerIndex"]]
+    inventory = file["inventory"]
+    gameMsgs = file["gameMsgs"]
+    gameState = file["gameState"]
+    
+    initializeFOV()
 
 def nextLevel():
     global dungeonLevel
