@@ -1,7 +1,8 @@
-import tdl, colors, math, textwrap, time
+import tdl, colors, math, textwrap, time, os, shelve
 from tdl import *
 from random import randint
 from math import *
+from os import makedirs
 
 
 # Naming conventions :
@@ -318,6 +319,7 @@ class Item:
 def quitGame(message):
     global objects
     global inventory
+    saveGame()
     for obj in objects:
         del obj
     inventory = []
@@ -1113,6 +1115,25 @@ def targetMonster(maxRange = None):
                
 
 #______ INITIALIZATION AND MAIN LOOP________
+def saveGame():
+    curDir = os.path.dirname(__file__)
+    relDirPath = "save"
+    relPath = "save/savegame"
+    absDirPath = os.path.join(curDir, relDirPath)
+    absFilePath = os.path.join(curDir, relPath)
+    
+    if not os.path.exists(absDirPath):
+        os.makedirs(absDirPath)
+    
+    file = shelve.open(absFilePath, "n")
+    file["myMap"] = myMap
+    file["objects"] = objects
+    file["playerIndex"] = objects.index(player)
+    file["inventory"] = inventory
+    file["gameMsgs"] = gameMsgs
+    file["gameState"] = gameState
+    file.close()
+
 def newGame():
     global objects, inventory, gameMsgs, gameState, player, dungeonLevel
     playFight = Fighter( hp = 100, power=5, defense=3, deathFunction=playerDeath)
