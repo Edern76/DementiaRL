@@ -1046,12 +1046,12 @@ def mainMenu():
                 newGame()
                 playGame()
             elif index == 1:
-                #try:
+                try:
                     loadGame()
-                #except:
-                    #msgBox("\n No saved game to load.\n", 24)
-                    #continue
-                    playGame()
+                except:
+                    msgBox("\n No saved game to load.\n", 24)
+                    continue
+                playGame()
             elif index == 2:
                 raise SystemExit("Chose Quit on the main menu")
         tdl.flush()
