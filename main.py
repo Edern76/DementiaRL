@@ -333,6 +333,13 @@ class Item:
                     inventory.remove(self.owner)
                 else:
                     return 'cancelled'
+                
+    def drop(self):
+        objects.append(self.owner)
+        inventory.remove(self.owner)
+        self.owner.x = player.x
+        self.owner.y = player.y
+        message('You dropped a ' + self.owner.name + '.', colors.yellow)
 
 def quitGame(message):
     global objects
@@ -426,6 +433,11 @@ def getInput():
         menu('Character Information \n \n Level: ' + str(player.level) + '\n Experience: ' + str(player.Fighter.xp) +
                     '\n Experience to level up: ' + str(levelUp_xp) + '\n \n Maximum HP: ' + str(player.Fighter.maxHP) +
                     '\n Attack: ' + str(player.Fighter.power) + '\n Defense: ' + str(player.Fighter.defense), [], CHARACTER_SCREEN_WIDTH)
+        
+    elif userInput.keychar == 'd' and gameState == 'playing':
+        chosenItem = inventoryMenu('Press the key next to an item to drop it, or press any other key to cancel.')
+        if chosenItem is not None:
+            chosenItem.drop()
     if gameState ==  'looking':
         global lookCursor
         if userInput.keychar.upper() == 'ESCAPE':
