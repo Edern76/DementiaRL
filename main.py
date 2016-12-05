@@ -861,6 +861,10 @@ def randomChoice(chancesDictionnary):
 
 def placeObjects(room):
     numMonsters = randint(0, MAX_ROOM_MONSTERS)
+    if dungeonLevel > 2 and hiroshimanNumber == 0:
+        global monsterChances
+        monsterChances['troll'] = 15
+        monsterChances['hiroshiman'] = 5
     for i in range(numMonsters):
         x = randint(room.x1+1, room.x2-1)
         y = randint(room.y1+1, room.y2-1)
@@ -869,10 +873,14 @@ def placeObjects(room):
             monsterChoice = randomChoice(monsterChances)
             if monsterChoice == 'orc':
                 monster = createOrc(x, y)
-            #elif monsterDice < 90 and hiroshimanNumber == 0 and dungeonLevel > 2:
-                #global hiroshimanNumber
-                #monster = createHiroshiman(x, y)
-                #hiroshimanNumber = 1
+            elif monsterChoice == 'hiroshiman' and hiroshimanNumber == 0 and dungeonLevel > 2:
+                global hiroshimanNumber
+                global monsterChances
+                monster = createHiroshiman(x, y)
+                hiroshimanNumber = 1
+                del monsterChances['hiroshiman']
+                monsterChances['troll'] = 20
+                
             elif monsterChoice == 'troll':
                 fighterComponent = Fighter(hp=16, defense=1, power=4, xp = 100, deathFunction = monsterDeath)
                 AI_component = BasicMonster()
@@ -1230,6 +1238,8 @@ def newGame():
 def loadGame():
     global objects, inventory, gameMsgs, gameState, player, dungeonLevel
     
+    
+    myMap = [[]]
     file = shelve.open(absFilePath, "r")
     dungeonLevel = file["dungeonLevel"]
     myMap = file["myMap"]
