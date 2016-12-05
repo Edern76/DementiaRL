@@ -1211,7 +1211,7 @@ def saveGame():
     
     file = shelve.open(absFilePath, "n")
     file["dungeonLevel"] = dungeonLevel
-    file["myMap"] = myMap
+    file["myMap"] = deepcopy(myMap)
     file["objects"] = objects
     file["playerIndex"] = objects.index(player)
     file["inventory"] = inventory
