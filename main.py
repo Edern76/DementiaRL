@@ -420,9 +420,9 @@ def getInput():
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'C':
         levelUp_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
-        menu('Character Information\n\nLevel: ' + str(player.level) + '\nExperience: ' + str(player.Fighter.xp) +
-                    '\nExperience to level up: ' + str(levelUp_xp) + '\n\nMaximum HP: ' + str(player.Fighter.maxHP) +
-                    '\nAttack: ' + str(player.Fighter.power) + '\nDefense: ' + str(player.Fighter.defense), [], CHARACTER_SCREEN_WIDTH)
+        menu('Character Information \n \n Level: ' + str(player.level) + '\n Experience: ' + str(player.Fighter.xp) +
+                    '\n Experience to level up: ' + str(levelUp_xp) + '\n \n Maximum HP: ' + str(player.Fighter.maxHP) +
+                    '\n Attack: ' + str(player.Fighter.power) + '\n Defense: ' + str(player.Fighter.defense), [], CHARACTER_SCREEN_WIDTH)
     if gameState ==  'looking':
         global lookCursor
         if userInput.keychar.upper() == 'ESCAPE':
@@ -484,6 +484,7 @@ def moveOrAttack(dx, dy):
         player.move(dx, dy)
 
 def checkLevelUp():
+    global FOV_recompute
     levelUp_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
     if player.Fighter.xp >= levelUp_xp:
         player.level += 1
@@ -492,18 +493,25 @@ def checkLevelUp():
 
         choice = None
         while choice == None:
-            choice = menu('Level up! Choose a stat to raise:\n',
+            choice = menu('Level up! Choose a stat to raise: \n',
                 ['Constitution (+20 HP, from ' + str(player.Fighter.maxHP) + ')',
                 'Strength (+1 attack, from ' + str(player.Fighter.power) + ')',
                 'Agility (+1 defense, from ' + str(player.Fighter.defense) + ')'], LEVEL_SCREEN_WIDTH)
+            if choice != None:
+                if choice == 0:
+                    player.Fighter.maxHP += 20
+                    player.Fighter.hp += 20
+                elif choice == 1:
+                    player.Fighter.power += 1
+                elif choice == 2:
+                    player.Fighter.defense += 1
+                    
+                FOV_recompute = True
+                Update()
+                break
+            
  
-        if choice == 0:
-            player.Fighter.maxHP += 20
-            player.Fighter.hp += 20
-        elif choice == 1:
-            player.Fighter.power += 1
-        elif choice == 2:
-            player.Fighter.defense += 1
+        
 
 def isVisibleTile(x, y):
     global myMap
@@ -1266,15 +1274,16 @@ def playGame():
                     if object.Fighter.freezeCooldown == 0:
                         object.Fighter.frozen = False
                         message(object.name.capitalize() + "'s ice shatters !", colors.light_violet)
-                    if object.Fighter and object.Fighter.burning:
-                        object.Fighter.burnCooldown -= 1
-                        object.Fighter.takeDamage(3)
-                        message('The ' + object.name + ' keeps burning !')
-                        if object.Fighter.burnCooldown < 0:
-                            object.Fighter.burnCooldown = 0
-                        if object.Fighter.burnCooldown == 0:
-                            object.Fighter.burning = False
-                            message(object.name.capitalize() + "'s flames die down", colors.darker_orange)
+                        
+                if object.Fighter and object.Fighter.burning:
+                    object.Fighter.burnCooldown -= 1
+                    object.Fighter.takeDamage(3)
+                    message('The ' + object.name + ' keeps burning !')
+                    if object.Fighter.burnCooldown < 0:
+                        object.Fighter.burnCooldown = 0
+                    if object.Fighter.burnCooldown == 0:
+                        object.Fighter.burning = False
+                        message(object.name.capitalize() + "'s flames die down", colors.darker_orange)
     DEBUG = False
     quitGame('Window has been closed')
     
