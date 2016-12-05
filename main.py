@@ -1,8 +1,9 @@
-import tdl, colors, math, textwrap, time, os, shelve
+import tdl, colors, math, textwrap, time, os, shelve, pickle
 from tdl import *
 from random import randint
 from math import *
 from os import makedirs
+from copy import deepcopy
 
 
 # Naming conventions :
@@ -109,9 +110,11 @@ player = None
 
 curDir = os.path.dirname(__file__)
 relDirPath = "save"
-relPath = "save/savegame"
+relPath = "save\\savegame"
+relPicklePath = "save\\map"
 absDirPath = os.path.join(curDir, relDirPath)
 absFilePath = os.path.join(curDir, relPath)
+absPicklePath = os.path.join(curDir, relPicklePath)
 
 
 #_____________ CONSTANTS __________________
@@ -1043,12 +1046,12 @@ def mainMenu():
                 newGame()
                 playGame()
             elif index == 1:
-                try:
+                #try:
                     loadGame()
-                except:
-                    msgBox("\n No saved game to load.\n", 24)
-                    continue
-                playGame()
+                #except:
+                    #msgBox("\n No saved game to load.\n", 24)
+                    #continue
+                    playGame()
             elif index == 2:
                 raise SystemExit("Chose Quit on the main menu")
         tdl.flush()
@@ -1214,8 +1217,11 @@ def saveGame():
     file["inventory"] = inventory
     file["gameMsgs"] = gameMsgs
     file["gameState"] = gameState
-    
     file.close()
+    
+    #mapFile = open(absPicklePath, 'wb')
+    #pickle.dump(myMap, mapFile)
+    #mapFile.close()
 
 def newGame():
     global objects, inventory, gameMsgs, gameState, player, dungeonLevel
@@ -1239,17 +1245,20 @@ def loadGame():
     global objects, inventory, gameMsgs, gameState, player, dungeonLevel
     
     
-    myMap = [[]]
+    #myMap = [[Tile(True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)]
     file = shelve.open(absFilePath, "r")
     dungeonLevel = file["dungeonLevel"]
-    myMap = file["myMap"]
+    myMap = deepcopy(file["myMap"])
     objects = file["objects"]
     player = objects[file["playerIndex"]]
     inventory = file["inventory"]
     gameMsgs = file["gameMsgs"]
     gameState = file["gameState"]
     
-    initializeFOV()
+    #mapFile = open(absPicklePath, "rb")
+    #myMap = pickle.load(mapFile)
+    #mapFile.close()
+    
 
 def nextLevel():
     global dungeonLevel
