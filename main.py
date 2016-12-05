@@ -1,8 +1,9 @@
-import tdl, colors, math, textwrap, time, os, shelve
+import tdl, colors, math, textwrap, time, os, shelve, pickle
 from tdl import *
 from random import randint
 from math import *
 from os import makedirs
+from copy import deepcopy
 
 
 # Naming conventions :
@@ -109,9 +110,11 @@ player = None
 
 curDir = os.path.dirname(__file__)
 relDirPath = "save"
-relPath = "save/savegame"
+relPath = "save\\savegame"
+relPicklePath = "save\\map"
 absDirPath = os.path.join(curDir, relDirPath)
 absFilePath = os.path.join(curDir, relPath)
+absPicklePath = os.path.join(curDir, relPicklePath)
 
 
 #_____________ CONSTANTS __________________
@@ -420,9 +423,9 @@ def getInput():
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'C':
         levelUp_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
-        menu('Character Information\n\nLevel: ' + str(player.level) + '\nExperience: ' + str(player.Fighter.xp) +
-                    '\nExperience to level up: ' + str(levelUp_xp) + '\n\nMaximum HP: ' + str(player.Fighter.maxHP) +
-                    '\nAttack: ' + str(player.Fighter.power) + '\nDefense: ' + str(player.Fighter.defense), [], CHARACTER_SCREEN_WIDTH)
+        menu('Character Information \n \n Level: ' + str(player.level) + '\n Experience: ' + str(player.Fighter.xp) +
+                    '\n Experience to level up: ' + str(levelUp_xp) + '\n \n Maximum HP: ' + str(player.Fighter.maxHP) +
+                    '\n Attack: ' + str(player.Fighter.power) + '\n Defense: ' + str(player.Fighter.defense), [], CHARACTER_SCREEN_WIDTH)
     if gameState ==  'looking':
         global lookCursor
         if userInput.keychar.upper() == 'ESCAPE':
@@ -484,6 +487,7 @@ def moveOrAttack(dx, dy):
         player.move(dx, dy)
 
 def checkLevelUp():
+    global FOV_recompute
     levelUp_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
     if player.Fighter.xp >= levelUp_xp:
         player.level += 1
@@ -492,18 +496,25 @@ def checkLevelUp():
 
         choice = None
         while choice == None:
-            choice = menu('Level up! Choose a stat to raise:\n',
+            choice = menu('Level up! Choose a stat to raise: \n',
                 ['Constitution (+20 HP, from ' + str(player.Fighter.maxHP) + ')',
                 'Strength (+1 attack, from ' + str(player.Fighter.power) + ')',
                 'Agility (+1 defense, from ' + str(player.Fighter.defense) + ')'], LEVEL_SCREEN_WIDTH)
+            if choice != None:
+                if choice == 0:
+                    player.Fighter.maxHP += 20
+                    player.Fighter.hp += 20
+                elif choice == 1:
+                    player.Fighter.power += 1
+                elif choice == 2:
+                    player.Fighter.defense += 1
+                    
+                FOV_recompute = True
+                Update()
+                break
+            
  
-        if choice == 0:
-            player.Fighter.maxHP += 20
-            player.Fighter.hp += 20
-        elif choice == 1:
-            player.Fighter.power += 1
-        elif choice == 2:
-            player.Fighter.defense += 1
+        
 
 def isVisibleTile(x, y):
     global myMap
@@ -853,6 +864,10 @@ def randomChoice(chancesDictionnary):
 
 def placeObjects(room):
     numMonsters = randint(0, MAX_ROOM_MONSTERS)
+    if dungeonLevel > 2 and hiroshimanNumber == 0:
+        global monsterChances
+        monsterChances['troll'] = 15
+        monsterChances['hiroshiman'] = 5
     for i in range(numMonsters):
         x = randint(room.x1+1, room.x2-1)
         y = randint(room.y1+1, room.y2-1)
@@ -861,10 +876,14 @@ def placeObjects(room):
             monsterChoice = randomChoice(monsterChances)
             if monsterChoice == 'orc':
                 monster = createOrc(x, y)
-            #elif monsterDice < 90 and hiroshimanNumber == 0 and dungeonLevel > 2:
-                #global hiroshimanNumber
-                #monster = createHiroshiman(x, y)
-                #hiroshimanNumber = 1
+            elif monsterChoice == 'hiroshiman' and hiroshimanNumber == 0 and dungeonLevel > 2:
+                global hiroshimanNumber
+                global monsterChances
+                monster = createHiroshiman(x, y)
+                hiroshimanNumber = 1
+                del monsterChances['hiroshiman']
+                monsterChances['troll'] = 20
+                
             elif monsterChoice == 'troll':
                 fighterComponent = Fighter(hp=16, defense=1, power=4, xp = 100, deathFunction = monsterDeath)
                 AI_component = BasicMonster()
@@ -1192,14 +1211,17 @@ def saveGame():
     
     file = shelve.open(absFilePath, "n")
     file["dungeonLevel"] = dungeonLevel
-    file["myMap"] = myMap
+    file["myMap"] = deepcopy(myMap)
     file["objects"] = objects
     file["playerIndex"] = objects.index(player)
     file["inventory"] = inventory
     file["gameMsgs"] = gameMsgs
     file["gameState"] = gameState
-    
     file.close()
+    
+    #mapFile = open(absPicklePath, 'wb')
+    #pickle.dump(myMap, mapFile)
+    #mapFile.close()
 
 def newGame():
     global objects, inventory, gameMsgs, gameState, player, dungeonLevel
@@ -1222,16 +1244,21 @@ def newGame():
 def loadGame():
     global objects, inventory, gameMsgs, gameState, player, dungeonLevel
     
+    
+    #myMap = [[Tile(True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)]
     file = shelve.open(absFilePath, "r")
     dungeonLevel = file["dungeonLevel"]
-    myMap = file["myMap"]
+    myMap = deepcopy(file["myMap"])
     objects = file["objects"]
     player = objects[file["playerIndex"]]
     inventory = file["inventory"]
     gameMsgs = file["gameMsgs"]
     gameState = file["gameState"]
     
-    initializeFOV()
+    #mapFile = open(absPicklePath, "rb")
+    #myMap = pickle.load(mapFile)
+    #mapFile.close()
+    
 
 def nextLevel():
     global dungeonLevel
@@ -1266,15 +1293,16 @@ def playGame():
                     if object.Fighter.freezeCooldown == 0:
                         object.Fighter.frozen = False
                         message(object.name.capitalize() + "'s ice shatters !", colors.light_violet)
-                    if object.Fighter and object.Fighter.burning:
-                        object.Fighter.burnCooldown -= 1
-                        object.Fighter.takeDamage(3)
-                        message('The ' + object.name + ' keeps burning !')
-                        if object.Fighter.burnCooldown < 0:
-                            object.Fighter.burnCooldown = 0
-                        if object.Fighter.burnCooldown == 0:
-                            object.Fighter.burning = False
-                            message(object.name.capitalize() + "'s flames die down", colors.darker_orange)
+                        
+                if object.Fighter and object.Fighter.burning:
+                    object.Fighter.burnCooldown -= 1
+                    object.Fighter.takeDamage(3)
+                    message('The ' + object.name + ' keeps burning !')
+                    if object.Fighter.burnCooldown < 0:
+                        object.Fighter.burnCooldown = 0
+                    if object.Fighter.burnCooldown == 0:
+                        object.Fighter.burning = False
+                        message(object.name.capitalize() + "'s flames die down", colors.darker_orange)
     DEBUG = False
     quitGame('Window has been closed')
     
