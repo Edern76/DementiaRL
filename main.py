@@ -56,6 +56,9 @@ MSG_WIDTH = WIDTH - BAR_WIDTH - 10
 MSG_HEIGHT = PANEL_HEIGHT - 1
 
 INVENTORY_WIDTH = 50
+
+LEVEL_SCREEN_WIDTH = 40
+CHARACTER_SCREEN_WIDTH = 30
 # - GUI Constants -
 
 # - Consoles -
@@ -71,6 +74,8 @@ SIGHT_RADIUS = 10
 MAX_ROOM_MONSTERS = 3
 MAX_ROOM_ITEMS = 5
 GRAPHICS = 'modern'
+LEVEL_UP_BASE = 200
+LEVEL_UP_FACTOR = 150
 
 # - Spells -
 LIGHTNING_DAMAGE = 20
@@ -187,12 +192,13 @@ class GameObject:
         objects.insert(0, self)
 
 class Fighter: #All NPCs, enemies and the player
-    def __init__(self, hp, defense, power, deathFunction=None):
+    def __init__(self, hp, defense, power, xp, deathFunction=None):
         self.maxHP = hp
         self.hp = hp
         self.defense = defense
         self.power = power
         self.deathFunction = deathFunction
+        self.xp = xp
         
         self.frozen = False
         self.freezeCooldown = 0
@@ -207,6 +213,8 @@ class Fighter: #All NPCs, enemies and the player
             death=self.deathFunction
             if death is not None:
                 death(self.owner)
+            if self.owner != player:
+                player.Fighter.xp += self.xp
 
     def attack(self, target):
         damage = self.power - target.Fighter.defense
@@ -395,7 +403,8 @@ def getInput():
         castCreateHiroshiman()
         FOV_recompute = True
         return 'didnt-take-turn'
-    elif userInput.keychar.upper() == "W" :
+    elif userInput.keychar.upper() == "W" or userInput.keychar.upper() == 'KP5':
+        FOV_recompute = True
         return None 
     elif userInput.keychar == 'A' and gameState == 'playing' and DEBUG and not tdl.event.isWindowClosed():
         castArmageddon()         
@@ -409,6 +418,11 @@ def getInput():
         objects.append(lookCursor)
         FOV_recompute = True
         return 'didnt-take-turn'
+    elif userInput.keychar.upper() == 'C':
+        levelUp_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
+        menu('Character Information\n\nLevel: ' + str(player.level) + '\nExperience: ' + str(player.Fighter.xp) +
+                    '\nExperience to level up: ' + str(levelUp_xp) + '\n\nMaximum HP: ' + str(player.Fighter.maxHP) +
+                    '\nAttack: ' + str(player.Fighter.power) + '\nDefense: ' + str(player.Fighter.defense), [], CHARACTER_SCREEN_WIDTH)
     if gameState ==  'looking':
         global lookCursor
         if userInput.keychar.upper() == 'ESCAPE':
@@ -422,6 +436,7 @@ def getInput():
         elif userInput.keychar.upper() in MOVEMENT_KEYS:
             dx, dy = MOVEMENT_KEYS[userInput.keychar.upper()]
             lookCursor.move(dx, dy)
+            FOV_recompute = True
             return 'didnt-take-turn'
     if gameState == 'playing':
         if userInput.keychar.upper() in MOVEMENT_KEYS:
@@ -466,9 +481,29 @@ def moveOrAttack(dx, dy):
     if target is not None:
         player.Fighter.attack(target)
     else:
-        player.move(dx, dy)         
-        
-    
+        player.move(dx, dy)
+
+def checkLevelUp():
+    levelUp_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
+    if player.Fighter.xp >= levelUp_xp:
+        player.level += 1
+        player.Fighter.xp -= levelUp_xp
+        message('Your battle skills grow stronger! You reached level ' + str(player.level) + '!', colors.yellow)
+
+        choice = None
+        while choice == None:
+            choice = menu('Level up! Choose a stat to raise:\n',
+                ['Constitution (+20 HP, from ' + str(player.Fighter.maxHP) + ')',
+                'Strength (+1 attack, from ' + str(player.Fighter.power) + ')',
+                'Agility (+1 defense, from ' + str(player.Fighter.defense) + ')'], LEVEL_SCREEN_WIDTH)
+ 
+        if choice == 0:
+            player.Fighter.maxHP += 20
+            player.Fighter.hp += 20
+        elif choice == 1:
+            player.Fighter.power += 1
+        elif choice == 2:
+            player.Fighter.defense += 1
 
 def isVisibleTile(x, y):
     global myMap
@@ -497,8 +532,6 @@ def tileDistance(x1, y1, x2, y2):
         dx = x2 - x1
         dy = y2 - y1
         return math.sqrt(dx ** 2 + dy ** 2)
-    
-
 
 def castHeal(healAmount = 5):
     if player.Fighter.hp == player.Fighter.maxHP:
@@ -559,7 +592,7 @@ def castFireball(radius = 3, damage = 12):
                 if obj.Fighter and randint(0, 100) > 50 and not obj.Fighter.burning:
                     obj.Fighter.burning = True
                     obj.Fighter.burnCooldown = 4
-                    message('The ' + obj.name + 'is set afire')
+                    message('The ' + obj.name + ' is set afire')
                 
 def castArmageddon(radius = 4, damage = 40):
     global FOV_recompute
@@ -643,7 +676,7 @@ def monsterArmageddon(monsterName ,monsterX, monsterY, radius = 4, damage = 40):
     
 def createOrc(x, y):
     if x != player.x or y != player.y:
-        fighterComponent = Fighter(hp=10, defense=0, power=3, deathFunction = monsterDeath)
+        fighterComponent = Fighter(hp=10, defense=0, power=3, xp = 35, deathFunction = monsterDeath)
         AI_component = BasicMonster()
         monster = GameObject(x, y, char = 'o', color = colors.desaturated_green, name = 'orc', blocks = True, Fighter=fighterComponent, AI = AI_component)
         return monster
@@ -652,7 +685,7 @@ def createOrc(x, y):
     
 def createHiroshiman(x, y):
     if x != player.x or y != player.y:
-        fighterComponent = Fighter(hp=150, defense=0, power=3, deathFunction = monsterDeath)
+        fighterComponent = Fighter(hp=150, defense=0, power=3, xp = 500, deathFunction = monsterDeath)
         AI_component = SplosionAI()
         monster = GameObject(x, y, char = 'H', color = colors.red, name = 'Hiroshiman', blocks = True, Fighter=fighterComponent, AI = AI_component)
         return monster
@@ -797,6 +830,27 @@ def makeMap():
 #_____________ MAP CREATION __________________
 
 #_____________ ROOM POPULATION + ITEMS GENERATION_______________
+monsterChances = {'orc': 80, 'troll': 20}
+itemChances = {'potion': 30, 'scroll': 65, 'none': 5}
+scrollChances = {'lightning': 12, 'confuse': 12, 'fireball': 25, 'armageddon': 10, 'ice': 25, 'none': 1}
+fireballChances = {'lesser': 20, 'normal': 50, 'greater': 20}
+potionChances = {'heal': 100}
+
+def randomChoiceIndex(chances):
+    dice = randint(1, sum(chances))
+    runningSum = 0
+    choice = 0
+    for chance in chances:
+        runningSum += chance
+        if dice <= runningSum:
+            return choice
+        choice += 1
+
+def randomChoice(chancesDictionnary):
+    chances = chancesDictionnary.values()
+    strings = list(chancesDictionnary.keys())
+    return strings[randomChoiceIndex(chances)]
+
 def placeObjects(room):
     numMonsters = randint(0, MAX_ROOM_MONSTERS)
     for i in range(numMonsters):
@@ -804,15 +858,15 @@ def placeObjects(room):
         y = randint(room.y1+1, room.y2-1)
         
         if not isBlocked(x, y) and (x, y) != (player.x, player.y):
-            monsterDice = randint(0,100)
-            if monsterDice < 80:
+            monsterChoice = randomChoice(monsterChances)
+            if monsterChoice == 'orc':
                 monster = createOrc(x, y)
-            elif monsterDice < 90 and hiroshimanNumber == 0 and dungeonLevel > 2:
-                global hiroshimanNumber
-                monster = createHiroshiman(x, y)
-                hiroshimanNumber = 1
-            else:
-                fighterComponent = Fighter(hp=16, defense=1, power=4, deathFunction = monsterDeath)
+            #elif monsterDice < 90 and hiroshimanNumber == 0 and dungeonLevel > 2:
+                #global hiroshimanNumber
+                #monster = createHiroshiman(x, y)
+                #hiroshimanNumber = 1
+            elif monsterChoice == 'troll':
+                fighterComponent = Fighter(hp=16, defense=1, power=4, xp = 100, deathFunction = monsterDeath)
                 AI_component = BasicMonster()
                 monster = GameObject(x, y, char = 'T', color = colors.darker_green,name = 'troll', blocks = True, Fighter = fighterComponent, AI = AI_component)
         
@@ -824,32 +878,34 @@ def placeObjects(room):
         x = randint(room.x1+1, room.x2-1)
         y = randint(room.y1+1, room.y2-1)
         if not isBlocked(x, y):
-            dice = randint(0, 100)
-            if dice < 30 :
+            itemChoice = randomChoice(itemChances)
+            if itemChoice == 'potion':
                 #Spawn a potion
-                item = GameObject(x, y, '!', 'healing potion', colors.violet, Item = Item(useFunction = castHeal), blocks = False)
-            elif dice < 30 + 65:
+                potionChoice = randomChoice(potionChances)
+                if potionChoice == 'heal':
+                    item = GameObject(x, y, '!', 'healing potion', colors.violet, Item = Item(useFunction = castHeal), blocks = False)
+            elif itemChoice == 'scroll':
                 #Spawn a scroll
-                scrollDice = randint(0, 100)
-                if scrollDice < 12:
+                scrollChoice = randomChoice(scrollChances)
+                if scrollChoice == 'lightning':
                     item = GameObject(x, y, '~', 'scroll of lightning bolt', colors.light_yellow, Item = Item(useFunction = castLightning), blocks = False)
-                elif scrollDice < 12 + 12:
+                elif scrollChoice == 'confuse':
                     item = GameObject(x, y, '~', 'scroll of confusion', colors.light_yellow, Item = Item(useFunction = castConfuse), blocks = False)
-                elif scrollDice < 12+12+25:
-                    fireballDice = randint(0, 100)
-                    if fireballDice < 20:
+                elif scrollChoice == 'fireball':
+                    fireballChoice = randomChoice(fireballChances)
+                    if fireballChoice == 'lesser':
                         item = GameObject(x, y, '~', 'scroll of lesser fireball', colors.light_yellow, Item = Item(castFireball, 2, 6), blocks = False)
-                    elif fireballDice < 20 + 30:
+                    elif fireballChoice == 'normal':
                         item = GameObject(x, y, '~', 'scroll of fireball', colors.light_yellow, Item = Item(castFireball), blocks = False)
-                    else:
+                    elif fireballChoice == 'greater':
                         item = GameObject(x, y, '~', 'scroll of greater fireball', colors.light_yellow, Item = Item(castFireball, 4, 24), blocks = False)
-                elif scrollDice < 12+12+25+10:
+                elif scrollChoice == 'armageddon':
                     item = GameObject(x, y, '~', 'scroll of armageddon', colors.red, Item = Item(castArmageddon), blocks = False)
-                elif scrollDice < 12+12+25+10+25:
+                elif scrollChoice == 'ice':
                     item = GameObject(x, y, '~', 'scroll of ice bolt', colors.light_cyan, Item = Item(castFreeze), blocks = False)
-                else:
+                elif scrollChoice == 'none':
                     item = None
-            else:
+            elif itemChoice == 'none':
                 item = None
             if item is not None:            
                 objects.append(item)
@@ -863,7 +919,7 @@ def playerDeath(player):
     player.color = colors.dark_red
  
 def monsterDeath(monster):
-    message(monster.name.capitalize() + ' is dead!', colors.dark_sky)
+    message(monster.name.capitalize() + ' is dead! You gain ' + str(monster.Fighter.xp) + ' XP.', colors.dark_sky)
     monster.char = '%'
     monster.color = colors.dark_red
     monster.blocks = False
@@ -978,7 +1034,7 @@ def mainMenu():
                     continue
                 playGame()
             elif index == 2:
-                raise SystemExit("Choosed Quit on the main menu")
+                raise SystemExit("Chose Quit on the main menu")
         tdl.flush()
         
 #_____________ GUI _______________
@@ -1028,7 +1084,7 @@ def Update():
                 if gameState == 'targeting':
                     inRange = (x, y) in tilesInRange
                     if inRange and not wall:
-                        con.draw_char(x, y, None, fg=None, bg=colors.green)
+                        con.draw_char(x, y, None, fg=None, bg=colors.darker_yellow)
                 elif gameState == 'exploding':
                     exploded = (x,y) in explodingTiles
                     if exploded:
@@ -1048,6 +1104,7 @@ def Update():
         msgY += 1
     # Draw GUI
     panel.draw_str(1, 3, 'Dungeon level: ' + str(dungeonLevel), colors.white)
+    panel.draw_str(1, 5, 'Player level: ' + str(player.level), colors.white)
     renderBar(1, 1, BAR_WIDTH, 'HP', player.Fighter.hp, player.Fighter.maxHP, player.color, colors.dark_gray)
     # Look code
     if gameState == 'looking' and lookCursor != None:
@@ -1146,9 +1203,10 @@ def saveGame():
 
 def newGame():
     global objects, inventory, gameMsgs, gameState, player, dungeonLevel
-    playFight = Fighter( hp = 100, power=5, defense=3, deathFunction=playerDeath)
+    playFight = Fighter( hp = 100, power=5, defense=3, deathFunction=playerDeath, xp=0)
     playComp = Player()
     player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = 'Hero', color = (0, 210, 0))
+    player.level = 1
 
     objects = [player]
     dungeonLevel = 1 
@@ -1189,6 +1247,7 @@ def nextLevel():
 def playGame():
     while not tdl.event.isWindowClosed():
         Update()
+        checkLevelUp()
         tdl.flush()
         for object in objects:
             object.clear()
@@ -1206,7 +1265,7 @@ def playGame():
                         object.Fighter.freezeCooldown = 0
                     if object.Fighter.freezeCooldown == 0:
                         object.Fighter.frozen = False
-                        message(object.name.capitalize() + "'s ice shatters !")
+                        message(object.name.capitalize() + "'s ice shatters !", colors.light_violet)
                     if object.Fighter and object.Fighter.burning:
                         object.Fighter.burnCooldown -= 1
                         object.Fighter.takeDamage(3)
@@ -1215,7 +1274,7 @@ def playGame():
                             object.Fighter.burnCooldown = 0
                         if object.Fighter.burnCooldown == 0:
                             object.Fighter.burning = False
-                            message(object.name.capitalize() + "'s flames die down")
+                            message(object.name.capitalize() + "'s flames die down", colors.darker_orange)
     DEBUG = False
     quitGame('Window has been closed')
     
