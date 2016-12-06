@@ -878,7 +878,8 @@ def placeObjects(room):
 
     monsterChances = {}
     monsterChances['troll'] = fromDungeonLevel([[15, 3], [30, 5], [60, 7]])
-    monsterChances['hiroshiman'] = fromDungeonLevel([[5, 3]])
+    if hiroshimanNumber < 1:
+        monsterChances['hiroshiman'] = fromDungeonLevel([[5, 3]])
     chances = monsterChances.values()
     monsterChances['orc'] = 100 - sum(chances)
 
@@ -889,14 +890,11 @@ def placeObjects(room):
     itemChances['scroll'] = fromDungeonLevel([[20, 1], [30, 2], [40, 3], [60, 5]])
     scrollChances = {'lightning': 12, 'confuse': 12, 'fireball': 25, 'armageddon': 10, 'ice': 25, 'none': 1}
     fireballChances = {'lesser': 20, 'normal': 50, 'greater': 20}
-    potionChances = {'heal': 100}
+    chances = itemChances.values()
+    potionChances['heal'] = 100 - sum(chances)
     
     numMonsters = randint(0, maxMonsters)
-    
-    if hiroshimanNumber == 1:
-        global monsterChances
-        monsterChances['troll'] += 5
-        del monsterChances['hiroshiman']
+
     for i in range(numMonsters):
         x = randint(room.x1+1, room.x2-1)
         y = randint(room.y1+1, room.y2-1)
