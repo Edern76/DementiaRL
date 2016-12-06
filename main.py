@@ -72,6 +72,8 @@ FOV_recompute = True
 FOV_ALGO = 'BASIC'
 FOV_LIGHT_WALLS = True
 SIGHT_RADIUS = 10
+MAX_ROOM_MONSTERS = 3
+MAX_ROOM_ITEMS = 5
 GRAPHICS = 'modern'
 LEVEL_UP_BASE = 200
 LEVEL_UP_FACTOR = 150
@@ -851,11 +853,11 @@ def makeMap():
 #_____________ MAP CREATION __________________
 
 #_____________ ROOM POPULATION + ITEMS GENERATION_______________
-def fromDungeonLevel(table):
-    for (value, level) in reversed(table):
-        if dungeonLevel >= level:
-            return value
-    return 0
+monsterChances = {'orc': 80, 'troll': 20}
+itemChances = {'potion': 30, 'scroll': 65, 'none': 5}
+scrollChances = {'lightning': 12, 'confuse': 12, 'fireball': 25, 'armageddon': 10, 'ice': 25, 'none': 1}
+fireballChances = {'lesser': 20, 'normal': 50, 'greater': 20}
+potionChances = {'heal': 100}
 
 def randomChoiceIndex(chances):
     dice = randint(1, sum(chances))
@@ -873,30 +875,11 @@ def randomChoice(chancesDictionnary):
     return strings[randomChoiceIndex(chances)]
 
 def placeObjects(room):
-    
-    maxMonsters = fromDungeonLevel([[2, 1], [3, 4], [5, 6]])
-
-    monsterChances = {}
-    monsterChances['troll'] = fromDungeonLevel([[15, 3], [30, 5], [60, 7]])
-    monsterChances['hiroshiman'] = fromDungeonLevel([[5, 3]])
-    chances = monsterChances.values()
-    monsterChances['orc'] = 100 - sum(chances)
-
-    maxItems = fromDungeonLevel([[1, 1], [2, 3], [3, 6]])
-
-    itemChances = {}
-    itemChances['none'] = 5
-    itemChances['scroll'] = fromDungeonLevel([[20, 1], [30, 2], [40, 3], [60, 5]])
-    scrollChances = {'lightning': 12, 'confuse': 12, 'fireball': 25, 'armageddon': 10, 'ice': 25, 'none': 1}
-    fireballChances = {'lesser': 20, 'normal': 50, 'greater': 20}
-    potionChances = {'heal': 100}
-    
-    numMonsters = randint(0, maxMonsters)
-    
-    if hiroshimanNumber == 1:
+    numMonsters = randint(0, MAX_ROOM_MONSTERS)
+    if dungeonLevel > 2 and hiroshimanNumber == 0:
         global monsterChances
-        monsterChances['troll'] += 5
-        del monsterChances['hiroshiman']
+        monsterChances['troll'] = 15
+        monsterChances['hiroshiman'] = 5
     for i in range(numMonsters):
         x = randint(room.x1+1, room.x2-1)
         y = randint(room.y1+1, room.y2-1)
@@ -905,12 +888,13 @@ def placeObjects(room):
             monsterChoice = randomChoice(monsterChances)
             if monsterChoice == 'orc':
                 monster = createOrc(x, y)
-
             elif monsterChoice == 'hiroshiman' and hiroshimanNumber == 0 and dungeonLevel > 2:
                 global hiroshimanNumber
                 global monsterChances
                 monster = createHiroshiman(x, y)
                 hiroshimanNumber = 1
+                del monsterChances['hiroshiman']
+                monsterChances['troll'] = 20
                 
             elif monsterChoice == 'troll':
                 fighterComponent = Fighter(hp=16, defense=1, power=4, xp = 100, deathFunction = monsterDeath)
@@ -920,7 +904,7 @@ def placeObjects(room):
         if monster != 'cancelled':
             objects.append(monster)
     
-    num_items = randint(0, maxItems)
+    num_items = randint(0, MAX_ROOM_ITEMS)
     for i in range(num_items):
         x = randint(room.x1+1, room.x2-1)
         y = randint(room.y1+1, room.y2-1)
