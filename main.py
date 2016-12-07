@@ -85,7 +85,7 @@ CONFUSE_NUMBER_TURNS = 10
 CONFUSE_RANGE = 8
 # - Spells -
 
-myMap = [[]]
+myMap = None
 color_dark_wall = colors.darkest_grey
 color_light_wall = colors.darker_grey
 color_dark_ground = colors.darkest_sepia
@@ -104,6 +104,7 @@ explodingTiles = []
 hiroshimanNumber = 0
 FOV_recompute = True
 inventory = []
+equipment = []
 stairs = None
 hiroshimanHasAppeared = False
 player = None
@@ -499,6 +500,13 @@ def getInput():
                 if using == 'cancelled':
                     FOV_recompute = True
                     return 'didnt-take-turn'
+        elif userInput.keychar.upper() == 'E':
+            chosenItem = equipmentMenu('Press the key next to an equipment to unequip it')
+            if chosenItem is not None:
+                using = chosenItem.use()
+                if using == 'cancelled':
+                    FOV_recompute = True
+                    return 'didnt-take-turn'
             else:
                 FOV_recompute = True
                 return 'didnt-take-turn'
@@ -882,6 +890,12 @@ scrollChances = {'lightning': 12, 'confuse': 12, 'fireball': 25, 'armageddon': 1
 fireballChances = {'lesser': 20, 'normal': 50, 'greater': 20}
 potionChances = {'heal': 100}
 
+def createSword(x, y):
+    equipmentComponent = Equipment(slot='right hand', powerBonus = 3)
+    name = 'sword'
+    item = GameObject(x, y, '/', 'sword', colors.sky, Equipment = equipmentComponent, Item = Item())
+    return item
+
 def randomChoiceIndex(chances):
     dice = randint(1, sum(chances))
     runningSum = 0
@@ -961,8 +975,7 @@ def placeObjects(room):
             elif itemChoice == 'none':
                 item = None
             elif itemChoice == 'sword':
-                equipmentComponent = Equipment(slot='right hand', powerBonus = 3)
-                item = GameObject(x, y, '/', 'sword', colors.sky, Equipment = equipmentComponent, Item = Item())
+                createSword(x, y)
             elif itemChoice == 'shield':
                 equipmentComponent = Equipment(slot='left hand', defenseBonus=1)
                 item = GameObject(x, y, '[', 'shield', colors.darker_orange, Equipment=equipmentComponent, Item=Item())
@@ -990,16 +1003,27 @@ class Equipment:
         oldEquipment = getEquippedInSlot(self.slot)
         if oldEquipment is not None:
             oldEquipment.unequip()
+        inventory.remove(self.owner)
+        equipment.append(self.owner)
         self.isEquipped = True
         message('Equipped ' + self.owner.name + ' on ' + self.slot + '.', colors.light_green)
  
     def unequip(self):
         if not self.isEquipped: return
         self.isEquipped = False
-        message('Unequipped ' + self.owner.name + ' from ' + self.slot + '.', colors.light_yellow)
+        equipment.remove(self.owner)
+        if len(inventory) <= 26:
+            inventory.append(self.owner)
+            message('Unequipped ' + self.owner.name + ' from ' + self.slot + '.', colors.light_yellow)
+        else:
+            message('Not enough space in inventory to keep ' + self.owner.name + '.', colors.light_yellow)
+            self.owner.x = player.x
+            self.owner.y = player.y
+            message('Dropped ' + self.owner.name)
+            
 
 def getEquippedInSlot(slot):
-    for object in inventory:
+    for object in equipment:
         if object.Equipment and object.Equipment.slot == slot and object.Equipment.isEquipped:
             return object.Equipment
     return None
@@ -1102,6 +1126,22 @@ def inventoryMenu(header):
         return None
     else:
         return inventory[index].Item
+
+def equipmentMenu(header):
+    if len(equipment) == 0:
+        options = ['You have nothing equipped']
+    else:
+        options = []
+        for item in equipment:
+            text = item.name
+            if item.Equipment and item.Equipment.isEquipped:
+                text = text + ' (on ' + item.Equipment.slot + ')'
+            options.append(text)
+    index = menu(header, options, INVENTORY_WIDTH)
+    if index is None or len(equipment) == 0:
+        return None
+    else:
+        return equipment[index].Item
 
 def msgBox(text, width = 50):
     menu(text, [], width)
@@ -1304,6 +1344,7 @@ def saveGame():
     file["objects"] = objects
     file["playerIndex"] = objects.index(player)
     file["inventory"] = inventory
+    file["equipment"] = equipment
     file["gameMsgs"] = gameMsgs
     file["gameState"] = gameState
     file.close()
@@ -1336,16 +1377,17 @@ def newGame():
     object.alwaysVisible = True
 
 def loadGame():
-    global objects, inventory, gameMsgs, gameState, player, dungeonLevel
+    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipment
     
     
     #myMap = [[Tile(True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)]
     file = shelve.open(absFilePath, "r")
     dungeonLevel = file["dungeonLevel"]
-    myMap = deepcopy(file["myMap"])
+    myMap = (file["myMap"])
     objects = file["objects"]
     player = objects[file["playerIndex"]]
     inventory = file["inventory"]
+    equipment = file["equipment"]
     gameMsgs = file["gameMsgs"]
     gameState = file["gameState"]
     
