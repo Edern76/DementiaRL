@@ -1,9 +1,8 @@
-import tdl, colors, math, textwrap, time, os, shelve, pickle
+import tdl, colors, math, textwrap, time, os, shelve
 from tdl import *
 from random import randint
 from math import *
 from os import makedirs
-from copy import deepcopy
 
 
 # Naming conventions :
@@ -77,6 +76,7 @@ MAX_ROOM_ITEMS = 5
 GRAPHICS = 'modern'
 LEVEL_UP_BASE = 200
 LEVEL_UP_FACTOR = 150
+NATURAL_REGEN = False
 
 # - Spells -
 LIGHTNING_DAMAGE = 20
@@ -212,6 +212,8 @@ class Fighter: #All NPCs, enemies and the player
         
         self.burning = False
         self.burnCooldown = 0
+        
+        self.healCountdown = 10
     
     @property
     def power(self):  #return actual power, by summing up the bonuses from all equipped items
@@ -252,6 +254,7 @@ class Fighter: #All NPCs, enemies and the player
                 if damage > 0:
                     message('You attack ' + target.name + ' for ' + str(damage) + ' hit points.', colors.dark_green)
                     target.Fighter.takeDamage(damage)
+                    
                 else:
                     message('You attack ' + target.name + ' but it has no effect!', colors.lighter_grey)
         
@@ -441,6 +444,15 @@ def getInput():
         FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == "W" or userInput.keychar.upper() == 'KP5':
+        if NATURAL_REGEN:
+            if not player.Fighter.burning and not player.Fighter.frozen and  player.Fighter.hp != player.Fighter.maxHP:
+                player.Fighter.healCountdown -= 1
+                if player.Fighter.healCountdown < 0:
+                    player.Fighter.healCountdown = 0
+                if player.Fighter.healCountdown == 0:
+                    player.Fighter.heal(1)
+                    player.Fighter.healCountdown= 10
+                 
         FOV_recompute = True
         return None 
     elif userInput.keychar == 'A' and gameState == 'playing' and DEBUG and not tdl.event.isWindowClosed():
@@ -643,10 +655,18 @@ def castFireball(radius = 3, damage = 12):
                 else:
                     message('You get burned for {} damage !'.format(damage), colors.orange)
                 obj.Fighter.takeDamage(damage)
-                if obj.Fighter and randint(0, 100) > 50 and not obj.Fighter.burning:
-                    obj.Fighter.burning = True
-                    obj.Fighter.burnCooldown = 4
-                    message('The ' + obj.name + ' is set afire')
+                applyBurn(obj)
+
+def applyBurn(target, chance = 50):
+    if target.Fighter and randint(0, 100) > chance and not target.Fighter.burning:
+        if not target.Fighter.frozen:
+            target.Fighter.burning = True
+            target.Fighter.burnCooldown = 4
+            message('The ' + target.name + ' is set afire') 
+        else:
+            target.Fighter.frozen = False
+            target.Fighter.freezeCooldown = 0
+            message('The ' + target.name + "'s ice melts away.")
                 
 def castArmageddon(radius = 4, damage = 40):
     global FOV_recompute
@@ -946,6 +966,7 @@ def placeObjects(room):
     for i in range(num_items):
         x = randint(room.x1+1, room.x2-1)
         y = randint(room.y1+1, room.y2-1)
+        item = None
         if not isBlocked(x, y):
             itemChoice = randomChoice(itemChances)
             if itemChoice == 'potion':
@@ -979,6 +1000,8 @@ def placeObjects(room):
             elif itemChoice == 'shield':
                 equipmentComponent = Equipment(slot='left hand', defenseBonus=1)
                 item = GameObject(x, y, '[', 'shield', colors.darker_orange, Equipment=equipmentComponent, Item=Item())
+            else:
+                item = None
             if item is not None:            
                 objects.append(item)
                 item.sendToBack()
@@ -1135,7 +1158,27 @@ def equipmentMenu(header):
         for item in equipment:
             text = item.name
             if item.Equipment and item.Equipment.isEquipped:
-                text = text + ' (on ' + item.Equipment.slot + ')'
+                powBonus = item.Equipment.powerBonus
+                hpBonus = item.Equipment.maxHP_Bonus
+                defBonus = item.Equipment.defenseBonus
+                if powBonus != 0 or hpBonus !=0 or defBonus != 0:
+                    info = '['
+                    if powBonus != 0:
+                        info = info + 'POW + ' + str(powBonus)
+                    if hpBonus != 0:
+                        if powBonus == 0:
+                            info = info + 'HP + ' + str(hpBonus)
+                        else:
+                            info = info + ' HP + ' + str(hpBonus)
+                    if defBonus != 0:
+                        if powBonus == 0 and hpBonus == 0:
+                            info = info + 'DEF + ' + str(defBonus)
+                        else:
+                            info = info + ' DEF + ' + str(defBonus)
+                    info = info + ']'
+                else:
+                    info = ''
+                text = text + ' ' + info + ' (on ' + item.Equipment.slot + ')'
             options.append(text)
     index = menu(header, options, INVENTORY_WIDTH)
     if index is None or len(equipment) == 0:
