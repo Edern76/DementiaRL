@@ -1,9 +1,8 @@
-import tdl, colors, math, textwrap, time, os, shelve, pickle
+import tdl, colors, math, textwrap, time, os, shelve
 from tdl import *
 from random import randint
 from math import *
 from os import makedirs
-from copy import deepcopy
 
 
 # Naming conventions :
@@ -77,6 +76,7 @@ MAX_ROOM_ITEMS = 5
 GRAPHICS = 'modern'
 LEVEL_UP_BASE = 200
 LEVEL_UP_FACTOR = 150
+NATURAL_REGEN = False
 
 # - Spells -
 LIGHTNING_DAMAGE = 20
@@ -212,6 +212,8 @@ class Fighter: #All NPCs, enemies and the player
         
         self.burning = False
         self.burnCooldown = 0
+        
+        self.healCountdown = 10
     
     @property
     def power(self):  #return actual power, by summing up the bonuses from all equipped items
@@ -252,6 +254,10 @@ class Fighter: #All NPCs, enemies and the player
                 if damage > 0:
                     message('You attack ' + target.name + ' for ' + str(damage) + ' hit points.', colors.dark_green)
                     target.Fighter.takeDamage(damage)
+                    weapon = getEquippedInSlot('right hand')
+                    if weapon.burning:
+                        applyBurn(target, chance = 25)
+                    
                 else:
                     message('You attack ' + target.name + ' but it has no effect!', colors.lighter_grey)
         
@@ -440,7 +446,20 @@ def getInput():
         castCreateHiroshiman()
         FOV_recompute = True
         return 'didnt-take-turn'
+    elif userInput.keychar.upper() == 'F8' and DEBUG and not tdl.event.isWindowClosed():
+        castCreateSword()
+        FOV_recompute = True
+        return 'didnt-take-turn'
     elif userInput.keychar.upper() == "W" or userInput.keychar.upper() == 'KP5':
+        if NATURAL_REGEN:
+            if not player.Fighter.burning and not player.Fighter.frozen and  player.Fighter.hp != player.Fighter.maxHP:
+                player.Fighter.healCountdown -= 1
+                if player.Fighter.healCountdown < 0:
+                    player.Fighter.healCountdown = 0
+                if player.Fighter.healCountdown == 0:
+                    player.Fighter.heal(1)
+                    player.Fighter.healCountdown= 10
+                 
         FOV_recompute = True
         return None 
     elif userInput.keychar == 'A' and gameState == 'playing' and DEBUG and not tdl.event.isWindowClosed():
@@ -643,10 +662,18 @@ def castFireball(radius = 3, damage = 12):
                 else:
                     message('You get burned for {} damage !'.format(damage), colors.orange)
                 obj.Fighter.takeDamage(damage)
-                if obj.Fighter and randint(0, 100) > 50 and not obj.Fighter.burning:
-                    obj.Fighter.burning = True
-                    obj.Fighter.burnCooldown = 4
-                    message('The ' + obj.name + ' is set afire')
+                applyBurn(obj)
+
+def applyBurn(target, chance = 50):
+    if target.Fighter and randint(0, 100) > chance and not target.Fighter.burning:
+        if not target.Fighter.frozen:
+            target.Fighter.burning = True
+            target.Fighter.burnCooldown = 4
+            message('The ' + target.name + ' is set afire') 
+        else:
+            target.Fighter.frozen = False
+            target.Fighter.freezeCooldown = 0
+            message('The ' + target.name + "'s ice melts away.")
                 
 def castArmageddon(radius = 4, damage = 40):
     global FOV_recompute
@@ -763,7 +790,14 @@ def castCreateHiroshiman():
         (x,y) = target
         monster = createHiroshiman(x, y)
         objects.append(monster)        
-        
+def castCreateSword():
+    target = targetTile()
+    if target == 'cancelled':
+        return 'cancelled'
+    else:
+        (x,y) = target
+        sword = createSword(x, y)
+        objects.append(sword)        
 
 def explode():
     global gameState
@@ -891,9 +925,31 @@ fireballChances = {'lesser': 20, 'normal': 50, 'greater': 20}
 potionChances = {'heal': 100}
 
 def createSword(x, y):
-    equipmentComponent = Equipment(slot='right hand', powerBonus = 3)
     name = 'sword'
-    item = GameObject(x, y, '/', 'sword', colors.sky, Equipment = equipmentComponent, Item = Item())
+    sizeChance = {'short' : 40, 'long' : 60}
+    sizeChoice = randomChoice(sizeChance)
+    name = sizeChoice + name
+    if sizeChoice == 'short':
+        swordPow = 3
+    else:
+        swordPow = 5
+    qualityChances = {'normal' : 70, 'rusty' : 20, 'sharp' : 10}
+    qualityChoice = randomChoice(qualityChances)
+    if qualityChoice == 'rusty':
+        name = qualityChoice + ' ' + name
+        swordPow -= 1
+    elif qualityChoice == 'sharp':
+        name = qualityChoice + ' ' + name
+        swordPow += 1
+    burningChances = {'yes' : 30, 'no': 70}
+    burningChoice = randomChoice(burningChances)
+    if burningChoice == 'yes':
+        name = 'burning ' + name
+        burningSword = True
+    else:
+        burningSword = False
+    equipmentComponent = Equipment(slot='right hand', powerBonus = swordPow, burning = burningSword)
+    item = GameObject(x, y, '/', name, colors.sky, Equipment = equipmentComponent, Item = Item())
     return item
 
 def randomChoiceIndex(chances):
@@ -946,6 +1002,7 @@ def placeObjects(room):
     for i in range(num_items):
         x = randint(room.x1+1, room.x2-1)
         y = randint(room.y1+1, room.y2-1)
+        item = None
         if not isBlocked(x, y):
             itemChoice = randomChoice(itemChances)
             if itemChoice == 'potion':
@@ -979,6 +1036,8 @@ def placeObjects(room):
             elif itemChoice == 'shield':
                 equipmentComponent = Equipment(slot='left hand', defenseBonus=1)
                 item = GameObject(x, y, '[', 'shield', colors.darker_orange, Equipment=equipmentComponent, Item=Item())
+            else:
+                item = None
             if item is not None:            
                 objects.append(item)
                 item.sendToBack()
@@ -986,12 +1045,14 @@ def placeObjects(room):
 
 #_____________ EQUIPEMENT ________________
 class Equipment:
-    def __init__(self, slot, powerBonus=0, defenseBonus=0, maxHP_Bonus=0):
+    def __init__(self, slot, powerBonus=0, defenseBonus=0, maxHP_Bonus=0, burning = False):
         self.slot = slot
         self.powerBonus = powerBonus
         self.defenseBonus = defenseBonus
         self.maxHP_Bonus = maxHP_Bonus
         self.isEquipped = False
+        
+        self.burning = burning
  
     def toggleEquip(self):
         if self.isEquipped:
@@ -1135,7 +1196,27 @@ def equipmentMenu(header):
         for item in equipment:
             text = item.name
             if item.Equipment and item.Equipment.isEquipped:
-                text = text + ' (on ' + item.Equipment.slot + ')'
+                powBonus = item.Equipment.powerBonus
+                hpBonus = item.Equipment.maxHP_Bonus
+                defBonus = item.Equipment.defenseBonus
+                if powBonus != 0 or hpBonus !=0 or defBonus != 0:
+                    info = '['
+                    if powBonus != 0:
+                        info = info + 'POW + ' + str(powBonus)
+                    if hpBonus != 0:
+                        if powBonus == 0:
+                            info = info + 'HP + ' + str(hpBonus)
+                        else:
+                            info = info + ' HP + ' + str(hpBonus)
+                    if defBonus != 0:
+                        if powBonus == 0 and hpBonus == 0:
+                            info = info + 'DEF + ' + str(defBonus)
+                        else:
+                            info = info + ' DEF + ' + str(defBonus)
+                    info = info + ']'
+                else:
+                    info = ''
+                text = text + ' ' + info + ' (on ' + item.Equipment.slot + ')'
             options.append(text)
     index = menu(header, options, INVENTORY_WIDTH)
     if index is None or len(equipment) == 0:
@@ -1340,7 +1421,7 @@ def saveGame():
     
     file = shelve.open(absFilePath, "n")
     file["dungeonLevel"] = dungeonLevel
-    file["myMap"] = deepcopy(myMap)
+    file["myMap"] = myMap
     file["objects"] = objects
     file["playerIndex"] = objects.index(player)
     file["inventory"] = inventory
@@ -1431,14 +1512,19 @@ def playGame():
                         message(object.name.capitalize() + "'s ice shatters !", colors.light_violet)
                         
                 if object.Fighter and object.Fighter.burning:
-                    object.Fighter.burnCooldown -= 1
-                    object.Fighter.takeDamage(3)
-                    message('The ' + object.name + ' keeps burning !')
-                    if object.Fighter.burnCooldown < 0:
-                        object.Fighter.burnCooldown = 0
-                    if object.Fighter.burnCooldown == 0:
-                        object.Fighter.burning = False
-                        message(object.name.capitalize() + "'s flames die down", colors.darker_orange)
+                    try:
+                        object.Fighter.burnCooldown -= 1
+                        object.Fighter.takeDamage(3)
+                        message('The ' + object.name + ' keeps burning !')
+                        if object.Fighter.burnCooldown < 0:
+                            object.Fighter.burnCooldown = 0
+                        if object.Fighter.burnCooldown == 0:
+                            object.Fighter.burning = False
+                            message(object.name.capitalize() + "'s flames die down", colors.darker_orange)
+                    except AttributeError:
+                        global DEBUG
+                        if DEBUG:
+                            message('Failed to apply burn to ' + object.name, colors.violet)
     DEBUG = False
     quitGame('Window has been closed')
     
