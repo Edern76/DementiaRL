@@ -132,7 +132,7 @@ def closestMonster(max_range):
 
 class GameObject:
     "A generic object, represented by a character"
-    def __init__(self, x, y, char, name, color = colors.white, blocks = False, Fighter = None, AI = None, Player = None, Ghost = False, Item = None, alwaysVisible = False, darkColor = None):
+    def __init__(self, x, y, char, name, color = colors.white, blocks = False, Fighter = None, AI = None, Player = None, Ghost = False, Item = None, alwaysVisible = False, darkColor = None, Equipment = None):
         self.x = x
         self.y = y
         self.char = char
@@ -154,7 +154,10 @@ class GameObject:
             self.Player.owner = self
         if self.Item:
             self.Item.owner = self 
-            
+        self.Equipment = Equipment
+        if self.Equipment:
+            self.Equipment.owner = self
+
     def moveTowards(self, target_x, target_y):
         dx = target_x - self.x
         dy = target_y - self.y
@@ -196,10 +199,10 @@ class GameObject:
 
 class Fighter: #All NPCs, enemies and the player
     def __init__(self, hp, defense, power, xp, deathFunction=None):
-        self.maxHP = hp
+        self.baseMaxHP = hp
         self.hp = hp
-        self.defense = defense
-        self.power = power
+        self.baseDefense = defense
+        self.basePower = power
         self.deathFunction = deathFunction
         self.xp = xp
         
@@ -208,6 +211,21 @@ class Fighter: #All NPCs, enemies and the player
         
         self.burning = False
         self.burnCooldown = 0
+    
+    @property
+    def power(self):  #return actual power, by summing up the bonuses from all equipped items
+        bonus = sum(equipment.powerBonus for equipment in getAllEquipped(self.owner))
+        return self.basePower + bonus
+ 
+    @property
+    def defense(self):  #return actual defense, by summing up the bonuses from all equipped items
+        bonus = sum(equipment.defenseBonus for equipment in getAllEquipped(self.owner))
+        return self.baseDefense + bonus
+ 
+    @property
+    def maxHP(self):  #return actual max_hp, by summing up the bonuses from all equipped items
+        bonus = sum(equipment.maxHP_Bonus for equipment in getAllEquipped(self.owner))
+        return self.baseMaxHP + bonus
         
     def takeDamage(self, damage):
         if damage > 0:
@@ -308,7 +326,13 @@ class Item:
             inventory.append(self.owner)
             objects.remove(self.owner)
             message('You picked up a ' + self.owner.name + '!', colors.green)
+        equipment = self.owner.Equipment
+        if equipment and getEquippedInSlot(equipment.slot) is None:
+            equipment.equip()
     def use(self):
+        if self.owner.Equipment:
+            self.owner.Equipment.toggleEquip()
+            return
         if self.useFunction is None:
             message('The' + self.owner.name + 'cannot be used !')
             return 'cancelled'
@@ -340,6 +364,8 @@ class Item:
         self.owner.x = player.x
         self.owner.y = player.y
         message('You dropped a ' + self.owner.name + '.', colors.yellow)
+        if self.owner.Equipment:
+            self.owner.Equipment.unequip()
 
 def quitGame(message):
     global objects
@@ -514,19 +540,16 @@ def checkLevelUp():
                 'Agility (+1 defense, from ' + str(player.Fighter.defense) + ')'], LEVEL_SCREEN_WIDTH)
             if choice != None:
                 if choice == 0:
-                    player.Fighter.maxHP += 20
+                    player.Fighter.baseMaxHP += 20
                     player.Fighter.hp += 20
                 elif choice == 1:
-                    player.Fighter.power += 1
+                    player.Fighter.basePower += 1
                 elif choice == 2:
-                    player.Fighter.defense += 1
+                    player.Fighter.baseDefense += 1
                     
                 FOV_recompute = True
                 Update()
                 break
-            
- 
-        
 
 def isVisibleTile(x, y):
     global myMap
@@ -854,7 +877,7 @@ def makeMap():
 
 #_____________ ROOM POPULATION + ITEMS GENERATION_______________
 monsterChances = {'orc': 80, 'troll': 20}
-itemChances = {'potion': 30, 'scroll': 65, 'none': 5}
+itemChances = {'potion': 35, 'scroll': 45, 'sword': 7, 'shield': 7, 'none': 6}
 scrollChances = {'lightning': 12, 'confuse': 12, 'fireball': 25, 'armageddon': 10, 'ice': 25, 'none': 1}
 fireballChances = {'lesser': 20, 'normal': 50, 'greater': 20}
 potionChances = {'heal': 100}
@@ -888,6 +911,7 @@ def placeObjects(room):
             monsterChoice = randomChoice(monsterChances)
             if monsterChoice == 'orc':
                 monster = createOrc(x, y)
+
             elif monsterChoice == 'hiroshiman' and hiroshimanNumber == 0 and dungeonLevel > 2:
                 global hiroshimanNumber
                 global monsterChances
@@ -911,12 +935,10 @@ def placeObjects(room):
         if not isBlocked(x, y):
             itemChoice = randomChoice(itemChances)
             if itemChoice == 'potion':
-                #Spawn a potion
                 potionChoice = randomChoice(potionChances)
                 if potionChoice == 'heal':
                     item = GameObject(x, y, '!', 'healing potion', colors.violet, Item = Item(useFunction = castHeal), blocks = False)
             elif itemChoice == 'scroll':
-                #Spawn a scroll
                 scrollChoice = randomChoice(scrollChances)
                 if scrollChoice == 'lightning':
                     item = GameObject(x, y, '~', 'scroll of lightning bolt', colors.light_yellow, Item = Item(useFunction = castLightning), blocks = False)
@@ -938,10 +960,60 @@ def placeObjects(room):
                     item = None
             elif itemChoice == 'none':
                 item = None
+            elif itemChoice == 'sword':
+                equipmentComponent = Equipment(slot='right hand', powerBonus = 3)
+                item = GameObject(x, y, '/', 'sword', colors.sky, Equipment = equipmentComponent, Item = Item())
+            elif itemChoice == 'shield':
+                equipmentComponent = Equipment(slot='left hand', defenseBonus=1)
+                item = GameObject(x, y, '[', 'shield', colors.darker_orange, Equipment=equipmentComponent, Item=Item())
             if item is not None:            
                 objects.append(item)
                 item.sendToBack()
 #_____________ ROOM POPULATION + ITEMS GENERATION_______________
+
+#_____________ EQUIPEMENT ________________
+class Equipment:
+    def __init__(self, slot, powerBonus=0, defenseBonus=0, maxHP_Bonus=0):
+        self.slot = slot
+        self.powerBonus = powerBonus
+        self.defenseBonus = defenseBonus
+        self.maxHP_Bonus = maxHP_Bonus
+        self.isEquipped = False
+ 
+    def toggleEquip(self):
+        if self.isEquipped:
+            self.unequip()
+        else:
+            self.equip()
+ 
+    def equip(self):
+        oldEquipment = getEquippedInSlot(self.slot)
+        if oldEquipment is not None:
+            oldEquipment.unequip()
+        self.isEquipped = True
+        message('Equipped ' + self.owner.name + ' on ' + self.slot + '.', colors.light_green)
+ 
+    def unequip(self):
+        if not self.isEquipped: return
+        self.isEquipped = False
+        message('Unequipped ' + self.owner.name + ' from ' + self.slot + '.', colors.light_yellow)
+
+def getEquippedInSlot(slot):
+    for object in inventory:
+        if object.Equipment and object.Equipment.slot == slot and object.Equipment.isEquipped:
+            return object.Equipment
+    return None
+
+def getAllEquipped(object):  #returns a list of equipped items
+    if object == player:
+        equippedList = []
+        for item in inventory:
+            if item.Equipment and item.Equipment.isEquipped:
+                equippedList.append(item.Equipment)
+        return equippedList
+    else:
+        return []
+#_____________ EQUIPEMENT ________________
 def playerDeath(player):
     global gameState
     message('You died!', colors.red)
@@ -1019,7 +1091,12 @@ def inventoryMenu(header):
     if len(inventory) == 0:
         options = ['Inventory is empty.']
     else:
-        options = [item.name for item in inventory]
+        options = []
+        for item in inventory:
+            text = item.name
+            if item.Equipment and item.Equipment.isEquipped:
+                text = text + ' (on ' + item.Equipment.slot + ')'
+            options.append(text)
     index = menu(header, options, INVENTORY_WIDTH)
     if index is None or len(inventory) == 0:
         return None
@@ -1237,7 +1314,7 @@ def saveGame():
 
 def newGame():
     global objects, inventory, gameMsgs, gameState, player, dungeonLevel
-    playFight = Fighter( hp = 100, power=5, defense=3, deathFunction=playerDeath, xp=0)
+    playFight = Fighter( hp = 100, power=3, defense=1, deathFunction=playerDeath, xp=0)
     playComp = Player()
     player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = 'Hero', color = (0, 210, 0))
     player.level = 1
@@ -1252,6 +1329,11 @@ def newGame():
     FOV_recompute = True
     initializeFOV()
     message('Zargothrox says : Prepare to get lost in the Realm of Madness !', colors.dark_red)
+    equipmentComponent = Equipment(slot='right hand', powerBonus=2)
+    object = GameObject(0, 0, '-', 'dagger', colors.light_sky, Equipment=equipmentComponent, Item=Item(), darkColor = colors.darker_sky)
+    inventory.append(object)
+    equipmentComponent.equip()
+    object.alwaysVisible = True
 
 def loadGame():
     global objects, inventory, gameMsgs, gameState, player, dungeonLevel
