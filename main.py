@@ -85,7 +85,7 @@ CONFUSE_NUMBER_TURNS = 10
 CONFUSE_RANGE = 8
 # - Spells -
 
-myMap = [[]]
+myMap = None
 color_dark_wall = colors.darkest_grey
 color_light_wall = colors.darker_grey
 color_dark_ground = colors.darkest_sepia
@@ -890,6 +890,12 @@ scrollChances = {'lightning': 12, 'confuse': 12, 'fireball': 25, 'armageddon': 1
 fireballChances = {'lesser': 20, 'normal': 50, 'greater': 20}
 potionChances = {'heal': 100}
 
+def createSword(x, y):
+    equipmentComponent = Equipment(slot='right hand', powerBonus = 3)
+    name = 'sword'
+    item = GameObject(x, y, '/', 'sword', colors.sky, Equipment = equipmentComponent, Item = Item())
+    return item
+
 def randomChoiceIndex(chances):
     dice = randint(1, sum(chances))
     runningSum = 0
@@ -969,8 +975,7 @@ def placeObjects(room):
             elif itemChoice == 'none':
                 item = None
             elif itemChoice == 'sword':
-                equipmentComponent = Equipment(slot='right hand', powerBonus = 3)
-                item = GameObject(x, y, '/', 'sword', colors.sky, Equipment = equipmentComponent, Item = Item())
+                createSword(x, y)
             elif itemChoice == 'shield':
                 equipmentComponent = Equipment(slot='left hand', defenseBonus=1)
                 item = GameObject(x, y, '[', 'shield', colors.darker_orange, Equipment=equipmentComponent, Item=Item())
@@ -1371,13 +1376,13 @@ def newGame():
     object.alwaysVisible = True
 
 def loadGame():
-    global objects, inventory, gameMsgs, gameState, player, dungeonLevel
+    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap
     
     
     #myMap = [[Tile(True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)]
     file = shelve.open(absFilePath, "r")
     dungeonLevel = file["dungeonLevel"]
-    myMap = deepcopy(file["myMap"])
+    myMap = (file["myMap"])
     objects = file["objects"]
     player = objects[file["playerIndex"]]
     inventory = file["inventory"]
