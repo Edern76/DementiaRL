@@ -104,7 +104,7 @@ explodingTiles = []
 hiroshimanNumber = 0
 FOV_recompute = True
 inventory = []
-equipment = []
+equipmentList = []
 stairs = None
 hiroshimanHasAppeared = False
 player = None
@@ -199,13 +199,15 @@ class GameObject:
         objects.insert(0, self)
 
 class Fighter: #All NPCs, enemies and the player
-    def __init__(self, hp, defense, power, xp, deathFunction=None):
+    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None):
         self.baseMaxHP = hp
         self.hp = hp
-        self.baseDefense = defense
+        self.baseArmor = armor
         self.basePower = power
         self.deathFunction = deathFunction
         self.xp = xp
+        self.baseAccuracy = accuracy
+        self.baseEvasion = evasion
         
         self.frozen = False
         self.freezeCooldown = 0
@@ -221,9 +223,9 @@ class Fighter: #All NPCs, enemies and the player
         return self.basePower + bonus
  
     @property
-    def defense(self):  #return actual defense, by summing up the bonuses from all equipped items
-        bonus = sum(equipment.defenseBonus for equipment in getAllEquipped(self.owner))
-        return self.baseDefense + bonus
+    def armor(self):  #return actual armor, by summing up the bonuses from all equipped items
+        bonus = sum(equipment.armorBonus for equipment in getAllEquipped(self.owner))
+        return self.baseArmor + bonus
  
     @property
     def maxHP(self):  #return actual max_hp, by summing up the bonuses from all equipped items
@@ -241,7 +243,7 @@ class Fighter: #All NPCs, enemies and the player
                 player.Fighter.xp += self.xp
 
     def attack(self, target):
-        damage = self.power - target.Fighter.defense
+        damage = self.power - target.Fighter.armor
  
         if not self.frozen:
             if not self.owner.Player:
@@ -265,6 +267,13 @@ class Fighter: #All NPCs, enemies and the player
         self.hp += amount
         if self.hp > self.maxHP:
             self.hp = self.maxHP
+    
+    def toHit(self, target):
+        attack = randint(1, 100)
+        hit = False
+        if attack + self.accuracy >= target.evasion:
+            hit = True
+        return hit
 
 class BasicMonster: #Basic monsters' AI
     def takeTurn(self):
@@ -433,7 +442,7 @@ def getInput():
         FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'F5' and DEBUG and not tdl.event.isWindowClosed(): #Don't know if tdl.event.isWindowClosed() is necessary here but added it just to be sure
-        player.Fighter.maxHP += 1000
+        player.Fighter.baseMaxHP += 1000
         player.Fighter.hp = player.Fighter.maxHP
         message('Healed player and increased their maximum HP value by 1000', colors.purple)
         FOV_recompute = True
@@ -478,7 +487,7 @@ def getInput():
         levelUp_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
         menu('Character Information \n \n Level: ' + str(player.level) + '\n Experience: ' + str(player.Fighter.xp) +
                     '\n Experience to level up: ' + str(levelUp_xp) + '\n \n Maximum HP: ' + str(player.Fighter.maxHP) +
-                    '\n Attack: ' + str(player.Fighter.power) + '\n Defense: ' + str(player.Fighter.defense), [], CHARACTER_SCREEN_WIDTH)
+                    '\n Attack: ' + str(player.Fighter.power) + '\n Armor: ' + str(player.Fighter.armor), [], CHARACTER_SCREEN_WIDTH)
         
     elif userInput.keychar == 'd' and gameState == 'playing':
         chosenItem = inventoryMenu('Press the key next to an item to drop it, or press any other key to cancel.')
@@ -564,7 +573,7 @@ def checkLevelUp():
             choice = menu('Level up! Choose a stat to raise: \n',
                 ['Constitution (+20 HP, from ' + str(player.Fighter.maxHP) + ')',
                 'Strength (+1 attack, from ' + str(player.Fighter.power) + ')',
-                'Agility (+1 defense, from ' + str(player.Fighter.defense) + ')'], LEVEL_SCREEN_WIDTH)
+                'Toughness (+1 armor, from ' + str(player.Fighter.armor) + ')'], LEVEL_SCREEN_WIDTH)
             if choice != None:
                 if choice == 0:
                     player.Fighter.baseMaxHP += 20
@@ -572,7 +581,7 @@ def checkLevelUp():
                 elif choice == 1:
                     player.Fighter.basePower += 1
                 elif choice == 2:
-                    player.Fighter.baseDefense += 1
+                    player.Fighter.baseArmor += 1
                     
                 FOV_recompute = True
                 Update()
@@ -757,7 +766,7 @@ def monsterArmageddon(monsterName ,monsterX, monsterY, radius = 4, damage = 40):
     
 def createOrc(x, y):
     if x != player.x or y != player.y:
-        fighterComponent = Fighter(hp=10, defense=0, power=3, xp = 35, deathFunction = monsterDeath)
+        fighterComponent = Fighter(hp=10, armor=0, power=3, xp = 35, deathFunction = monsterDeath, evasion = 25, accuracy = 40)
         AI_component = BasicMonster()
         monster = GameObject(x, y, char = 'o', color = colors.desaturated_green, name = 'orc', blocks = True, Fighter=fighterComponent, AI = AI_component)
         return monster
@@ -766,7 +775,7 @@ def createOrc(x, y):
     
 def createHiroshiman(x, y):
     if x != player.x or y != player.y:
-        fighterComponent = Fighter(hp=150, defense=0, power=3, xp = 500, deathFunction = monsterDeath)
+        fighterComponent = Fighter(hp=150, armor=0, power=3, xp = 500, deathFunction = monsterDeath)
         AI_component = SplosionAI()
         monster = GameObject(x, y, char = 'H', color = colors.red, name = 'Hiroshiman', blocks = True, Fighter=fighterComponent, AI = AI_component)
         return monster
@@ -920,11 +929,10 @@ def makeMap():
 #_____________ ROOM POPULATION + ITEMS GENERATION_______________
 monsterChances = {'orc': 80, 'troll': 20}
 itemChances = {'potion': 35, 'scroll': 45, 'sword': 7, 'shield': 7, 'none': 6}
-scrollChances = {'lightning': 12, 'confuse': 12, 'fireball': 25, 'armageddon': 10, 'ice': 25, 'none': 1}
-fireballChances = {'lesser': 20, 'normal': 50, 'greater': 20}
 potionChances = {'heal': 100}
 
 def createSword(x, y):
+    global sword
     name = 'sword'
     sizeChance = {'short' : 40, 'long' : 60}
     sizeChoice = randomChoice(sizeChance)
@@ -941,7 +949,7 @@ def createSword(x, y):
     elif qualityChoice == 'sharp':
         name = qualityChoice + ' ' + name
         swordPow += 1
-    burningChances = {'yes' : 30, 'no': 70}
+    burningChances = {'yes' : 20, 'no': 80}
     burningChoice = randomChoice(burningChances)
     if burningChoice == 'yes':
         name = 'burning ' + name
@@ -949,8 +957,33 @@ def createSword(x, y):
     else:
         burningSword = False
     equipmentComponent = Equipment(slot='right hand', powerBonus = swordPow, burning = burningSword)
-    item = GameObject(x, y, '/', name, colors.sky, Equipment = equipmentComponent, Item = Item())
-    return item
+    sword = GameObject(x, y, '/', name, colors.sky, Equipment = equipmentComponent, Item = Item())
+    return sword 
+
+def createScroll(x, y):
+    global scroll
+    scrollChances = {'lightning': 12, 'confuse': 12, 'fireball': 25, 'armageddon': 10, 'ice': 25, 'none': 1}
+    scrollChoice = randomChoice(scrollChances)
+    if scrollChoice == 'lightning':
+        scroll = GameObject(x, y, '~', 'scroll of lightning bolt', colors.light_yellow, Item = Item(useFunction = castLightning), blocks = False)
+    elif scrollChoice == 'confuse':
+        scroll = GameObject(x, y, '~', 'scroll of confusion', colors.light_yellow, Item = Item(useFunction = castConfuse), blocks = False)
+    elif scrollChoice == 'fireball':
+        fireballChances = {'lesser': 20, 'normal': 50, 'greater': 20}
+        fireballChoice = randomChoice(fireballChances)
+        if fireballChoice == 'lesser':
+            scroll = GameObject(x, y, '~', 'scroll of lesser fireball', colors.light_yellow, Item = Item(castFireball, 2, 6), blocks = False)
+        elif fireballChoice == 'normal':
+            scroll = GameObject(x, y, '~', 'scroll of fireball', colors.light_yellow, Item = Item(castFireball), blocks = False)
+        elif fireballChoice == 'greater':
+            scroll = GameObject(x, y, '~', 'scroll of greater fireball', colors.light_yellow, Item = Item(castFireball, 4, 24), blocks = False)
+    elif scrollChoice == 'armageddon':
+        scroll = GameObject(x, y, '~', 'scroll of armageddon', colors.red, Item = Item(castArmageddon), blocks = False)
+    elif scrollChoice == 'ice':
+        scroll = GameObject(x, y, '~', 'scroll of ice bolt', colors.light_cyan, Item = Item(castFreeze), blocks = False)
+    elif scrollChoice == 'none':
+        scroll = None
+    return scroll
 
 def randomChoiceIndex(chances):
     dice = randint(1, sum(chances))
@@ -991,7 +1024,7 @@ def placeObjects(room):
                 monsterChances['troll'] = 20
                 
             elif monsterChoice == 'troll':
-                fighterComponent = Fighter(hp=16, defense=1, power=4, xp = 100, deathFunction = monsterDeath)
+                fighterComponent = Fighter(hp=16, armor=1, power=4, xp = 100, deathFunction = monsterDeath, accuracy = 55, evasion = 0)
                 AI_component = BasicMonster()
                 monster = GameObject(x, y, char = 'T', color = colors.darker_green,name = 'troll', blocks = True, Fighter = fighterComponent, AI = AI_component)
         
@@ -1010,31 +1043,15 @@ def placeObjects(room):
                 if potionChoice == 'heal':
                     item = GameObject(x, y, '!', 'healing potion', colors.violet, Item = Item(useFunction = castHeal), blocks = False)
             elif itemChoice == 'scroll':
-                scrollChoice = randomChoice(scrollChances)
-                if scrollChoice == 'lightning':
-                    item = GameObject(x, y, '~', 'scroll of lightning bolt', colors.light_yellow, Item = Item(useFunction = castLightning), blocks = False)
-                elif scrollChoice == 'confuse':
-                    item = GameObject(x, y, '~', 'scroll of confusion', colors.light_yellow, Item = Item(useFunction = castConfuse), blocks = False)
-                elif scrollChoice == 'fireball':
-                    fireballChoice = randomChoice(fireballChances)
-                    if fireballChoice == 'lesser':
-                        item = GameObject(x, y, '~', 'scroll of lesser fireball', colors.light_yellow, Item = Item(castFireball, 2, 6), blocks = False)
-                    elif fireballChoice == 'normal':
-                        item = GameObject(x, y, '~', 'scroll of fireball', colors.light_yellow, Item = Item(castFireball), blocks = False)
-                    elif fireballChoice == 'greater':
-                        item = GameObject(x, y, '~', 'scroll of greater fireball', colors.light_yellow, Item = Item(castFireball, 4, 24), blocks = False)
-                elif scrollChoice == 'armageddon':
-                    item = GameObject(x, y, '~', 'scroll of armageddon', colors.red, Item = Item(castArmageddon), blocks = False)
-                elif scrollChoice == 'ice':
-                    item = GameObject(x, y, '~', 'scroll of ice bolt', colors.light_cyan, Item = Item(castFreeze), blocks = False)
-                elif scrollChoice == 'none':
-                    item = None
+                createScroll(x, y)
+                item = scroll
             elif itemChoice == 'none':
                 item = None
             elif itemChoice == 'sword':
                 createSword(x, y)
+                item = sword
             elif itemChoice == 'shield':
-                equipmentComponent = Equipment(slot='left hand', defenseBonus=1)
+                equipmentComponent = Equipment(slot='left hand', armorBonus=1)
                 item = GameObject(x, y, '[', 'shield', colors.darker_orange, Equipment=equipmentComponent, Item=Item())
             else:
                 item = None
@@ -1045,10 +1062,10 @@ def placeObjects(room):
 
 #_____________ EQUIPEMENT ________________
 class Equipment:
-    def __init__(self, slot, powerBonus=0, defenseBonus=0, maxHP_Bonus=0, burning = False):
+    def __init__(self, slot, powerBonus=0, armorBonus=0, maxHP_Bonus=0, burning = False):
         self.slot = slot
         self.powerBonus = powerBonus
-        self.defenseBonus = defenseBonus
+        self.armorBonus = armorBonus
         self.maxHP_Bonus = maxHP_Bonus
         self.isEquipped = False
         
@@ -1065,14 +1082,14 @@ class Equipment:
         if oldEquipment is not None:
             oldEquipment.unequip()
         inventory.remove(self.owner)
-        equipment.append(self.owner)
+        equipmentList.append(self.owner)
         self.isEquipped = True
         message('Equipped ' + self.owner.name + ' on ' + self.slot + '.', colors.light_green)
  
     def unequip(self):
         if not self.isEquipped: return
         self.isEquipped = False
-        equipment.remove(self.owner)
+        equipmentList.remove(self.owner)
         if len(inventory) <= 26:
             inventory.append(self.owner)
             message('Unequipped ' + self.owner.name + ' from ' + self.slot + '.', colors.light_yellow)
@@ -1084,7 +1101,7 @@ class Equipment:
             
 
 def getEquippedInSlot(slot):
-    for object in equipment:
+    for object in equipmentList:
         if object.Equipment and object.Equipment.slot == slot and object.Equipment.isEquipped:
             return object.Equipment
     return None
@@ -1092,7 +1109,7 @@ def getEquippedInSlot(slot):
 def getAllEquipped(object):  #returns a list of equipped items
     if object == player:
         equippedList = []
-        for item in inventory:
+        for item in equipmentList:
             if item.Equipment and item.Equipment.isEquipped:
                 equippedList.append(item.Equipment)
         return equippedList
@@ -1189,16 +1206,16 @@ def inventoryMenu(header):
         return inventory[index].Item
 
 def equipmentMenu(header):
-    if len(equipment) == 0:
+    if len(equipmentList) == 0:
         options = ['You have nothing equipped']
     else:
         options = []
-        for item in equipment:
+        for item in equipmentList:
             text = item.name
             if item.Equipment and item.Equipment.isEquipped:
                 powBonus = item.Equipment.powerBonus
                 hpBonus = item.Equipment.maxHP_Bonus
-                defBonus = item.Equipment.defenseBonus
+                defBonus = item.Equipment.armorBonus
                 if powBonus != 0 or hpBonus !=0 or defBonus != 0:
                     info = '['
                     if powBonus != 0:
@@ -1219,10 +1236,10 @@ def equipmentMenu(header):
                 text = text + ' ' + info + ' (on ' + item.Equipment.slot + ')'
             options.append(text)
     index = menu(header, options, INVENTORY_WIDTH)
-    if index is None or len(equipment) == 0:
+    if index is None or len(equipmentList) == 0:
         return None
     else:
-        return equipment[index].Item
+        return equipmentList[index].Item
 
 def msgBox(text, width = 50):
     menu(text, [], width)
@@ -1425,7 +1442,7 @@ def saveGame():
     file["objects"] = objects
     file["playerIndex"] = objects.index(player)
     file["inventory"] = inventory
-    file["equipment"] = equipment
+    file["equipmentList"] = equipmentList
     file["gameMsgs"] = gameMsgs
     file["gameState"] = gameState
     file.close()
@@ -1436,7 +1453,7 @@ def saveGame():
 
 def newGame():
     global objects, inventory, gameMsgs, gameState, player, dungeonLevel
-    playFight = Fighter( hp = 100, power=3, defense=1, deathFunction=playerDeath, xp=0)
+    playFight = Fighter(hp = 100, power=3, armor=1, deathFunction=playerDeath, xp=0, evasion = 60, accuracy = 70)
     playComp = Player()
     player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = 'Hero', color = (0, 210, 0))
     player.level = 1
