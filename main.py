@@ -1344,6 +1344,7 @@ def saveGame():
     file["objects"] = objects
     file["playerIndex"] = objects.index(player)
     file["inventory"] = inventory
+    file["equipment"] = equipment
     file["gameMsgs"] = gameMsgs
     file["gameState"] = gameState
     file.close()
@@ -1376,7 +1377,7 @@ def newGame():
     object.alwaysVisible = True
 
 def loadGame():
-    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap
+    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipment
     
     
     #myMap = [[Tile(True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)]
@@ -1386,6 +1387,7 @@ def loadGame():
     objects = file["objects"]
     player = objects[file["playerIndex"]]
     inventory = file["inventory"]
+    equipment = file["equipment"]
     gameMsgs = file["gameMsgs"]
     gameState = file["gameState"]
     
