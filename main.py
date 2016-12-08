@@ -1,4 +1,4 @@
-import tdl, colors, math, textwrap, time, os, shelve
+import tdl, colors, math, textwrap, time, os, shelve, pickle
 from tdl import *
 from random import randint
 from math import *
@@ -113,7 +113,7 @@ player = None
 curDir = os.path.dirname(__file__)
 relDirPath = "save"
 relPath = "save\\savegame"
-relPicklePath = "save\\map"
+relPicklePath = "save\\equipment"
 absDirPath = os.path.join(curDir, relDirPath)
 absFilePath = os.path.join(curDir, relPath)
 absPicklePath = os.path.join(curDir, relPicklePath)
@@ -1498,7 +1498,7 @@ def saveGame():
     file["objects"] = objects
     file["playerIndex"] = objects.index(player)
     file["inventory"] = inventory
-    file["equipmentList"] = equipmentList
+    file["equipment"] = equipmentList
     file["gameMsgs"] = gameMsgs
     file["gameState"] = gameState
     file.close()
@@ -1531,7 +1531,7 @@ def newGame():
     object.alwaysVisible = True
 
 def loadGame():
-    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipment
+    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipmentList
     
     
     #myMap = [[Tile(True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)]
@@ -1541,7 +1541,7 @@ def loadGame():
     objects = file["objects"]
     player = objects[file["playerIndex"]]
     inventory = file["inventory"]
-    equipment = file["equipment"]
+    equipmentList = file["equipment"]
     gameMsgs = file["gameMsgs"]
     gameState = file["gameState"]
     
