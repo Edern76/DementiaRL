@@ -12,6 +12,8 @@ from os import makedirs
 # MyClass
 # Not dramatic if you forget about this (it happens to me too), but it makes reading code easier
 
+#NEVER SET AN EVASION VALUE AT ZERO, SET IT AT ONE INSTEAD#
+
 #_____________ CONSTANTS __________________
 MOVEMENT_KEYS = {
                  #Standard arrows
@@ -256,6 +258,16 @@ class Fighter: #All NPCs, enemies and the player
     def maxHP(self):  #return actual max_hp, by summing up the bonuses from all equipped items
         bonus = sum(equipment.maxHP_Bonus for equipment in getAllEquipped(self.owner))
         return self.baseMaxHP + bonus
+
+    @property
+    def accuracy(self):  #return actual armor, by summing up the bonuses from all equipped items
+        bonus = sum(equipment.accuracyBonus for equipment in getAllEquipped(self.owner))
+        return self.baseAccuracy + bonus
+
+    @property
+    def evasion(self):  #return actual armor, by summing up the bonuses from all equipped items
+        bonus = sum(equipment.evasionBonus for equipment in getAllEquipped(self.owner))
+        return self.baseEvasion + bonus
         
     def takeDamage(self, damage):
         if damage > 0:
@@ -267,38 +279,60 @@ class Fighter: #All NPCs, enemies and the player
             if self.owner != player:
                 player.Fighter.xp += self.xp
 
+    def toHit(self, target):
+        global hit, critical
+        attack = randint(1, 100)
+        hit = False
+        critical = False
+        hitRatio = int((self.accuracy / target.Fighter.evasion) * 100)
+        if DEBUG:
+            message(self.owner.name.capitalize() + ' rolled a ' + str(attack) + ' over ' + str(hitRatio), colors.violet)
+        if attack <= hitRatio and attack < 91:
+            hit = True
+            if attack <= 5:
+                critical = True
+        return hit, critical
+
     def attack(self, target):
-        damage = self.power - target.Fighter.armor
- 
-        if not self.frozen:
-            if not self.owner.Player:
-                if damage > 0:
-                    message(self.owner.name.capitalize() + ' attacks you for ' + str(damage) + ' hit points.', colors.orange)
-                    target.Fighter.takeDamage(damage)
-                else:
-                    message(self.owner.name.capitalize() + ' attacks you but it has no effect!')
+        self.toHit(target)
+        if hit:
+            if critical:
+                damage = (self.power - target.Fighter.armor) * 3
             else:
-                if damage > 0:
-                    message('You attack ' + target.name + ' for ' + str(damage) + ' hit points.', colors.dark_green)
-                    target.Fighter.takeDamage(damage)
-                    weapon = getEquippedInSlot('right hand')
-                    if weapon.burning:
-                        applyBurn(target, chance = 25)
-                    
+                damage = self.power - target.Fighter.armor
+            if not self.frozen:
+                if not self.owner.Player:
+                    if damage > 0:
+                        if critical:
+                            message(self.owner.name.capitalize() + ' critically hits you for ' + str(damage) + ' hit points!', colors.dark_orange)
+                        else:
+                            message(self.owner.name.capitalize() + ' attacks you for ' + str(damage) + ' hit points.', colors.orange)
+                        target.Fighter.takeDamage(damage)
+                    else:
+                        message(self.owner.name.capitalize() + ' attacks you but it has no effect!')
                 else:
-                    message('You attack ' + target.name + ' but it has no effect!', colors.lighter_grey)
+                    if damage > 0:
+                        if critical:
+                            message('You critically hit ' + target.name + 'for ' + str(damage) + ' hit points!', colors.darker_green)
+                        else:
+                            message('You attack ' + target.name + ' for ' + str(damage) + ' hit points.', colors.dark_green)
+                        target.Fighter.takeDamage(damage)
+                        weapon = getEquippedInSlot('right hand')
+                        if weapon.burning:
+                            applyBurn(target, chance = 25)
+                    
+                    else:
+                        message('You attack ' + target.name + ' but it has no effect!', colors.grey)
+        else:
+            if not self.owner.Player:
+                message(self.owner.name.capitalize() + ' missed you!', colors.white)
+            else:
+                message('You missed ' + target.name + '!', colors.grey)
         
     def heal(self, amount):
         self.hp += amount
         if self.hp > self.maxHP:
             self.hp = self.maxHP
-    
-    def toHit(self, target):
-        attack = randint(1, 100)
-        hit = False
-        if attack + self.accuracy >= target.evasion:
-            hit = True
-        return hit
 
 class BasicMonster: #Basic monsters' AI
     def takeTurn(self):
@@ -602,7 +636,9 @@ def checkLevelUp():
             choice = menu('Level up! Choose a stat to raise: \n',
                 ['Constitution (+20 HP, from ' + str(player.Fighter.maxHP) + ')',
                 'Strength (+1 attack, from ' + str(player.Fighter.power) + ')',
-                'Toughness (+1 armor, from ' + str(player.Fighter.armor) + ')'], LEVEL_SCREEN_WIDTH)
+                'Toughness (+1 armor, from ' + str(player.Fighter.armor) + ')',
+                'Agility (+5 evasion, from ' + str(player.Fighter.evasion) + ')',
+                'Dexterity (+5 accuracy, from ' + str(player.Fighter.accuracy) + ')'], LEVEL_SCREEN_WIDTH)
             if choice != None:
                 if choice == 0:
                     player.Fighter.baseMaxHP += 20
@@ -611,6 +647,10 @@ def checkLevelUp():
                     player.Fighter.basePower += 1
                 elif choice == 2:
                     player.Fighter.baseArmor += 1
+                elif choice == 3:
+                    player.Fighter.baseEvasion += 5
+                elif choice == 4:
+                    player.Fighter.baseAccuracy += 5
                     
                 FOV_recompute = True
                 Update()
@@ -813,7 +853,7 @@ def monsterArmageddon(monsterName ,monsterX, monsterY, radius = 4, damage = 40):
     
 def createOrc(x, y):
     if x != player.x or y != player.y:
-        fighterComponent = Fighter(hp=10, armor=0, power=3, xp = 35, deathFunction = monsterDeath, evasion = 25, accuracy = 40)
+        fighterComponent = Fighter(hp=10, armor=0, power=3, xp = 35, deathFunction = monsterDeath, evasion = 25, accuracy = 30)
         AI_component = BasicMonster()
         monster = GameObject(x, y, char = 'o', color = colors.desaturated_green, name = 'orc', blocks = True, Fighter=fighterComponent, AI = AI_component)
         return monster
@@ -822,7 +862,7 @@ def createOrc(x, y):
     
 def createHiroshiman(x, y):
     if x != player.x or y != player.y:
-        fighterComponent = Fighter(hp=150, armor=0, power=3, xp = 500, deathFunction = monsterDeath)
+        fighterComponent = Fighter(hp=150, armor=0, power=3, xp = 500, deathFunction = monsterDeath, accuracy = 0, evasion = 1)
         AI_component = SplosionAI()
         monster = GameObject(x, y, char = 'H', color = colors.red, name = 'Hiroshiman', blocks = True, Fighter=fighterComponent, AI = AI_component)
         return monster
@@ -1071,7 +1111,7 @@ def placeObjects(room):
                 monsterChances['troll'] = 20
                 
             elif monsterChoice == 'troll':
-                fighterComponent = Fighter(hp=16, armor=1, power=4, xp = 100, deathFunction = monsterDeath, accuracy = 55, evasion = 0)
+                fighterComponent = Fighter(hp=16, armor=2, power=4, xp = 100, deathFunction = monsterDeath, accuracy = 40, evasion = 1)
                 AI_component = BasicMonster()
                 monster = GameObject(x, y, char = 'T', color = colors.darker_green,name = 'troll', blocks = True, Fighter = fighterComponent, AI = AI_component)
         
@@ -1109,11 +1149,13 @@ def placeObjects(room):
 
 #_____________ EQUIPEMENT ________________
 class Equipment:
-    def __init__(self, slot, powerBonus=0, armorBonus=0, maxHP_Bonus=0, burning = False):
+    def __init__(self, slot, powerBonus=0, armorBonus=0, maxHP_Bonus=0, accuracyBonus=0, evasionBonus=0, burning = False):
         self.slot = slot
         self.powerBonus = powerBonus
         self.armorBonus = armorBonus
         self.maxHP_Bonus = maxHP_Bonus
+        self.accuracyBonus = accuracyBonus
+        self.evasionBonus = evasionBonus
         self.isEquipped = False
         
         self.burning = burning
@@ -1509,7 +1551,7 @@ def saveGame():
 
 def newGame():
     global objects, inventory, gameMsgs, gameState, player, dungeonLevel
-    playFight = Fighter(hp = 100, power=3, armor=1, deathFunction=playerDeath, xp=0, evasion = 60, accuracy = 70)
+    playFight = Fighter(hp = 100, power=3, armor=1, deathFunction=playerDeath, xp=0, evasion = 60, accuracy = 20)
     playComp = Player()
     player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = 'Hero', color = (0, 210, 0))
     player.level = 1
