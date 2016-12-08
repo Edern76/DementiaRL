@@ -101,6 +101,7 @@ cursor = None
 gameMsgs = [] #List of game messages
 tilesInRange = []
 explodingTiles = []
+tilesinPath = []
 hiroshimanNumber = 0
 FOV_recompute = True
 inventory = []
@@ -116,6 +117,9 @@ relPicklePath = "save\\map"
 absDirPath = os.path.join(curDir, relDirPath)
 absFilePath = os.path.join(curDir, relPath)
 absPicklePath = os.path.join(curDir, relPicklePath)
+
+pathfinder = None
+
 
 
 #_____________ CONSTANTS __________________
@@ -197,6 +201,27 @@ class GameObject:
         global objects
         objects.remove(self)
         objects.insert(0, self)
+    
+    def moveAstar(self, destX, destY):
+        global tilesinPath, pathfinder
+        self.astarPath = pathfinder.get_path(self.x, self.y, destX, destY)
+        tilesinPath.extend(self.astarPath)
+        if len(self.astarPath) != 0:
+            if DEBUG:
+                print(self.name + "'s path :", end = " ")
+                for (x,y) in self.astarPath:
+                    print (str(x) + "/" + str(y) + ";", end = " ", sep = " ")
+                    print()
+            (x, y) = self.astarPath[0]
+            self.x = x
+            self.y = y
+            if DEBUG:
+                print(self.name + " moved to " + str(self.x) + ', ' + str(self.y))
+            
+        else:
+            self.moveTowards(destX, destY)
+            if DEBUG:
+                print(self.name + " found no Astar path")
 
 class Fighter: #All NPCs, enemies and the player
     def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None):
@@ -280,7 +305,7 @@ class BasicMonster: #Basic monsters' AI
         monster = self.owner
         if (monster.x, monster.y) in visibleTiles: #chasing the player
             if monster.distanceTo(player) >= 2:
-                monster.moveTowards(player.x, player.y)
+                monster.moveAstar(player.x, player.y)
             elif player.Fighter.hp > 0:
                 monster.Fighter.attack(player)
         else:
@@ -459,6 +484,10 @@ def getInput():
         castCreateSword()
         FOV_recompute = True
         return 'didnt-take-turn'
+    elif userInput.keychar.upper() == 'F9' and DEBUG and not tdl.event.isWindowClosed():
+        castCreateWall()
+        FOV_recompute = True
+        return 'didnt-take-turn'
     elif userInput.keychar.upper() == "W" or userInput.keychar.upper() == 'KP5':
         if NATURAL_REGEN:
             if not player.Fighter.burning and not player.Fighter.frozen and  player.Fighter.hp != player.Fighter.maxHP:
@@ -615,6 +644,13 @@ def tileDistance(x1, y1, x2, y2):
         dy = y2 - y1
         return math.sqrt(dx ** 2 + dy ** 2)
 
+def getMoveCost(destX, destY, sourceX, sourceY):
+    if isBlocked(destX, destY):
+        return None
+    else:
+        cost = tileDistance(destX, destY, sourceX, sourceY)
+        return int(cost)
+
 def castHeal(healAmount = 5):
     if player.Fighter.hp == player.Fighter.maxHP:
         message('You are already at full health')
@@ -672,6 +708,17 @@ def castFireball(radius = 3, damage = 12):
                     message('You get burned for {} damage !'.format(damage), colors.orange)
                 obj.Fighter.takeDamage(damage)
                 applyBurn(obj)
+
+def castCreateWall():
+    target = targetTile()
+    if target == 'cancelled':
+        return target
+    else:
+        (x,y) = target
+        if not isBlocked(x, y):
+            global myMap
+            myMap[x][y].blocked = True
+            myMap[x][y].block_sight = True
 
 def applyBurn(target, chance = 50):
     if target.Fighter and randint(0, 100) > chance and not target.Fighter.burning:
@@ -1028,7 +1075,7 @@ def placeObjects(room):
                 AI_component = BasicMonster()
                 monster = GameObject(x, y, char = 'T', color = colors.darker_green,name = 'troll', blocks = True, Fighter = fighterComponent, AI = AI_component)
         
-        if monster != 'cancelled':
+        if monster != 'cancelled' and monster != None:
             objects.append(monster)
     
     num_items = randint(0, MAX_ROOM_ITEMS)
@@ -1285,20 +1332,24 @@ def mainMenu():
         
 #_____________ GUI _______________
 def initializeFOV():
-    global FOV_recompute, visibleTiles
+    global FOV_recompute, visibleTiles, pathfinder
     FOV_recompute = True
     visibleTiles = tdl.map.quickFOV(player.x, player.y, isVisibleTile, fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
+    pathfinder = tdl.map.AStar(MAP_WIDTH, MAP_HEIGHT, callback = getMoveCost, advanced=True)
     con.clear()
 
 def Update():
     global FOV_recompute
     global visibleTiles
+    global tilesinPath
     con.clear()
     tdl.flush()
     player.Player.changeColor()
     if FOV_recompute:
         FOV_recompute = False
+        global pathfinder
         visibleTiles = tdl.map.quickFOV(player.x, player.y, isVisibleTile, fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
+        pathfinder = tdl.map.AStar(MAP_WIDTH, MAP_HEIGHT, callback = getMoveCost, advanced=True)
         for y in range(MAP_HEIGHT):
             for x in range(MAP_WIDTH):
                 visible = (x, y) in visibleTiles
@@ -1335,6 +1386,11 @@ def Update():
                     exploded = (x,y) in explodingTiles
                     if exploded:
                         con.draw_char(x, y, '*', fg=colors.red, bg = None)
+                if DEBUG:
+                    inPath = (x,y) in tilesinPath
+                    if inPath:
+                        con.draw_char(x, y, 'X', fg = colors.green, bg = None)
+                        tilesinPath = []    
                         
     for object in objects:
         if object != player:
