@@ -1,4 +1,4 @@
-import tdl, colors, math, textwrap, time, os, shelve, pickle
+import tdl, colors, math, textwrap, time, os, shelve
 from tdl import *
 from random import randint
 from math import *
