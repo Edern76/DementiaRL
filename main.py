@@ -1337,6 +1337,10 @@ def drawCentered (cons = con , y = 1, text = "Lorem Ipsum", fg = None, bg = None
     xCentered = (WIDTH - len(text))//2
     cons.draw_str(xCentered, y, text, fg, bg)
 
+def drawCenteredOnX(cons = con, x = 1, y = 1, text = "Lorem Ipsum", fg = None, bg = None):
+    centeredOnX = x - (len(text)//2)
+    cons.draw_str(centeredOnX, y, text, fg, bg)
+
 def mainMenu():
     choices = ['New Game', 'Continue', 'Quit']
     index = 0
@@ -1359,6 +1363,7 @@ def mainMenu():
             index = 0
         if key.keychar.upper() == "ENTER":
             if index == 0:
+                characterCreation()
                 newGame()
                 playGame()
             elif index == 1:
@@ -1371,7 +1376,57 @@ def mainMenu():
             elif index == 2:
                 raise SystemExit("Chose Quit on the main menu")
         tdl.flush()
+
+def characterCreation():
+    races =['Human']
+    racesDescription = ['A random human']
+    
+    classes = ['Warrior', 'Mage', 'Rogue']
+    classesDescription = ['A warrior who likes to hit stuff in melee', 
+                          'A wizard who zaps everything', 
+                          'A rogue who is stealthy and backstabby (probably has a french accent)']
+    
+    attributes = ['Strength', 'Dexterity', 'Constitution', 'Will']
+    attributesDescription = ['Strength augments the power of your attacks',
+                             'Dexterity augments your accuracy and your evasion',
+                             'Constitution augments your maximum health',
+                             'Will augments your energy']
+    
+    traits = ['Placeholder']
+    traitsDescription = ['This is for placeholding']
+    
+    skills = ['Light weapons', 'Heavy weapons', 'Missile weapons', 'Throwing weapons', 'Magic', 'Armor wielding', 'Athletics', 'Concentration', 'Dodge', 'Critical', 'Accuracy']
+    skillsDescription = ['I am too lazy to write this down now']
+    index = 0
+    
+    while not tdl.event.isWindowClosed():
+        root.clear()
+        # Race and Class
+        drawCentered(cons = root, y = 12, text = '-- RACE --', fg = colors.white, bg = None)
+        for choice in range(len(races)):
+            drawCentered(cons = root, y = 14 + choice, text = races[choice - 1], fg = colors.white, bg = None)
+
+        drawCentered(cons = root, y = 19, text = '-- CLASS --', fg = colors.white, bg = None)
+        for choice in range(len(classes)):
+            drawCentered(cons = root, y = 21 + choice, text = classes[choice - 1], fg = colors.white, bg = None)
         
+        # Attributes and traits
+        leftX = (WIDTH // 4)
+        drawCenteredOnX(cons = root, x = leftX, y = 34, text = '-- ATTRIBUTES --', fg = colors.white, bg = None)
+        for choice in range(len(attributes)):
+            drawCenteredOnX(cons = root, x = leftX, y = 36 + choice, text = attributes[choice - 1], fg = colors.white, bg = None)
+
+        drawCenteredOnX(cons = root, x = leftX, y = 46, text = '-- TRAITS --', fg = colors.white, bg = None)
+        for choice in range(len(traits)):
+            drawCenteredOnX(cons = root, x = leftX, y = 48 + choice, text = traits[choice - 1], fg = colors.white, bg = None)
+        
+        # Skills
+        rightX = WIDTH - (WIDTH // 4)
+        drawCenteredOnX(cons = root, x = rightX, y = 34, text = '-- SKILLS --', fg = colors.white, bg = None)
+        for choice in range(len(skills)):
+            drawCenteredOnX(cons = root, x = rightX, y = 36 + choice, text = skills[choice - 1], fg = colors.white, bg = None)
+        
+        tdl.flush()
 #_____________ GUI _______________
 def initializeFOV():
     global FOV_recompute, visibleTiles, pathfinder
@@ -1540,7 +1595,7 @@ def saveGame():
     file["objects"] = objects
     file["playerIndex"] = objects.index(player)
     file["inventory"] = inventory
-    file["equipment"] = equipmentList
+    file["equipmentList"] = equipmentList
     file["gameMsgs"] = gameMsgs
     file["gameState"] = gameState
     file.close()
@@ -1583,7 +1638,7 @@ def loadGame():
     objects = file["objects"]
     player = objects[file["playerIndex"]]
     inventory = file["inventory"]
-    equipmentList = file["equipment"]
+    equipmentList = file["equipmentList"]
     gameMsgs = file["gameMsgs"]
     gameState = file["gameState"]
     
