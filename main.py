@@ -1,4 +1,4 @@
-import tdl, colors, math, textwrap, time, os, shelve
+import tdl, colors, math, textwrap, time, os, shelve, sys
 from tdl import *
 from random import randint
 from math import *
@@ -112,7 +112,14 @@ stairs = None
 hiroshimanHasAppeared = False
 player = None
 
-curDir = os.path.dirname(__file__)
+def findCurrentDir():
+    if getattr(sys, 'frozen', False):
+        datadir = os.path.dirname(sys.executable)
+    else:
+        datadir = os.path.dirname(__file__)
+    return datadir
+
+curDir = findCurrentDir()
 relDirPath = "save"
 relPath = "save\\savegame"
 relPicklePath = "save\\equipment"
