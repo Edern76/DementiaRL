@@ -123,7 +123,6 @@ absPicklePath = os.path.join(curDir, relPicklePath)
 pathfinder = None
 
 
-
 #_____________ CONSTANTS __________________
 def closestMonster(max_range):
     closestEnemy = None
@@ -226,7 +225,7 @@ class GameObject:
                 print(self.name + " found no Astar path")
 
 class Fighter: #All NPCs, enemies and the player
-    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None):
+    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None):
         self.baseMaxHP = hp
         self.hp = hp
         self.baseArmor = armor
@@ -243,6 +242,19 @@ class Fighter: #All NPCs, enemies and the player
         self.burnCooldown = 0
         
         self.healCountdown = 10
+        self.MPRegenCountdown = 10
+        
+        self.maxMP = maxMP
+        self.MP = maxMP
+        
+        if knownSpells != None:
+            self.knownSpells = knownSpells
+        else:
+            self.knownSpells = []
+        
+        self.spellsOnCooldown = []
+            
+        
     
     @property
     def power(self):  #return actual power, by summing up the bonuses from all equipped items
@@ -313,7 +325,7 @@ class Fighter: #All NPCs, enemies and the player
                 else:
                     if damage > 0:
                         if critical:
-                            message('You critically hit ' + target.name + 'for ' + str(damage) + ' hit points!', colors.darker_green)
+                            message('You critically hit ' + target.name + ' for ' + str(damage) + ' hit points!', colors.darker_green)
                         else:
                             message('You attack ' + target.name + ' for ' + str(damage) + ' hit points.', colors.dark_green)
                         target.Fighter.takeDamage(damage)
@@ -441,6 +453,43 @@ class Item:
         message('You dropped a ' + self.owner.name + '.', colors.yellow)
         if self.owner.Equipment:
             self.owner.Equipment.unequip()
+            
+class Spell:
+    "Class used by all active abilites (not just spells)"
+    def __init__(self,  ressourceCost, cooldown, useFunction, name, ressource = 'MP', type = 'Magic', arg1 = None, arg2 = None, arg3 = None):
+        self.ressource = ressource
+        self.ressourceCost = ressourceCost
+        self.maxCooldown = cooldown
+        self.curCooldown = 0
+        self.useFunction = useFunction
+        self.name = name
+        self.type = type
+        self.arg1 = arg1
+        self.arg2 = arg2
+        self.arg3 = arg3
+
+    def cast(self):
+        if self.arg1 is None:
+            if self.useFunction() != 'cancelled':
+                return 'used'
+            else:
+                return 'cancelled'
+        elif self.arg2 is None and self.arg1 is not None:
+            if self.useFunction(self.arg1) != 'cancelled':
+                return 'used'
+            else:
+                return 'cancelled'
+        elif self.arg3 is None and self.arg2 is not None:
+            if self.useFunction(self.arg1, self.arg2) != 'cancelled':
+                return 'used'
+            else:
+                return 'cancelled'
+        elif self.arg3 is not None:
+            if self.useFunction(self.arg1, self.arg2, self.arg3) != 'cancelled':
+                return 'used'
+            else:
+                return 'cancelled'
+                
 
 def quitGame(message):
     global objects
@@ -556,6 +605,33 @@ def getInput():
         chosenItem = inventoryMenu('Press the key next to an item to drop it, or press any other key to cancel.')
         if chosenItem is not None:
             chosenItem.drop()
+    elif userInput.keychar == 'Z' and gameState == 'playing':
+        chosenSpell = spellsMenu('Press the key next to a spell to use it')
+        if chosenSpell == None:
+            FOV_recompute = True
+            if DEBUG:
+                message('No spell chosen', colors.violet)
+            return 'didnt-take-turn'
+        else:
+            if chosenSpell.ressource == 'MP' and player.Fighter.MP < chosenSpell.ressourceCost:
+                FOV_recompute = True
+                message('Not enough MP to cast ' + chosenSpell.name +'.')
+                return 'didnt-take-turn'
+            else:
+                action = chosenSpell.cast()
+                if action == 'cancelled':
+                    FOV_recompute = True
+                    return 'didnt-take-turn'
+                else:
+                    FOV_recompute = True
+                    player.Fighter.knownSpells.remove(chosenSpell)
+                    chosenSpell.curCooldown = chosenSpell.maxCooldown
+                    player.Fighter.spellsOnCooldown.append(chosenSpell)
+                    if chosenSpell.ressource == 'MP':
+                        player.Fighter.MP -= chosenSpell.ressourceCost
+                    elif chosenSpell.ressource == 'HP':
+                        player.Fighter.takeDamage(chosenSpell.ressourceCost)
+
     if gameState ==  'looking':
         global lookCursor
         if userInput.keychar.upper() == 'ESCAPE':
@@ -638,7 +714,8 @@ def checkLevelUp():
                 'Strength (+1 attack, from ' + str(player.Fighter.power) + ')',
                 'Toughness (+1 armor, from ' + str(player.Fighter.armor) + ')',
                 'Agility (+5 evasion, from ' + str(player.Fighter.evasion) + ')',
-                'Dexterity (+5 accuracy, from ' + str(player.Fighter.accuracy) + ')'], LEVEL_SCREEN_WIDTH)
+                'Dexterity (+5 accuracy, from ' + str(player.Fighter.accuracy) + ')',
+                'Willpower (+5 max MP, from ' + str(player.Fighter.maxMP) +')'], LEVEL_SCREEN_WIDTH)
             if choice != None:
                 if choice == 0:
                     player.Fighter.baseMaxHP += 20
@@ -651,6 +728,9 @@ def checkLevelUp():
                     player.Fighter.baseEvasion += 5
                 elif choice == 4:
                     player.Fighter.baseAccuracy += 5
+                elif choice == 5:
+                    player.Fighter.maxMP += 5
+                    player.Fighter.MP += 5
                     
                 FOV_recompute = True
                 Update()
@@ -770,6 +850,9 @@ def applyBurn(target, chance = 50):
             target.Fighter.frozen = False
             target.Fighter.freezeCooldown = 0
             message('The ' + target.name + "'s ice melts away.")
+
+fireball = Spell(ressourceCost = 5, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', arg1 = 3, arg2 = 12, arg3 = None)
+heal = Spell(ressourceCost = 6, cooldown = 7, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', arg1 = 10, arg2 = None, arg3 = None)
                 
 def castArmageddon(radius = 4, damage = 40):
     global FOV_recompute
@@ -1294,6 +1377,32 @@ def inventoryMenu(header):
     else:
         return inventory[index].Item
 
+def spellsMenu(header):
+    #shows a menu with each known ready spell as an option
+    borked = False
+    if len(player.Fighter.knownSpells) == 0:
+        options = []
+        showableHeader = "You don't have any spells ready right now"
+    else:
+        options = []
+        try:
+            for spell in player.Fighter.knownSpells:
+                text = spell.name
+                options.append(text)
+            showableHeader = header
+        except TDLError:
+            options = []
+            borked = True
+    index = menu(showableHeader, options, INVENTORY_WIDTH)
+    if index is None or len(player.Fighter.knownSpells) == 0 or borked:
+        global DEBUG
+        if DEBUG:
+            message('No spell selected in menu', colors.purple)
+        return None
+    else:
+        return player.Fighter.knownSpells[index]
+
+
 def equipmentMenu(header):
     if len(equipmentList) == 0:
         options = ['You have nothing equipped']
@@ -1364,8 +1473,6 @@ def mainMenu():
         if key.keychar.upper() == "ENTER":
             if index == 0:
                 characterCreation()
-                newGame()
-                playGame()
             elif index == 1:
                 try:
                     loadGame()
@@ -1492,6 +1599,10 @@ def characterCreation():
                 index -= len(skills)
             else:
                 index = leftIndexMax
+        if key.keychar.upper() == 'ENTER' and index == maxIndex - 1:
+            #To be moved at the very end of this statement once selection system is complete
+            newGame() 
+            playGame()
         if index > maxIndex:
             index = 0
         if index < 0:
@@ -1571,9 +1682,10 @@ def Update():
         panel.draw_str(MSG_X, msgY, line, bg=None, fg = color)
         msgY += 1
     # Draw GUI
-    panel.draw_str(1, 3, 'Dungeon level: ' + str(dungeonLevel), colors.white)
-    panel.draw_str(1, 5, 'Player level: ' + str(player.level), colors.white)
+    #panel.draw_str(1, 3, 'Dungeon level: ' + str(dungeonLevel), colors.white)
+    panel.draw_str(1, 5, 'Player level: ' + str(player.level) + ' | Floor: ' + str(dungeonLevel), colors.white)
     renderBar(1, 1, BAR_WIDTH, 'HP', player.Fighter.hp, player.Fighter.maxHP, player.color, colors.dark_gray)
+    renderBar(1, 3, BAR_WIDTH, 'MP', player.Fighter.MP, player.Fighter.maxMP, colors.blue, colors.dark_gray)
     # Look code
     if gameState == 'looking' and lookCursor != None:
         global lookCursor
@@ -1675,7 +1787,8 @@ def saveGame():
 
 def newGame():
     global objects, inventory, gameMsgs, gameState, player, dungeonLevel
-    playFight = Fighter(hp = 100, power=3, armor=1, deathFunction=playerDeath, xp=0, evasion = 60, accuracy = 20)
+    startingSpells = [fireball, heal]
+    playFight = Fighter(hp = 100, power=3, armor=1, deathFunction=playerDeath, xp=0, evasion = 60, accuracy = 20, maxMP= 10, knownSpells=startingSpells)
     playComp = Player()
     player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = 'Hero', color = (0, 210, 0))
     player.level = 1
@@ -1764,6 +1877,26 @@ def playGame():
                         global DEBUG
                         if DEBUG:
                             message('Failed to apply burn to ' + object.name, colors.violet)
+                if object.Fighter and object.Fighter.spellsOnCooldown:
+                    try:
+                        for spell in object.Fighter.spellsOnCooldown:
+                            spell.curCooldown -= 1
+                            if spell.curCooldown < 0:
+                                spell.curCooldown = 0
+                            if spell.curCooldown == 0:
+                                object.Fighter.spellsOnCooldown.remove(spell)
+                                object.Fighter.knownSpells.append(spell)
+                                if object == player:
+                                    message(spell.name + " is now ready.")
+                    except:
+                        continue
+                if object.Fighter and object.Fighter.MP < object.Fighter.maxMP:
+                    object.Fighter.MPRegenCountdown -= 1
+                    if object.Fighter.MPRegenCountdown < 0:
+                        object.Fighter.MPRegenCountdown = 0
+                    if object.Fighter.MPRegenCountdown == 0:
+                        object.Fighter.MPRegenCountdown = 10
+                        object.Fighter.MP += 1
     DEBUG = False
     quitGame('Window has been closed')
     
