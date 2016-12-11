@@ -1,10 +1,10 @@
-import tdl, colors, math, textwrap, time, os, shelve, sys
+import tdl, colors, math, textwrap, time, os, shelve, sys, code
 from tdl import *
 from random import randint
 from math import *
 from os import makedirs
-import code
 from code.constants import *
+from code.menu import *
 
 # Naming conventions :
 # MY_CONSTANT
@@ -14,8 +14,6 @@ from code.constants import *
 # Not dramatic if you forget about this (it happens to me too), but it makes reading code easier
 
 #NEVER SET AN EVASION VALUE AT ZERO, SET IT AT ONE INSTEAD#
-
-
 
 myMap = None
 color_dark_wall = colors.darkest_grey
@@ -1262,40 +1260,7 @@ def message(newMsg, color = colors.white):
     
         gameMsgs.append((line, color))
 
-def menu(header, options, width):
-    if len(options) > 26: raise ValueError('Cannot have a menu with more than 26 options')
-    headerWrapped = textwrap.wrap(header, width)
-    headerHeight = len(headerWrapped)
-    if header == "":
-        headerHeight = 0
-    height = len(options) + headerHeight + 1
-    window = tdl.Console(width, height)
-    window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
-    for i, line in enumerate(headerWrapped):
-        window.draw_str(0, 0+i, headerWrapped[i])
 
-    y = headerHeight + 1
-    letterIndex = ord('a')
-    for optionText in options:
-        text = '(' + chr(letterIndex) + ') ' + optionText
-        window.draw_str(0, y, text, bg=None)
-        y += 1
-        letterIndex += 1
-    
-
-    x = MID_WIDTH - int(width/2)
-    y = MID_HEIGHT - int(height/2)
-    root.blit(window, x, y, width, height, 0, 0)
-
-    tdl.flush()
-    key = tdl.event.key_wait()
-    keyChar = key.char
-    if keyChar == '':
-        keyChar = ' '    
-    index = ord(keyChar) - ord('a')
-    if index >= 0 and index < len(options):
-        return index
-    return None
 
 def inventoryMenu(header):
     #show a menu with each item of the inventory as an option
