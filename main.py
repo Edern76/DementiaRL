@@ -1341,16 +1341,7 @@ def equipmentMenu(header):
     else:
         return equipmentList[index].Item
 
-def msgBox(text, width = 50):
-    menu(text, [], width)
-    
-def drawCentered (cons = con , y = 1, text = "Lorem Ipsum", fg = None, bg = None):
-    xCentered = (WIDTH - len(text))//2
-    cons.draw_str(xCentered, y, text, fg, bg)
 
-def drawCenteredOnX(cons = con, x = 1, y = 1, text = "Lorem Ipsum", fg = None, bg = None):
-    centeredOnX = x - (len(text)//2)
-    cons.draw_str(centeredOnX, y, text, fg, bg)
 
 def mainMenu():
     choices = ['New Game', 'Continue', 'Quit']

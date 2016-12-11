@@ -36,3 +36,14 @@ def menu(header, options, width):
     if index >= 0 and index < len(options):
         return index
     return None
+
+def msgBox(text, width = 50):
+    menu(text, [], width)
+        
+def drawCentered (cons = con , y = 1, text = "Lorem Ipsum", fg = None, bg = None):
+    xCentered = (WIDTH - len(text))//2
+    cons.draw_str(xCentered, y, text, fg, bg)
+
+def drawCenteredOnX(cons = con, x = 1, y = 1, text = "Lorem Ipsum", fg = None, bg = None):
+    centeredOnX = x - (len(text)//2)
+    cons.draw_str(centeredOnX, y, text, fg, bg)
