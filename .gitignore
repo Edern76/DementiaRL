@@ -50,3 +50,5 @@ build
 save
 __pycache__
 code/__pycache__
+*.pyc
+code/__pycache__/charGen.cpython-35.pyc
