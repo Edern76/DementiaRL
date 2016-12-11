@@ -359,7 +359,7 @@ class BasicMonster: #Basic monsters' AI
         if (monster.x, monster.y) in visibleTiles: #chasing the player
             if monster.distanceTo(player) >= 2:
                 monster.moveAstar(player.x, player.y)
-            elif player.Fighter.hp > 0:
+            elif player.Fighter.hp > 0 and not monster.Fighter.frozen:
                 monster.Fighter.attack(player)
         else:
             monster.move(randint(-1, 1), randint(-1, 1)) #wandering
