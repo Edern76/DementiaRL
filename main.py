@@ -1,9 +1,11 @@
-import tdl, colors, math, textwrap, time, os, shelve, sys
+import tdl, colors, math, textwrap, time, os, shelve, sys, code
 from tdl import *
 from random import randint
 from math import *
 from os import makedirs
-
+from code.constants import *
+from code.menu import *
+from code.charGen import *
 
 # Naming conventions :
 # MY_CONSTANT
@@ -13,79 +15,6 @@ from os import makedirs
 # Not dramatic if you forget about this (it happens to me too), but it makes reading code easier
 
 #NEVER SET AN EVASION VALUE AT ZERO, SET IT AT ONE INSTEAD#
-
-#_____________ CONSTANTS __________________
-MOVEMENT_KEYS = {
-                 #Standard arrows
-                 'UP': [0, -1],
-                 'DOWN': [0, 1],
-                 'LEFT': [-1, 0],
-                 'RIGHT': [1, 0],
-
-                 # Diagonales (pave numerique off)
-                 'HOME': [-1, -1],
-                 'PAGEUP': [1, -1],
-                 'PAGEDOWN': [1, 1],
-                 'END': [-1, 1],
-
-                 # Pave numerique
-                 # 7 8 9
-                 # 4   6
-                 # 1 2 3
-                 'KP1': [-1, 1],
-                 'KP2': [0, 1],
-                 'KP3': [1, 1],
-                 'KP4': [-1, 0],
-                 'KP6': [1, 0],
-                 'KP7': [-1, -1],
-                 'KP8': [0, -1],
-                 'KP9': [1, -1],
-                 
-                 }
-
-WIDTH, HEIGHT, LIMIT = 170, 95, 20
-MAP_WIDTH, MAP_HEIGHT = 140, 60
-MID_WIDTH, MID_HEIGHT = int(WIDTH/2), int(HEIGHT/2)
-
-# - GUI Constants -
-BAR_WIDTH = 20
-
-PANEL_HEIGHT = 10
-PANEL_Y = HEIGHT - PANEL_HEIGHT
-
-MSG_X = BAR_WIDTH + 10
-MSG_WIDTH = WIDTH - BAR_WIDTH - 10
-MSG_HEIGHT = PANEL_HEIGHT - 1
-
-INVENTORY_WIDTH = 50
-
-LEVEL_SCREEN_WIDTH = 40
-CHARACTER_SCREEN_WIDTH = 30
-# - GUI Constants -
-
-# - Consoles -
-root = tdl.init(WIDTH, HEIGHT, 'Dementia (Temporary Name) | Prototype')
-con = tdl.Console(WIDTH, HEIGHT)
-panel = tdl.Console(WIDTH, PANEL_HEIGHT)
-# - Consoles
-
-FOV_recompute = True
-FOV_ALGO = 'BASIC'
-FOV_LIGHT_WALLS = True
-SIGHT_RADIUS = 10
-MAX_ROOM_MONSTERS = 3
-MAX_ROOM_ITEMS = 5
-GRAPHICS = 'modern'
-LEVEL_UP_BASE = 200
-LEVEL_UP_FACTOR = 150
-NATURAL_REGEN = False
-
-# - Spells -
-LIGHTNING_DAMAGE = 20
-LIGHTNING_RANGE = 5
-CONFUSE_NUMBER_TURNS = 10
-CONFUSE_RANGE = 8
-# - Spells -
 
 myMap = None
 color_dark_wall = colors.darkest_grey
@@ -1332,40 +1261,7 @@ def message(newMsg, color = colors.white):
     
         gameMsgs.append((line, color))
 
-def menu(header, options, width):
-    if len(options) > 26: raise ValueError('Cannot have a menu with more than 26 options')
-    headerWrapped = textwrap.wrap(header, width)
-    headerHeight = len(headerWrapped)
-    if header == "":
-        headerHeight = 0
-    height = len(options) + headerHeight + 1
-    window = tdl.Console(width, height)
-    window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
-    for i, line in enumerate(headerWrapped):
-        window.draw_str(0, 0+i, headerWrapped[i])
 
-    y = headerHeight + 1
-    letterIndex = ord('a')
-    for optionText in options:
-        text = '(' + chr(letterIndex) + ') ' + optionText
-        window.draw_str(0, y, text, bg=None)
-        y += 1
-        letterIndex += 1
-    
-
-    x = MID_WIDTH - int(width/2)
-    y = MID_HEIGHT - int(height/2)
-    root.blit(window, x, y, width, height, 0, 0)
-
-    tdl.flush()
-    key = tdl.event.key_wait()
-    keyChar = key.char
-    if keyChar == '':
-        keyChar = ' '    
-    index = ord(keyChar) - ord('a')
-    if index >= 0 and index < len(options):
-        return index
-    return None
 
 def inventoryMenu(header):
     #show a menu with each item of the inventory as an option
@@ -1446,16 +1342,7 @@ def equipmentMenu(header):
     else:
         return equipmentList[index].Item
 
-def msgBox(text, width = 50):
-    menu(text, [], width)
-    
-def drawCentered (cons = con , y = 1, text = "Lorem Ipsum", fg = None, bg = None):
-    xCentered = (WIDTH - len(text))//2
-    cons.draw_str(xCentered, y, text, fg, bg)
 
-def drawCenteredOnX(cons = con, x = 1, y = 1, text = "Lorem Ipsum", fg = None, bg = None):
-    centeredOnX = x - (len(text)//2)
-    cons.draw_str(centeredOnX, y, text, fg, bg)
 
 def mainMenu():
     choices = ['New Game', 'Continue', 'Quit']
@@ -1480,6 +1367,8 @@ def mainMenu():
         if key.keychar.upper() == "ENTER":
             if index == 0:
                 characterCreation()
+                newGame() 
+                playGame()
             elif index == 1:
                 try:
                     loadGame()
@@ -1491,129 +1380,7 @@ def mainMenu():
                 raise SystemExit("Chose Quit on the main menu")
         tdl.flush()
 
-def description(text):
-    wrappedText = textwrap.wrap(text, 25)
-    line = 0
-    for lines in wrappedText:
-        line += 1
-        drawCentered(cons = root, y = 35 + line, text = lines, fg = colors.white, bg = None)
 
-def characterCreation():
-    races =['Human', 'Minotaur']
-    racesDescription = ['A random human', 'Minotaurs are tougher and stronger than Humans, but less smart']
-    
-    classes = ['Warrior', 'Rogue', 'Mage ']
-    classesDescription = ['A warrior who likes to hit stuff in melee', 
-                          'A wizard who zaps everything', 
-                          'A rogue who is stealthy and backstabby (probably has a french accent)']
-
-    attributes = ['Strength', 'Dexterity', 'Constitution', 'Will']
-    attributesDescription = ['Strength augments the power of your attacks',
-                             'Dexterity augments your accuracy and your evasion',
-                             'Constitution augments your maximum health',
-                             'Will augments your energy']
-    
-    traits = ['Placeholder']
-    traitsDescription = ['This is for placeholding']
-    
-    skills = ['Light weapons', 'Heavy weapons', 'Missile weapons', 'Throwing weapons', 'Magic ', 'Armor wielding', 'Athletics', 'Concentration', 'Dodge ', 'Critical ', 'Accuracy']
-    skillsDescription = ['Light weapons', 'Heavy weapons', 'Missile weapons', 'Throwing weapons', 'Magic ', 'Armor wielding', 'Athletics', 'Concentration', 'Dodge ', 'Critical ', 'Accuracy']
-    
-    #index
-    index = 0
-    midIndexMin = 0
-    midIndexMax = len(races) + len(classes) - 1
-    leftIndexMin = midIndexMax + 1
-    leftIndexMax = leftIndexMin + len(attributes) + len(traits) - 1
-    rightIndexMin = leftIndexMax + 1
-    rightIndexMax = rightIndexMin + len(skills) - 1
-    maxIndex = len(races) + len(classes) + len(attributes) + len(traits) + len(skills) + 1
-    
-    while not tdl.event.isWindowClosed():
-        root.clear()
-        drawCentered(cons = root, y = 6, text = '--- CHARACTER CREATION ---', fg = colors.white, bg = None)
-        # Race and Class
-        drawCentered(cons = root, y = 12, text = '-- RACE --', fg = colors.white, bg = None)
-        for choice in range(len(races)):
-            drawCentered(cons = root, y = 14 + choice, text = races[choice], fg = colors.white, bg = None)
-
-        drawCentered(cons = root, y = 19, text = '-- CLASS --', fg = colors.white, bg = None)
-        for choice in range(len(classes)):
-            drawCentered(cons = root, y = 21 + choice, text = classes[choice], fg = colors.white, bg = None)
-        
-        # Attributes and traits
-        leftX = (WIDTH // 4)
-        drawCenteredOnX(cons = root, x = leftX, y = 34, text = '-- ATTRIBUTES --', fg = colors.white, bg = None)
-        for choice in range(len(attributes)):
-            drawCenteredOnX(cons = root, x = leftX, y = 36 + choice, text = attributes[choice], fg = colors.white, bg = None)
-
-        drawCenteredOnX(cons = root, x = leftX, y = 46, text = '-- TRAITS --', fg = colors.white, bg = None)
-        for choice in range(len(traits)):
-            drawCenteredOnX(cons = root, x = leftX, y = 48 + choice, text = traits[choice], fg = colors.white, bg = None)
-        
-        # Skills
-        rightX = WIDTH - (WIDTH // 4)
-        drawCenteredOnX(cons = root, x = rightX, y = 34, text = '-- SKILLS --', fg = colors.white, bg = None)
-        for choice in range(len(skills)):
-            drawCenteredOnX(cons = root, x = rightX, y = 36 + choice, text = skills[choice], fg = colors.white, bg = None)
-        
-        drawCentered(cons = root, y = 34, text = '-- DESCRIPTION --', fg = colors.white, bg = None)
-        drawCentered(cons = root, y = 90, text = 'Start Game', fg = colors.white, bg = None)
-        drawCentered(cons = root, y = 91, text = 'Cancel', fg = colors.white, bg = None)
-        
-        # Selection
-        if midIndexMin <= index <= midIndexMax:
-            if index + 1 <= len(races):
-                previousListLen = 0
-                drawCentered(cons = root, y = 14 + index, text = races[index - previousListLen], fg = colors.black, bg = colors.white)
-                description(racesDescription[index - previousListLen])
-            else:
-                previousListLen = len(races)
-                drawCentered(cons = root, y = 19 + index, text = classes[index - previousListLen], fg = colors.black, bg = colors.white)
-                description(classesDescription[index - previousListLen])
-        if leftIndexMin <= index <= leftIndexMax:
-            if index + 1 <= len(races) + len(classes) + len(attributes):
-                previousListLen = len(races) + len(classes)
-                drawCenteredOnX(cons = root, x = leftX, y = 31 + index, text = attributes[index - previousListLen], fg = colors.black, bg = colors.white)
-                description(attributesDescription[index - previousListLen])
-            else:
-                previousListLen = len(races) + len(classes) + len(attributes)
-                drawCenteredOnX(cons = root, x = leftX, y = 39 + index, text = traits[index - previousListLen], fg = colors.black, bg = colors.white)
-                description(traitsDescription[index - previousListLen])
-        if rightIndexMin <= index <= rightIndexMax:
-            previousListLen = len(races) + len(classes) + len(attributes) + len(traits)
-            drawCenteredOnX(cons = root, x = rightX, y = 26 + index, text = skills[index - previousListLen], fg = colors.black, bg = colors.white)
-            description(skillsDescription[index - previousListLen])
-        if index == maxIndex - 1:
-            drawCentered(cons = root, y = 90, text = 'Start Game', fg = colors.black, bg = colors.white)
-        if index == maxIndex:
-            drawCentered(cons = root, y = 91, text = 'Cancel', fg = colors.black, bg = colors.white)
-
-        tdl.flush()
-
-        key = tdl.event.key_wait()
-        if key.keychar.upper() == 'DOWN':
-            index += 1
-        if key.keychar.upper() == 'UP':
-            index -= 1
-        if key.keychar.upper() == 'RIGHT' and (leftIndexMin <= index <= leftIndexMax):
-            if rightIndexMin <= index + len(attributes) + len(traits) <= rightIndexMax:
-                index += len(attributes) + len(traits)
-            else:
-                index = rightIndexMax
-        if key.keychar.upper() == 'LEFT' and (rightIndexMin <= index <= rightIndexMax):
-            if leftIndexMin <= index - len(skills) <= leftIndexMax:
-                index -= len(skills)
-            else:
-                index = leftIndexMax
-        if key.keychar.upper() == 'ENTER' and index == maxIndex - 1:
-            #To be moved at the very end of this statement once selection system is complete
-            newGame() 
-            playGame()
-        if index > maxIndex:
-            index = 0
-        if index < 0:
-            index = maxIndex
 #_____________ GUI _______________
 def initializeFOV():
     global FOV_recompute, visibleTiles, pathfinder
