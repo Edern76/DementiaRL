@@ -541,7 +541,7 @@ def getInput():
         chosenItem = inventoryMenu('Press the key next to an item to drop it, or press any other key to cancel.')
         if chosenItem is not None:
             chosenItem.drop()
-    elif userInput.keychar == 'Z' and gameState == 'playing':
+    elif userInput.keychar.upper() == 'Z' and gameState == 'playing':
         chosenSpell = spellsMenu('Press the key next to a spell to use it')
         if chosenSpell == None:
             FOV_recompute = True
