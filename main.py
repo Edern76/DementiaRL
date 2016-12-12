@@ -1399,7 +1399,7 @@ def mainMenu():
         if key.keychar.upper() == "ENTER":
             if index == 0:
                 characterCreation()
-                newGame() 
+                newGame()
                 playGame()
             elif index == 1:
                 try:
