@@ -4,7 +4,7 @@ from code.menu import *
 
 BASE_POWER = 1
 BASE_ACCURACY = 0
-BASE_EVASION = 0
+BASE_EVASION = 1
 BASE_ARMOR = 0
 BASE_MAXHP = 0
 BASE_MAXMP = 0
@@ -55,6 +55,7 @@ def characterCreation():
                   [5, -8, -4, 0, 20, -15, 0]] #Minotaur
     MAX_RACES = 1
     actualRaces = 0
+    selectedRaces = [False, False]
     
     classes = ['Knight', 'Barbarian', 'Rogue', 'Mage ']
     classesDescription = ['A warrior who wears armor and yields shields',
@@ -71,6 +72,7 @@ def characterCreation():
                       [0, 0, 0, 0, 3, 7, 0]]
     MAX_CLASSES = 1
     actualClasses = 0
+    selectedClasses = [False, False, False, False]
 
     attributes = ['Strength', 'Dexterity', 'Constitution', 'Willpower']
     attributesDescription = ['Strength augments the power of your attacks',
@@ -85,12 +87,14 @@ def characterCreation():
     MAX_PER_ATTRIBUTES = 5
     actualAttributesPoints = 0
     actualPerAttributes = [0, 0, 0, 0]
+    selectedAttributes = [False, False, False, False]
     
     traits = ['Placeholder']
     traitsDescription = ['This is for placeholding']
     traitsBonus= [[0, 0, 0, 0, 0, 0, 0]]
     MAX_TRAITS = 2
     actualTraits = 0
+    selectedTraits = [False]
     
     skills = ['Light weapons', 'Heavy weapons', 'Missile weapons', 'Throwing weapons', 'Magic ', 'Armor wielding', 'Athletics', 'Concentration', 'Dodge ', 'Critical ', 'Accuracy']
     skillsDescription = ['Light weapons', 'Heavy weapons', 'Missile weapons', 'Throwing weapons', 'Magic ', 'Armor wielding', 'Athletics', 'Concentration', 'Dodge ', 'Critical ', 'Accuracy']
@@ -109,6 +113,7 @@ def characterCreation():
     MAX_PER_SKILLS = 1
     actualSkills = 0
     actualPerSkills = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    selectedSkills = [False, False, False, False, False, False, False, False, False, False, False]
     
     #index
     index = 0
@@ -123,32 +128,52 @@ def characterCreation():
     while not tdl.event.isWindowClosed():
         root.clear()
         drawCentered(cons = root, y = 6, text = '--- CHARACTER CREATION ---', fg = colors.white, bg = None)
+
         # Race and Class
         drawCentered(cons = root, y = 12, text = '-- RACE --', fg = colors.white, bg = None)
         for choice in range(len(races)):
-            drawCentered(cons = root, y = 14 + choice, text = races[choice], fg = colors.white, bg = None)
+            if selectedRaces[choice]:
+                drawCentered(cons = root, y = 14 + choice, text = races[choice], fg = colors.azure, bg = None)
+            else:
+                drawCentered(cons = root, y = 14 + choice, text = races[choice], fg = colors.white, bg = None)
 
         drawCentered(cons = root, y = 19, text = '-- CLASS --', fg = colors.white, bg = None)
         for choice in range(len(classes)):
-            drawCentered(cons = root, y = 21 + choice, text = classes[choice], fg = colors.white, bg = None)
+            if selectedClasses[choice]:
+                drawCentered(cons = root, y = 21 + choice, text = classes[choice], fg = colors.azure, bg = None)
+            else:
+                drawCentered(cons = root, y = 21 + choice, text = classes[choice], fg = colors.white, bg = None)
         
         # Attributes and traits
         leftX = (WIDTH // 4)
-        drawCenteredOnX(cons = root, x = leftX, y = 34, text = '-- ATTRIBUTES --', fg = colors.white, bg = None)
+        drawCenteredOnX(cons = root, x = leftX, y = 33, text = '-- ATTRIBUTES --', fg = colors.white, bg = None)
+        drawCenteredOnX(cons = root, x = leftX, y = 34, text = str(actualAttributesPoints) + '/' + str(MAX_ATTRIBUTES_POINTS), fg = colors.white, bg = None)
         for choice in range(len(attributes)):
-            drawCenteredOnX(cons = root, x = leftX, y = 36 + choice, text = attributes[choice], fg = colors.white, bg = None)
+            if selectedAttributes[choice]:
+                drawCenteredOnX(cons = root, x = leftX, y = 36 + choice, text = attributes[choice], fg = colors.azure, bg = None)
+            else:
+                drawCenteredOnX(cons = root, x = leftX, y = 36 + choice, text = attributes[choice], fg = colors.white, bg = None)
+            drawCenteredOnX(cons = root, x = leftX - 10, y = 36 + choice, text = str(actualPerAttributes[choice]) + '/' + str(MAX_PER_ATTRIBUTES), fg = colors.white, bg = None)
 
-        drawCenteredOnX(cons = root, x = leftX, y = 46, text = '-- TRAITS --', fg = colors.white, bg = None)
+        drawCenteredOnX(cons = root, x = leftX, y = 45, text = '-- TRAITS --', fg = colors.white, bg = None)
+        drawCenteredOnX(cons = root, x = leftX, y = 46, text = str(actualTraits) + '/' + str(MAX_TRAITS), fg = colors.white, bg = None)
         for choice in range(len(traits)):
-            drawCenteredOnX(cons = root, x = leftX, y = 48 + choice, text = traits[choice], fg = colors.white, bg = None)
+            if selectedTraits[choice]:
+                drawCenteredOnX(cons = root, x = leftX, y = 48 + choice, text = traits[choice], fg = colors.azure, bg = None)
+            else:
+                drawCenteredOnX(cons = root, x = leftX, y = 48 + choice, text = traits[choice], fg = colors.white, bg = None)
         
         # Skills
         rightX = WIDTH - (WIDTH // 4)
-        drawCenteredOnX(cons = root, x = rightX, y = 34, text = '-- SKILLS --', fg = colors.white, bg = None)
+        drawCenteredOnX(cons = root, x = rightX, y = 33, text = '-- SKILLS --', fg = colors.white, bg = None)
+        drawCenteredOnX(cons = root, x = rightX, y = 34, text = str(actualSkills) + '/' + str(MAX_SKILLS), fg = colors.white, bg = None)
         for choice in range(len(skills)):
-            drawCenteredOnX(cons = root, x = rightX, y = 36 + choice, text = skills[choice], fg = colors.white, bg = None)
+            if selectedSkills[choice]:
+                drawCenteredOnX(cons = root, x = rightX, y = 36 + choice, text = skills[choice], fg = colors.azure, bg = None)
+            else:
+                drawCenteredOnX(cons = root, x = rightX, y = 36 + choice, text = skills[choice], fg = colors.white, bg = None)
         
-        drawCentered(cons = root, y = 34, text = '-- DESCRIPTION --', fg = colors.white, bg = None)
+        drawCentered(cons = root, y = 33, text = '-- DESCRIPTION --', fg = colors.white, bg = None)
         drawCentered(cons = root, y = 90, text = 'Start Game', fg = colors.white, bg = None)
         drawCentered(cons = root, y = 91, text = 'Cancel', fg = colors.white, bg = None)
 
@@ -207,16 +232,19 @@ def characterCreation():
                 index -= len(skills)
             else:
                 index = leftIndexMax
+        #adding choice bonus
         if key.keychar.upper() == 'ENTER':
             if midIndexMin <= index <= midIndexMax:
                 if index + 1 <= len(races):
                     if actualRaces < MAX_RACES:
                         previousListLen = 0
+                        selectedRaces[index] = True
                         applyBonus(racesBonus, index)
                         actualRaces += 1
                 else:
                     if actualClasses < MAX_CLASSES:
                         previousListLen = len(races)
+                        selectedClasses[index - previousListLen] = True
                         applyBonus(classesBonus, index - previousListLen)
                         actualClasses += 1
             if leftIndexMin <= index <= leftIndexMax:
@@ -225,11 +253,13 @@ def characterCreation():
                         previousListLen = len(races) + len(classes)
                         if actualPerAttributes[index - previousListLen] < MAX_PER_ATTRIBUTES:
                             applyBonus(attributesBonus, index - previousListLen)
+                            selectedAttributes[index - previousListLen] = True
                             actualAttributesPoints += 1
                             actualPerAttributes[index - previousListLen] +=1
                 else:
                     if actualTraits < MAX_TRAITS:
                         previousListLen = len(races) + len(classes) + len(attributes)
+                        selectedTraits[index - previousListLen] = True
                         applyBonus(traitsBonus, index - previousListLen)
                         actualTraits += 1
             if rightIndexMin <= index <= rightIndexMax:
@@ -237,8 +267,52 @@ def characterCreation():
                     previousListLen = len(races) + len(classes) + len(attributes) + len(traits)
                     if actualPerSkills[index - previousListLen] < MAX_PER_SKILLS:
                         applyBonus(skillsBonus, index - previousListLen)
+                        selectedSkills[index - previousListLen] = True
                         actualSkills += 1
                         actualPerSkills[index - previousListLen] += 1
+            if index == maxIndex - 1:
+                createdCharacter = [power, accuracy, evasion, armor, maxHP, maxMP, critical]
+                return createdCharacter
+            if index == maxIndex:
+                return 'cancelled'
+        #removing choice bonus
+        if key.keychar.upper() == 'BACKSPACE':
+            if midIndexMin <= index <= midIndexMax:
+                if index + 1 <= len(races):
+                    if actualRaces > 0:
+                        previousListLen = 0
+                        selectedRaces[index - previousListLen] = False
+                        removeBonus(racesBonus, index)
+                        actualRaces -= 1
+                else:
+                    if actualClasses > 0:
+                        previousListLen = len(races)
+                        selectedClasses[index - previousListLen] = False
+                        removeBonus(classesBonus, index - previousListLen)
+                        actualClasses -= 1
+            if leftIndexMin <= index <= leftIndexMax:
+                if index + 1 <= len(races) + len(classes) + len(attributes):
+                    if actualAttributesPoints > 0:
+                        previousListLen = len(races) + len(classes)
+                        if actualPerAttributes[index - previousListLen] > 0:
+                            removeBonus(attributesBonus, index - previousListLen)
+                            selectedAttributes[index - previousListLen] = False
+                            actualAttributesPoints -= 1
+                            actualPerAttributes[index - previousListLen] -=1
+                else:
+                    if actualTraits > 0:
+                        previousListLen = len(races) + len(classes) + len(attributes)
+                        selectedTraits[index - previousListLen] = False
+                        removeBonus(traitsBonus, index - previousListLen)
+                        actualTraits -= 1
+            if rightIndexMin <= index <= rightIndexMax:
+                if actualSkills > 0:
+                    previousListLen = len(races) + len(classes) + len(attributes) + len(traits)
+                    if actualPerSkills[index - previousListLen] > 0:
+                        removeBonus(skillsBonus, index - previousListLen)
+                        selectedSkills[index - previousListLen] = False
+                        actualSkills -= 1
+                        actualPerSkills[index - previousListLen] -= 1
         if index > maxIndex:
             index = 0
         if index < 0:

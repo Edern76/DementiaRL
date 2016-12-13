@@ -232,7 +232,15 @@ class Fighter: #All NPCs, enemies and the player
         attack = randint(1, 100)
         hit = False
         critical = False
-        hitRatio = int((self.accuracy / target.Fighter.evasion) * 100)
+        if target.Fighter.evasion < 1:
+            currentEvasion = 1
+        else:
+            currentEvasion = target.Fighter.evasion
+        if self.accuracy < 1:
+            currentAccuracy = 1
+        else:
+            currentAccuracy = self.accuracy
+        hitRatio = int((currentAccuracy / currentEvasion) * 100)
         if DEBUG:
             message(self.owner.name.capitalize() + ' rolled a ' + str(attack) + ' over ' + str(hitRatio), colors.violet)
         if attack <= hitRatio and attack < 91:
@@ -890,7 +898,7 @@ def monsterArmageddon(monsterName ,monsterX, monsterY, radius = 4, damage = 40):
     
 def createOrc(x, y):
     if x != player.x or y != player.y:
-        fighterComponent = Fighter(hp=10, armor=0, power=3, xp = 35, deathFunction = monsterDeath, evasion = 25, accuracy = 30)
+        fighterComponent = Fighter(hp=18, armor=0, power=3, xp = 35, deathFunction = monsterDeath, evasion = 25, accuracy = 15)
         AI_component = BasicMonster()
         monster = GameObject(x, y, char = 'o', color = colors.desaturated_green, name = 'orc', blocks = True, Fighter=fighterComponent, AI = AI_component)
         return monster
@@ -1377,6 +1385,7 @@ def equipmentMenu(header):
 
 
 def mainMenu():
+    global playerComponent
     choices = ['New Game', 'Continue', 'Quit']
     index = 0
     while not tdl.event.isWindowClosed():
@@ -1398,9 +1407,12 @@ def mainMenu():
             index = 0
         if key.keychar.upper() == "ENTER":
             if index == 0:
-                characterCreation()
-                newGame()
-                playGame()
+                playerComponent = characterCreation()
+                if playerComponent != 'cancelled':
+                    newGame()
+                    playGame()
+                else:
+                    mainMenu()
             elif index == 1:
                 try:
                     loadGame()
@@ -1594,7 +1606,7 @@ def saveGame():
 def newGame():
     global objects, inventory, gameMsgs, gameState, player, dungeonLevel
     startingSpells = [fireball, heal]
-    playFight = Fighter(hp = 100, power=3, armor=1, deathFunction=playerDeath, xp=0, evasion = 60, accuracy = 20, maxMP= 10, knownSpells=startingSpells)
+    playFight = Fighter(hp = playerComponent[4], power= playerComponent[0], armor= playerComponent[3], deathFunction=playerDeath, xp=0, evasion = playerComponent[2], accuracy = playerComponent[1], maxMP= playerComponent[5], knownSpells=startingSpells)
     playComp = Player()
     player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = 'Hero', color = (0, 210, 0))
     player.level = 1
