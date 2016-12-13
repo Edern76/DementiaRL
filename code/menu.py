@@ -39,7 +39,7 @@ def menu(header, options, width):
 
 def msgBox(text, width = 50):
     menu(text, [], width)
-        
+
 def drawCentered (cons = con , y = 1, text = "Lorem Ipsum", fg = None, bg = None):
     xCentered = (WIDTH - len(text))//2
     cons.draw_str(xCentered, y, text, fg, bg)

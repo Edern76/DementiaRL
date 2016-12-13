@@ -541,7 +541,7 @@ def getInput():
         chosenItem = inventoryMenu('Press the key next to an item to drop it, or press any other key to cancel.')
         if chosenItem is not None:
             chosenItem.drop()
-    elif userInput.keychar == 'Z' and gameState == 'playing':
+    elif userInput.keychar.upper() == 'Z' and gameState == 'playing':
         chosenSpell = spellsMenu('Press the key next to a spell to use it')
         if chosenSpell == None:
             FOV_recompute = True
@@ -706,6 +706,23 @@ def getMoveCost(destX, destY, sourceX, sourceY):
     else:
         cost = tileDistance(destX, destY, sourceX, sourceY)
         return int(cost)
+    
+def castRegenMana(regenAmount):
+    if player.Fighter.MP != player.Fighter.maxMP:
+        player.Fighter.MP += regenAmount
+        regened = regenAmount
+        if player.Fighter.MP > player.Fighter.maxMP:
+            overflow = player.Fighter.maxMP - player.Fighter.MP
+            regened = regenAmount - overflow
+            player.Fighter.MP = player.Fighter.maxMP
+        message("You recovered " + str(regened) + " MP.", colors.green)
+    else:
+        message("Your MP are already maxed out")
+        return "cancelled"
+
+def castDarkRitual(regen, damage):
+    message('You take ' + str(damage) + ' damage from the ritual !', colors.red)
+    castRegenMana(regen)
 
 def castHeal(healAmount = 5):
     if player.Fighter.hp == player.Fighter.maxHP:
@@ -789,6 +806,7 @@ def applyBurn(target, chance = 50):
 
 fireball = Spell(ressourceCost = 5, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', arg1 = 3, arg2 = 12, arg3 = None)
 heal = Spell(ressourceCost = 6, cooldown = 7, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', arg1 = 10, arg2 = None, arg3 = None)
+darkPact = Spell(ressourceCost = DARK_PACT_DAMAGE, cooldown = 8, useFunction = castDarkRitual, name = "Dark ritual", ressource = 'HP', type = "Occult", arg1 = 5, arg2 = DARK_PACT_DAMAGE , arg3=None)
                 
 def castArmageddon(radius = 4, damage = 40):
     global FOV_recompute
@@ -912,7 +930,16 @@ def castCreateSword():
     else:
         (x,y) = target
         sword = createSword(x, y)
-        objects.append(sword)        
+        objects.append(sword)
+
+
+def learnSpell(spell):
+    if spell not in player.Fighter.knownSpells:
+        player.Fighter.knownSpells.append(spell)
+        message("You learn " + spell.name + " !", colors.green)
+    else:
+        message("You already know this spell")
+        return "cancelled"
 
 def explode():
     global gameState
@@ -1034,8 +1061,9 @@ def makeMap():
 
 #_____________ ROOM POPULATION + ITEMS GENERATION_______________
 monsterChances = {'orc': 80, 'troll': 20}
-itemChances = {'potion': 35, 'scroll': 45, 'sword': 7, 'shield': 7, 'none': 6}
+itemChances = {'potion': 35, 'scroll': 45, 'sword': 7, 'shield': 7, 'spellbook': 6}
 potionChances = {'heal': 100}
+spellbookChances = {'darkPact' : 100}
 
 def createSword(x, y):
     global sword
@@ -1159,6 +1187,10 @@ def placeObjects(room):
             elif itemChoice == 'shield':
                 equipmentComponent = Equipment(slot='left hand', armorBonus=1)
                 item = GameObject(x, y, '[', 'shield', colors.darker_orange, Equipment=equipmentComponent, Item=Item())
+            elif itemChoice == 'spellbook':
+                spellbookChoice = randomChoice(spellbookChances)
+                if spellbookChoice == "darkPact":
+                    item = GameObject(x, y, '=', 'spellbook of arcane rituals', colors.violet, Item = Item(useFunction = learnSpell, arg1 = darkPact), blocks = False)
             else:
                 item = None
             if item is not None:            
@@ -1367,7 +1399,7 @@ def mainMenu():
         if key.keychar.upper() == "ENTER":
             if index == 0:
                 characterCreation()
-                newGame() 
+                newGame()
                 playGame()
             elif index == 1:
                 try:
