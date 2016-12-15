@@ -38,6 +38,7 @@ FOV_recompute = True
 inventory = []
 equipmentList = []
 stairs = None
+upStairs = None
 hiroshimanHasAppeared = False
 player = None
 
@@ -601,9 +602,20 @@ def getInput():
                 if object.x == player.x and object.y == player.y and object.Item is not None:
                     object.Item.pickUp()
                     break
-                elif stairs.x == player.x and stairs.y == player.y:
-                    nextLevel()
+                
+        elif userInput.keychar.upper() == '<':  
+            if dungeonLevel > 1:
+                saveLevel()
+                for object in objects:    
+                    if upStairs.x == player.x and upStairs.y == player.y:
+                        global dungeonLevel
+                        loadLevel(dungeonLevel - 1)
+                        dungeonLevel -= 1
             FOV_recompute = True
+        elif userInput.keychar.upper() == '>':
+            for object in objects:
+                if stairs.x == player.x and stairs.y == player.y:
+                    nextLevel()
         elif userInput.keychar.upper() == 'I':
             chosenItem = inventoryMenu('Press the key next to an item to use it, or any other to cancel.\n')
             if chosenItem is not None:
@@ -1019,7 +1031,7 @@ def createVerticalTunnel(y1, y2, x):
         myMap[x][y].block_sight = False
         
 def makeMap():
-    global myMap, stairs, objects
+    global myMap, stairs, objects, upStairs
     myMap = [[Tile(True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
     rooms = []
     numberRooms = 0
@@ -1050,6 +1062,10 @@ def makeMap():
             if numberRooms == 0:
                 player.x = new_x
                 player.y = new_y
+                if dungeonLevel > 1:
+                    upStairs = GameObject(new_x, new_y, '<', 'stairs', colors.white, alwaysVisible = True, darkColor = colors.dark_grey)
+                    objects.append(upStairs)
+                    upStairs.sendToBack()
             else:
                 (previous_x, previous_y) = rooms[numberRooms-1].center()
                 if randint(0, 1):
@@ -1061,9 +1077,9 @@ def makeMap():
             placeObjects(newRoom)
             rooms.append(newRoom)
             numberRooms += 1
-    stairs = GameObject(new_x, new_y, '<', 'stairs', colors.white, alwaysVisible = True, darkColor = colors.dark_grey)
+    stairs = GameObject(new_x, new_y, '>', 'stairs', colors.white, alwaysVisible = True, darkColor = colors.dark_grey)
     objects.append(stairs)
-    stairs.sendToBack() 
+    stairs.sendToBack()
 
 #_____________ MAP CREATION __________________
 
@@ -1590,13 +1606,17 @@ def saveGame():
     
     file = shelve.open(absFilePath, "n")
     file["dungeonLevel"] = dungeonLevel
-    file["myMap"] = myMap
-    file["objects"] = objects
+    file["myMap_level{}".format(dungeonLevel)] = myMap
+    print("Saved myMap_level{}".format(dungeonLevel))
+    file["objects_level{}".format(dungeonLevel)] = objects
     file["playerIndex"] = objects.index(player)
+    file["stairsIndex"] = objects.index(stairs)
     file["inventory"] = inventory
     file["equipmentList"] = equipmentList
     file["gameMsgs"] = gameMsgs
     file["gameState"] = gameState
+    if dungeonLevel > 1:
+        file["upStairsIndex"] = objects.index(upStairs)
     file.close()
     
     #mapFile = open(absPicklePath, 'wb')
@@ -1628,30 +1648,76 @@ def newGame():
     object.alwaysVisible = True
 
 def loadGame():
-    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipmentList
+    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipmentList, stairs, upStairs
     
     
     #myMap = [[Tile(True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)]
     file = shelve.open(absFilePath, "r")
     dungeonLevel = file["dungeonLevel"]
-    myMap = (file["myMap"])
-    objects = file["objects"]
+    myMap = file["myMap_level{}".format(dungeonLevel)]
+    objects = file["objects_level{}".format(dungeonLevel)]
     player = objects[file["playerIndex"]]
+    stairs = objects[file["stairsIndex"]]
     inventory = file["inventory"]
     equipmentList = file["equipmentList"]
     gameMsgs = file["gameMsgs"]
     gameState = file["gameState"]
-    
+    if dungeonLevel > 1:
+        upStairs = objects[file["upStairsIndex"]]
     #mapFile = open(absPicklePath, "rb")
     #myMap = pickle.load(mapFile)
     #mapFile.close()
+
+def saveLevel():
+    if not os.path.exists(absDirPath):
+        os.makedirs(absDirPath)
+    
+    if not os.path.exists(absFilePath):
+        file = shelve.open(absFilePath, "n")
+        print()
+    else:
+        file = shelve.open(absFilePath, "w")
+    file["myMap_level{}".format(dungeonLevel)] = myMap
+    print("Saved myMap_level{}".format(dungeonLevel))
+    file["objects_level{}".format(dungeonLevel)] = objects
+    file["playerIndex"] = objects.index(player)
+    file["stairsIndex"] = objects.index(stairs)
+    if dungeonLevel > 1:
+        file["upStairsIndex"] = objects.index(upStairs)
+    file["yunowork"] = "SCREW THIS"
+    file.close()
+    
+    return "completed"
+
+def loadLevel(level):
+    global objects, player, myMap, stairs
+    file = shelve.open(absFilePath, "r")
+    print(file["yunowork"])
+    myMap = file["myMap_level{}".format(level)]
+    objects = file["objects_level{}".format(level)]
+    player = objects[file["playerIndex"]]
+    stairs = objects[file["stairsIndex"]]
+    if level > 1:
+        global upStairs
+        upStairs = objects[file["upStairsIndex"]]
+    
+    message("You climb the stairs")
+    initializeFOV()
     
 
 def nextLevel():
     global dungeonLevel
+    returned = "borked"
+    while returned != "completed":
+        returned = saveLevel()
     message('After a rare moment of peace, you descend deeper into the heart of the dungeon...', colors.red)
     dungeonLevel += 1
-    makeMap()  #create a fresh new level!
+    try:
+        loadLevel(dungeonLevel)
+        print("Loaded existing level {}".format(dungeonLevel))
+    except:
+        makeMap()  #create a fresh new level!
+        print("Created a new level")
     if hiroshimanNumber == 1 and not hiroshimanHasAppeared:
         global hiroshimanHasAppeared
         message('You suddenly feel uneasy.', colors.dark_red)
