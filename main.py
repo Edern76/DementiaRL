@@ -6,6 +6,7 @@ from os import makedirs
 from code.constants import *
 from code.menu import *
 from code.charGen import *
+from dill import objects
 
 # Naming conventions :
 # MY_CONSTANT
@@ -1679,6 +1680,7 @@ def saveLevel():
         file = shelve.open(absFilePath, "w")
     file["myMap_level{}".format(dungeonLevel)] = myMap
     print("Saved myMap_level{}".format(dungeonLevel))
+    print(file["myMap_level{}".format(dungeonLevel)])
     file["objects_level{}".format(dungeonLevel)] = objects
     file["playerIndex"] = objects.index(player)
     file["stairsIndex"] = objects.index(stairs)
@@ -1712,10 +1714,19 @@ def nextLevel():
         returned = saveLevel()
     message('After a rare moment of peace, you descend deeper into the heart of the dungeon...', colors.red)
     dungeonLevel += 1
+    tempMap = myMap
+    tempObjects = objects
+    tempPlayer = player
+    tempStairs = stairs
     try:
         loadLevel(dungeonLevel)
         print("Loaded existing level {}".format(dungeonLevel))
     except:
+        global myMap, objects, player, stairs
+        myMap = tempMap
+        objects = tempObjects
+        player = tempPlayer
+        stairs = tempStairs
         makeMap()  #create a fresh new level!
         print("Created a new level")
     if hiroshimanNumber == 1 and not hiroshimanHasAppeared:
