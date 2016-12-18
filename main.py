@@ -1041,7 +1041,50 @@ def createVerticalTunnel(y1, y2, x):
     for y in range(min(y1, y2), max(y1, y2) + 1):
         myMap[x][y].blocked = False
         myMap[x][y].block_sight = False
-        
+
+def secretRoomTest():
+    for x in range(MAP_WIDTH):
+        for y in range(MAP_HEIGHT):
+            if not myMap[x][y].block_sight:
+                if myMap[x + 1][y].block_sight: #right of the current tile
+                    for indexX in range(3):
+                        for indexY in range(3):
+                            if not myMap[x + 2 + indexX][y - 1 + indexY].block_sight or myMap[x + 2 + indexX][y - 1 + indexY].unbreakable:
+                                return 'cancelled', 'cancelled', 'cancelled', 'cancelled'
+                            else:
+                                return x + 1, y - 2, x + 1, y
+                if myMap[x - 1][y].block_sight: #left
+                    for indexX in range(3):
+                        for indexY in range(3):
+                            if not myMap[x - 2 - indexX][y - 1 + indexY].block_sight or myMap[x - 2 - indexX][y - 1 + indexY].unbreakable:
+                                return 'cancelled', 'cancelled', 'cancelled', 'cancelled'
+                            else:
+                                return x - 5, y - 2, x - 1, y
+                if myMap[x][y + 1].block_sight: #under
+                    for indexX in range(3):
+                        for indexY in range(3):
+                            if not myMap[x - 1 + indexX][y + 2 + indexY].block_sight or myMap[x - 1 + indexX][y + 2 + indexY].unbreakable:
+                                return 'cancelled', 'cancelled', 'cancelled', 'cancelled'
+                            else:
+                                return x - 2, y + 1, x, y + 1
+                if myMap[x][y - 1].block_sight: #above
+                    for indexX in range(3):
+                        for indexY in range(3):
+                            if not myMap[x - 1 + indexX][y - 2 - indexY].block_sight or myMap[x - 1 + indexX][y - 2 - indexY].unbreakable:
+                                return 'cancelled', 'cancelled', 'cancelled', 'cancelled'
+                            else:
+                                return x - 2, y - 5, x, y - 1
+
+def secretRoom():
+    global myMap, secretRoom
+    [x, y, entryX, entryY] = secretRoomTest()
+    if not (x == 'cancelled' or y == 'cancelled' or entryX == 'cancelled' or entryY == 'cancelled'):
+        secretRoom = Rectangle(x, y, 4, 4)
+        createRoom(secretRoom)
+        myMap[entryX][entryY].blocked = False
+        myMap[entryX][entryY].block_sight = True
+        print("created secret room at x ", entryX, " y ", entryY)
+
 def makeMap():
     global myMap, stairs, objects, upStairs
     myMap = [[Tile(True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
@@ -1089,6 +1132,9 @@ def makeMap():
             placeObjects(newRoom)
             rooms.append(newRoom)
             numberRooms += 1
+    secretRoom()
+    rooms.append(secretRoom)
+    numberRooms += 1
     stairs = GameObject(new_x, new_y, '>', 'stairs', colors.white, alwaysVisible = True, darkColor = colors.dark_grey)
     objects.append(stairs)
     stairs.sendToBack()
