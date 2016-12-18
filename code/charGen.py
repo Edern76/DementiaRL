@@ -3,7 +3,7 @@ from code.constants import *
 from code.menu import *
 
 BASE_POWER = 1
-BASE_ACCURACY = 0
+BASE_ACCURACY = 20
 BASE_EVASION = 1
 BASE_ARMOR = 0
 BASE_MAXHP = 0
@@ -64,7 +64,7 @@ def characterCreation():
                           'A wizard who zaps everything']
     classesBonus = [[0, 0, 0, 1, 60, 30, 0], #Knight
                     [1, 0, 0, 0, 80, 30, 0], #Barbarian
-                    [0, 4, 2, 0, 45, 40, 1], #Rogue
+                    [0, 8, 10, 0, 45, 40, 3], #Rogue
                     [0, 0, 0, 0, 35, 50, 0]] #Mage
     classesLevelUp = [[0, 0, 0, 1, 7, 3, 0],
                       [1, 0, 0, 0, 10, 3, 0],

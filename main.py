@@ -163,7 +163,7 @@ class GameObject:
                 print(self.name + " found no Astar path")
 
 class Fighter: #All NPCs, enemies and the player
-    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None):
+    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5):
         self.baseMaxHP = hp
         self.hp = hp
         self.baseArmor = armor
@@ -172,6 +172,7 @@ class Fighter: #All NPCs, enemies and the player
         self.xp = xp
         self.baseAccuracy = accuracy
         self.baseEvasion = evasion
+        self.baseCritical = critical
         
         self.frozen = False
         self.freezeCooldown = 0
@@ -182,7 +183,7 @@ class Fighter: #All NPCs, enemies and the player
         self.healCountdown = 10
         self.MPRegenCountdown = 10
         
-        self.maxMP = maxMP
+        self.baseMaxMP = maxMP
         self.MP = maxMP
         
         if knownSpells != None:
@@ -195,29 +196,39 @@ class Fighter: #All NPCs, enemies and the player
         
     
     @property
-    def power(self):  #return actual power, by summing up the bonuses from all equipped items
+    def power(self):
         bonus = sum(equipment.powerBonus for equipment in getAllEquipped(self.owner))
         return self.basePower + bonus
  
     @property
-    def armor(self):  #return actual armor, by summing up the bonuses from all equipped items
+    def armor(self):
         bonus = sum(equipment.armorBonus for equipment in getAllEquipped(self.owner))
         return self.baseArmor + bonus
  
     @property
-    def maxHP(self):  #return actual max_hp, by summing up the bonuses from all equipped items
+    def maxHP(self):
         bonus = sum(equipment.maxHP_Bonus for equipment in getAllEquipped(self.owner))
         return self.baseMaxHP + bonus
 
     @property
-    def accuracy(self):  #return actual armor, by summing up the bonuses from all equipped items
+    def accuracy(self):
         bonus = sum(equipment.accuracyBonus for equipment in getAllEquipped(self.owner))
         return self.baseAccuracy + bonus
 
     @property
-    def evasion(self):  #return actual armor, by summing up the bonuses from all equipped items
+    def evasion(self):
         bonus = sum(equipment.evasionBonus for equipment in getAllEquipped(self.owner))
         return self.baseEvasion + bonus
+
+    @property
+    def critical(self):
+        bonus = sum(equipment.criticalBonus for equipment in getAllEquipped(self.owner))
+        return self.baseCritical + bonus
+
+    @property
+    def maxMP(self):
+        bonus = sum(equipment.maxMP_Bonus for equipment in getAllEquipped(self.owner))
+        return self.baseMaxMP + bonus
         
     def takeDamage(self, damage):
         if damage > 0:
@@ -233,7 +244,7 @@ class Fighter: #All NPCs, enemies and the player
         global hit, critical
         attack = randint(1, 100)
         hit = False
-        critical = False
+        criticalHit = False
         if target.Fighter.evasion < 1:
             currentEvasion = 1
         else:
@@ -245,23 +256,23 @@ class Fighter: #All NPCs, enemies and the player
         hitRatio = int((currentAccuracy / currentEvasion) * 100)
         if DEBUG:
             message(self.owner.name.capitalize() + ' rolled a ' + str(attack) + ' over ' + str(hitRatio), colors.violet)
-        if attack <= hitRatio and attack < 91:
+        if attack <= hitRatio and attack < 96:
             hit = True
-            if attack <= 5:
-                critical = True
-        return hit, critical
+            if attack <= self.critical:
+                criticalHit = True
+        return hit, criticalHit
 
     def attack(self, target):
-        self.toHit(target)
+        [hit, criticalHit] = self.toHit(target)
         if hit:
-            if critical:
+            if criticalHit:
                 damage = (self.power - target.Fighter.armor) * 3
             else:
                 damage = self.power - target.Fighter.armor
             if not self.frozen:
                 if not self.owner.Player:
                     if damage > 0:
-                        if critical:
+                        if criticalHit:
                             message(self.owner.name.capitalize() + ' critically hits you for ' + str(damage) + ' hit points!', colors.dark_orange)
                         else:
                             message(self.owner.name.capitalize() + ' attacks you for ' + str(damage) + ' hit points.', colors.orange)
@@ -270,7 +281,7 @@ class Fighter: #All NPCs, enemies and the player
                         message(self.owner.name.capitalize() + ' attacks you but it has no effect!')
                 else:
                     if damage > 0:
-                        if critical:
+                        if criticalHit:
                             message('You critically hit ' + target.name + ' for ' + str(damage) + ' hit points!', colors.darker_green)
                         else:
                             message('You attack ' + target.name + ' for ' + str(damage) + ' hit points.', colors.dark_green)
@@ -686,7 +697,7 @@ def checkLevelUp():
                 elif choice == 4:
                     player.Fighter.baseAccuracy += 5
                 elif choice == 5:
-                    player.Fighter.maxMP += 5
+                    player.Fighter.baseMaxMP += 5
                     player.Fighter.MP += 5
                     
                 FOV_recompute = True
@@ -911,7 +922,7 @@ def monsterArmageddon(monsterName ,monsterX, monsterY, radius = 4, damage = 40):
     
 def createOrc(x, y):
     if x != player.x or y != player.y:
-        fighterComponent = Fighter(hp=18, armor=0, power=3, xp = 35, deathFunction = monsterDeath, evasion = 25, accuracy = 15)
+        fighterComponent = Fighter(hp=15, armor=0, power=3, xp = 35, deathFunction = monsterDeath, evasion = 25, accuracy = 10)
         AI_component = BasicMonster()
         monster = GameObject(x, y, char = 'o', color = colors.desaturated_green, name = 'orc', blocks = True, Fighter=fighterComponent, AI = AI_component)
         return monster
@@ -1183,7 +1194,7 @@ def placeObjects(room):
                 monsterChances['troll'] = 20
                 
             elif monsterChoice == 'troll':
-                fighterComponent = Fighter(hp=16, armor=2, power=4, xp = 100, deathFunction = monsterDeath, accuracy = 40, evasion = 1)
+                fighterComponent = Fighter(hp=20, armor=2, power=4, xp = 100, deathFunction = monsterDeath, accuracy = 7, evasion = 1)
                 AI_component = BasicMonster()
                 monster = GameObject(x, y, char = 'T', color = colors.darker_green,name = 'troll', blocks = True, Fighter = fighterComponent, AI = AI_component)
         
@@ -1225,13 +1236,15 @@ def placeObjects(room):
 
 #_____________ EQUIPEMENT ________________
 class Equipment:
-    def __init__(self, slot, powerBonus=0, armorBonus=0, maxHP_Bonus=0, accuracyBonus=0, evasionBonus=0, burning = False):
+    def __init__(self, slot, powerBonus=0, armorBonus=0, maxHP_Bonus=0, accuracyBonus=0, evasionBonus=0, criticalBonus = 0, maxMP_Bonus = 0, burning = False):
         self.slot = slot
         self.powerBonus = powerBonus
         self.armorBonus = armorBonus
         self.maxHP_Bonus = maxHP_Bonus
         self.accuracyBonus = accuracyBonus
         self.evasionBonus = evasionBonus
+        self.criticalBonus = criticalBonus
+        self.maxMP_Bonus = maxMP_Bonus
         self.isEquipped = False
         
         self.burning = burning
@@ -1627,7 +1640,7 @@ def saveGame():
 def newGame():
     global objects, inventory, gameMsgs, gameState, player, dungeonLevel
     startingSpells = [fireball, heal]
-    playFight = Fighter(hp = playerComponent[4], power= playerComponent[0], armor= playerComponent[3], deathFunction=playerDeath, xp=0, evasion = playerComponent[2], accuracy = playerComponent[1], maxMP= playerComponent[5], knownSpells=startingSpells)
+    playFight = Fighter(hp = playerComponent[4], power= playerComponent[0], armor= playerComponent[3], deathFunction=playerDeath, xp=0, evasion = playerComponent[2], accuracy = playerComponent[1], maxMP= playerComponent[5], knownSpells=startingSpells, critical = playerComponent[6])
     playComp = Player()
     player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = 'Hero', color = (0, 210, 0))
     player.level = 1
