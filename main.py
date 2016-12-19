@@ -1053,48 +1053,82 @@ def createVerticalTunnel(y1, y2, x):
         myMap[x][y].blocked = False
         myMap[x][y].block_sight = False
 
-def secretRoomTest():
-    for x in range(MAP_WIDTH):
-        for y in range(MAP_HEIGHT):
+def secretRoomTest(startingX, endX, startingY, endY):
+    for x in range(startingX, endX):
+        for y in range(startingY, endY):
             if not myMap[x][y].block_sight:
+                intersect = False
                 if myMap[x + 1][y].block_sight: #right of the current tile
-                    for indexX in range(3):
-                        for indexY in range(3):
-                            if not myMap[x + 2 + indexX][y - 1 + indexY].block_sight or myMap[x + 2 + indexX][y - 1 + indexY].unbreakable:
-                                return 'cancelled', 'cancelled', 'cancelled', 'cancelled'
-                            else:
-                                return x + 1, y - 2, x + 1, y
+                    for indexX in range(5):
+                        for indexY in range(5):
+                            if not myMap[x + 1 + indexX][y - 2 + indexY].block_sight or myMap[x + 1 + indexX][y - 2 + indexY].unbreakable:
+                                intersect = True
+                                break
+                        break
+                    if not intersect:
+                        print("right")
+                        return x + 1, y - 2, x + 1, y
                 if myMap[x - 1][y].block_sight: #left
-                    for indexX in range(3):
-                        for indexY in range(3):
-                            if not myMap[x - 2 - indexX][y - 1 + indexY].block_sight or myMap[x - 2 - indexX][y - 1 + indexY].unbreakable:
-                                return 'cancelled', 'cancelled', 'cancelled', 'cancelled'
-                            else:
-                                return x - 5, y - 2, x - 1, y
+                    for indexX in range(5):
+                        for indexY in range(5):
+                            if not myMap[x - 1 - indexX][y - 2 + indexY].block_sight or myMap[x - 1 - indexX][y - 2 + indexY].unbreakable:
+                                intersect = True
+                                break
+                        break
+                    if not intersect:
+                        print("left")
+                        return x - 5, y - 2, x - 1, y
                 if myMap[x][y + 1].block_sight: #under
-                    for indexX in range(3):
-                        for indexY in range(3):
-                            if not myMap[x - 1 + indexX][y + 2 + indexY].block_sight or myMap[x - 1 + indexX][y + 2 + indexY].unbreakable:
-                                return 'cancelled', 'cancelled', 'cancelled', 'cancelled'
-                            else:
-                                return x - 2, y + 1, x, y + 1
+                    for indexX in range(5):
+                        for indexY in range(5):
+                            if not myMap[x - 2 + indexX][y + 1 + indexY].block_sight or myMap[x - 2 + indexX][y + 1 + indexY].unbreakable:
+                                intersect = True
+                                break
+                        break
+                    if not intersect:
+                        print("under")
+                        return x - 2, y + 1, x, y + 1
                 if myMap[x][y - 1].block_sight: #above
-                    for indexX in range(3):
-                        for indexY in range(3):
-                            if not myMap[x - 1 + indexX][y - 2 - indexY].block_sight or myMap[x - 1 + indexX][y - 2 - indexY].unbreakable:
-                                return 'cancelled', 'cancelled', 'cancelled', 'cancelled'
-                            else:
-                                return x - 2, y - 5, x, y - 1
+                    for indexX in range(5):
+                        for indexY in range(5):
+                            if not myMap[x - 2 + indexX][y - 1 - indexY].block_sight or myMap[x - 2 + indexX][y - 1 - indexY].unbreakable:
+                                intersect = True
+                                break
+                        break
+                    if not intersect:
+                        print("above")
+                        return x - 2, y - 5, x, y - 1
 
 def secretRoom():
     global myMap, secretRoom
-    [x, y, entryX, entryY] = secretRoomTest()
+    quarter = randint(1, 4)
+    if quarter == 1:
+        minX = 1
+        maxX = MID_MAP_WIDTH
+        minY = 1
+        maxY = MID_MAP_HEIGHT 
+    if quarter == 2:
+        minX = MID_MAP_WIDTH + 1
+        maxX = MAP_WIDTH
+        minY = 1
+        maxY = MID_MAP_HEIGHT
+    if quarter == 3:
+        minX = 1
+        maxX = MID_MAP_WIDTH
+        minY = MID_MAP_HEIGHT + 1
+        maxY = MAP_HEIGHT
+    if quarter == 4:
+        minX = MID_MAP_WIDTH + 1
+        maxX = MAP_WIDTH
+        minY = MID_MAP_HEIGHT + 1
+        maxY = MAP_HEIGHT
+    [x, y, entryX, entryY] = secretRoomTest(minX, maxX, minY, maxY)
     if not (x == 'cancelled' or y == 'cancelled' or entryX == 'cancelled' or entryY == 'cancelled'):
         secretRoom = Rectangle(x, y, 4, 4)
         createRoom(secretRoom)
         myMap[entryX][entryY].blocked = False
         myMap[entryX][entryY].block_sight = True
-        print("created secret room at x ", entryX, " y ", entryY)
+        print("created secret room at x ", entryX, " y ", entryY, " in quarter ", quarter)
 
 def makeMap():
     global myMap, stairs, objects, upStairs
@@ -1572,7 +1606,7 @@ def Update():
                     inPath = (x,y) in tilesinPath
                     if inPath:
                         con.draw_char(x, y, 'X', fg = colors.green, bg = None)
-                        tilesinPath = []    
+                        tilesinPath = []
                         
     for object in objects:
         if object != player:
