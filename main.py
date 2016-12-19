@@ -674,7 +674,18 @@ def checkLevelUp():
         player.level += 1
         player.Fighter.xp -= levelUp_xp
         message('Your battle skills grow stronger! You reached level ' + str(player.level) + '!', colors.yellow)
-
+        
+        #applying Class specific stat boosts
+        player.Fighter.basePower += levelUpStats[0]
+        player.Fighter.baseAccuracy += levelUpStats[1]
+        player.Fighter.baseEvasion += levelUpStats[2]
+        player.Fighter.baseArmor += levelUpStats[3]
+        player.Fighter.baseMaxHP += levelUpStats[4]
+        player.Fighter.hp += levelUpStats[4]
+        player.Fighter.baseMaxMP += levelUpStats[5]
+        player.Fighter.MP += levelUpStats[5]
+        player.Fighter.baseCritical += levelUpStats[6]
+        
         choice = None
         while choice == None:
             choice = menu('Level up! Choose a stat to raise: \n',
@@ -1461,7 +1472,7 @@ def equipmentMenu(header):
 
 
 def mainMenu():
-    global playerComponent
+    global playerComponent, levelUpStats
     choices = ['New Game', 'Continue', 'Quit']
     index = 0
     while not tdl.event.isWindowClosed():
@@ -1483,7 +1494,7 @@ def mainMenu():
             index = 0
         if key.keychar.upper() == "ENTER":
             if index == 0:
-                playerComponent = characterCreation()
+                [playerComponent, levelUpStats] = characterCreation()
                 if playerComponent != 'cancelled':
                     newGame()
                     playGame()
