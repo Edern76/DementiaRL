@@ -273,9 +273,9 @@ def characterCreation():
                         actualPerSkills[index - previousListLen] += 1
             if index == maxIndex - 1:
                 createdCharacter = [power, accuracy, evasion, armor, maxHP, maxMP, critical]
-                return createdCharacter, levelUpStats
+                return createdCharacter, levelUpStats, actualPerSkills, skillsBonus
             if index == maxIndex:
-                return 'cancelled', 'cancelled'
+                return 'cancelled', 'cancelled', 'cancelled', 'cancelled'
         #removing choice bonus
         if key.keychar.upper() == 'BACKSPACE':
             if midIndexMin <= index <= midIndexMax:

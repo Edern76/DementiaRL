@@ -668,7 +668,7 @@ def moveOrAttack(dx, dy):
         player.move(dx, dy)
 
 def checkLevelUp():
-    global FOV_recompute
+    global FOV_recompute, actualPerSkills
     levelUp_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
     if player.Fighter.xp >= levelUp_xp:
         player.level += 1
@@ -688,32 +688,35 @@ def checkLevelUp():
         
         choice = None
         while choice == None:
-            choice = menu('Level up! Choose a stat to raise: \n',
-                ['Constitution (+20 HP, from ' + str(player.Fighter.maxHP) + ')',
-                'Strength (+1 attack, from ' + str(player.Fighter.power) + ')',
-                'Toughness (+1 armor, from ' + str(player.Fighter.armor) + ')',
-                'Agility (+5 evasion, from ' + str(player.Fighter.evasion) + ')',
-                'Dexterity (+5 accuracy, from ' + str(player.Fighter.accuracy) + ')',
-                'Willpower (+5 max MP, from ' + str(player.Fighter.maxMP) +')'], LEVEL_SCREEN_WIDTH)
+            choice = menu('Level up! Choose a skill to raise: \n',
+                ['Light Weapons (from ' + str(actualPerSkills[0]) + ')',
+                 'Heavy Weapons (from ' + str(actualPerSkills[1]) + ')',
+                 'Missile Weapons (from ' + str(actualPerSkills[2]) + ')',
+                 'Throwing Weapons (from ' + str(actualPerSkills[3]) + ')',
+                 'Magic (from ' + str(actualPerSkills[4]) + ')',
+                 'Armor wielding (from ' + str(actualPerSkills[5]) + ')',
+                 'Athletics (from ' + str(actualPerSkills[6]) + ')',
+                 'Concentration (from ' + str(actualPerSkills[7]) + ')',
+                 'Dodge (from ' + str(actualPerSkills[8]) + ')',
+                 'Critical (from ' + str(actualPerSkills[9]) + ')',
+                 'Accuracy (from ' + str(actualPerSkills[10]) + ')',], LEVEL_SCREEN_WIDTH)
             if choice != None:
-                if choice == 0:
-                    player.Fighter.baseMaxHP += 20
-                    player.Fighter.hp += 20
-                elif choice == 1:
-                    player.Fighter.basePower += 1
-                elif choice == 2:
-                    player.Fighter.baseArmor += 1
-                elif choice == 3:
-                    player.Fighter.baseEvasion += 5
-                elif choice == 4:
-                    player.Fighter.baseAccuracy += 5
-                elif choice == 5:
-                    player.Fighter.baseMaxMP += 5
-                    player.Fighter.MP += 5
+                if actualPerSkills[choice] < 5:
+                    player.Fighter.basePower += skillsBonus[choice][0]
+                    player.Fighter.baseAccuracy += skillsBonus[choice][1]
+                    player.Fighter.baseEvasion += skillsBonus[choice][2]
+                    player.Fighter.baseArmor += skillsBonus[choice][3]
+                    player.Fighter.baseMaxHP += skillsBonus[choice][4]
+                    player.Fighter.hp += skillsBonus[choice][4]
+                    player.Fighter.baseMaxMP += skillsBonus[choice][5]
+                    player.Fighter.MP += skillsBonus[choice][5]
+                    player.Fighter.baseCritical += skillsBonus[choice][6]
+
+                    actualPerSkills[choice] += 1
                     
-                FOV_recompute = True
-                Update()
-                break
+                    FOV_recompute = True
+                    Update()
+                    break
 
 def isVisibleTile(x, y):
     global myMap
@@ -1100,7 +1103,7 @@ def secretRoomTest(startingX, endX, startingY, endY):
                         return x - 2, y - 5, x, y - 1
 
 def secretRoom():
-    global myMap, secretRoom
+    global myMap
     quarter = randint(1, 4)
     if quarter == 1:
         minX = 1
@@ -1178,8 +1181,6 @@ def makeMap():
             rooms.append(newRoom)
             numberRooms += 1
     secretRoom()
-    rooms.append(secretRoom)
-    numberRooms += 1
     stairs = GameObject(new_x, new_y, '>', 'stairs', colors.white, alwaysVisible = True, darkColor = colors.dark_grey)
     objects.append(stairs)
     stairs.sendToBack()
@@ -1506,7 +1507,7 @@ def equipmentMenu(header):
 
 
 def mainMenu():
-    global playerComponent, levelUpStats
+    global playerComponent, levelUpStats, actualPerSkills, skillsBonus
     choices = ['New Game', 'Continue', 'Quit']
     index = 0
     while not tdl.event.isWindowClosed():
@@ -1528,7 +1529,7 @@ def mainMenu():
             index = 0
         if key.keychar.upper() == "ENTER":
             if index == 0:
-                [playerComponent, levelUpStats] = characterCreation()
+                [playerComponent, levelUpStats, actualPerSkills, skillsBonus] = characterCreation()
                 if playerComponent != 'cancelled':
                     newGame()
                     playGame()
