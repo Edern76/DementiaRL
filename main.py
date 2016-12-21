@@ -6,6 +6,7 @@ from os import makedirs
 from code.constants import *
 from code.menu import *
 from code.charGen import *
+from dill import objects
 
 # Naming conventions :
 # MY_CONSTANT
@@ -38,6 +39,7 @@ FOV_recompute = True
 inventory = []
 equipmentList = []
 stairs = None
+upStairs = None
 hiroshimanHasAppeared = False
 player = None
 
@@ -161,7 +163,7 @@ class GameObject:
                 print(self.name + " found no Astar path")
 
 class Fighter: #All NPCs, enemies and the player
-    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None):
+    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5):
         self.baseMaxHP = hp
         self.hp = hp
         self.baseArmor = armor
@@ -170,6 +172,7 @@ class Fighter: #All NPCs, enemies and the player
         self.xp = xp
         self.baseAccuracy = accuracy
         self.baseEvasion = evasion
+        self.baseCritical = critical
         
         self.frozen = False
         self.freezeCooldown = 0
@@ -180,7 +183,7 @@ class Fighter: #All NPCs, enemies and the player
         self.healCountdown = 10
         self.MPRegenCountdown = 10
         
-        self.maxMP = maxMP
+        self.baseMaxMP = maxMP
         self.MP = maxMP
         
         if knownSpells != None:
@@ -189,33 +192,41 @@ class Fighter: #All NPCs, enemies and the player
             self.knownSpells = []
         
         self.spellsOnCooldown = []
-            
-        
-    
+
     @property
-    def power(self):  #return actual power, by summing up the bonuses from all equipped items
+    def power(self):
         bonus = sum(equipment.powerBonus for equipment in getAllEquipped(self.owner))
         return self.basePower + bonus
  
     @property
-    def armor(self):  #return actual armor, by summing up the bonuses from all equipped items
+    def armor(self):
         bonus = sum(equipment.armorBonus for equipment in getAllEquipped(self.owner))
         return self.baseArmor + bonus
  
     @property
-    def maxHP(self):  #return actual max_hp, by summing up the bonuses from all equipped items
+    def maxHP(self):
         bonus = sum(equipment.maxHP_Bonus for equipment in getAllEquipped(self.owner))
         return self.baseMaxHP + bonus
 
     @property
-    def accuracy(self):  #return actual armor, by summing up the bonuses from all equipped items
+    def accuracy(self):
         bonus = sum(equipment.accuracyBonus for equipment in getAllEquipped(self.owner))
         return self.baseAccuracy + bonus
 
     @property
-    def evasion(self):  #return actual armor, by summing up the bonuses from all equipped items
+    def evasion(self):
         bonus = sum(equipment.evasionBonus for equipment in getAllEquipped(self.owner))
         return self.baseEvasion + bonus
+
+    @property
+    def critical(self):
+        bonus = sum(equipment.criticalBonus for equipment in getAllEquipped(self.owner))
+        return self.baseCritical + bonus
+
+    @property
+    def maxMP(self):
+        bonus = sum(equipment.maxMP_Bonus for equipment in getAllEquipped(self.owner))
+        return self.baseMaxMP + bonus
         
     def takeDamage(self, damage):
         if damage > 0:
@@ -228,10 +239,9 @@ class Fighter: #All NPCs, enemies and the player
                 player.Fighter.xp += self.xp
 
     def toHit(self, target):
-        global hit, critical
         attack = randint(1, 100)
         hit = False
-        critical = False
+        criticalHit = False
         if target.Fighter.evasion < 1:
             currentEvasion = 1
         else:
@@ -243,23 +253,23 @@ class Fighter: #All NPCs, enemies and the player
         hitRatio = int((currentAccuracy / currentEvasion) * 100)
         if DEBUG:
             message(self.owner.name.capitalize() + ' rolled a ' + str(attack) + ' over ' + str(hitRatio), colors.violet)
-        if attack <= hitRatio and attack < 91:
+        if attack <= hitRatio and attack < 96:
             hit = True
-            if attack <= 5:
-                critical = True
-        return hit, critical
+            if attack <= self.critical:
+                criticalHit = True
+        return hit, criticalHit
 
     def attack(self, target):
-        self.toHit(target)
+        [hit, criticalHit] = self.toHit(target)
         if hit:
-            if critical:
+            if criticalHit:
                 damage = (self.power - target.Fighter.armor) * 3
             else:
                 damage = self.power - target.Fighter.armor
             if not self.frozen:
                 if not self.owner.Player:
                     if damage > 0:
-                        if critical:
+                        if criticalHit:
                             message(self.owner.name.capitalize() + ' critically hits you for ' + str(damage) + ' hit points!', colors.dark_orange)
                         else:
                             message(self.owner.name.capitalize() + ' attacks you for ' + str(damage) + ' hit points.', colors.orange)
@@ -268,14 +278,15 @@ class Fighter: #All NPCs, enemies and the player
                         message(self.owner.name.capitalize() + ' attacks you but it has no effect!')
                 else:
                     if damage > 0:
-                        if critical:
+                        if criticalHit:
                             message('You critically hit ' + target.name + ' for ' + str(damage) + ' hit points!', colors.darker_green)
                         else:
                             message('You attack ' + target.name + ' for ' + str(damage) + ' hit points.', colors.dark_green)
                         target.Fighter.takeDamage(damage)
                         weapon = getEquippedInSlot('right hand')
-                        if weapon.burning:
-                            applyBurn(target, chance = 25)
+                        if weapon is not None:
+                            if weapon.burning:
+                                applyBurn(target, chance = 25)
                     
                     else:
                         message('You attack ' + target.name + ' but it has no effect!', colors.grey)
@@ -601,9 +612,20 @@ def getInput():
                 if object.x == player.x and object.y == player.y and object.Item is not None:
                     object.Item.pickUp()
                     break
-                elif stairs.x == player.x and stairs.y == player.y:
-                    nextLevel()
+                
+        elif userInput.keychar.upper() == '<':  
+            if dungeonLevel > 1:
+                saveLevel()
+                for object in objects:    
+                    if upStairs.x == player.x and upStairs.y == player.y:
+                        global dungeonLevel
+                        loadLevel(dungeonLevel - 1)
+                        dungeonLevel -= 1
             FOV_recompute = True
+        elif userInput.keychar.upper() == '>':
+            for object in objects:
+                if stairs.x == player.x and stairs.y == player.y:
+                    nextLevel()
         elif userInput.keychar.upper() == 'I':
             chosenItem = inventoryMenu('Press the key next to an item to use it, or any other to cancel.\n')
             if chosenItem is not None:
@@ -644,41 +666,57 @@ def moveOrAttack(dx, dy):
         player.move(dx, dy)
 
 def checkLevelUp():
-    global FOV_recompute
+    global FOV_recompute, actualPerSkills
     levelUp_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
     if player.Fighter.xp >= levelUp_xp:
         player.level += 1
         player.Fighter.xp -= levelUp_xp
         message('Your battle skills grow stronger! You reached level ' + str(player.level) + '!', colors.yellow)
-
+        
+        #applying Class specific stat boosts
+        player.Fighter.basePower += levelUpStats[0]
+        player.Fighter.baseAccuracy += levelUpStats[1]
+        player.Fighter.baseEvasion += levelUpStats[2]
+        player.Fighter.baseArmor += levelUpStats[3]
+        player.Fighter.baseMaxHP += levelUpStats[4]
+        player.Fighter.hp += levelUpStats[4]
+        player.Fighter.baseMaxMP += levelUpStats[5]
+        player.Fighter.MP += levelUpStats[5]
+        player.Fighter.baseCritical += levelUpStats[6]
+        
         choice = None
         while choice == None:
-            choice = menu('Level up! Choose a stat to raise: \n',
-                ['Constitution (+20 HP, from ' + str(player.Fighter.maxHP) + ')',
-                'Strength (+1 attack, from ' + str(player.Fighter.power) + ')',
-                'Toughness (+1 armor, from ' + str(player.Fighter.armor) + ')',
-                'Agility (+5 evasion, from ' + str(player.Fighter.evasion) + ')',
-                'Dexterity (+5 accuracy, from ' + str(player.Fighter.accuracy) + ')',
-                'Willpower (+5 max MP, from ' + str(player.Fighter.maxMP) +')'], LEVEL_SCREEN_WIDTH)
+            choice = menu('Level up! Choose a skill to raise: \n',
+                ['Light Weapons (from ' + str(actualPerSkills[0]) + ')',
+                 'Heavy Weapons (from ' + str(actualPerSkills[1]) + ')',
+                 'Missile Weapons (from ' + str(actualPerSkills[2]) + ')',
+                 'Throwing Weapons (from ' + str(actualPerSkills[3]) + ')',
+                 'Magic (from ' + str(actualPerSkills[4]) + ')',
+                 'Armor wielding (from ' + str(actualPerSkills[5]) + ')',
+                 'Athletics (from ' + str(actualPerSkills[6]) + ')',
+                 'Concentration (from ' + str(actualPerSkills[7]) + ')',
+                 'Dodge (from ' + str(actualPerSkills[8]) + ')',
+                 'Critical (from ' + str(actualPerSkills[9]) + ')',
+                 'Accuracy (from ' + str(actualPerSkills[10]) + ')',], LEVEL_SCREEN_WIDTH)
             if choice != None:
-                if choice == 0:
-                    player.Fighter.baseMaxHP += 20
-                    player.Fighter.hp += 20
-                elif choice == 1:
-                    player.Fighter.basePower += 1
-                elif choice == 2:
-                    player.Fighter.baseArmor += 1
-                elif choice == 3:
-                    player.Fighter.baseEvasion += 5
-                elif choice == 4:
-                    player.Fighter.baseAccuracy += 5
-                elif choice == 5:
-                    player.Fighter.maxMP += 5
-                    player.Fighter.MP += 5
+                if actualPerSkills[choice] < 5:
+                    player.Fighter.basePower += skillsBonus[choice][0]
+                    player.Fighter.baseAccuracy += skillsBonus[choice][1]
+                    player.Fighter.baseEvasion += skillsBonus[choice][2]
+                    player.Fighter.baseArmor += skillsBonus[choice][3]
+                    player.Fighter.baseMaxHP += skillsBonus[choice][4]
+                    player.Fighter.hp += skillsBonus[choice][4]
+                    player.Fighter.baseMaxMP += skillsBonus[choice][5]
+                    player.Fighter.MP += skillsBonus[choice][5]
+                    player.Fighter.baseCritical += skillsBonus[choice][6]
+
+                    actualPerSkills[choice] += 1
                     
-                FOV_recompute = True
-                Update()
-                break
+                    FOV_recompute = True
+                    Update()
+                    break
+                elif actualPerSkills[choice] >= 5:
+                    choice = None
 
 def isVisibleTile(x, y):
     global myMap
@@ -898,7 +936,7 @@ def monsterArmageddon(monsterName ,monsterX, monsterY, radius = 4, damage = 40):
     
 def createOrc(x, y):
     if x != player.x or y != player.y:
-        fighterComponent = Fighter(hp=18, armor=0, power=3, xp = 35, deathFunction = monsterDeath, evasion = 25, accuracy = 15)
+        fighterComponent = Fighter(hp=15, armor=0, power=3, xp = 35, deathFunction = monsterDeath, evasion = 25, accuracy = 10)
         AI_component = BasicMonster()
         monster = GameObject(x, y, char = 'o', color = colors.desaturated_green, name = 'orc', blocks = True, Fighter=fighterComponent, AI = AI_component)
         return monster
@@ -1017,9 +1055,89 @@ def createVerticalTunnel(y1, y2, x):
     for y in range(min(y1, y2), max(y1, y2) + 1):
         myMap[x][y].blocked = False
         myMap[x][y].block_sight = False
-        
+
+def secretRoomTest(startingX, endX, startingY, endY):
+    for x in range(startingX, endX):
+        for y in range(startingY, endY):
+            if not myMap[x][y].block_sight:
+                if myMap[x + 1][y].block_sight: #right of the current tile
+                    intersect = False
+                    for indexX in range(5):
+                        for indexY in range(5):
+                            if not myMap[x + 1 + indexX][y - 2 + indexY].block_sight or myMap[x + 1 + indexX][y - 2 + indexY].unbreakable:
+                                intersect = True
+                                break
+                        break
+                    if not intersect:
+                        print("right")
+                        return x + 1, y - 2, x + 1, y
+                if myMap[x - 1][y].block_sight: #left
+                    intersect = False
+                    for indexX in range(5):
+                        for indexY in range(5):
+                            if not myMap[x - 1 - indexX][y - 2 + indexY].block_sight or myMap[x - 1 - indexX][y - 2 + indexY].unbreakable:
+                                intersect = True
+                                break
+                        break
+                    if not intersect:
+                        print("left")
+                        return x - 5, y - 2, x - 1, y
+                if myMap[x][y + 1].block_sight: #under
+                    intersect = False
+                    for indexX in range(5):
+                        for indexY in range(5):
+                            if not myMap[x - 2 + indexX][y + 1 + indexY].block_sight or myMap[x - 2 + indexX][y + 1 + indexY].unbreakable:
+                                intersect = True
+                                break
+                        break
+                    if not intersect:
+                        print("under")
+                        return x - 2, y + 1, x, y + 1
+                if myMap[x][y - 1].block_sight: #above
+                    intersect = False
+                    for indexX in range(5):
+                        for indexY in range(5):
+                            if not myMap[x - 2 + indexX][y - 1 - indexY].block_sight or myMap[x - 2 + indexX][y - 1 - indexY].unbreakable:
+                                intersect = True
+                                break
+                        break
+                    if not intersect:
+                        print("above")
+                        return x - 2, y - 5, x, y - 1
+
+def secretRoom():
+    global myMap
+    quarter = randint(1, 4)
+    if quarter == 1:
+        minX = 1
+        maxX = MID_MAP_WIDTH
+        minY = 1
+        maxY = MID_MAP_HEIGHT 
+    if quarter == 2:
+        minX = MID_MAP_WIDTH + 1
+        maxX = MAP_WIDTH
+        minY = 1
+        maxY = MID_MAP_HEIGHT
+    if quarter == 3:
+        minX = 1
+        maxX = MID_MAP_WIDTH
+        minY = MID_MAP_HEIGHT + 1
+        maxY = MAP_HEIGHT
+    if quarter == 4:
+        minX = MID_MAP_WIDTH + 1
+        maxX = MAP_WIDTH
+        minY = MID_MAP_HEIGHT + 1
+        maxY = MAP_HEIGHT
+    [x, y, entryX, entryY] = secretRoomTest(minX, maxX, minY, maxY)
+    if not (x == 'cancelled' or y == 'cancelled' or entryX == 'cancelled' or entryY == 'cancelled'):
+        secretRoom = Rectangle(x, y, 4, 4)
+        createRoom(secretRoom)
+        myMap[entryX][entryY].blocked = False
+        myMap[entryX][entryY].block_sight = True
+        print("created secret room at x ", entryX, " y ", entryY, " in quarter ", quarter)
+
 def makeMap():
-    global myMap, stairs, objects
+    global myMap, stairs, objects, upStairs
     myMap = [[Tile(True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
     rooms = []
     numberRooms = 0
@@ -1050,6 +1168,10 @@ def makeMap():
             if numberRooms == 0:
                 player.x = new_x
                 player.y = new_y
+                if dungeonLevel > 1:
+                    upStairs = GameObject(new_x, new_y, '<', 'stairs', colors.white, alwaysVisible = True, darkColor = colors.dark_grey)
+                    objects.append(upStairs)
+                    upStairs.sendToBack()
             else:
                 (previous_x, previous_y) = rooms[numberRooms-1].center()
                 if randint(0, 1):
@@ -1061,9 +1183,10 @@ def makeMap():
             placeObjects(newRoom)
             rooms.append(newRoom)
             numberRooms += 1
-    stairs = GameObject(new_x, new_y, '<', 'stairs', colors.white, alwaysVisible = True, darkColor = colors.dark_grey)
+    secretRoom()
+    stairs = GameObject(new_x, new_y, '>', 'stairs', colors.white, alwaysVisible = True, darkColor = colors.dark_grey)
     objects.append(stairs)
-    stairs.sendToBack() 
+    stairs.sendToBack()
 
 #_____________ MAP CREATION __________________
 
@@ -1098,7 +1221,7 @@ def createSword(x, y):
         burningSword = True
     else:
         burningSword = False
-    equipmentComponent = Equipment(slot='right hand', powerBonus = swordPow, burning = burningSword)
+    equipmentComponent = Equipment(slot='right hand', type = 'light weapon', powerBonus = swordPow, burning = burningSword)
     sword = GameObject(x, y, '/', name, colors.sky, Equipment = equipmentComponent, Item = Item())
     return sword 
 
@@ -1166,7 +1289,7 @@ def placeObjects(room):
                 monsterChances['troll'] = 20
                 
             elif monsterChoice == 'troll':
-                fighterComponent = Fighter(hp=16, armor=2, power=4, xp = 100, deathFunction = monsterDeath, accuracy = 40, evasion = 1)
+                fighterComponent = Fighter(hp=20, armor=2, power=4, xp = 100, deathFunction = monsterDeath, accuracy = 7, evasion = 1)
                 AI_component = BasicMonster()
                 monster = GameObject(x, y, char = 'T', color = colors.darker_green,name = 'troll', blocks = True, Fighter = fighterComponent, AI = AI_component)
         
@@ -1193,7 +1316,7 @@ def placeObjects(room):
                 createSword(x, y)
                 item = sword
             elif itemChoice == 'shield':
-                equipmentComponent = Equipment(slot='left hand', armorBonus=1)
+                equipmentComponent = Equipment(slot = 'left hand', type = 'shield', armorBonus=1)
                 item = GameObject(x, y, '[', 'shield', colors.darker_orange, Equipment=equipmentComponent, Item=Item())
             elif itemChoice == 'spellbook':
                 spellbookChoice = randomChoice(spellbookChances)
@@ -1208,13 +1331,16 @@ def placeObjects(room):
 
 #_____________ EQUIPEMENT ________________
 class Equipment:
-    def __init__(self, slot, powerBonus=0, armorBonus=0, maxHP_Bonus=0, accuracyBonus=0, evasionBonus=0, burning = False):
+    def __init__(self, slot, type, powerBonus=0, armorBonus=0, maxHP_Bonus=0, accuracyBonus=0, evasionBonus=0, criticalBonus = 0, maxMP_Bonus = 0, burning = False):
         self.slot = slot
-        self.powerBonus = powerBonus
+        self.type = type
+        self.basePowerBonus = powerBonus
         self.armorBonus = armorBonus
         self.maxHP_Bonus = maxHP_Bonus
         self.accuracyBonus = accuracyBonus
         self.evasionBonus = evasionBonus
+        self.criticalBonus = criticalBonus
+        self.maxMP_Bonus = maxMP_Bonus
         self.isEquipped = False
         
         self.burning = burning
@@ -1246,7 +1372,21 @@ class Equipment:
             self.owner.x = player.x
             self.owner.y = player.y
             message('Dropped ' + self.owner.name)
-            
+
+    @property
+    def powerBonus(self):
+        if self.type == 'light weapon':
+            bonus = (20 * actualPerSkills[0]) / 100
+            return int(self.basePowerBonus * bonus + self.basePowerBonus)
+        if self.type == 'heavy weapon':
+            bonus = (20 * actualPerSkills[1]) / 100
+            return int(self.basePowerBonus * bonus + self.basePowerBonus)
+        if self.type == 'missile weapon':
+            bonus = (20 * actualPerSkills[2]) / 100
+            return int(self.basePowerBonus * bonus + self.basePowerBonus)
+        if self.type == 'throwing weapon':
+            bonus = (20 * actualPerSkills[3]) / 100
+            return int(self.basePowerBonus * bonus + self.basePowerBonus)
 
 def getEquippedInSlot(slot):
     for object in equipmentList:
@@ -1354,13 +1494,14 @@ def equipmentMenu(header):
         for item in equipmentList:
             text = item.name
             if item.Equipment and item.Equipment.isEquipped:
-                powBonus = item.Equipment.powerBonus
+                powBonus = item.Equipment.basePowerBonus
+                skillPowBonus = item.Equipment.powerBonus - powBonus
                 hpBonus = item.Equipment.maxHP_Bonus
                 defBonus = item.Equipment.armorBonus
                 if powBonus != 0 or hpBonus !=0 or defBonus != 0:
                     info = '['
                     if powBonus != 0:
-                        info = info + 'POW + ' + str(powBonus)
+                        info = info + 'POWER + ' + str(powBonus) + ' + ' + str(skillPowBonus)
                     if hpBonus != 0:
                         if powBonus == 0:
                             info = info + 'HP + ' + str(hpBonus)
@@ -1385,7 +1526,7 @@ def equipmentMenu(header):
 
 
 def mainMenu():
-    global playerComponent
+    global playerComponent, levelUpStats, actualPerSkills, skillsBonus
     choices = ['New Game', 'Continue', 'Quit']
     index = 0
     while not tdl.event.isWindowClosed():
@@ -1407,7 +1548,7 @@ def mainMenu():
             index = 0
         if key.keychar.upper() == "ENTER":
             if index == 0:
-                playerComponent = characterCreation()
+                [playerComponent, levelUpStats, actualPerSkills, skillsBonus] = characterCreation()
                 if playerComponent != 'cancelled':
                     newGame()
                     playGame()
@@ -1485,7 +1626,7 @@ def Update():
                     inPath = (x,y) in tilesinPath
                     if inPath:
                         con.draw_char(x, y, 'X', fg = colors.green, bg = None)
-                        tilesinPath = []    
+                        tilesinPath = []
                         
     for object in objects:
         if object != player:
@@ -1590,13 +1731,17 @@ def saveGame():
     
     file = shelve.open(absFilePath, "n")
     file["dungeonLevel"] = dungeonLevel
-    file["myMap"] = myMap
-    file["objects"] = objects
+    file["myMap_level{}".format(dungeonLevel)] = myMap
+    print("Saved myMap_level{}".format(dungeonLevel))
+    file["objects_level{}".format(dungeonLevel)] = objects
     file["playerIndex"] = objects.index(player)
+    file["stairsIndex"] = objects.index(stairs)
     file["inventory"] = inventory
     file["equipmentList"] = equipmentList
     file["gameMsgs"] = gameMsgs
     file["gameState"] = gameState
+    if dungeonLevel > 1:
+        file["upStairsIndex"] = objects.index(upStairs)
     file.close()
     
     #mapFile = open(absPicklePath, 'wb')
@@ -1606,7 +1751,7 @@ def saveGame():
 def newGame():
     global objects, inventory, gameMsgs, gameState, player, dungeonLevel
     startingSpells = [fireball, heal]
-    playFight = Fighter(hp = playerComponent[4], power= playerComponent[0], armor= playerComponent[3], deathFunction=playerDeath, xp=0, evasion = playerComponent[2], accuracy = playerComponent[1], maxMP= playerComponent[5], knownSpells=startingSpells)
+    playFight = Fighter(hp = playerComponent[4], power= playerComponent[0], armor= playerComponent[3], deathFunction=playerDeath, xp=0, evasion = playerComponent[2], accuracy = playerComponent[1], maxMP= playerComponent[5], knownSpells=startingSpells, critical = playerComponent[6])
     playComp = Player()
     player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = 'Hero', color = (0, 210, 0))
     player.level = 1
@@ -1621,37 +1766,93 @@ def newGame():
     FOV_recompute = True
     initializeFOV()
     message('Zargothrox says : Prepare to get lost in the Realm of Madness !', colors.dark_red)
-    equipmentComponent = Equipment(slot='right hand', powerBonus=2)
+    equipmentComponent = Equipment(slot='right hand', type = 'light weapon', powerBonus=2)
     object = GameObject(0, 0, '-', 'dagger', colors.light_sky, Equipment=equipmentComponent, Item=Item(), darkColor = colors.darker_sky)
     inventory.append(object)
     equipmentComponent.equip()
     object.alwaysVisible = True
 
 def loadGame():
-    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipmentList
+    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipmentList, stairs, upStairs
     
     
     #myMap = [[Tile(True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)]
     file = shelve.open(absFilePath, "r")
     dungeonLevel = file["dungeonLevel"]
-    myMap = (file["myMap"])
-    objects = file["objects"]
+    myMap = file["myMap_level{}".format(dungeonLevel)]
+    objects = file["objects_level{}".format(dungeonLevel)]
     player = objects[file["playerIndex"]]
+    stairs = objects[file["stairsIndex"]]
     inventory = file["inventory"]
     equipmentList = file["equipmentList"]
     gameMsgs = file["gameMsgs"]
     gameState = file["gameState"]
-    
+    if dungeonLevel > 1:
+        upStairs = objects[file["upStairsIndex"]]
     #mapFile = open(absPicklePath, "rb")
     #myMap = pickle.load(mapFile)
     #mapFile.close()
+
+def saveLevel():
+    if not os.path.exists(absDirPath):
+        os.makedirs(absDirPath)
+    
+    if not os.path.exists(absFilePath):
+        file = shelve.open(absFilePath, "n")
+        print()
+    else:
+        file = shelve.open(absFilePath, "w")
+    file["myMap_level{}".format(dungeonLevel)] = myMap
+    print("Saved myMap_level{}".format(dungeonLevel))
+    print(file["myMap_level{}".format(dungeonLevel)])
+    file["objects_level{}".format(dungeonLevel)] = objects
+    file["playerIndex"] = objects.index(player)
+    file["stairsIndex"] = objects.index(stairs)
+    if dungeonLevel > 1:
+        file["upStairsIndex"] = objects.index(upStairs)
+    file["yunowork"] = "SCREW THIS"
+    file.close()
+    
+    return "completed"
+
+def loadLevel(level):
+    global objects, player, myMap, stairs
+    file = shelve.open(absFilePath, "r")
+    print(file["yunowork"])
+    myMap = file["myMap_level{}".format(level)]
+    objects = file["objects_level{}".format(level)]
+    player = objects[file["playerIndex"]]
+    stairs = objects[file["stairsIndex"]]
+    if level > 1:
+        global upStairs
+        upStairs = objects[file["upStairsIndex"]]
+    
+    message("You climb the stairs")
+    initializeFOV()
     
 
 def nextLevel():
     global dungeonLevel
+    returned = "borked"
+    while returned != "completed":
+        returned = saveLevel()
     message('After a rare moment of peace, you descend deeper into the heart of the dungeon...', colors.red)
     dungeonLevel += 1
-    makeMap()  #create a fresh new level!
+    tempMap = myMap
+    tempObjects = objects
+    tempPlayer = player
+    tempStairs = stairs
+    try:
+        loadLevel(dungeonLevel)
+        print("Loaded existing level {}".format(dungeonLevel))
+    except:
+        global myMap, objects, player, stairs
+        myMap = tempMap
+        objects = tempObjects
+        player = tempPlayer
+        stairs = tempStairs
+        makeMap()  #create a fresh new level!
+        print("Created a new level")
     if hiroshimanNumber == 1 and not hiroshimanHasAppeared:
         global hiroshimanHasAppeared
         message('You suddenly feel uneasy.', colors.dark_red)

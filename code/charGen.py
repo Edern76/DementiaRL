@@ -3,7 +3,7 @@ from code.constants import *
 from code.menu import *
 
 BASE_POWER = 1
-BASE_ACCURACY = 0
+BASE_ACCURACY = 20
 BASE_EVASION = 1
 BASE_ARMOR = 0
 BASE_MAXHP = 0
@@ -64,11 +64,11 @@ def characterCreation():
                           'A wizard who zaps everything']
     classesBonus = [[0, 0, 0, 1, 60, 30, 0], #Knight
                     [1, 0, 0, 0, 80, 30, 0], #Barbarian
-                    [0, 4, 2, 0, 45, 40, 1], #Rogue
+                    [0, 8, 10, 0, 45, 40, 3], #Rogue
                     [0, 0, 0, 0, 35, 50, 0]] #Mage
     classesLevelUp = [[0, 0, 0, 1, 7, 3, 0],
                       [1, 0, 0, 0, 10, 3, 0],
-                      [0, 0, 0, 0, 5, 5, 0],
+                      [0, 2, 1, 0, 5, 5, 0],
                       [0, 0, 0, 0, 3, 7, 0]]
     MAX_CLASSES = 1
     actualClasses = 0
@@ -246,6 +246,7 @@ def characterCreation():
                         previousListLen = len(races)
                         selectedClasses[index - previousListLen] = True
                         applyBonus(classesBonus, index - previousListLen)
+                        levelUpStats = classesLevelUp[index - previousListLen]
                         actualClasses += 1
             if leftIndexMin <= index <= leftIndexMax:
                 if index + 1 <= len(races) + len(classes) + len(attributes):
@@ -272,9 +273,9 @@ def characterCreation():
                         actualPerSkills[index - previousListLen] += 1
             if index == maxIndex - 1:
                 createdCharacter = [power, accuracy, evasion, armor, maxHP, maxMP, critical]
-                return createdCharacter
+                return createdCharacter, levelUpStats, actualPerSkills, skillsBonus
             if index == maxIndex:
-                return 'cancelled'
+                return 'cancelled', 'cancelled', 'cancelled', 'cancelled'
         #removing choice bonus
         if key.keychar.upper() == 'BACKSPACE':
             if midIndexMin <= index <= midIndexMax:
@@ -289,6 +290,7 @@ def characterCreation():
                         previousListLen = len(races)
                         selectedClasses[index - previousListLen] = False
                         removeBonus(classesBonus, index - previousListLen)
+                        levelUpStats = [0, 0, 0, 0, 0, 0, 0]
                         actualClasses -= 1
             if leftIndexMin <= index <= leftIndexMax:
                 if index + 1 <= len(races) + len(classes) + len(attributes):
