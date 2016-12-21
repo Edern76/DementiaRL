@@ -192,9 +192,7 @@ class Fighter: #All NPCs, enemies and the player
             self.knownSpells = []
         
         self.spellsOnCooldown = []
-            
-        
-    
+
     @property
     def power(self):
         bonus = sum(equipment.powerBonus for equipment in getAllEquipped(self.owner))
@@ -241,7 +239,6 @@ class Fighter: #All NPCs, enemies and the player
                 player.Fighter.xp += self.xp
 
     def toHit(self, target):
-        global hit, critical
         attack = randint(1, 100)
         hit = False
         criticalHit = False
@@ -287,8 +284,9 @@ class Fighter: #All NPCs, enemies and the player
                             message('You attack ' + target.name + ' for ' + str(damage) + ' hit points.', colors.dark_green)
                         target.Fighter.takeDamage(damage)
                         weapon = getEquippedInSlot('right hand')
-                        if weapon.burning:
-                            applyBurn(target, chance = 25)
+                        if weapon is not None:
+                            if weapon.burning:
+                                applyBurn(target, chance = 25)
                     
                     else:
                         message('You attack ' + target.name + ' but it has no effect!', colors.grey)
@@ -717,6 +715,8 @@ def checkLevelUp():
                     FOV_recompute = True
                     Update()
                     break
+                elif actualPerSkills[choice] >= 5:
+                    choice = None
 
 def isVisibleTile(x, y):
     global myMap
@@ -1060,8 +1060,8 @@ def secretRoomTest(startingX, endX, startingY, endY):
     for x in range(startingX, endX):
         for y in range(startingY, endY):
             if not myMap[x][y].block_sight:
-                intersect = False
                 if myMap[x + 1][y].block_sight: #right of the current tile
+                    intersect = False
                     for indexX in range(5):
                         for indexY in range(5):
                             if not myMap[x + 1 + indexX][y - 2 + indexY].block_sight or myMap[x + 1 + indexX][y - 2 + indexY].unbreakable:
@@ -1072,6 +1072,7 @@ def secretRoomTest(startingX, endX, startingY, endY):
                         print("right")
                         return x + 1, y - 2, x + 1, y
                 if myMap[x - 1][y].block_sight: #left
+                    intersect = False
                     for indexX in range(5):
                         for indexY in range(5):
                             if not myMap[x - 1 - indexX][y - 2 + indexY].block_sight or myMap[x - 1 - indexX][y - 2 + indexY].unbreakable:
@@ -1082,6 +1083,7 @@ def secretRoomTest(startingX, endX, startingY, endY):
                         print("left")
                         return x - 5, y - 2, x - 1, y
                 if myMap[x][y + 1].block_sight: #under
+                    intersect = False
                     for indexX in range(5):
                         for indexY in range(5):
                             if not myMap[x - 2 + indexX][y + 1 + indexY].block_sight or myMap[x - 2 + indexX][y + 1 + indexY].unbreakable:
@@ -1092,6 +1094,7 @@ def secretRoomTest(startingX, endX, startingY, endY):
                         print("under")
                         return x - 2, y + 1, x, y + 1
                 if myMap[x][y - 1].block_sight: #above
+                    intersect = False
                     for indexX in range(5):
                         for indexY in range(5):
                             if not myMap[x - 2 + indexX][y - 1 - indexY].block_sight or myMap[x - 2 + indexX][y - 1 - indexY].unbreakable:
@@ -1218,7 +1221,7 @@ def createSword(x, y):
         burningSword = True
     else:
         burningSword = False
-    equipmentComponent = Equipment(slot='right hand', powerBonus = swordPow, burning = burningSword)
+    equipmentComponent = Equipment(slot='right hand', type = 'light weapon', powerBonus = swordPow, burning = burningSword)
     sword = GameObject(x, y, '/', name, colors.sky, Equipment = equipmentComponent, Item = Item())
     return sword 
 
@@ -1313,7 +1316,7 @@ def placeObjects(room):
                 createSword(x, y)
                 item = sword
             elif itemChoice == 'shield':
-                equipmentComponent = Equipment(slot='left hand', armorBonus=1)
+                equipmentComponent = Equipment(slot = 'left hand', type = 'shield', armorBonus=1)
                 item = GameObject(x, y, '[', 'shield', colors.darker_orange, Equipment=equipmentComponent, Item=Item())
             elif itemChoice == 'spellbook':
                 spellbookChoice = randomChoice(spellbookChances)
@@ -1328,9 +1331,10 @@ def placeObjects(room):
 
 #_____________ EQUIPEMENT ________________
 class Equipment:
-    def __init__(self, slot, powerBonus=0, armorBonus=0, maxHP_Bonus=0, accuracyBonus=0, evasionBonus=0, criticalBonus = 0, maxMP_Bonus = 0, burning = False):
+    def __init__(self, slot, type, powerBonus=0, armorBonus=0, maxHP_Bonus=0, accuracyBonus=0, evasionBonus=0, criticalBonus = 0, maxMP_Bonus = 0, burning = False):
         self.slot = slot
-        self.powerBonus = powerBonus
+        self.type = type
+        self.basePowerBonus = powerBonus
         self.armorBonus = armorBonus
         self.maxHP_Bonus = maxHP_Bonus
         self.accuracyBonus = accuracyBonus
@@ -1368,7 +1372,21 @@ class Equipment:
             self.owner.x = player.x
             self.owner.y = player.y
             message('Dropped ' + self.owner.name)
-            
+
+    @property
+    def powerBonus(self):
+        if self.type == 'light weapon':
+            bonus = (20 * actualPerSkills[0]) / 100
+            return int(self.basePowerBonus * bonus + self.basePowerBonus)
+        if self.type == 'heavy weapon':
+            bonus = (20 * actualPerSkills[1]) / 100
+            return int(self.basePowerBonus * bonus + self.basePowerBonus)
+        if self.type == 'missile weapon':
+            bonus = (20 * actualPerSkills[2]) / 100
+            return int(self.basePowerBonus * bonus + self.basePowerBonus)
+        if self.type == 'throwing weapon':
+            bonus = (20 * actualPerSkills[3]) / 100
+            return int(self.basePowerBonus * bonus + self.basePowerBonus)
 
 def getEquippedInSlot(slot):
     for object in equipmentList:
@@ -1476,13 +1494,14 @@ def equipmentMenu(header):
         for item in equipmentList:
             text = item.name
             if item.Equipment and item.Equipment.isEquipped:
-                powBonus = item.Equipment.powerBonus
+                powBonus = item.Equipment.basePowerBonus
+                skillPowBonus = item.Equipment.powerBonus - powBonus
                 hpBonus = item.Equipment.maxHP_Bonus
                 defBonus = item.Equipment.armorBonus
                 if powBonus != 0 or hpBonus !=0 or defBonus != 0:
                     info = '['
                     if powBonus != 0:
-                        info = info + 'POW + ' + str(powBonus)
+                        info = info + 'POWER + ' + str(powBonus) + ' + ' + str(skillPowBonus)
                     if hpBonus != 0:
                         if powBonus == 0:
                             info = info + 'HP + ' + str(hpBonus)
@@ -1747,7 +1766,7 @@ def newGame():
     FOV_recompute = True
     initializeFOV()
     message('Zargothrox says : Prepare to get lost in the Realm of Madness !', colors.dark_red)
-    equipmentComponent = Equipment(slot='right hand', powerBonus=2)
+    equipmentComponent = Equipment(slot='right hand', type = 'light weapon', powerBonus=2)
     object = GameObject(0, 0, '-', 'dagger', colors.light_sky, Equipment=equipmentComponent, Item=Item(), darkColor = colors.darker_sky)
     inventory.append(object)
     equipmentComponent.equip()
