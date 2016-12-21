@@ -345,7 +345,9 @@ class ConfusedMonster:
             message('The ' + self.owner.name + ' is no longer confused!', colors.red)
 
 class Player:
-    def __init__(self):
+    def __init__(self, actualPerSkills, levelUpStats):
+        self.actualPerSkills = actualPerSkills
+        self.levelUpStats = levelUpStats
         if DEBUG:
             print('Player component initialized')
         
@@ -370,7 +372,7 @@ class Item:
         self.arg3 = arg3
     def pickUp(self):
         if len(inventory)>=26:
-            message('Your bag already feels really heavy, you cannot pick up' + self.owner.name + '.', colors.red)
+            message('Your bag already feels really heavy, you cannot pick up ' + self.owner.name + '.', colors.red)
         else:
             inventory.append(self.owner)
             objects.remove(self.owner)
@@ -418,7 +420,7 @@ class Item:
             
 class Spell:
     "Class used by all active abilites (not just spells)"
-    def __init__(self,  ressourceCost, cooldown, useFunction, name, ressource = 'MP', type = 'Magic', arg1 = None, arg2 = None, arg3 = None):
+    def __init__(self,  ressourceCost, cooldown, useFunction, name, ressource = 'MP', type = 'Magic', magicLevel = 0, arg1 = None, arg2 = None, arg3 = None):
         self.ressource = ressource
         self.ressourceCost = ressourceCost
         self.maxCooldown = cooldown
@@ -426,6 +428,7 @@ class Spell:
         self.useFunction = useFunction
         self.name = name
         self.type = type
+        self.magicLevel = magicLevel
         self.arg1 = arg1
         self.arg2 = arg2
         self.arg3 = arg3
@@ -575,24 +578,29 @@ def getInput():
                 message('No spell chosen', colors.violet)
             return 'didnt-take-turn'
         else:
-            if chosenSpell.ressource == 'MP' and player.Fighter.MP < chosenSpell.ressourceCost:
+            if chosenSpell.magicLevel > player.Player.actualPerSkills[4]:
                 FOV_recompute = True
-                message('Not enough MP to cast ' + chosenSpell.name +'.')
+                message('Your arcane knowledge is not high enough to cast ' + chosenSpell.name + '.')
                 return 'didnt-take-turn'
             else:
-                action = chosenSpell.cast()
-                if action == 'cancelled':
+                if chosenSpell.ressource == 'MP' and player.Fighter.MP < chosenSpell.ressourceCost:
                     FOV_recompute = True
+                    message('Not enough MP to cast ' + chosenSpell.name +'.')
                     return 'didnt-take-turn'
                 else:
-                    FOV_recompute = True
-                    player.Fighter.knownSpells.remove(chosenSpell)
-                    chosenSpell.curCooldown = chosenSpell.maxCooldown
-                    player.Fighter.spellsOnCooldown.append(chosenSpell)
-                    if chosenSpell.ressource == 'MP':
-                        player.Fighter.MP -= chosenSpell.ressourceCost
-                    elif chosenSpell.ressource == 'HP':
-                        player.Fighter.takeDamage(chosenSpell.ressourceCost)
+                    action = chosenSpell.cast()
+                    if action == 'cancelled':
+                        FOV_recompute = True
+                        return 'didnt-take-turn'
+                    else:
+                        FOV_recompute = True
+                        player.Fighter.knownSpells.remove(chosenSpell)
+                        chosenSpell.curCooldown = chosenSpell.maxCooldown
+                        player.Fighter.spellsOnCooldown.append(chosenSpell)
+                        if chosenSpell.ressource == 'MP':
+                            player.Fighter.MP -= chosenSpell.ressourceCost
+                        elif chosenSpell.ressource == 'HP':
+                            player.Fighter.takeDamage(chosenSpell.ressourceCost)
 
     if gameState ==  'looking':
         global lookCursor
@@ -673,7 +681,7 @@ def moveOrAttack(dx, dy):
         player.move(dx, dy)
 
 def checkLevelUp():
-    global FOV_recompute, actualPerSkills
+    global FOV_recompute
     levelUp_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
     if player.Fighter.xp >= levelUp_xp:
         player.level += 1
@@ -681,32 +689,32 @@ def checkLevelUp():
         message('Your battle skills grow stronger! You reached level ' + str(player.level) + '!', colors.yellow)
         
         #applying Class specific stat boosts
-        player.Fighter.basePower += levelUpStats[0]
-        player.Fighter.baseAccuracy += levelUpStats[1]
-        player.Fighter.baseEvasion += levelUpStats[2]
-        player.Fighter.baseArmor += levelUpStats[3]
-        player.Fighter.baseMaxHP += levelUpStats[4]
-        player.Fighter.hp += levelUpStats[4]
-        player.Fighter.baseMaxMP += levelUpStats[5]
-        player.Fighter.MP += levelUpStats[5]
-        player.Fighter.baseCritical += levelUpStats[6]
+        player.Fighter.basePower += player.Player.levelUpStats[0]
+        player.Fighter.baseAccuracy += player.Player.levelUpStats[1]
+        player.Fighter.baseEvasion += player.Player.levelUpStats[2]
+        player.Fighter.baseArmor += player.Player.levelUpStats[3]
+        player.Fighter.baseMaxHP += player.Player.levelUpStats[4]
+        player.Fighter.hp += player.Player.levelUpStats[4]
+        player.Fighter.baseMaxMP += player.Player.levelUpStats[5]
+        player.Fighter.MP += player.Player.levelUpStats[5]
+        player.Fighter.baseCritical += player.Player.levelUpStats[6]
         
         choice = None
         while choice == None:
             choice = menu('Level up! Choose a skill to raise: \n',
-                ['Light Weapons (from ' + str(actualPerSkills[0]) + ')',
-                 'Heavy Weapons (from ' + str(actualPerSkills[1]) + ')',
-                 'Missile Weapons (from ' + str(actualPerSkills[2]) + ')',
-                 'Throwing Weapons (from ' + str(actualPerSkills[3]) + ')',
-                 'Magic (from ' + str(actualPerSkills[4]) + ')',
-                 'Armor wielding (from ' + str(actualPerSkills[5]) + ')',
-                 'Athletics (from ' + str(actualPerSkills[6]) + ')',
-                 'Concentration (from ' + str(actualPerSkills[7]) + ')',
-                 'Dodge (from ' + str(actualPerSkills[8]) + ')',
-                 'Critical (from ' + str(actualPerSkills[9]) + ')',
-                 'Accuracy (from ' + str(actualPerSkills[10]) + ')',], LEVEL_SCREEN_WIDTH)
+                ['Light Weapons (from ' + str(player.Player.actualPerSkills[0]) + ')',
+                 'Heavy Weapons (from ' + str(player.Player.actualPerSkills[1]) + ')',
+                 'Missile Weapons (from ' + str(player.Player.actualPerSkills[2]) + ')',
+                 'Throwing Weapons (from ' + str(player.Player.actualPerSkills[3]) + ')',
+                 'Magic (from ' + str(player.Player.actualPerSkills[4]) + ')',
+                 'Armor wielding (from ' + str(player.Player.actualPerSkills[5]) + ')',
+                 'Athletics (from ' + str(player.Player.actualPerSkills[6]) + ')',
+                 'Concentration (from ' + str(player.Player.actualPerSkills[7]) + ')',
+                 'Dodge (from ' + str(player.Player.actualPerSkills[8]) + ')',
+                 'Critical (from ' + str(player.Player.actualPerSkills[9]) + ')',
+                 'Accuracy (from ' + str(player.Player.actualPerSkills[10]) + ')',], LEVEL_SCREEN_WIDTH)
             if choice != None:
-                if actualPerSkills[choice] < 5:
+                if player.Player.actualPerSkills[choice] < 5:
                     player.Fighter.basePower += skillsBonus[choice][0]
                     player.Fighter.baseAccuracy += skillsBonus[choice][1]
                     player.Fighter.baseEvasion += skillsBonus[choice][2]
@@ -717,12 +725,12 @@ def checkLevelUp():
                     player.Fighter.MP += skillsBonus[choice][5]
                     player.Fighter.baseCritical += skillsBonus[choice][6]
 
-                    actualPerSkills[choice] += 1
+                    player.Player.actualPerSkills[choice] += 1
                     
                     FOV_recompute = True
                     Update()
                     break
-                elif actualPerSkills[choice] >= 5:
+                elif player.Player.actualPerSkills[choice] >= 5:
                     choice = None
 
 def isVisibleTile(x, y):
@@ -857,9 +865,9 @@ def applyBurn(target, chance = 50):
             target.Fighter.freezeCooldown = 0
             message('The ' + target.name + "'s ice melts away.")
 
-fireball = Spell(ressourceCost = 5, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', arg1 = 3, arg2 = 12, arg3 = None)
-heal = Spell(ressourceCost = 6, cooldown = 7, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', arg1 = 10, arg2 = None, arg3 = None)
-darkPact = Spell(ressourceCost = DARK_PACT_DAMAGE, cooldown = 8, useFunction = castDarkRitual, name = "Dark ritual", ressource = 'HP', type = "Occult", arg1 = 5, arg2 = DARK_PACT_DAMAGE , arg3=None)
+fireball = Spell(ressourceCost = 5, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 3, arg2 = 12, arg3 = None)
+heal = Spell(ressourceCost = 6, cooldown = 7, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 10, arg2 = None, arg3 = None)
+darkPact = Spell(ressourceCost = DARK_PACT_DAMAGE, cooldown = 8, useFunction = castDarkRitual, name = "Dark ritual", ressource = 'HP', type = "Occult", magicLevel = 1, arg1 = 5, arg2 = DARK_PACT_DAMAGE , arg3=None)
                 
 def castArmageddon(radius = 4, damage = 40):
     global FOV_recompute
@@ -1383,17 +1391,19 @@ class Equipment:
     @property
     def powerBonus(self):
         if self.type == 'light weapon':
-            bonus = (20 * actualPerSkills[0]) / 100
+            bonus = (20 * player.Player.actualPerSkills[0]) / 100
             return int(self.basePowerBonus * bonus + self.basePowerBonus)
-        if self.type == 'heavy weapon':
-            bonus = (20 * actualPerSkills[1]) / 100
+        elif self.type == 'heavy weapon':
+            bonus = (20 * player.Player.actualPerSkills[1]) / 100
             return int(self.basePowerBonus * bonus + self.basePowerBonus)
-        if self.type == 'missile weapon':
-            bonus = (20 * actualPerSkills[2]) / 100
+        elif self.type == 'missile weapon':
+            bonus = (20 * player.Player.actualPerSkills[2]) / 100
             return int(self.basePowerBonus * bonus + self.basePowerBonus)
-        if self.type == 'throwing weapon':
-            bonus = (20 * actualPerSkills[3]) / 100
+        elif self.type == 'throwing weapon':
+            bonus = (20 * player.Player.actualPerSkills[3]) / 100
             return int(self.basePowerBonus * bonus + self.basePowerBonus)
+        else:
+            return self.basePowerBonus
 
 def getEquippedInSlot(slot):
     for object in equipmentList:
@@ -1504,8 +1514,8 @@ def equipmentMenu(header):
                 powBonus = item.Equipment.basePowerBonus
                 skillPowBonus = item.Equipment.powerBonus - powBonus
                 hpBonus = item.Equipment.maxHP_Bonus
-                defBonus = item.Equipment.armorBonus
-                if powBonus != 0 or hpBonus !=0 or defBonus != 0:
+                armBonus = item.Equipment.armorBonus
+                if powBonus != 0 or hpBonus !=0 or armBonus != 0:
                     info = '['
                     if powBonus != 0:
                         info = info + 'POWER + ' + str(powBonus) + ' + ' + str(skillPowBonus)
@@ -1514,11 +1524,11 @@ def equipmentMenu(header):
                             info = info + 'HP + ' + str(hpBonus)
                         else:
                             info = info + ' HP + ' + str(hpBonus)
-                    if defBonus != 0:
+                    if armBonus != 0:
                         if powBonus == 0 and hpBonus == 0:
-                            info = info + 'DEF + ' + str(defBonus)
+                            info = info + 'ARMOR + ' + str(armBonus)
                         else:
-                            info = info + ' DEF + ' + str(defBonus)
+                            info = info + ' ARMOR + ' + str(armBonus)
                     info = info + ']'
                 else:
                     info = ''
@@ -1684,9 +1694,7 @@ def targetTile(maxRange = None):
     FOV_recompute= True
     Update()
     tdl.flush()
-    
-    
-    
+
     while gameState == 'targeting':
         FOV_recompute = True
         key = tdl.event.key_wait()
@@ -1765,7 +1773,7 @@ def newGame():
     global objects, inventory, gameMsgs, gameState, player, dungeonLevel
     startingSpells = [fireball, heal]
     playFight = Fighter(hp = playerComponent[4], power= playerComponent[0], armor= playerComponent[3], deathFunction=playerDeath, xp=0, evasion = playerComponent[2], accuracy = playerComponent[1], maxMP= playerComponent[5], knownSpells=startingSpells, critical = playerComponent[6])
-    playComp = Player()
+    playComp = Player(actualPerSkills, levelUpStats)
     player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = 'Hero', color = (0, 210, 0))
     player.level = 1
 
