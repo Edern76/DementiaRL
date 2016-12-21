@@ -4,6 +4,11 @@ from random import randint
 from math import *
 from os import makedirs
 from code.constants import *
+# These lines are just in case PyDev goes bananas, otherwise these are useless
+from code.menu import menu
+from code.menu import drawCentered
+from code.menu import msgBox
+# End of anti-bananas-going lines, everything below this line is essential
 from code.menu import *
 from code.charGen import *
 from dill import objects
@@ -42,6 +47,7 @@ stairs = None
 upStairs = None
 hiroshimanHasAppeared = False
 player = None
+dungeonLevel = 1
 
 def findCurrentDir():
     if getattr(sys, 'frozen', False):
@@ -57,6 +63,7 @@ relPicklePath = "save\\equipment"
 absDirPath = os.path.join(curDir, relDirPath)
 absFilePath = os.path.join(curDir, relPath)
 absPicklePath = os.path.join(curDir, relPicklePath)
+
 
 pathfinder = None
 
@@ -1724,6 +1731,12 @@ def targetMonster(maxRange = None):
                
 
 #______ INITIALIZATION AND MAIN LOOP________
+def accessMapFile(level = dungeonLevel):
+    mapName = "map{}".format(level)
+    mapFile = os.path.join(absDirPath, mapName)
+    return mapName
+
+
 def saveGame():
     
     if not os.path.exists(absDirPath):
@@ -1794,30 +1807,31 @@ def loadGame():
     #mapFile.close()
 
 def saveLevel():
-    if not os.path.exists(absDirPath):
-        os.makedirs(absDirPath)
+    #if not os.path.exists(absDirPath):
+        #os.makedirs(absDirPath)
     
-    if not os.path.exists(absFilePath):
-        file = shelve.open(absFilePath, "n")
-        print()
-    else:
-        file = shelve.open(absFilePath, "w")
-    file["myMap_level{}".format(dungeonLevel)] = myMap
-    print("Saved myMap_level{}".format(dungeonLevel))
-    print(file["myMap_level{}".format(dungeonLevel)])
-    file["objects_level{}".format(dungeonLevel)] = objects
-    file["playerIndex"] = objects.index(player)
-    file["stairsIndex"] = objects.index(stairs)
+    #if not os.path.exists(absFilePath):
+        #file = shelve.open(absFilePath, "n")
+        #print()
+    #else:
+        #file = shelve.open(absFilePath, "w")
+    mapFilePath = accessMapFile()
+    mapFile = shelve.open(mapFilePath, "w")
+    mapFile["myMap"] = myMap
+    mapFile["objects"] = objects
+    mapFile["playerIndex"] = objects.index(player)
+    mapFile["stairsIndex"] = objects.index(stairs)
     if dungeonLevel > 1:
-        file["upStairsIndex"] = objects.index(upStairs)
-    file["yunowork"] = "SCREW THIS"
-    file.close()
+        mapFile["upStairsIndex"] = objects.index(upStairs)
+    mapFile["yunowork"] = "SCREW THIS"
+    mapFile.close()
     
     return "completed"
 
 def loadLevel(level):
     global objects, player, myMap, stairs
-    file = shelve.open(absFilePath, "r")
+    mapFilePath = accessMapFile(level)
+    file = shelve.open(mapFilePath, "r")
     print(file["yunowork"])
     myMap = file["myMap_level{}".format(level)]
     objects = file["objects_level{}".format(level)]
@@ -1828,6 +1842,7 @@ def loadLevel(level):
         upStairs = objects[file["upStairsIndex"]]
     
     message("You climb the stairs")
+    file.close()
     initializeFOV()
     
 
