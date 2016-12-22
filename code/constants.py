@@ -64,7 +64,7 @@ SIGHT_RADIUS = 10
 MAX_ROOM_MONSTERS = 3
 MAX_ROOM_ITEMS = 5
 GRAPHICS = 'modern'
-LEVEL_UP_BASE = 200000000000 # Set to 200 once testing complete
+LEVEL_UP_BASE = 200 # Set to 200 once testing complete
 LEVEL_UP_FACTOR = 150
 NATURAL_REGEN = False
 
