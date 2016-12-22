@@ -8,6 +8,7 @@ from code.constants import *
 from code.menu import menu
 from code.menu import drawCentered
 from code.menu import msgBox
+from code.constants import WIDTH, HEIGHT, MAP_HEIGHT, MAP_WIDTH, MID_MAP_HEIGHT, MID_MAP_WIDTH
 # End of anti-bananas-going lines, everything below this line is essential
 from code.menu import *
 from code.charGen import *
@@ -64,8 +65,9 @@ absDirPath = os.path.join(curDir, relDirPath)
 absFilePath = os.path.join(curDir, relPath)
 absPicklePath = os.path.join(curDir, relPicklePath)
 
-
+stairCooldown = 0
 pathfinder = None
+
 
 
 #_____________ CONSTANTS __________________
@@ -536,6 +538,32 @@ def getInput():
         castCreateWall()
         FOV_recompute = True
         return 'didnt-take-turn'
+    elif userInput.keychar == 'S' and DEBUG and not tdl.event.isWindowClosed():
+        message("Force-saved level {}", colors.purple)
+        saveLevel()
+    elif userInput.keychar == 'Q' and DEBUG and not tdl.event.isWindowClosed():
+        global FOV_recompute
+        FOV_recompute = True
+        message("You're about to crash the game, press Y to continue.", colors.purple)
+        Update()
+        tdl.flush()
+        keypress = False
+        while not keypress:
+            for event in tdl.event.get():
+                if event.type == "KEYDOWN":
+                    confirmKey = event
+                    if confirmKey.keychar.upper() == 'Y':
+                        crashVariableThatServesNoPurposeOtherThanToCrashTheGameSoIPutAVeryLongNameSoYouUnderstandThatYouMusntntUseIt = 42 / 0
+                        otherCrashVariableThatPreventsCodacyFromGoingBananasBecauseUnusedVariable = crashVariableThatServesNoPurposeOtherThanToCrashTheGameSoIPutAVeryLongNameSoYouUnderstandThatYouMusntntUseIt
+                        shortOtherCrash = otherCrashVariableThatPreventsCodacyFromGoingBananasBecauseUnusedVariable
+                        print(shortOtherCrash)
+                        keypress = True
+                    elif confirmKey.keychar.upper() not in ("SHIFT", "MAJ", "LEFT SHIFT", "LSHIFT", "LEFT MAJ", 'LMAJ'):
+                        keypress = True
+                        message('Crash aborted', colors.purple)
+                        return 'didnt-take-turn'
+                    else:
+                        keypress = False
     elif userInput.keychar.upper() == "W" or userInput.keychar.upper() == 'KP5':
         if NATURAL_REGEN:
             if not player.Fighter.burning and not player.Fighter.frozen and  player.Fighter.hp != player.Fighter.maxHP:
@@ -633,14 +661,28 @@ def getInput():
                 saveLevel()
                 for object in objects:    
                     if upStairs.x == player.x and upStairs.y == player.y:
-                        global dungeonLevel
-                        loadLevel(dungeonLevel - 1)
-                        dungeonLevel -= 1
+                        if stairCooldown == 0:
+                            global stairCooldown, dungeonLevel
+                            stairCooldown = 2
+                            if DEBUG:
+                                message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
+                            loadLevel(dungeonLevel - 1)
+                        else:
+                            message("You're too tired to climb the stairs right now")
+                        return None
             FOV_recompute = True
         elif userInput.keychar.upper() == '>':
             for object in objects:
                 if stairs.x == player.x and stairs.y == player.y:
-                    nextLevel()
+                    if stairCooldown == 0:
+                        global stairCooldown
+                        stairCooldown = 2
+                        if DEBUG:
+                            message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
+                        nextLevel()
+                    else:
+                        message("You're too tired to climb down the stairs right now")
+                    return None
         elif userInput.keychar.upper() == 'I':
             chosenItem = inventoryMenu('Press the key next to an item to use it, or any other to cancel.\n')
             if chosenItem is not None:
@@ -1741,8 +1783,9 @@ def targetMonster(maxRange = None):
 #______ INITIALIZATION AND MAIN LOOP________
 def accessMapFile(level = dungeonLevel):
     mapName = "map{}".format(level)
+    print(mapName)
     mapFile = os.path.join(absDirPath, mapName)
-    return mapName
+    return mapFile
 
 
 def saveGame():
@@ -1824,7 +1867,7 @@ def saveLevel():
     #else:
         #file = shelve.open(absFilePath, "w")
     mapFilePath = accessMapFile()
-    mapFile = shelve.open(mapFilePath, "w")
+    mapFile = shelve.open(mapFilePath, "n")
     mapFile["myMap"] = myMap
     mapFile["objects"] = objects
     mapFile["playerIndex"] = objects.index(player)
@@ -1832,25 +1875,32 @@ def saveLevel():
     if dungeonLevel > 1:
         mapFile["upStairsIndex"] = objects.index(upStairs)
     mapFile["yunowork"] = "SCREW THIS"
+    print("Saved level at " + mapFilePath)
     mapFile.close()
     
     return "completed"
 
 def loadLevel(level):
-    global objects, player, myMap, stairs
+    global objects, player, myMap, stairs, dungeonLevel
+    try:
+        saveLevel()
+    except:
+        print("Couldn't save level " + dungeonLevel)
     mapFilePath = accessMapFile(level)
-    file = shelve.open(mapFilePath, "r")
-    print(file["yunowork"])
-    myMap = file["myMap_level{}".format(level)]
-    objects = file["objects_level{}".format(level)]
-    player = objects[file["playerIndex"]]
-    stairs = objects[file["stairsIndex"]]
+    xfile = shelve.open(mapFilePath, "r")
+    print(xfile["yunowork"])
+    myMap = xfile["myMap"]
+    objects = xfile["objects"]
+    player = objects[xfile["playerIndex"]]
+    stairs = objects[xfile["stairsIndex"]]
     if level > 1:
         global upStairs
-        upStairs = objects[file["upStairsIndex"]]
+        upStairs = objects[xfile["upStairsIndex"]]
     
     message("You climb the stairs")
-    file.close()
+    print("Loaded level " + str(level))
+    xfile.close()
+    dungeonLevel = level
     initializeFOV()
     
 
@@ -1884,6 +1934,7 @@ def nextLevel():
 
 def playGame():
     while not tdl.event.isWindowClosed():
+        global FOV_recompute
         Update()
         checkLevelUp()
         tdl.flush()
@@ -1939,6 +1990,15 @@ def playGame():
                     if object.Fighter.MPRegenCountdown == 0:
                         object.Fighter.MPRegenCountdown = 10
                         object.Fighter.MP += 1
+            global stairCooldown
+            if stairCooldown > 0:
+                stairCooldown -= 1
+                if stairCooldown == 0 and DEBUG:
+                    message("You're no longer tired", colors.purple)
+            if stairCooldown < 0:
+                stairCooldown = 0
+            
+                            
     DEBUG = False
     quitGame('Window has been closed')
     
