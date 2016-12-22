@@ -344,9 +344,10 @@ def characterCreation():
                         previousListLen = len(races) + len(classes)
                         if actualPerAttributes[index - previousListLen] > 0:
                             removeBonus(attributesBonus, index - previousListLen)
-                            selectedAttributes[index - previousListLen] = False
                             actualAttributesPoints -= 1
                             actualPerAttributes[index - previousListLen] -=1
+                            if actualPerAttributes[index - previousListLen] == 0:
+                                selectedAttributes[index - previousListLen] = False
                 else:
                     if actualTraits > 0:
                         previousListLen = len(races) + len(classes) + len(attributes)

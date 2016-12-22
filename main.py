@@ -347,9 +347,10 @@ class ConfusedMonster:
             message('The ' + self.owner.name + ' is no longer confused!', colors.red)
 
 class Player:
-    def __init__(self, actualPerSkills, levelUpStats):
+    def __init__(self, actualPerSkills, levelUpStats, skillsBonus):
         self.actualPerSkills = actualPerSkills
         self.levelUpStats = levelUpStats
+        self.skillsBonus = skillsBonus
         if DEBUG:
             print('Player component initialized')
         
@@ -772,6 +773,7 @@ def checkLevelUp():
                     FOV_recompute = True
                     Update()
                     break
+
                 elif player.Player.actualPerSkills[choice] >= 5:
                     choice = None
 
@@ -862,7 +864,7 @@ def castFreeze():
         return 'cancelled'
     if not target.Fighter.frozen:
         target.Fighter.frozen = True
-        target.Fighter.freezeCooldown = 4 #Actually 3 turns since this begins ticking down the turn the spell is casted
+        target.Fighter.freezeCooldown = 4 #Actually 3 turns since this begins ticking down the turn the spell is cast
         message("The " + target.name + " is frozen !", colors.light_violet)
     else:
         message("The " + target.name + " is already frozen.")
@@ -907,9 +909,9 @@ def applyBurn(target, chance = 50):
             target.Fighter.freezeCooldown = 0
             message('The ' + target.name + "'s ice melts away.")
 
-fireball = Spell(ressourceCost = 5, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 3, arg2 = 12, arg3 = None)
-heal = Spell(ressourceCost = 6, cooldown = 7, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 10, arg2 = None, arg3 = None)
-darkPact = Spell(ressourceCost = DARK_PACT_DAMAGE, cooldown = 8, useFunction = castDarkRitual, name = "Dark ritual", ressource = 'HP', type = "Occult", magicLevel = 1, arg1 = 5, arg2 = DARK_PACT_DAMAGE , arg3=None)
+fireball = Spell(ressourceCost = 10, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 3, arg2 = 12, arg3 = None)
+heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 10, arg2 = None, arg3 = None)
+darkPact = Spell(ressourceCost = DARK_PACT_DAMAGE, cooldown = 8, useFunction = castDarkRitual, name = "Dark ritual", ressource = 'HP', type = "Occult", magicLevel = 2, arg1 = 5, arg2 = DARK_PACT_DAMAGE , arg3=None)
                 
 def castArmageddon(radius = 4, damage = 40):
     global FOV_recompute
@@ -927,7 +929,7 @@ def castArmageddon(radius = 4, damage = 40):
             return 'cancelled'
         elif key.keychar.upper() == 'Y':
             invalid = False
-        elif key.keychar.upper() not in ('Y', 'N'):
+        else:
             message('Please press a valid key (Y or N)')#Displays regardless of if a valid hcoice has been made, to be fixed
             FOV_recompute = True
             Update()
@@ -1816,7 +1818,7 @@ def newGame():
     global objects, inventory, gameMsgs, gameState, player, dungeonLevel
     startingSpells = [fireball, heal]
     playFight = Fighter(hp = playerComponent[4], power= playerComponent[0], armor= playerComponent[3], deathFunction=playerDeath, xp=0, evasion = playerComponent[2], accuracy = playerComponent[1], maxMP= playerComponent[5], knownSpells=startingSpells, critical = playerComponent[6])
-    playComp = Player(actualPerSkills, levelUpStats)
+    playComp = Player(actualPerSkills, levelUpStats, skillsBonus)
     player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = 'Hero', color = (0, 210, 0))
     player.level = 1
 
@@ -1988,7 +1990,10 @@ def playGame():
                     if object.Fighter.MPRegenCountdown < 0:
                         object.Fighter.MPRegenCountdown = 0
                     if object.Fighter.MPRegenCountdown == 0:
-                        object.Fighter.MPRegenCountdown = 10
+                        if object == player:
+                            object.Fighter.MPRegenCountdown = 10 - player.Player.actualPerSkills[7]
+                        else:
+                            object.Fighter.MPRegenCountdown = 10
                         object.Fighter.MP += 1
             global stairCooldown
             if stairCooldown > 0:
