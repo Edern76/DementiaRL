@@ -172,7 +172,7 @@ class GameObject:
                 print(self.name + " found no Astar path")
 
 class Fighter: #All NPCs, enemies and the player
-    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5):
+    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, lootFunction = None, lootRate = 0):
         self.baseMaxHP = hp
         self.hp = hp
         self.baseArmor = armor
@@ -182,6 +182,8 @@ class Fighter: #All NPCs, enemies and the player
         self.baseAccuracy = accuracy
         self.baseEvasion = evasion
         self.baseCritical = critical
+        self.lootFunction = lootFunction
+        self.lootRate = lootRate 
         
         self.frozen = False
         self.freezeCooldown = 0
@@ -373,6 +375,7 @@ class Item:
         self.arg1 = arg1
         self.arg2 = arg2
         self.arg3 = arg3
+
     def pickUp(self):
         if len(inventory)>=26:
             message('Your bag already feels really heavy, you cannot pick up ' + self.owner.name + '.', colors.red)
@@ -380,9 +383,10 @@ class Item:
             inventory.append(self.owner)
             objects.remove(self.owner)
             message('You picked up a ' + self.owner.name + '!', colors.green)
-        equipment = self.owner.Equipment
-        if equipment and getEquippedInSlot(equipment.slot) is None:
-            equipment.equip()
+            equipment = self.owner.Equipment
+            if equipment and getEquippedInSlot(equipment.slot) is None:
+                equipment.equip()
+
     def use(self):
         if self.owner.Equipment:
             self.owner.Equipment.toggleEquip()
@@ -995,7 +999,9 @@ def monsterArmageddon(monsterName ,monsterX, monsterY, radius = 4, damage = 40):
     
 def createOrc(x, y):
     if x != player.x or y != player.y:
-        fighterComponent = Fighter(hp=15, armor=0, power=3, xp = 35, deathFunction = monsterDeath, evasion = 25, accuracy = 10)
+        equipmentComponent = Equipment(slot='head', type = 'armor', armorBonus = 1)
+        orcHelmet = GameObject(x = None, y = None, char = '[', name = 'orc helmet', color = colors.brass, Equipment = equipmentComponent, Item = Item())
+        fighterComponent = Fighter(hp=15, armor=0, power=3, xp = 35, deathFunction = monsterDeath, evasion = 25, accuracy = 10, lootFunction = orcHelmet, lootRate = 30)
         AI_component = BasicMonster()
         monster = GameObject(x, y, char = 'o', color = colors.desaturated_green, name = 'orc', blocks = True, Fighter=fighterComponent, AI = AI_component)
         return monster
@@ -1348,7 +1354,9 @@ def placeObjects(room):
                 monsterChances['troll'] = 20
                 
             elif monsterChoice == 'troll':
-                fighterComponent = Fighter(hp=20, armor=2, power=4, xp = 100, deathFunction = monsterDeath, accuracy = 7, evasion = 1)
+                equipmentComponent = Equipment(slot = 'right hand', type = 'heavy weapon', powerBonus = 5, accuracyBonus = -20)
+                trollMace = GameObject(x, y, '/', 'troll mace', colors.darker_orange, Equipment=equipmentComponent, Item=Item())
+                fighterComponent = Fighter(hp=20, armor=2, power=4, xp = 100, deathFunction = monsterDeath, accuracy = 7, evasion = 1, lootFunction=trollMace, lootRate=15)
                 AI_component = BasicMonster()
                 monster = GameObject(x, y, char = 'T', color = colors.darker_green,name = 'troll', blocks = True, Fighter = fighterComponent, AI = AI_component)
         
@@ -1465,6 +1473,13 @@ def getAllEquipped(object):  #returns a list of equipped items
     else:
         return []
 #_____________ EQUIPEMENT ________________
+def lootItem(object, x, y):
+    objects.append(object)
+    object.x = x
+    object.y = y
+    object.sendToBack()
+    message('A ' + object.name + ' falls from the dead body !', colors.dark_sky)
+
 def playerDeath(player):
     global gameState
     message('You died!', colors.red)
@@ -1474,6 +1489,12 @@ def playerDeath(player):
  
 def monsterDeath(monster):
     message(monster.name.capitalize() + ' is dead! You gain ' + str(monster.Fighter.xp) + ' XP.', colors.dark_sky)
+    
+    if monster.Fighter.lootFunction is not None:
+        loot = randint(1, 100)
+        if loot <= monster.Fighter.lootRate:
+            lootItem(monster.Fighter.lootFunction, monster.x, monster.y)
+
     monster.char = '%'
     monster.color = colors.dark_red
     monster.blocks = False
@@ -1501,8 +1522,6 @@ def message(newMsg, color = colors.white):
             del gameMsgs[0] #Deletes the oldest message if the log is full
     
         gameMsgs.append((line, color))
-
-
 
 def inventoryMenu(header):
     #show a menu with each item of the inventory as an option
