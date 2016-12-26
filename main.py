@@ -8,7 +8,8 @@ from code.constants import *
 from code.menu import menu
 from code.menu import drawCentered
 from code.menu import msgBox
-from code.constants import WIDTH, HEIGHT, MAP_HEIGHT, MAP_WIDTH, MID_MAP_HEIGHT, MID_MAP_WIDTH
+from code.constants import WIDTH, HEIGHT, MAP_HEIGHT, MAP_WIDTH, MID_MAP_HEIGHT, MID_MAP_WIDTH, con, root, NATURAL_REGEN, LEVEL_UP_BASE, LEVEL_UP_FACTOR, LEVEL_SCREEN_WIDTH, CONFUSE_NUMBER_TURNS, CHARACTER_SCREEN_WIDTH, MOVEMENT_KEYS, panel, MSG_WIDTH, MAX_ROOM_MONSTERS, INVENTORY_WIDTH, BAR_WIDTH, FOV_ALGO, SIGHT_RADIUS, FOV_LIGHT_WALLS, PANEL_Y, PANEL_HEIGHT, MSG_X, CONFUSE_RANGE, LIGHTNING_RANGE, LIGHTNING_DAMAGE, DARK_PACT_DAMAGE, MAX_ROOM_ITEMS, MSG_HEIGHT 
+from code.charGen import characterCreation
 # End of anti-bananas-going lines, everything below this line is essential
 from code.menu import *
 from code.charGen import *
@@ -315,13 +316,14 @@ class Fighter: #All NPCs, enemies and the player
 class BasicMonster: #Basic monsters' AI
     def takeTurn(self):
         monster = self.owner
-        if (monster.x, monster.y) in visibleTiles: #chasing the player
+        if (monster.x, monster.y) in visibleTiles and not monster.Fighter.frozen: #chasing the player
             if monster.distanceTo(player) >= 2:
                 monster.moveAstar(player.x, player.y)
             elif player.Fighter.hp > 0 and not monster.Fighter.frozen:
                 monster.Fighter.attack(player)
         else:
-            monster.move(randint(-1, 1), randint(-1, 1)) #wandering
+            if not monster.Fighter.frozen:
+                monster.move(randint(-1, 1), randint(-1, 1)) #wandering
 
 class SplosionAI:
     def takeTurn(self):
