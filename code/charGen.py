@@ -48,14 +48,20 @@ def removeBonus(list, chosenList):
 #Bonus template: [power, accuracy, evasion, armor, maxHP, maxMP, critical]
 
 def characterCreation():
-    races =['Human', 'Minotaur']
+    races =['Human', 'Minotaur', 'Insectoid', 'Lizardman', 'Ratling']
     racesDescription = ['A random human',
-                        'Minotaurs are tougher and stronger than Humans, but less smart']
+                        'Minotaurs are tougher and stronger than Humans, but less smart',
+                        'Insectoids are stronger than human but are more importantly very good at arcane arts',
+                        'Lizardmen are sneaky thieves and assassins',
+                        'Ratlings are very agile']
     racesBonus = [[0, 0, 0, 0, 0, 0, 0], #Human
-                  [5, -8, -4, 0, 20, -15, 0]] #Minotaur
+                  [5, -8, -4, 0, 20, -15, 0], #Minotaur
+                  [1, -4, -2, 0, -5, 10, 0], #Insectoid
+                  [0, 4, 2, 0, 0, -10, 0], #Lizardman
+                  [-4, 4, 4, 0, 0, 0, 0]] #Ratling
     MAX_RACES = 1
     actualRaces = 0
-    selectedRaces = [False, False]
+    selectedRaces = [False, False, False, False, False]
     
     classes = ['Knight', 'Barbarian', 'Rogue', 'Mage ']
     classesDescription = ['A warrior who wears armor and yields shields',
@@ -73,6 +79,7 @@ def characterCreation():
     MAX_CLASSES = 1
     actualClasses = 0
     selectedClasses = [False, False, False, False]
+    levelUpStats = [0, 0, 0, 0, 0, 0, 0]
 
     attributes = ['Strength', 'Dexterity', 'Constitution', 'Willpower']
     attributesDescription = ['Strength augments the power of your attacks',
@@ -97,7 +104,17 @@ def characterCreation():
     selectedTraits = [False]
     
     skills = ['Light weapons', 'Heavy weapons', 'Missile weapons', 'Throwing weapons', 'Magic ', 'Armor wielding', 'Athletics', 'Concentration', 'Dodge ', 'Critical ', 'Accuracy']
-    skillsDescription = ['Light weapons', 'Heavy weapons', 'Missile weapons', 'Throwing weapons', 'Magic ', 'Armor wielding', 'Athletics', 'Concentration', 'Dodge ', 'Critical ', 'Accuracy']
+    skillsDescription = ['+20% damage per skillpoints with light weapons',
+                         '+20% damage per skillpoints with heavy weapons',
+                         '+20% damage per skillpoints with missile weapons',
+                         '+20% damage per skillpoints with throwing weapons',
+                         'Magic ',
+                         'Armor wielding',
+                         '+20 HP and maximum HP per skillpoints',
+                         '+20 MP and maximum MP per skillpoints',
+                         '+3 evasion per skillpoints',
+                         '+3 critical chance par skillpoints ',
+                         '+10 accuracy per skillpoints']
     skillsBonus = [[0, 0, 0, 0, 0, 0, 0], #light
                    [0, 0, 0, 0, 0, 0, 0], #heavy
                    [0, 0, 0, 0, 0, 0, 0], #missile
@@ -130,12 +147,12 @@ def characterCreation():
         drawCentered(cons = root, y = 6, text = '--- CHARACTER CREATION ---', fg = colors.white, bg = None)
 
         # Race and Class
-        drawCentered(cons = root, y = 12, text = '-- RACE --', fg = colors.white, bg = None)
+        drawCentered(cons = root, y = 9, text = '-- RACE --', fg = colors.white, bg = None)
         for choice in range(len(races)):
             if selectedRaces[choice]:
-                drawCentered(cons = root, y = 14 + choice, text = races[choice], fg = colors.azure, bg = None)
+                drawCentered(cons = root, y = 11 + choice, text = races[choice], fg = colors.azure, bg = None)
             else:
-                drawCentered(cons = root, y = 14 + choice, text = races[choice], fg = colors.white, bg = None)
+                drawCentered(cons = root, y = 11 + choice, text = races[choice], fg = colors.white, bg = None)
 
         drawCentered(cons = root, y = 19, text = '-- CLASS --', fg = colors.white, bg = None)
         for choice in range(len(classes)):
@@ -179,36 +196,64 @@ def characterCreation():
 
         #Displaying stats
         eightScreen = WIDTH//8
-        drawCenteredOnX(cons = root, x = eightScreen * 1, y = 82, text = 'Power: ' + str(power), fg = colors.white, bg = None)
-        drawCenteredOnX(cons = root, x = eightScreen * 2, y = 82, text = 'Accuracy: ' + str(accuracy), fg = colors.white, bg = None)
-        drawCenteredOnX(cons = root, x = eightScreen * 3, y = 82, text = 'Evasion: ' + str(evasion), fg = colors.white, bg = None)
-        drawCenteredOnX(cons = root, x = eightScreen * 4, y = 82, text = 'Armor: ' + str(armor), fg = colors.white, bg = None)
-        drawCenteredOnX(cons = root, x = eightScreen * 5, y = 82, text = 'Max HP: ' + str(maxHP), fg = colors.white, bg = None)
-        drawCenteredOnX(cons = root, x = eightScreen * 6, y = 82, text = 'Max MP: ' + str(maxMP), fg = colors.white, bg = None)
-        drawCenteredOnX(cons = root, x = eightScreen * 7, y = 82, text = 'Critical: ' + str(critical), fg = colors.white, bg = None)
+        
+        text = 'Power: ' + str(power)
+        drawCenteredOnX(cons = root, x = eightScreen * 1, y = 82, text = text, fg = colors.white, bg = None)
+        X = eightScreen * 1 + ((len(text) + 1)// 2)
+        root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[0]) + '/lvl', fg = colors.yellow, bg = None)
+        
+        text = 'Accuracy: ' + str(accuracy)
+        drawCenteredOnX(cons = root, x = eightScreen * 2, y = 82, text = text, fg = colors.white, bg = None)
+        X = eightScreen * 2 + ((len(text) + 1)// 2)
+        root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[1]) + '/lvl', fg = colors.yellow, bg = None)
+        
+        text = 'Evasion: ' + str(evasion)
+        drawCenteredOnX(cons = root, x = eightScreen * 3, y = 82, text = text, fg = colors.white, bg = None)
+        X = eightScreen * 3 + ((len(text) + 1)// 2)
+        root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[2]) + '/lvl', fg = colors.yellow, bg = None)
+        
+        text = 'Armor: ' + str(armor)
+        drawCenteredOnX(cons = root, x = eightScreen * 4, y = 82, text = text, fg = colors.white, bg = None)
+        X = eightScreen * 4 + ((len(text) + 1)// 2)
+        root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[3]) + '/lvl', fg = colors.yellow, bg = None)
+        
+        text = 'Max HP: ' + str(maxHP)
+        drawCenteredOnX(cons = root, x = eightScreen * 5, y = 82, text = text, fg = colors.white, bg = None)
+        X = eightScreen * 5 + ((len(text) + 1)// 2)
+        root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[4]) + '/lvl', fg = colors.yellow, bg = None)
+        
+        text = 'Max MP: ' + str(maxMP)
+        drawCenteredOnX(cons = root, x = eightScreen * 6, y = 82, text = text, fg = colors.white, bg = None)
+        X = eightScreen * 6 + ((len(text) + 1)// 2)
+        root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[5]) + '/lvl', fg = colors.yellow, bg = None)
+        
+        text = 'Critical: ' + str(critical)
+        drawCenteredOnX(cons = root, x = eightScreen * 7, y = 82, text = text, fg = colors.white, bg = None)
+        X = eightScreen * 7 + ((len(text) + 1)// 2)
+        root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[6]) + '/lvl', fg = colors.yellow, bg = None)
         
         # Selection
         if midIndexMin <= index <= midIndexMax:
             if index + 1 <= len(races):
                 previousListLen = 0
-                drawCentered(cons = root, y = 14 + index, text = races[index - previousListLen], fg = colors.black, bg = colors.white)
+                drawCentered(cons = root, y = 11 + index, text = races[index - previousListLen], fg = colors.black, bg = colors.white)
                 description(racesDescription[index - previousListLen])
             else:
                 previousListLen = len(races)
-                drawCentered(cons = root, y = 19 + index, text = classes[index - previousListLen], fg = colors.black, bg = colors.white)
+                drawCentered(cons = root, y = 16 + index, text = classes[index - previousListLen], fg = colors.black, bg = colors.white)
                 description(classesDescription[index - previousListLen])
         if leftIndexMin <= index <= leftIndexMax:
             if index + 1 <= len(races) + len(classes) + len(attributes):
                 previousListLen = len(races) + len(classes)
-                drawCenteredOnX(cons = root, x = leftX, y = 30 + index, text = attributes[index - previousListLen], fg = colors.black, bg = colors.white)
+                drawCenteredOnX(cons = root, x = leftX, y = 27 + index, text = attributes[index - previousListLen], fg = colors.black, bg = colors.white)
                 description(attributesDescription[index - previousListLen])
             else:
                 previousListLen = len(races) + len(classes) + len(attributes)
-                drawCenteredOnX(cons = root, x = leftX, y = 38 + index, text = traits[index - previousListLen], fg = colors.black, bg = colors.white)
+                drawCenteredOnX(cons = root, x = leftX, y = 35 + index, text = traits[index - previousListLen], fg = colors.black, bg = colors.white)
                 description(traitsDescription[index - previousListLen])
         if rightIndexMin <= index <= rightIndexMax:
             previousListLen = len(races) + len(classes) + len(attributes) + len(traits)
-            drawCenteredOnX(cons = root, x = rightX, y = 25 + index, text = skills[index - previousListLen], fg = colors.black, bg = colors.white)
+            drawCenteredOnX(cons = root, x = rightX, y = 22 + index, text = skills[index - previousListLen], fg = colors.black, bg = colors.white)
             description(skillsDescription[index - previousListLen])
         if index == maxIndex - 1:
             drawCentered(cons = root, y = 90, text = 'Start Game', fg = colors.black, bg = colors.white)
@@ -272,8 +317,9 @@ def characterCreation():
                         actualSkills += 1
                         actualPerSkills[index - previousListLen] += 1
             if index == maxIndex - 1:
-                createdCharacter = [power, accuracy, evasion, armor, maxHP, maxMP, critical]
-                return createdCharacter, levelUpStats, actualPerSkills, skillsBonus
+                if actualClasses > 0 and actualRaces > 0:
+                    createdCharacter = [power, accuracy, evasion, armor, maxHP, maxMP, critical]
+                    return createdCharacter, levelUpStats, actualPerSkills, skillsBonus
             if index == maxIndex:
                 return 'cancelled', 'cancelled', 'cancelled', 'cancelled'
         #removing choice bonus
@@ -298,9 +344,10 @@ def characterCreation():
                         previousListLen = len(races) + len(classes)
                         if actualPerAttributes[index - previousListLen] > 0:
                             removeBonus(attributesBonus, index - previousListLen)
-                            selectedAttributes[index - previousListLen] = False
                             actualAttributesPoints -= 1
                             actualPerAttributes[index - previousListLen] -=1
+                            if actualPerAttributes[index - previousListLen] == 0:
+                                selectedAttributes[index - previousListLen] = False
                 else:
                     if actualTraits > 0:
                         previousListLen = len(races) + len(classes) + len(attributes)
