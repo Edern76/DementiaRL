@@ -1,18 +1,8 @@
-import tdl, colors, math, textwrap, time, os, shelve, sys, code
+import tdl, colors, math, textwrap, time, os, shelve, sys
 from tdl import *
 from random import randint
 from math import *
 from os import makedirs
-from code.constants import *
-# These lines are just in case PyDev goes bananas, otherwise these are useless
-from code.menu import menu
-from code.menu import drawCentered
-from code.menu import msgBox
-from code.constants import WIDTH, HEIGHT, MAP_HEIGHT, MAP_WIDTH, MID_MAP_HEIGHT, MID_MAP_WIDTH, con, root, NATURAL_REGEN, LEVEL_UP_BASE, LEVEL_UP_FACTOR, LEVEL_SCREEN_WIDTH, CONFUSE_NUMBER_TURNS, CHARACTER_SCREEN_WIDTH, MOVEMENT_KEYS, panel, MSG_WIDTH, MAX_ROOM_MONSTERS, INVENTORY_WIDTH, BAR_WIDTH, FOV_ALGO, SIGHT_RADIUS, FOV_LIGHT_WALLS, PANEL_Y, PANEL_HEIGHT, MSG_X, CONFUSE_RANGE, LIGHTNING_RANGE, LIGHTNING_DAMAGE, DARK_PACT_DAMAGE, MAX_ROOM_ITEMS, MSG_HEIGHT 
-from code.charGen import characterCreation
-# End of anti-bananas-going lines, everything below this line is essential
-from code.menu import *
-from code.charGen import *
 from dill import objects
 
 # Naming conventions :
@@ -23,6 +13,82 @@ from dill import objects
 # Not dramatic if you forget about this (it happens to me too), but it makes reading code easier
 
 #NEVER SET AN EVASION VALUE AT ZERO, SET IT AT ONE INSTEAD#
+
+#_____________ CONSTANTS __________________
+MOVEMENT_KEYS = {
+                 #Standard arrows
+                 'UP': [0, -1],
+                 'DOWN': [0, 1],
+                 'LEFT': [-1, 0],
+                 'RIGHT': [1, 0],
+
+                 # Diagonales (pave numerique off)
+                 'HOME': [-1, -1],
+                 'PAGEUP': [1, -1],
+                 'PAGEDOWN': [1, 1],
+                 'END': [-1, 1],
+
+                 # Pave numerique
+                 # 7 8 9
+                 # 4   6
+                 # 1 2 3
+                 'KP1': [-1, 1],
+                 'KP2': [0, 1],
+                 'KP3': [1, 1],
+                 'KP4': [-1, 0],
+                 'KP6': [1, 0],
+                 'KP7': [-1, -1],
+                 'KP8': [0, -1],
+                 'KP9': [1, -1],
+                 
+                 }
+
+WIDTH, HEIGHT, LIMIT = 170, 95, 20
+MAP_WIDTH, MAP_HEIGHT = 140, 60
+MID_MAP_WIDTH, MID_MAP_HEIGHT = MAP_WIDTH//2, MAP_HEIGHT//2
+MID_WIDTH, MID_HEIGHT = int(WIDTH/2), int(HEIGHT/2)
+
+# - GUI Constants -
+BAR_WIDTH = 20
+
+PANEL_HEIGHT = 10
+PANEL_Y = HEIGHT - PANEL_HEIGHT
+
+MSG_X = BAR_WIDTH + 10
+MSG_WIDTH = WIDTH - BAR_WIDTH - 10
+MSG_HEIGHT = PANEL_HEIGHT - 1
+
+INVENTORY_WIDTH = 90
+
+LEVEL_SCREEN_WIDTH = 40
+CHARACTER_SCREEN_WIDTH = 30
+# - GUI Constants -
+
+# - Consoles -
+root = tdl.init(WIDTH, HEIGHT, 'Dementia (Temporary Name) | Prototype')
+con = tdl.Console(WIDTH, HEIGHT)
+panel = tdl.Console(WIDTH, PANEL_HEIGHT)
+# - Consoles
+
+FOV_recompute = True
+FOV_ALGO = 'BASIC'
+FOV_LIGHT_WALLS = True
+SIGHT_RADIUS = 10
+MAX_ROOM_MONSTERS = 3
+MAX_ROOM_ITEMS = 5
+GRAPHICS = 'modern'
+LEVEL_UP_BASE = 200 # Set to 200 once testing complete
+LEVEL_UP_FACTOR = 150
+NATURAL_REGEN = False
+
+# - Spells -
+LIGHTNING_DAMAGE = 20
+LIGHTNING_RANGE = 5
+CONFUSE_NUMBER_TURNS = 10
+CONFUSE_RANGE = 8
+DARK_PACT_DAMAGE = 12
+# - Spells -
+#_____________ CONSTANTS __________________
 
 myMap = None
 color_dark_wall = colors.darkest_grey
@@ -69,9 +135,607 @@ absPicklePath = os.path.join(curDir, relPicklePath)
 stairCooldown = 0
 pathfinder = None
 
+#_____________MENU_______________
+def menu(header, options, width):
+    if len(options) > 26: raise ValueError('Cannot have a menu with more than 26 options')
+    headerWrapped = textwrap.wrap(header, width)
+    headerHeight = len(headerWrapped)
+    if header == "":
+        headerHeight = 0
+    height = len(options) + headerHeight + 1
+    window = tdl.Console(width, height)
+    window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
+    for i, line in enumerate(headerWrapped):
+        window.draw_str(0, 0+i, headerWrapped[i])
 
+    y = headerHeight + 1
+    letterIndex = ord('a')
+    for optionText in options:
+        text = '(' + chr(letterIndex) + ') ' + optionText
+        window.draw_str(0, y, text, bg=None)
+        y += 1
+        letterIndex += 1
+    
 
-#_____________ CONSTANTS __________________
+    x = MID_WIDTH - int(width/2)
+    y = MID_HEIGHT - int(height/2)
+    root.blit(window, x, y, width, height, 0, 0)
+
+    tdl.flush()
+    key = tdl.event.key_wait()
+    keyChar = key.char
+    if keyChar == '':
+        keyChar = ' '    
+    index = ord(keyChar) - ord('a')
+    if index >= 0 and index < len(options):
+        return index
+    return None
+
+def msgBox(text, width = 50):
+    menu(text, [], width)
+
+def drawCentered (cons = con , y = 1, text = "Lorem Ipsum", fg = None, bg = None):
+    xCentered = (WIDTH - len(text))//2
+    cons.draw_str(xCentered, y, text, fg, bg)
+
+def drawCenteredOnX(cons = con, x = 1, y = 1, text = "Lorem Ipsum", fg = None, bg = None):
+    centeredOnX = x - (len(text)//2)
+    cons.draw_str(centeredOnX, y, text, fg, bg)
+#_____________MENU_______________
+
+#_____________SPELLS_____________
+class Spell:
+    "Class used by all active abilites (not just spells)"
+    def __init__(self,  ressourceCost, cooldown, useFunction, name, ressource = 'MP', type = 'Magic', magicLevel = 0, arg1 = None, arg2 = None, arg3 = None):
+        self.ressource = ressource
+        self.ressourceCost = ressourceCost
+        self.maxCooldown = cooldown
+        self.curCooldown = 0
+        self.useFunction = useFunction
+        self.name = name
+        self.type = type
+        self.magicLevel = magicLevel
+        self.arg1 = arg1
+        self.arg2 = arg2
+        self.arg3 = arg3
+
+    def cast(self):
+        if self.arg1 is None:
+            if self.useFunction() != 'cancelled':
+                return 'used'
+            else:
+                return 'cancelled'
+        elif self.arg2 is None and self.arg1 is not None:
+            if self.useFunction(self.arg1) != 'cancelled':
+                return 'used'
+            else:
+                return 'cancelled'
+        elif self.arg3 is None and self.arg2 is not None:
+            if self.useFunction(self.arg1, self.arg2) != 'cancelled':
+                return 'used'
+            else:
+                return 'cancelled'
+        elif self.arg3 is not None:
+            if self.useFunction(self.arg1, self.arg2, self.arg3) != 'cancelled':
+                return 'used'
+            else:
+                return 'cancelled'
+
+def learnSpell(spell):
+    if spell not in player.Fighter.knownSpells:
+        player.Fighter.knownSpells.append(spell)
+        message("You learn " + spell.name + " !", colors.green)
+    else:
+        message("You already know this spell")
+        return "cancelled"
+def castRegenMana(regenAmount):
+    if player.Fighter.MP != player.Fighter.maxMP:
+        player.Fighter.MP += regenAmount
+        regened = regenAmount
+        if player.Fighter.MP > player.Fighter.maxMP:
+            overflow = player.Fighter.maxMP - player.Fighter.MP
+            regened = regenAmount + overflow
+            player.Fighter.MP = player.Fighter.maxMP
+        message("You recovered " + str(regened) + " MP.", colors.green)
+    else:
+        message("Your MP are already maxed out")
+        return "cancelled"
+
+def castDarkRitual(regen, damage):
+    message('You take ' + str(damage) + ' damage from the ritual !', colors.red)
+    castRegenMana(regen)
+
+def castHeal(healAmount = 5):
+    if player.Fighter.hp == player.Fighter.maxHP:
+        message('You are already at full health')
+        return 'cancelled'
+    else:
+        message('You are healed for {} HP !'.format(healAmount), colors.light_green)
+        player.Fighter.heal(healAmount)
+
+def castLightning():
+    target = closestMonster(LIGHTNING_RANGE)
+    if target is None:
+        message('Your magic fizzles: there is no enemy near enough to strike', colors.red)
+        return 'cancelled'
+    message('A lightning bolt strikes the ' + target.name + ' with a heavy thunder ! It is shocked and suffers ' + str(LIGHTNING_DAMAGE) + ' shock damage.', colors.light_blue)
+    target.Fighter.takeDamage(LIGHTNING_DAMAGE)
+
+def castConfuse():
+    message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
+    target = targetMonster(maxRange = CONFUSE_RANGE)
+    if target is None:
+        message('Invalid target.', colors.red)
+        return 'cancelled'
+    old_AI = target.AI
+    target.AI = ConfusedMonster(old_AI)
+    target.AI.owner = target
+    message('The ' + target.name + ' starts wandering around as he seems to lose all bound with reality.', colors.light_violet)
+
+def castFreeze():
+    message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
+    target = targetMonster(maxRange = None)
+    if target is None:
+        message('Invalid target.', colors.red)
+        return 'cancelled'
+    if not target.Fighter.frozen:
+        target.Fighter.frozen = True
+        target.Fighter.freezeCooldown = 4 #Actually 3 turns since this begins ticking down the turn the spell is cast
+        message("The " + target.name + " is frozen !", colors.light_violet)
+    else:
+        message("The " + target.name + " is already frozen.")
+        return 'cancelled'
+    
+def castFireball(radius = 3, damage = 12):
+    message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
+    target = targetTile(maxRange = 4)
+    if target == 'cancelled':
+        message('Spell casting cancelled')
+        return target
+    else:
+        (x,y) = target
+        for obj in objects:
+            if obj.distanceToCoords(x, y) <= radius and obj.Fighter:
+                if obj != player:
+                    message('The {} gets burned for {} damage !'.format(obj.name, damage), colors.light_blue)
+                else:
+                    message('You get burned for {} damage !'.format(damage), colors.orange)
+                obj.Fighter.takeDamage(damage)
+                applyBurn(obj)
+
+def castArmageddon(radius = 4, damage = 40):
+    global FOV_recompute
+    message('As you begin to read the scroll, the runes inscribed on it start emitting a very bright crimson light. Continue (Y/N)', colors.dark_red)
+    FOV_recompute = True
+    Update()
+    tdl.flush()
+    invalid = True
+    while invalid:
+        key = tdl.event.key_wait()
+        if key.keychar.upper() == 'N':
+            message('Good idea.', colors.dark_red)
+            FOV_recompute = True
+            Update()
+            return 'cancelled'
+        elif key.keychar.upper() == 'Y':
+            invalid = False
+        else:
+            message('Please press a valid key (Y or N)')#Displays regardless of if a valid hcoice has been made, to be fixed
+            FOV_recompute = True
+            Update()
+            
+    radmax = radius + 2
+    global explodingTiles
+    global gameState
+    for x in range (player.x - radmax, player.x + radmax):
+        for y in range (player.y - radmax, player.y + radmax):
+            try: #Execute code below try if no error is encountered
+                if tileDistance(player.x, player.y, x, y) <= radius and not myMap[x][y].unbreakable:
+                    myMap[x][y].blocked = False
+                    myMap[x][y].block_sight = False
+                    if x in range (1, MAP_WIDTH-1) and y in range (1,MAP_HEIGHT - 1):
+                        explodingTiles.append((x,y))
+                    for obj in objects:
+                        if obj.Fighter and obj.x == x and obj.y == y: 
+                            try:
+                                if obj != player:
+                                    message('The {} gets smited for {} damage !'.format(obj.name, damage), colors.light_blue)
+                                else:
+                                    message('You get smited for {} damage !'.format(damage), colors.orange)        
+                                obj.Fighter.takeDamage(damage)
+                            except AttributeError: #If it tries to access a non-existing object (aka outside of the map)
+                                continue
+            except IndexError: #If an IndexError is encountered (aka if the function tries to access a tile outside of the map), execute code below except
+                continue   #Go to next loop iteration and ignore the problematic value     
+    #Display explosion eye-candy, this could get it's own function
+    explode()
+
+def castEnrage(enrageTurns):
+    formerStrength = player.Fighter.power
+    player.Fighter.enraged = True
+    player.Fighter.enrageCooldown = enrageTurns + 1
+    message('You are now enraged !', colors.dark_amber)
+    while player.Fighter.enrageCooldown > 0:
+        player.Fighter.basePower += 10
+    player.Fighter.basePower = formerStrength
+
+fireball = Spell(ressourceCost = 10, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 3, arg2 = 12, arg3 = None)
+heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 10, arg2 = None, arg3 = None)
+darkPact = Spell(ressourceCost = DARK_PACT_DAMAGE, cooldown = 8, useFunction = castDarkRitual, name = "Dark ritual", ressource = 'HP', type = "Occult", magicLevel = 2, arg1 = 5, arg2 = DARK_PACT_DAMAGE , arg3=None)
+enrage = Spell(ressourceCost = 5, cooldown = 30, useFunction = castEnrage, name = 'Enrage', ressource = 'MP', type = 'Strength', magicLevel = 0, arg1 = 5, arg2 = None, arg3 = None)
+#_____________SPELLS_____________
+
+#______________CHARACTER GENERATION____________
+BASE_POWER = 0
+BASE_ACCURACY = 20
+BASE_EVASION = 0
+BASE_ARMOR = 0
+BASE_MAXHP = 0
+BASE_MAXMP = 0
+BASE_CRITICAL = 5
+
+power = BASE_POWER
+accuracy = BASE_ACCURACY
+evasion = BASE_EVASION
+armor = BASE_ARMOR
+maxHP = BASE_MAXHP
+maxMP = BASE_MAXMP
+critical = BASE_CRITICAL
+startingSpells = []
+
+def description(text):
+    wrappedText = textwrap.wrap(text, 25)
+    line = 0
+    for lines in wrappedText:
+        line += 1
+        drawCentered(cons = root, y = 35 + line, text = lines, fg = colors.white, bg = None)
+
+def applyBonus(list, chosenList):
+    global power, accuracy, evasion, armor, maxHP, maxMP, critical
+    power += list[chosenList][0]
+    accuracy += list[chosenList][1]
+    evasion += list[chosenList][2]
+    armor += list[chosenList][3]
+    maxHP += list[chosenList][4]
+    maxMP += list[chosenList][5]
+    critical += list[chosenList][6]
+
+def removeBonus(list, chosenList):
+    global power, accuracy, evasion, armor, maxHP, maxMP, critical
+    power -= list[chosenList][0]
+    accuracy -= list[chosenList][1]
+    evasion -= list[chosenList][2]
+    armor -= list[chosenList][3]
+    maxHP -= list[chosenList][4]
+    maxMP -= list[chosenList][5]
+    critical -= list[chosenList][6]
+
+#Bonus template: [power, accuracy, evasion, armor, maxHP, maxMP, critical]
+
+def characterCreation():
+    races =['Human', 'Minotaur', 'Insectoid', 'Lizardman', 'Ratling']
+    racesDescription = ['A random human',
+                        'Minotaurs are tougher and stronger than Humans, but less smart',
+                        'Insectoids are stronger than human but are more importantly very good at arcane arts',
+                        'Lizardmen are sneaky thieves and assassins',
+                        'Ratlings are very agile']
+    racesBonus = [[0, 0, 0, 0, 0, 0, 0], #Human
+                  [5, -8, -4, 0, 20, -15, 0], #Minotaur
+                  [1, -4, -2, 0, -5, 10, 0], #Insectoid
+                  [0, 4, 2, 0, 0, -10, 0], #Lizardman
+                  [-4, 4, 4, 0, 0, 0, 0]] #Ratling
+    MAX_RACES = 1
+    actualRaces = 0
+    selectedRaces = [False, False, False, False, False]
+    
+    classes = ['Knight', 'Barbarian', 'Rogue', 'Mage ']
+    classesDescription = ['A warrior who wears armor and yields shields',
+                          'A brutal fighter who is mighty strong',
+                          'A rogue who is stealthy and backstabby (probably has a french accent)',
+                          'A wizard who zaps everything']
+    classesBonus = [[0, 0, 0, 1, 60, 30, 0], #Knight
+                    [1, 0, 0, 0, 80, 30, 0], #Barbarian
+                    [0, 8, 10, 0, 45, 40, 3], #Rogue
+                    [0, 0, 0, 0, 35, 50, 0]] #Mage
+    classesLevelUp = [[0, 0, 0, 1, 7, 3, 0],
+                      [1, 0, 0, 0, 10, 3, 0],
+                      [0, 2, 1, 0, 5, 5, 0],
+                      [0, 0, 0, 0, 3, 7, 0]]
+    MAX_CLASSES = 1
+    actualClasses = 0
+    selectedClasses = [False, False, False, False]
+    levelUpStats = [0, 0, 0, 0, 0, 0, 0]
+    classesSpells = [[], [enrage], [], [fireball]]
+
+    attributes = ['Strength', 'Dexterity', 'Constitution', 'Willpower']
+    attributesDescription = ['Strength augments the power of your attacks',
+                             'Dexterity augments your accuracy and your evasion',
+                             'Constitution augments your maximum health',
+                             'Willpower augments your energy']
+    attributesBonus = [[1, 0, 0, 0, 0, 0, 0], #strength
+                       [0, 2, 1, 0, 0, 0, 0], #dex
+                       [0, 0, 0, 0, 5, 0, 0], #vitality
+                       [0, 0, 0, 0, 0, 5, 0]] #willpower
+    MAX_ATTRIBUTES_POINTS = 10
+    MAX_PER_ATTRIBUTES = 5
+    actualAttributesPoints = 0
+    actualPerAttributes = [0, 0, 0, 0]
+    selectedAttributes = [False, False, False, False]
+    
+    traits = ['Placeholder']
+    traitsDescription = ['This is for placeholding']
+    traitsBonus= [[0, 0, 0, 0, 0, 0, 0]]
+    MAX_TRAITS = 2
+    actualTraits = 0
+    selectedTraits = [False]
+    
+    skills = ['Light weapons', 'Heavy weapons', 'Missile weapons', 'Throwing weapons', 'Magic ', 'Armor wielding', 'Athletics', 'Concentration', 'Dodge ', 'Critical ', 'Accuracy']
+    skillsDescription = ['+20% damage per skillpoints with light weapons',
+                         '+20% damage per skillpoints with heavy weapons',
+                         '+20% damage per skillpoints with missile weapons',
+                         '+20% damage per skillpoints with throwing weapons',
+                         'Magic ',
+                         'Armor wielding',
+                         '+20 HP and maximum HP per skillpoints',
+                         '+20 MP and maximum MP per skillpoints',
+                         '+3 evasion per skillpoints',
+                         '+3 critical chance par skillpoints ',
+                         '+10 accuracy per skillpoints']
+    skillsBonus = [[0, 0, 0, 0, 0, 0, 0], #light
+                   [0, 0, 0, 0, 0, 0, 0], #heavy
+                   [0, 0, 0, 0, 0, 0, 0], #missile
+                   [0, 0, 0, 0, 0, 0, 0], #throwing
+                   [0, 0, 0, 0, 0, 0, 0], #magic
+                   [0, 0, 0, 0, 0, 0, 0], #armor
+                   [0, 0, 0, 0, 20, 0, 0], #athletics
+                   [0, 0, 0, 0, 0, 20, 0], #concentration
+                   [0, 0, 3, 0, 0, 0, 0], #dodge
+                   [0, 0, 0, 0, 0, 0, 3], #crit
+                   [0, 10, 0, 0, 0, 0, 0]] #accuracy
+    MAX_SKILLS = 2
+    MAX_PER_SKILLS = 1
+    actualSkills = 0
+    actualPerSkills = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    selectedSkills = [False, False, False, False, False, False, False, False, False, False, False]
+    
+    #index
+    index = 0
+    midIndexMin = 0
+    midIndexMax = len(races) + len(classes) - 1
+    leftIndexMin = midIndexMax + 1
+    leftIndexMax = leftIndexMin + len(attributes) + len(traits) - 1
+    rightIndexMin = leftIndexMax + 1
+    rightIndexMax = rightIndexMin + len(skills) - 1
+    maxIndex = len(races) + len(classes) + len(attributes) + len(traits) + len(skills) + 1
+    
+    while not tdl.event.isWindowClosed():
+        root.clear()
+        drawCentered(cons = root, y = 6, text = '--- CHARACTER CREATION ---', fg = colors.white, bg = None)
+
+        # Race and Class
+        drawCentered(cons = root, y = 9, text = '-- RACE --', fg = colors.white, bg = None)
+        for choice in range(len(races)):
+            if selectedRaces[choice]:
+                drawCentered(cons = root, y = 11 + choice, text = races[choice], fg = colors.azure, bg = None)
+            else:
+                drawCentered(cons = root, y = 11 + choice, text = races[choice], fg = colors.white, bg = None)
+
+        drawCentered(cons = root, y = 19, text = '-- CLASS --', fg = colors.white, bg = None)
+        for choice in range(len(classes)):
+            if selectedClasses[choice]:
+                drawCentered(cons = root, y = 21 + choice, text = classes[choice], fg = colors.azure, bg = None)
+            else:
+                drawCentered(cons = root, y = 21 + choice, text = classes[choice], fg = colors.white, bg = None)
+        
+        # Attributes and traits
+        leftX = (WIDTH // 4)
+        drawCenteredOnX(cons = root, x = leftX, y = 33, text = '-- ATTRIBUTES --', fg = colors.white, bg = None)
+        drawCenteredOnX(cons = root, x = leftX, y = 34, text = str(actualAttributesPoints) + '/' + str(MAX_ATTRIBUTES_POINTS), fg = colors.white, bg = None)
+        for choice in range(len(attributes)):
+            if selectedAttributes[choice]:
+                drawCenteredOnX(cons = root, x = leftX, y = 36 + choice, text = attributes[choice], fg = colors.azure, bg = None)
+            else:
+                drawCenteredOnX(cons = root, x = leftX, y = 36 + choice, text = attributes[choice], fg = colors.white, bg = None)
+            drawCenteredOnX(cons = root, x = leftX - 10, y = 36 + choice, text = str(actualPerAttributes[choice]) + '/' + str(MAX_PER_ATTRIBUTES), fg = colors.white, bg = None)
+
+        drawCenteredOnX(cons = root, x = leftX, y = 45, text = '-- TRAITS --', fg = colors.white, bg = None)
+        drawCenteredOnX(cons = root, x = leftX, y = 46, text = str(actualTraits) + '/' + str(MAX_TRAITS), fg = colors.white, bg = None)
+        for choice in range(len(traits)):
+            if selectedTraits[choice]:
+                drawCenteredOnX(cons = root, x = leftX, y = 48 + choice, text = traits[choice], fg = colors.azure, bg = None)
+            else:
+                drawCenteredOnX(cons = root, x = leftX, y = 48 + choice, text = traits[choice], fg = colors.white, bg = None)
+        
+        # Skills
+        rightX = WIDTH - (WIDTH // 4)
+        drawCenteredOnX(cons = root, x = rightX, y = 33, text = '-- SKILLS --', fg = colors.white, bg = None)
+        drawCenteredOnX(cons = root, x = rightX, y = 34, text = str(actualSkills) + '/' + str(MAX_SKILLS), fg = colors.white, bg = None)
+        for choice in range(len(skills)):
+            if selectedSkills[choice]:
+                drawCenteredOnX(cons = root, x = rightX, y = 36 + choice, text = skills[choice], fg = colors.azure, bg = None)
+            else:
+                drawCenteredOnX(cons = root, x = rightX, y = 36 + choice, text = skills[choice], fg = colors.white, bg = None)
+        
+        drawCentered(cons = root, y = 33, text = '-- DESCRIPTION --', fg = colors.white, bg = None)
+        drawCentered(cons = root, y = 90, text = 'Start Game', fg = colors.white, bg = None)
+        drawCentered(cons = root, y = 91, text = 'Cancel', fg = colors.white, bg = None)
+
+        #Displaying stats
+        eightScreen = WIDTH//8
+        
+        text = 'Power: ' + str(power)
+        drawCenteredOnX(cons = root, x = eightScreen * 1, y = 82, text = text, fg = colors.white, bg = None)
+        X = eightScreen * 1 + ((len(text) + 1)// 2)
+        root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[0]) + '/lvl', fg = colors.yellow, bg = None)
+        
+        text = 'Accuracy: ' + str(accuracy)
+        drawCenteredOnX(cons = root, x = eightScreen * 2, y = 82, text = text, fg = colors.white, bg = None)
+        X = eightScreen * 2 + ((len(text) + 1)// 2)
+        root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[1]) + '/lvl', fg = colors.yellow, bg = None)
+        
+        text = 'Evasion: ' + str(evasion)
+        drawCenteredOnX(cons = root, x = eightScreen * 3, y = 82, text = text, fg = colors.white, bg = None)
+        X = eightScreen * 3 + ((len(text) + 1)// 2)
+        root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[2]) + '/lvl', fg = colors.yellow, bg = None)
+        
+        text = 'Armor: ' + str(armor)
+        drawCenteredOnX(cons = root, x = eightScreen * 4, y = 82, text = text, fg = colors.white, bg = None)
+        X = eightScreen * 4 + ((len(text) + 1)// 2)
+        root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[3]) + '/lvl', fg = colors.yellow, bg = None)
+        
+        text = 'Max HP: ' + str(maxHP)
+        drawCenteredOnX(cons = root, x = eightScreen * 5, y = 82, text = text, fg = colors.white, bg = None)
+        X = eightScreen * 5 + ((len(text) + 1)// 2)
+        root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[4]) + '/lvl', fg = colors.yellow, bg = None)
+        
+        text = 'Max MP: ' + str(maxMP)
+        drawCenteredOnX(cons = root, x = eightScreen * 6, y = 82, text = text, fg = colors.white, bg = None)
+        X = eightScreen * 6 + ((len(text) + 1)// 2)
+        root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[5]) + '/lvl', fg = colors.yellow, bg = None)
+        
+        text = 'Critical: ' + str(critical)
+        drawCenteredOnX(cons = root, x = eightScreen * 7, y = 82, text = text, fg = colors.white, bg = None)
+        X = eightScreen * 7 + ((len(text) + 1)// 2)
+        root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[6]) + '/lvl', fg = colors.yellow, bg = None)
+        
+        # Selection
+        if midIndexMin <= index <= midIndexMax:
+            if index + 1 <= len(races):
+                previousListLen = 0
+                drawCentered(cons = root, y = 11 + index, text = races[index - previousListLen], fg = colors.black, bg = colors.white)
+                description(racesDescription[index - previousListLen])
+            else:
+                previousListLen = len(races)
+                drawCentered(cons = root, y = 16 + index, text = classes[index - previousListLen], fg = colors.black, bg = colors.white)
+                description(classesDescription[index - previousListLen])
+        if leftIndexMin <= index <= leftIndexMax:
+            if index + 1 <= len(races) + len(classes) + len(attributes):
+                previousListLen = len(races) + len(classes)
+                drawCenteredOnX(cons = root, x = leftX, y = 27 + index, text = attributes[index - previousListLen], fg = colors.black, bg = colors.white)
+                description(attributesDescription[index - previousListLen])
+            else:
+                previousListLen = len(races) + len(classes) + len(attributes)
+                drawCenteredOnX(cons = root, x = leftX, y = 35 + index, text = traits[index - previousListLen], fg = colors.black, bg = colors.white)
+                description(traitsDescription[index - previousListLen])
+        if rightIndexMin <= index <= rightIndexMax:
+            previousListLen = len(races) + len(classes) + len(attributes) + len(traits)
+            drawCenteredOnX(cons = root, x = rightX, y = 22 + index, text = skills[index - previousListLen], fg = colors.black, bg = colors.white)
+            description(skillsDescription[index - previousListLen])
+        if index == maxIndex - 1:
+            drawCentered(cons = root, y = 90, text = 'Start Game', fg = colors.black, bg = colors.white)
+        if index == maxIndex:
+            drawCentered(cons = root, y = 91, text = 'Cancel', fg = colors.black, bg = colors.white)
+
+        tdl.flush()
+
+        key = tdl.event.key_wait()
+        if key.keychar.upper() == 'DOWN':
+            index += 1
+        if key.keychar.upper() == 'UP':
+            index -= 1
+        if key.keychar.upper() == 'RIGHT' and (leftIndexMin <= index <= leftIndexMax):
+            if rightIndexMin <= index + len(attributes) + len(traits) <= rightIndexMax:
+                index += len(attributes) + len(traits)
+            else:
+                index = rightIndexMax
+        if key.keychar.upper() == 'LEFT' and (rightIndexMin <= index <= rightIndexMax):
+            if leftIndexMin <= index - len(skills) <= leftIndexMax:
+                index -= len(skills)
+            else:
+                index = leftIndexMax
+        #adding choice bonus
+        if key.keychar.upper() == 'ENTER':
+            if midIndexMin <= index <= midIndexMax:
+                if index + 1 <= len(races):
+                    if actualRaces < MAX_RACES:
+                        previousListLen = 0
+                        selectedRaces[index] = True
+                        applyBonus(racesBonus, index)
+                        actualRaces += 1
+                else:
+                    if actualClasses < MAX_CLASSES:
+                        previousListLen = len(races)
+                        selectedClasses[index - previousListLen] = True
+                        applyBonus(classesBonus, index - previousListLen)
+                        levelUpStats = classesLevelUp[index - previousListLen]
+                        actualClasses += 1
+                        startingSpells = classesSpells[index - previousListLen]
+            if leftIndexMin <= index <= leftIndexMax:
+                if index + 1 <= len(races) + len(classes) + len(attributes):
+                    if actualAttributesPoints < MAX_ATTRIBUTES_POINTS:
+                        previousListLen = len(races) + len(classes)
+                        if actualPerAttributes[index - previousListLen] < MAX_PER_ATTRIBUTES:
+                            applyBonus(attributesBonus, index - previousListLen)
+                            selectedAttributes[index - previousListLen] = True
+                            actualAttributesPoints += 1
+                            actualPerAttributes[index - previousListLen] +=1
+                else:
+                    if actualTraits < MAX_TRAITS:
+                        previousListLen = len(races) + len(classes) + len(attributes)
+                        selectedTraits[index - previousListLen] = True
+                        applyBonus(traitsBonus, index - previousListLen)
+                        actualTraits += 1
+            if rightIndexMin <= index <= rightIndexMax:
+                if actualSkills < MAX_SKILLS:
+                    previousListLen = len(races) + len(classes) + len(attributes) + len(traits)
+                    if actualPerSkills[index - previousListLen] < MAX_PER_SKILLS:
+                        applyBonus(skillsBonus, index - previousListLen)
+                        selectedSkills[index - previousListLen] = True
+                        actualSkills += 1
+                        actualPerSkills[index - previousListLen] += 1
+            if index == maxIndex - 1:
+                if actualClasses > 0 and actualRaces > 0:
+                    createdCharacter = [power, accuracy, evasion, armor, maxHP, maxMP, critical]
+                    return createdCharacter, levelUpStats, actualPerSkills, skillsBonus, startingSpells
+            if index == maxIndex:
+                return 'cancelled', 'cancelled', 'cancelled', 'cancelled', 'cancelled'
+        #removing choice bonus
+        if key.keychar.upper() == 'BACKSPACE':
+            if midIndexMin <= index <= midIndexMax:
+                if index + 1 <= len(races):
+                    if actualRaces > 0:
+                        previousListLen = 0
+                        selectedRaces[index - previousListLen] = False
+                        removeBonus(racesBonus, index)
+                        actualRaces -= 1
+                else:
+                    if actualClasses > 0:
+                        previousListLen = len(races)
+                        selectedClasses[index - previousListLen] = False
+                        removeBonus(classesBonus, index - previousListLen)
+                        levelUpStats = [0, 0, 0, 0, 0, 0, 0]
+                        actualClasses -= 1
+                        startingSpells = []
+            if leftIndexMin <= index <= leftIndexMax:
+                if index + 1 <= len(races) + len(classes) + len(attributes):
+                    if actualAttributesPoints > 0:
+                        previousListLen = len(races) + len(classes)
+                        if actualPerAttributes[index - previousListLen] > 0:
+                            removeBonus(attributesBonus, index - previousListLen)
+                            actualAttributesPoints -= 1
+                            actualPerAttributes[index - previousListLen] -=1
+                            if actualPerAttributes[index - previousListLen] == 0:
+                                selectedAttributes[index - previousListLen] = False
+                else:
+                    if actualTraits > 0:
+                        previousListLen = len(races) + len(classes) + len(attributes)
+                        selectedTraits[index - previousListLen] = False
+                        removeBonus(traitsBonus, index - previousListLen)
+                        actualTraits -= 1
+            if rightIndexMin <= index <= rightIndexMax:
+                if actualSkills > 0:
+                    previousListLen = len(races) + len(classes) + len(attributes) + len(traits)
+                    if actualPerSkills[index - previousListLen] > 0:
+                        removeBonus(skillsBonus, index - previousListLen)
+                        selectedSkills[index - previousListLen] = False
+                        actualSkills -= 1
+                        actualPerSkills[index - previousListLen] -= 1
+        if index > maxIndex:
+            index = 0
+        if index < 0:
+            index = maxIndex
+#______________CHARACTER GENERATION____________
+
 def closestMonster(max_range):
     closestEnemy = None
     closestDistance = max_range + 1
@@ -191,6 +855,9 @@ class Fighter: #All NPCs, enemies and the player
         
         self.burning = False
         self.burnCooldown = 0
+        
+        self.enraged = False
+        self.enrageCooldown = 0
         
         self.healCountdown = 10
         self.MPRegenCountdown = 10
@@ -426,44 +1093,6 @@ class Item:
         message('You dropped a ' + self.owner.name + '.', colors.yellow)
         if self.owner.Equipment:
             self.owner.Equipment.unequip()
-            
-class Spell:
-    "Class used by all active abilites (not just spells)"
-    def __init__(self,  ressourceCost, cooldown, useFunction, name, ressource = 'MP', type = 'Magic', magicLevel = 0, arg1 = None, arg2 = None, arg3 = None):
-        self.ressource = ressource
-        self.ressourceCost = ressourceCost
-        self.maxCooldown = cooldown
-        self.curCooldown = 0
-        self.useFunction = useFunction
-        self.name = name
-        self.type = type
-        self.magicLevel = magicLevel
-        self.arg1 = arg1
-        self.arg2 = arg2
-        self.arg3 = arg3
-
-    def cast(self):
-        if self.arg1 is None:
-            if self.useFunction() != 'cancelled':
-                return 'used'
-            else:
-                return 'cancelled'
-        elif self.arg2 is None and self.arg1 is not None:
-            if self.useFunction(self.arg1) != 'cancelled':
-                return 'used'
-            else:
-                return 'cancelled'
-        elif self.arg3 is None and self.arg2 is not None:
-            if self.useFunction(self.arg1, self.arg2) != 'cancelled':
-                return 'used'
-            else:
-                return 'cancelled'
-        elif self.arg3 is not None:
-            if self.useFunction(self.arg1, self.arg2, self.arg3) != 'cancelled':
-                return 'used'
-            else:
-                return 'cancelled'
-                
 
 def quitGame(message):
     global objects
@@ -817,81 +1446,6 @@ def getMoveCost(destX, destY, sourceX, sourceY):
     else:
         cost = tileDistance(destX, destY, sourceX, sourceY)
         return int(cost)
-    
-def castRegenMana(regenAmount):
-    if player.Fighter.MP != player.Fighter.maxMP:
-        player.Fighter.MP += regenAmount
-        regened = regenAmount
-        if player.Fighter.MP > player.Fighter.maxMP:
-            overflow = player.Fighter.maxMP - player.Fighter.MP
-            regened = regenAmount - overflow
-            player.Fighter.MP = player.Fighter.maxMP
-        message("You recovered " + str(regened) + " MP.", colors.green)
-    else:
-        message("Your MP are already maxed out")
-        return "cancelled"
-
-def castDarkRitual(regen, damage):
-    message('You take ' + str(damage) + ' damage from the ritual !', colors.red)
-    castRegenMana(regen)
-
-def castHeal(healAmount = 5):
-    if player.Fighter.hp == player.Fighter.maxHP:
-        message('You are already at full health')
-        return 'cancelled'
-    else:
-        message('You are healed for {} HP !'.format(healAmount), colors.light_green)
-        player.Fighter.heal(healAmount)
-
-def castLightning():
-    target = closestMonster(LIGHTNING_RANGE)
-    if target is None:
-        message('Your magic fizzles: there is no enemy near enough to strike', colors.red)
-        return 'cancelled'
-    message('A lightning bolt strikes the ' + target.name + ' with a heavy thunder ! It is shocked and suffers ' + str(LIGHTNING_DAMAGE) + ' shock damage.', colors.light_blue)
-    target.Fighter.takeDamage(LIGHTNING_DAMAGE)
-
-def castConfuse():
-    message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
-    target = targetMonster(maxRange = CONFUSE_RANGE)
-    if target is None:
-        message('Invalid target.', colors.red)
-        return 'cancelled'
-    old_AI = target.AI
-    target.AI = ConfusedMonster(old_AI)
-    target.AI.owner = target
-    message('The ' + target.name + ' starts wandering around as he seems to lose all bound with reality.', colors.light_violet)
-
-def castFreeze():
-    message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
-    target = targetMonster(maxRange = None)
-    if target is None:
-        message('Invalid target.', colors.red)
-        return 'cancelled'
-    if not target.Fighter.frozen:
-        target.Fighter.frozen = True
-        target.Fighter.freezeCooldown = 4 #Actually 3 turns since this begins ticking down the turn the spell is cast
-        message("The " + target.name + " is frozen !", colors.light_violet)
-    else:
-        message("The " + target.name + " is already frozen.")
-        return 'cancelled'
-    
-def castFireball(radius = 3, damage = 12):
-    message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
-    target = targetTile(maxRange = 4)
-    if target == 'cancelled':
-        message('Spell casting cancelled')
-        return target
-    else:
-        (x,y) = target
-        for obj in objects:
-            if obj.distanceToCoords(x, y) <= radius and obj.Fighter:
-                if obj != player:
-                    message('The {} gets burned for {} damage !'.format(obj.name, damage), colors.light_blue)
-                else:
-                    message('You get burned for {} damage !'.format(damage), colors.orange)
-                obj.Fighter.takeDamage(damage)
-                applyBurn(obj)
 
 def castCreateWall():
     target = targetTile()
@@ -914,57 +1468,6 @@ def applyBurn(target, chance = 50):
             target.Fighter.frozen = False
             target.Fighter.freezeCooldown = 0
             message('The ' + target.name + "'s ice melts away.")
-
-fireball = Spell(ressourceCost = 10, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 3, arg2 = 12, arg3 = None)
-heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 10, arg2 = None, arg3 = None)
-darkPact = Spell(ressourceCost = DARK_PACT_DAMAGE, cooldown = 8, useFunction = castDarkRitual, name = "Dark ritual", ressource = 'HP', type = "Occult", magicLevel = 2, arg1 = 5, arg2 = DARK_PACT_DAMAGE , arg3=None)
-                
-def castArmageddon(radius = 4, damage = 40):
-    global FOV_recompute
-    message('As you begin to read the scroll, the runes inscribed on it start emitting a very bright crimson light. Continue (Y/N)', colors.dark_red)
-    FOV_recompute = True
-    Update()
-    tdl.flush()
-    invalid = True
-    while invalid:
-        key = tdl.event.key_wait()
-        if key.keychar.upper() == 'N':
-            message('Good idea.', colors.dark_red)
-            FOV_recompute = True
-            Update()
-            return 'cancelled'
-        elif key.keychar.upper() == 'Y':
-            invalid = False
-        else:
-            message('Please press a valid key (Y or N)')#Displays regardless of if a valid hcoice has been made, to be fixed
-            FOV_recompute = True
-            Update()
-            
-    radmax = radius + 2
-    global explodingTiles
-    global gameState
-    for x in range (player.x - radmax, player.x + radmax):
-        for y in range (player.y - radmax, player.y + radmax):
-            try: #Execute code below try if no error is encountered
-                if tileDistance(player.x, player.y, x, y) <= radius and not myMap[x][y].unbreakable:
-                    myMap[x][y].blocked = False
-                    myMap[x][y].block_sight = False
-                    if x in range (1, MAP_WIDTH-1) and y in range (1,MAP_HEIGHT - 1):
-                        explodingTiles.append((x,y))
-                    for obj in objects:
-                        if obj.Fighter and obj.x == x and obj.y == y: 
-                            try:
-                                if obj != player:
-                                    message('The {} gets smited for {} damage !'.format(obj.name, damage), colors.light_blue)
-                                else:
-                                    message('You get smited for {} damage !'.format(damage), colors.orange)        
-                                obj.Fighter.takeDamage(damage)
-                            except AttributeError: #If it tries to access a non-existing object (aka outside of the map)
-                                continue
-            except IndexError: #If an IndexError is encountered (aka if the function tries to access a tile outside of the map), execute code below except
-                continue   #Go to next loop iteration and ignore the problematic value     
-    #Display explosion eye-candy, this could get it's own function
-    explode()
     
 def monsterArmageddon(monsterName ,monsterX, monsterY, radius = 4, damage = 40):
     radmax = radius + 2
@@ -995,8 +1498,7 @@ def monsterArmageddon(monsterName ,monsterX, monsterY, radius = 4, damage = 40):
                 continue   #Go to next loop iteration and ignore the problematic value     
     #Display explosion eye-candy, this could get it's own function
     explode()
-    
-    
+
 # Add push monster spell (create an invisble projectile that pass through a monster, when the said projectile hits a wall, teleport monster to the projectile position and deal X damage to the said monster.)
     
 def createOrc(x, y):
@@ -1045,15 +1547,6 @@ def castCreateSword():
         sword = createSword(x, y)
         objects.append(sword)
 
-
-def learnSpell(spell):
-    if spell not in player.Fighter.knownSpells:
-        player.Fighter.knownSpells.append(spell)
-        message("You learn " + spell.name + " !", colors.green)
-    else:
-        message("You already know this spell")
-        return "cancelled"
-
 def explode():
     global gameState
     global explodingTiles
@@ -1072,6 +1565,7 @@ def explode():
         gameState = 'playing'
     else:
         gameState = 'dead'
+
 #_____________ MAP CREATION __________________
 ROOM_MAX_SIZE = 10
 ROOM_MIN_SIZE = 6
@@ -1260,7 +1754,7 @@ def makeMap():
 #_____________ ROOM POPULATION + ITEMS GENERATION_______________
 monsterChances = {'orc': 80, 'troll': 20}
 itemChances = {'potion': 35, 'scroll': 45, 'sword': 7, 'shield': 7, 'spellbook': 6}
-potionChances = {'heal': 100}
+potionChances = {'heal': 70, 'mana': 30}
 spellbookChances = {'darkPact' : 100}
 
 def createSword(x, y):
@@ -1376,6 +1870,8 @@ def placeObjects(room):
                 potionChoice = randomChoice(potionChances)
                 if potionChoice == 'heal':
                     item = GameObject(x, y, '!', 'healing potion', colors.violet, Item = Item(useFunction = castHeal), blocks = False)
+                if potionChoice == 'mana':
+                    item = GameObject(x, y, '!', 'mana regeneration potion', colors.blue, Item = Item(useFunction = castRegenMana, arg1 = 10), blocks = False)
             elif itemChoice == 'scroll':
                 createScroll(x, y)
                 item = scroll
@@ -1605,10 +2101,8 @@ def equipmentMenu(header):
     else:
         return equipmentList[index].Item
 
-
-
 def mainMenu():
-    global playerComponent, levelUpStats, actualPerSkills, skillsBonus
+    global playerComponent, levelUpStats, actualPerSkills, skillsBonus, startingSpells
     choices = ['New Game', 'Continue', 'Quit']
     index = 0
     while not tdl.event.isWindowClosed():
@@ -1630,7 +2124,7 @@ def mainMenu():
             index = 0
         if key.keychar.upper() == "ENTER":
             if index == 0:
-                [playerComponent, levelUpStats, actualPerSkills, skillsBonus] = characterCreation()
+                [playerComponent, levelUpStats, actualPerSkills, skillsBonus, startingSpells] = characterCreation()
                 if playerComponent != 'cancelled':
                     newGame()
                     playGame()
@@ -1646,9 +2140,8 @@ def mainMenu():
             elif index == 2:
                 raise SystemExit("Chose Quit on the main menu")
         tdl.flush()
-
-
 #_____________ GUI _______________
+
 def initializeFOV():
     global FOV_recompute, visibleTiles, pathfinder
     FOV_recompute = True
@@ -1837,7 +2330,6 @@ def saveGame():
 
 def newGame():
     global objects, inventory, gameMsgs, gameState, player, dungeonLevel
-    startingSpells = [fireball, heal]
     playFight = Fighter(hp = playerComponent[4], power= playerComponent[0], armor= playerComponent[3], deathFunction=playerDeath, xp=0, evasion = playerComponent[2], accuracy = playerComponent[1], maxMP= playerComponent[5], knownSpells=startingSpells, critical = playerComponent[6])
     playComp = Player(actualPerSkills, levelUpStats, skillsBonus)
     player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = 'Hero', color = (0, 210, 0))
@@ -1925,7 +2417,6 @@ def loadLevel(level):
     xfile.close()
     dungeonLevel = level
     initializeFOV()
-    
 
 def nextLevel():
     global dungeonLevel
@@ -1978,7 +2469,18 @@ def playGame():
                     if object.Fighter.freezeCooldown == 0:
                         object.Fighter.frozen = False
                         message(object.name.capitalize() + "'s ice shatters !", colors.light_violet)
-                        
+                
+                if object.Fighter and object.Fighter.enraged:
+                    object.Fighter.enrageCooldown -= 1
+                    if object.Fighter.enrageCooldown < 0:
+                        object.Fighter.enrageCooldown = 0
+                    if object.Fighter.enrageCooldown == 0:
+                        object.Fighter.enraged = False
+                        if object != player:
+                            message(object.name.capitalize() + "is no longer enraged !", colors.amber)
+                        else:
+                            message('You are no longer enraged.', colors.amber)
+
                 if object.Fighter and object.Fighter.burning:
                     try:
                         object.Fighter.burnCooldown -= 1
