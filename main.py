@@ -75,7 +75,7 @@ FOV_ALGO = 'BASIC'
 FOV_LIGHT_WALLS = True
 SIGHT_RADIUS = 10
 MAX_ROOM_MONSTERS = 3
-MAX_ROOM_ITEMS = 5
+MAX_ROOM_ITEMS = 3
 GRAPHICS = 'modern'
 LEVEL_UP_BASE = 200 # Set to 200 once testing complete
 LEVEL_UP_FACTOR = 150
@@ -228,6 +228,7 @@ def learnSpell(spell):
     else:
         message("You already know this spell")
         return "cancelled"
+
 def castRegenMana(regenAmount):
     if player.Fighter.MP != player.Fighter.maxMP:
         player.Fighter.MP += regenAmount
@@ -357,10 +358,13 @@ def castEnrage(enrageTurns):
     message('You are now enraged !', colors.dark_amber)
 
 
-fireball = Spell(ressourceCost = 10, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 3, arg2 = 12, arg3 = None)
-heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 10, arg2 = None, arg3 = None)
-darkPact = Spell(ressourceCost = DARK_PACT_DAMAGE, cooldown = 8, useFunction = castDarkRitual, name = "Dark ritual", ressource = 'HP', type = "Occult", magicLevel = 2, arg1 = 5, arg2 = DARK_PACT_DAMAGE , arg3=None)
-enrage = Spell(ressourceCost = 5, cooldown = 30, useFunction = castEnrage, name = 'Enrage', ressource = 'MP', type = 'Strength', magicLevel = 0, arg1 = 5, arg2 = None, arg3 = None)
+fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 3, arg2 = 12)
+heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 10)
+darkPact = Spell(ressourceCost = DARK_PACT_DAMAGE, cooldown = 8, useFunction = castDarkRitual, name = "Dark ritual", ressource = 'HP', type = "Occult", magicLevel = 2, arg1 = 5, arg2 = DARK_PACT_DAMAGE)
+enrage = Spell(ressourceCost = 5, cooldown = 30, useFunction = castEnrage, name = 'Enrage', ressource = 'MP', type = 'Strength', magicLevel = 0, arg1 = 5)
+lightning = Spell(ressourceCost = 10, cooldown = 7, useFunction = castLightning, name = 'Lightning bolt', ressource = 'MP', type = 'Magic', magicLevel = 3)
+confuse = Spell(ressourceCost = 5, cooldown = 4, useFunction = castConfuse, name = 'Confusion', ressource = 'MP', type = 'Magic', magicLevel = 1)
+ice = Spell(ressourceCost = 9, cooldown = 5, useFunction = castFreeze, name = 'Ice bolt', ressource = 'MP', type = 'Magic', magicLevel = 2)
 #_____________SPELLS_____________
 
 #______________CHARACTER GENERATION____________
@@ -1752,20 +1756,20 @@ def makeMap():
 
 #_____________ ROOM POPULATION + ITEMS GENERATION_______________
 monsterChances = {'orc': 80, 'troll': 20}
-itemChances = {'potion': 35, 'scroll': 45, 'sword': 7, 'shield': 7, 'spellbook': 6}
+itemChances = {'potion': 35, 'scroll': 26, 'sword': 7, 'shield': 7, 'spellbook': 25}
 potionChances = {'heal': 70, 'mana': 30}
-spellbookChances = {'darkPact' : 100}
 
 def createSword(x, y):
-    global sword
     name = 'sword'
     sizeChance = {'short' : 40, 'long' : 60}
     sizeChoice = randomChoice(sizeChance)
     name = sizeChoice + name
     if sizeChoice == 'short':
         swordPow = 3
+        char = '-'
     else:
         swordPow = 5
+        char = '/'
     qualityChances = {'normal' : 70, 'rusty' : 20, 'sharp' : 10}
     qualityChoice = randomChoice(qualityChances)
     if qualityChoice == 'rusty':
@@ -1782,11 +1786,10 @@ def createSword(x, y):
     else:
         burningSword = False
     equipmentComponent = Equipment(slot='right hand', type = 'light weapon', powerBonus = swordPow, burning = burningSword)
-    sword = GameObject(x, y, '/', name, colors.sky, Equipment = equipmentComponent, Item = Item())
+    sword = GameObject(x, y, char, name, colors.sky, Equipment = equipmentComponent, Item = Item())
     return sword 
 
 def createScroll(x, y):
-    global scroll
     scrollChances = {'lightning': 12, 'confuse': 12, 'fireball': 25, 'armageddon': 10, 'ice': 25, 'none': 1}
     scrollChoice = randomChoice(scrollChances)
     if scrollChoice == 'lightning':
@@ -1809,6 +1812,25 @@ def createScroll(x, y):
     elif scrollChoice == 'none':
         scroll = None
     return scroll
+
+def createSpellbook(x, y):
+    spellbookChances = {'darkPact' : 7, 'healSelf': 8, 'fireball': 30, 'lightning': 15, 'confuse': 20, 'ice': 20}
+    spellbookChoice = randomChoice(spellbookChances)
+    if spellbookChoice == "darkPact":
+        spellbook = GameObject(x, y, '=', 'spellbook of arcane rituals', colors.violet, Item = Item(useFunction = learnSpell, arg1 = darkPact), blocks = False)
+    elif spellbookChoice == "healSelf":
+        spellbook = GameObject(x, y, '=', 'spellbook of healing', colors.violet, Item = Item(useFunction = learnSpell, arg1 = heal), blocks = False)
+    elif spellbookChoice == "fireball":
+        spellbook = GameObject(x, y, '=', 'spellbook of fireball', colors.violet, Item = Item(useFunction = learnSpell, arg1 = fireball), blocks = False)
+    elif spellbookChoice == "lightning":
+        spellbook = GameObject(x, y, '=', 'spellbook of lightning bolt', colors.violet, Item = Item(useFunction = learnSpell, arg1 = lightning), blocks = False)
+    elif spellbookChoice == "confuse":
+        spellbook = GameObject(x, y, '=', 'spellbook of confusion', colors.violet, Item = Item(useFunction = learnSpell, arg1 = confuse), blocks = False)
+    elif spellbookChoice == "ice":
+        spellbook = GameObject(x, y, '=', 'spellbook of ice bolt', colors.violet, Item = Item(useFunction = learnSpell, arg1 = ice), blocks = False)
+    elif spellbookChoice == 'none':
+        spellbook = None
+    return spellbook
 
 def randomChoiceIndex(chances):
     dice = randint(1, sum(chances))
@@ -1872,20 +1894,16 @@ def placeObjects(room):
                 if potionChoice == 'mana':
                     item = GameObject(x, y, '!', 'mana regeneration potion', colors.blue, Item = Item(useFunction = castRegenMana, arg1 = 10), blocks = False)
             elif itemChoice == 'scroll':
-                createScroll(x, y)
-                item = scroll
+                item = createScroll(x, y)
             elif itemChoice == 'none':
                 item = None
             elif itemChoice == 'sword':
-                createSword(x, y)
-                item = sword
+                item = createSword(x, y)
             elif itemChoice == 'shield':
                 equipmentComponent = Equipment(slot = 'left hand', type = 'shield', armorBonus=1)
                 item = GameObject(x, y, '[', 'shield', colors.darker_orange, Equipment=equipmentComponent, Item=Item())
             elif itemChoice == 'spellbook':
-                spellbookChoice = randomChoice(spellbookChances)
-                if spellbookChoice == "darkPact":
-                    item = GameObject(x, y, '=', 'spellbook of arcane rituals', colors.violet, Item = Item(useFunction = learnSpell, arg1 = darkPact), blocks = False)
+                item = createSpellbook(x, y)
             else:
                 item = None
             if item is not None:            
@@ -1970,6 +1988,7 @@ def getAllEquipped(object):  #returns a list of equipped items
     else:
         return []
 #_____________ EQUIPEMENT ________________
+
 def lootItem(object, x, y):
     objects.append(object)
     object.x = x
