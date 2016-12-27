@@ -351,13 +351,11 @@ def castArmageddon(radius = 4, damage = 40):
     explode()
 
 def castEnrage(enrageTurns):
-    formerStrength = player.Fighter.power
     player.Fighter.enraged = True
     player.Fighter.enrageCooldown = enrageTurns + 1
+    player.Fighter.basePower += 10
     message('You are now enraged !', colors.dark_amber)
-    while player.Fighter.enrageCooldown > 0:
-        player.Fighter.basePower += 10
-    player.Fighter.basePower = formerStrength
+
 
 fireball = Spell(ressourceCost = 10, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 3, arg2 = 12, arg3 = None)
 heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 10, arg2 = None, arg3 = None)
@@ -842,6 +840,7 @@ class Fighter: #All NPCs, enemies and the player
         self.hp = hp
         self.baseArmor = armor
         self.basePower = power
+        self.actualBasePower = power
         self.deathFunction = deathFunction
         self.xp = xp
         self.baseAccuracy = accuracy
@@ -2480,6 +2479,7 @@ def playGame():
                             message(object.name.capitalize() + "is no longer enraged !", colors.amber)
                         else:
                             message('You are no longer enraged.', colors.amber)
+                        object.Fighter.basePower = object.Fighter.actualBasePower
 
                 if object.Fighter and object.Fighter.burning:
                     try:
