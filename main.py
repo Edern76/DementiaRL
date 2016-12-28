@@ -4,6 +4,7 @@ from random import randint
 from math import *
 from os import makedirs
 from dill import objects
+from sympy.utilities.iterables import bracelets
 
 # Naming conventions :
 # MY_CONSTANT
@@ -357,7 +358,6 @@ def castEnrage(enrageTurns):
     player.Fighter.basePower += 10
     message('You are now enraged !', colors.dark_amber)
 
-
 fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 3, arg2 = 12)
 heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 10)
 darkPact = Spell(ressourceCost = DARK_PACT_DAMAGE, cooldown = 8, useFunction = castDarkRitual, name = "Dark ritual", ressource = 'HP', type = "Occult", magicLevel = 2, arg1 = 5, arg2 = DARK_PACT_DAMAGE)
@@ -429,6 +429,7 @@ def characterCreation():
     MAX_RACES = 1
     actualRaces = 0
     selectedRaces = [False, False, False, False, False]
+    chosenRace = None
     
     classes = ['Knight', 'Barbarian', 'Rogue', 'Mage ']
     classesDescription = ['A warrior who wears armor and yields shields',
@@ -448,6 +449,7 @@ def characterCreation():
     selectedClasses = [False, False, False, False]
     levelUpStats = [0, 0, 0, 0, 0, 0, 0]
     classesSpells = [[], [enrage], [], [fireball]]
+    chosenClass = None
 
     attributes = ['Strength', 'Dexterity', 'Constitution', 'Willpower']
     attributesDescription = ['Strength augments the power of your attacks',
@@ -654,6 +656,7 @@ def characterCreation():
                         selectedRaces[index] = True
                         applyBonus(racesBonus, index)
                         actualRaces += 1
+                        chosenRace = races[index]
                 else:
                     if actualClasses < MAX_CLASSES:
                         previousListLen = len(races)
@@ -662,6 +665,7 @@ def characterCreation():
                         levelUpStats = classesLevelUp[index - previousListLen]
                         actualClasses += 1
                         startingSpells = classesSpells[index - previousListLen]
+                        chosenClass = classes[index - previousListLen]
             if leftIndexMin <= index <= leftIndexMax:
                 if index + 1 <= len(races) + len(classes) + len(attributes):
                     if actualAttributesPoints < MAX_ATTRIBUTES_POINTS:
@@ -688,26 +692,28 @@ def characterCreation():
             if index == maxIndex - 1:
                 if actualClasses > 0 and actualRaces > 0:
                     createdCharacter = [power, accuracy, evasion, armor, maxHP, maxMP, critical]
-                    return createdCharacter, levelUpStats, actualPerSkills, skillsBonus, startingSpells
+                    return createdCharacter, levelUpStats, actualPerSkills, skillsBonus, startingSpells, chosenRace, chosenClass
             if index == maxIndex:
-                return 'cancelled', 'cancelled', 'cancelled', 'cancelled', 'cancelled'
+                return 'cancelled', 'cancelled', 'cancelled', 'cancelled', 'cancelled', 'cancelled', 'cancelled'
         #removing choice bonus
         if key.keychar.upper() == 'BACKSPACE':
             if midIndexMin <= index <= midIndexMax:
                 if index + 1 <= len(races):
                     if actualRaces > 0:
                         previousListLen = 0
-                        selectedRaces[index - previousListLen] = False
-                        removeBonus(racesBonus, index)
-                        actualRaces -= 1
+                        if selectedRaces[index - previousListLen]:
+                            selectedRaces[index - previousListLen] = False
+                            removeBonus(racesBonus, index)
+                            actualRaces -= 1
                 else:
                     if actualClasses > 0:
                         previousListLen = len(races)
-                        selectedClasses[index - previousListLen] = False
-                        removeBonus(classesBonus, index - previousListLen)
-                        levelUpStats = [0, 0, 0, 0, 0, 0, 0]
-                        actualClasses -= 1
-                        startingSpells = []
+                        if selectedClasses[index-previousListLen]:
+                            selectedClasses[index - previousListLen] = False
+                            removeBonus(classesBonus, index - previousListLen)
+                            levelUpStats = [0, 0, 0, 0, 0, 0, 0]
+                            actualClasses -= 1
+                            startingSpells = []
             if leftIndexMin <= index <= leftIndexMax:
                 if index + 1 <= len(races) + len(classes) + len(attributes):
                     if actualAttributesPoints > 0:
@@ -721,9 +727,10 @@ def characterCreation():
                 else:
                     if actualTraits > 0:
                         previousListLen = len(races) + len(classes) + len(attributes)
-                        selectedTraits[index - previousListLen] = False
-                        removeBonus(traitsBonus, index - previousListLen)
-                        actualTraits -= 1
+                        if selectedTraits[index - previousListLen]:
+                            selectedTraits[index - previousListLen] = False
+                            removeBonus(traitsBonus, index - previousListLen)
+                            actualTraits -= 1
             if rightIndexMin <= index <= rightIndexMax:
                 if actualSkills > 0:
                     previousListLen = len(races) + len(classes) + len(attributes) + len(traits)
@@ -1021,10 +1028,12 @@ class ConfusedMonster:
             message('The ' + self.owner.name + ' is no longer confused!', colors.red)
 
 class Player:
-    def __init__(self, actualPerSkills, levelUpStats, skillsBonus):
+    def __init__(self, actualPerSkills, levelUpStats, skillsBonus, race, classes):
         self.actualPerSkills = actualPerSkills
         self.levelUpStats = levelUpStats
         self.skillsBonus = skillsBonus
+        self.race = race
+        self.classes = classes
         if DEBUG:
             print('Player component initialized')
         
@@ -1056,8 +1065,17 @@ class Item:
             objects.remove(self.owner)
             message('You picked up a ' + self.owner.name + '!', colors.green)
             equipment = self.owner.Equipment
-            if equipment and getEquippedInSlot(equipment.slot) is None:
-                equipment.equip()
+            if equipment:
+                handed = equipment.slot == 'left hand' or equipment.slot == 'right hand' or equipment.slot == 'both hands'
+                if not handed and getEquippedInSlot(equipment.slot) is None:
+                    equipment.equip()
+                elif handed:
+                    if equipment.slot == 'both hands' and getEquippedInHands() is None:
+                        equipment.equip()
+                    elif equipment.slot == 'left hand' and getEquippedInSlot('left hand') is None and getEquippedInSlot('both hands') is None:
+                        equipment.equip()
+                    elif equipment.slot == 'right hand' and getEquippedInSlot('right hand') is None and getEquippedInSlot('both hands') is None:
+                        equipment.equip()
 
     def use(self):
         if self.owner.Equipment:
@@ -1268,6 +1286,10 @@ def getInput():
                             player.Fighter.MP -= chosenSpell.ressourceCost
                         elif chosenSpell.ressource == 'HP':
                             player.Fighter.takeDamage(chosenSpell.ressourceCost)
+    elif userInput.keychar.upper() == 'X':
+        shooting = shoot()
+        if shooting == 'didnt-take-turn':
+            return 'didnt-take-turn'
 
     if gameState ==  'looking':
         global lookCursor
@@ -1360,6 +1382,42 @@ def moveOrAttack(dx, dy):
         player.Fighter.attack(target)
     else:
         player.move(dx, dy)
+
+def shoot(): #to do: make shooting AND CASTING SPELLS cost a turn + implement throwing weapons + add missile and throwing skills
+    weapons = getEquippedInHands()
+    if weapons is not None:
+        for weapon in weapons:
+            if weapon.Equipment.ranged:
+                message('Choose a target for your ' + weapon.name + '.', colors.cyan)
+                target = targetMonster(weapon.Equipment.maxRange)
+                if target is None:
+                    FOV_recompute = True
+                    message('Invalid target.')
+                    return 'didnt-take-turn'
+                else:
+                    FOV_recompute = True
+                    [hit, criticalHit] = player.Fighter.toHit(target)
+                    if hit:
+                        damage = weapon.Equipment.rangedPower - target.Fighter.armor
+                        if damage <= 0:
+                            message('You hit ' + target.name + ' but it has no effect !')
+                        else:
+                            if criticalHit:
+                                damage = damage * 3
+                                message('You critically hit ' + target.name + ' for ' + str(damage) + ' damage !', colors.darker_green)
+                            else:
+                                message('You hit ' + target.name + ' for ' + str(damage) + ' damage !', colors.dark_green)
+                            target.Fighter.takeDamage(damage)
+                    else:
+                        message('You missed ' + target.name + '!', colors.grey)
+            else:
+                FOV_recompute = True
+                message('You have no ranged weapon equipped.')
+                return 'didnt-take-turn'
+    else:
+        FOV_recompute = True
+        message('You have no ranged weapon equipped.')
+        return 'didnt-take-turn'
 
 def checkLevelUp():
     global FOV_recompute
@@ -1871,7 +1929,7 @@ def placeObjects(room):
                 monsterChances['troll'] = 20
                 
             elif monsterChoice == 'troll':
-                equipmentComponent = Equipment(slot = 'right hand', type = 'heavy weapon', powerBonus = 5, accuracyBonus = -20)
+                equipmentComponent = Equipment(slot = 'both hands', type = 'heavy weapon', powerBonus = 5, accuracyBonus = -20)
                 trollMace = GameObject(x, y, '/', 'troll mace', colors.darker_orange, Equipment=equipmentComponent, Item=Item())
                 fighterComponent = Fighter(hp=20, armor=2, power=4, xp = 100, deathFunction = monsterDeath, accuracy = 7, evasion = 1, lootFunction=trollMace, lootRate=15)
                 AI_component = BasicMonster()
@@ -1913,7 +1971,7 @@ def placeObjects(room):
 
 #_____________ EQUIPEMENT ________________
 class Equipment:
-    def __init__(self, slot, type, powerBonus=0, armorBonus=0, maxHP_Bonus=0, accuracyBonus=0, evasionBonus=0, criticalBonus = 0, maxMP_Bonus = 0, burning = False):
+    def __init__(self, slot, type, powerBonus=0, armorBonus=0, maxHP_Bonus=0, accuracyBonus=0, evasionBonus=0, criticalBonus = 0, maxMP_Bonus = 0, burning = False, ranged = False, rangedPower = 0, maxRange = 0):
         self.slot = slot
         self.type = type
         self.basePowerBonus = powerBonus
@@ -1926,17 +1984,31 @@ class Equipment:
         self.isEquipped = False
         
         self.burning = burning
+        self.ranged = ranged
+        self.rangedPower = rangedPower
+        self.maxRange = maxRange
  
     def toggleEquip(self):
         if self.isEquipped:
             self.unequip()
         else:
             self.equip()
- 
+
     def equip(self):
+        rightEquipment = None
+        leftEquipment = None
         oldEquipment = getEquippedInSlot(self.slot)
+        if oldEquipment is None and (self.slot == 'right hand' or self.slot == 'left hand'):
+            oldEquipment = getEquippedInSlot('both hands')
+        if self.slot == 'both hands':
+            rightEquipment = getEquippedInSlot('right hand')
+            leftEquipment = getEquippedInSlot('left hand')
         if oldEquipment is not None:
             oldEquipment.unequip()
+        if rightEquipment is not None:
+            rightEquipment.unequip()
+        if leftEquipment is not None:
+            leftEquipment.unequip()
         inventory.remove(self.owner)
         equipmentList.append(self.owner)
         self.isEquipped = True
@@ -1963,9 +2035,6 @@ class Equipment:
         elif self.type == 'heavy weapon':
             bonus = (20 * player.Player.actualPerSkills[1]) / 100
             return int(self.basePowerBonus * bonus + self.basePowerBonus)
-        elif self.type == 'missile weapon':
-            bonus = (20 * player.Player.actualPerSkills[2]) / 100
-            return int(self.basePowerBonus * bonus + self.basePowerBonus)
         elif self.type == 'throwing weapon':
             bonus = (20 * player.Player.actualPerSkills[3]) / 100
             return int(self.basePowerBonus * bonus + self.basePowerBonus)
@@ -1977,6 +2046,16 @@ def getEquippedInSlot(slot):
         if object.Equipment and object.Equipment.slot == slot and object.Equipment.isEquipped:
             return object.Equipment
     return None
+
+def getEquippedInHands():
+    inHands = []
+    for object in equipmentList:
+        if object.Equipment and (object.Equipment.slot == 'right hand' or object.Equipment.slot == 'left hand' or object.Equipment.slot == 'both hands') and object.Equipment.isEquipped:
+            inHands.append(object)
+    if inHands == []:
+        return None
+    else:
+        return inHands
 
 def getAllEquipped(object):  #returns a list of equipped items
     if object == player:
@@ -2120,7 +2199,7 @@ def equipmentMenu(header):
         return equipmentList[index].Item
 
 def mainMenu():
-    global playerComponent, levelUpStats, actualPerSkills, skillsBonus, startingSpells
+    global playerComponent, levelUpStats, actualPerSkills, skillsBonus, startingSpells, chosenRace, chosenClass
     choices = ['New Game', 'Continue', 'Quit']
     index = 0
     while not tdl.event.isWindowClosed():
@@ -2142,7 +2221,7 @@ def mainMenu():
             index = 0
         if key.keychar.upper() == "ENTER":
             if index == 0:
-                [playerComponent, levelUpStats, actualPerSkills, skillsBonus, startingSpells] = characterCreation()
+                [playerComponent, levelUpStats, actualPerSkills, skillsBonus, startingSpells, chosenRace, chosenClass] = characterCreation()
                 if playerComponent != 'cancelled':
                     newGame()
                     playGame()
@@ -2349,7 +2428,7 @@ def saveGame():
 def newGame():
     global objects, inventory, gameMsgs, gameState, player, dungeonLevel
     playFight = Fighter(hp = playerComponent[4], power= playerComponent[0], armor= playerComponent[3], deathFunction=playerDeath, xp=0, evasion = playerComponent[2], accuracy = playerComponent[1], maxMP= playerComponent[5], knownSpells=startingSpells, critical = playerComponent[6])
-    playComp = Player(actualPerSkills, levelUpStats, skillsBonus)
+    playComp = Player(actualPerSkills, levelUpStats, skillsBonus, chosenRace, chosenClass)
     player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = 'Hero', color = (0, 210, 0))
     player.level = 1
 
@@ -2363,11 +2442,17 @@ def newGame():
     FOV_recompute = True
     initializeFOV()
     message('Zargothrox says : Prepare to get lost in the Realm of Madness !', colors.dark_red)
+    
     equipmentComponent = Equipment(slot='right hand', type = 'light weapon', powerBonus=2)
     object = GameObject(0, 0, '-', 'dagger', colors.light_sky, Equipment=equipmentComponent, Item=Item(), darkColor = colors.darker_sky)
     inventory.append(object)
     equipmentComponent.equip()
     object.alwaysVisible = True
+    if player.Player.classes == 'Rogue':
+        equipmentComponent = Equipment(slot = 'both hands', type = 'missile weapon', powerBonus = 1, ranged = True, rangedPower = 7, maxRange = SIGHT_RADIUS)
+        object = GameObject(0, 0, ')', 'shortbow', colors.light_orange, Equipment = equipmentComponent, Item = Item(), darkColor = colors.dark_orange)
+        inventory.append(object)
+        object.alwaysVisible = True
 
 def loadGame():
     global objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipmentList, stairs, upStairs
