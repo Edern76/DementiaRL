@@ -972,10 +972,11 @@ class Fighter: #All NPCs, enemies and the player
                         else:
                             message('You attack ' + target.name + ' for ' + str(damage) + ' hit points.', colors.dark_green)
                         target.Fighter.takeDamage(damage)
-                        weapon = getEquippedInSlot('right hand')
-                        if weapon is not None:
-                            if weapon.burning:
-                                applyBurn(target, chance = 25)
+                        weapons = getEquippedInHands()
+                        for weapon in weapons:
+                            if weapon is not None:
+                                if weapon.Equipment.burning:
+                                    applyBurn(target, chance = 25)
                     
                     else:
                         message('You attack ' + target.name + ' but it has no effect!', colors.grey)
@@ -1001,6 +1002,23 @@ class BasicMonster: #Basic monsters' AI
         else:
             if not monster.Fighter.frozen:
                 monster.move(randint(-1, 1), randint(-1, 1)) #wandering
+
+class FastMonster:
+    def __init__(self, speed):
+        self.speed = speed
+    
+    def takeTurn(self):
+        monster = self.owner
+        for loop in range(self.speed):
+            if (monster.x, monster.y) in visibleTiles and not monster.Fighter.frozen:
+                if monster.distanceTo(player) >= 2:
+                    monster.moveAstar(player.x, player.y)
+                elif player.Fighter.hp > 0 and not monster.Fighter.frozen:
+                    monster.Fighter.attack(player)
+            else:
+                if not monster.Fighter.frozen:
+                    monster.move(randint(-1, 1), randint(-1, 1))
+            
 
 class SplosionAI:
     def takeTurn(self):
@@ -1051,38 +1069,57 @@ class Player:
             self.owner.color = (120, 0, 0)
 
 class Item:
-    def __init__(self, useFunction = None,  arg1 = None, arg2 = None, arg3 = None):
+    def __init__(self, useFunction = None,  arg1 = None, arg2 = None, arg3 = None, stackable = False, amount = 0):
         self.useFunction = useFunction
         self.arg1 = arg1
         self.arg2 = arg2
         self.arg3 = arg3
+        self.stackable = stackable
+        self.amount = amount
 
     def pickUp(self):
-        if len(inventory)>=26:
-            message('Your bag already feels really heavy, you cannot pick up ' + self.owner.name + '.', colors.red)
+        if not self.stackable:
+            if len(inventory)>=26:
+                message('Your bag already feels really heavy, you cannot pick up ' + self.owner.name + '.', colors.red)
+            else:
+                inventory.append(self.owner)
+                objects.remove(self.owner)
+                message('You picked up a ' + self.owner.name + '!', colors.green)
+                equipment = self.owner.Equipment
+                if equipment:
+                    handed = equipment.slot == 'left hand' or equipment.slot == 'right hand' or equipment.slot == 'both hands'
+                    if not handed and getEquippedInSlot(equipment.slot) is None:
+                        equipment.equip()
+                    elif handed:
+                        if equipment.slot == 'both hands' and getEquippedInHands() is None:
+                            equipment.equip()
+                        elif equipment.slot == 'left hand' and getEquippedInSlot('left hand') is None and getEquippedInSlot('both hands') is None:
+                            equipment.equip()
+                        elif equipment.slot == 'right hand' and getEquippedInSlot('right hand') is None and getEquippedInSlot('both hands') is None:
+                            equipment.equip()
         else:
-            inventory.append(self.owner)
-            objects.remove(self.owner)
-            message('You picked up a ' + self.owner.name + '!', colors.green)
-            equipment = self.owner.Equipment
-            if equipment:
-                handed = equipment.slot == 'left hand' or equipment.slot == 'right hand' or equipment.slot == 'both hands'
-                if not handed and getEquippedInSlot(equipment.slot) is None:
-                    equipment.equip()
-                elif handed:
-                    if equipment.slot == 'both hands' and getEquippedInHands() is None:
-                        equipment.equip()
-                    elif equipment.slot == 'left hand' and getEquippedInSlot('left hand') is None and getEquippedInSlot('both hands') is None:
-                        equipment.equip()
-                    elif equipment.slot == 'right hand' and getEquippedInSlot('right hand') is None and getEquippedInSlot('both hands') is None:
-                        equipment.equip()
+            itemFound = False
+            for item in inventory:
+                if item.name == self.owner.name:
+                    item.Item.amount += self.amount
+                    objects.remove(self.owner)
+                    message('You picked up ' + str(self.amount) + ' ' + self.owner.name + 's !', colors.green)
+                    itemFound = True
+                    break
+            if not itemFound:
+                if len(inventory) >= 26:
+                   message('Your bag already feels really heavy, you cannot pick up ' + str(self.amount) + self.owner.name + 's.', colors.red)
+                else:
+                    inventory.append(self.owner)
+                    objects.remove(self.owner)
+                    message('You picked up ' + str(self.amount) + ' ' + self.owner.name + 's !', colors.green)
 
     def use(self):
         if self.owner.Equipment:
             self.owner.Equipment.toggleEquip()
             return
         if self.useFunction is None:
-            message('The' + self.owner.name + 'cannot be used !')
+            message('The ' + self.owner.name + ' cannot be used !')
             return 'cancelled'
         else:
             if self.arg1 is None:
@@ -1111,7 +1148,10 @@ class Item:
         inventory.remove(self.owner)
         self.owner.x = player.x
         self.owner.y = player.y
-        message('You dropped a ' + self.owner.name + '.', colors.yellow)
+        if self.stackable:
+            message('You dropped ' + str(self.amount) + ' ' + self.owner.name + 's.', colors.yellow)
+        else:
+            message('You dropped a ' + self.owner.name + '.', colors.yellow)
         if self.owner.Equipment:
             self.owner.Equipment.unequip()
 
@@ -1286,10 +1326,13 @@ def getInput():
                             player.Fighter.MP -= chosenSpell.ressourceCost
                         elif chosenSpell.ressource == 'HP':
                             player.Fighter.takeDamage(chosenSpell.ressourceCost)
+                        return
     elif userInput.keychar.upper() == 'X':
         shooting = shoot()
         if shooting == 'didnt-take-turn':
             return 'didnt-take-turn'
+        else:
+            return
 
     if gameState ==  'looking':
         global lookCursor
@@ -1351,6 +1394,8 @@ def getInput():
                 if using == 'cancelled':
                     FOV_recompute = True
                     return 'didnt-take-turn'
+            else:
+                return 'didnt-take-turn'
         elif userInput.keychar.upper() == 'E':
             chosenItem = equipmentMenu('Press the key next to an equipment to unequip it')
             if chosenItem is not None:
@@ -1388,28 +1433,62 @@ def shoot(): #to do: make shooting AND CASTING SPELLS cost a turn + implement th
     if weapons is not None:
         for weapon in weapons:
             if weapon.Equipment.ranged:
-                message('Choose a target for your ' + weapon.name + '.', colors.cyan)
-                target = targetMonster(weapon.Equipment.maxRange)
-                if target is None:
-                    FOV_recompute = True
-                    message('Invalid target.')
-                    return 'didnt-take-turn'
-                else:
-                    FOV_recompute = True
-                    [hit, criticalHit] = player.Fighter.toHit(target)
-                    if hit:
-                        damage = weapon.Equipment.rangedPower - target.Fighter.armor
-                        if damage <= 0:
-                            message('You hit ' + target.name + ' but it has no effect !')
-                        else:
-                            if criticalHit:
-                                damage = damage * 3
-                                message('You critically hit ' + target.name + ' for ' + str(damage) + ' damage !', colors.darker_green)
+                if weapon.Equipment.ammo is not None:
+                    ammo = weapon.Equipment.ammo
+                    for object in inventory:
+                        foundAmmo = False
+                        if object.name == ammo:
+                            message('Choose a target for your ' + weapon.name + '.', colors.cyan)
+                            target = targetMonster(weapon.Equipment.maxRange)
+                            if target is None:
+                                FOV_recompute = True
+                                message('Invalid target.')
+                                return 'didnt-take-turn'
                             else:
-                                message('You hit ' + target.name + ' for ' + str(damage) + ' damage !', colors.dark_green)
-                            target.Fighter.takeDamage(damage)
+                                FOV_recompute = True
+                                [hit, criticalHit] = player.Fighter.toHit(target)
+                                if hit:
+                                    damage = weapon.Equipment.rangedPower - target.Fighter.armor
+                                    if damage <= 0:
+                                        message('You hit ' + target.name + ' but it has no effect !')
+                                    else:
+                                        if criticalHit:
+                                            damage = damage * 3
+                                            message('You critically hit ' + target.name + ' for ' + str(damage) + ' damage !', colors.darker_green)
+                                        else:
+                                            message('You hit ' + target.name + ' for ' + str(damage) + ' damage !', colors.dark_green)
+                                        target.Fighter.takeDamage(damage)
+                                else:
+                                    message('You missed ' + target.name + '!', colors.grey)
+                            object.Item.amount -= 1
+                            foundAmmo = True
+                            break
+                    if not foundAmmo:
+                        message('You have no ammuniion for your ' + weapon.name + ' !', colors.red)
+                        return 'didnt-take-turn'
+                else:
+                    message('Choose a target for your ' + weapon.name + '.', colors.cyan)
+                    target = targetMonster(weapon.Equipment.maxRange)
+                    if target is None:
+                        FOV_recompute = True
+                        message('Invalid target.')
+                        return 'didnt-take-turn'
                     else:
-                        message('You missed ' + target.name + '!', colors.grey)
+                        FOV_recompute = True
+                        [hit, criticalHit] = player.Fighter.toHit(target)
+                        if hit:
+                            damage = weapon.Equipment.rangedPower - target.Fighter.armor
+                            if damage <= 0:
+                                message('You hit ' + target.name + ' but it has no effect !')
+                            else:
+                                if criticalHit:
+                                    damage = damage * 3
+                                    message('You critically hit ' + target.name + ' for ' + str(damage) + ' damage !', colors.darker_green)
+                                else:
+                                    message('You hit ' + target.name + ' for ' + str(damage) + ' damage !', colors.dark_green)
+                                target.Fighter.takeDamage(damage)
+                        else:
+                            message('You missed ' + target.name + '!', colors.grey)
             else:
                 FOV_recompute = True
                 message('You have no ranged weapon equipped.')
@@ -1519,7 +1598,7 @@ def castCreateWall():
             myMap[x][y].blocked = True
             myMap[x][y].block_sight = True
 
-def applyBurn(target, chance = 50):
+def applyBurn(target, chance = 70):
     if target.Fighter and randint(0, 100) > chance and not target.Fighter.burning:
         if not target.Fighter.frozen:
             target.Fighter.burning = True
@@ -1813,7 +1892,7 @@ def makeMap():
 #_____________ MAP CREATION __________________
 
 #_____________ ROOM POPULATION + ITEMS GENERATION_______________
-monsterChances = {'orc': 80, 'troll': 20}
+monsterChances = {'orc': 70, 'troll': 20, 'snake': 10}
 itemChances = {'potion': 35, 'scroll': 26, 'sword': 7, 'shield': 7, 'spellbook': 25}
 potionChances = {'heal': 70, 'mana': 30}
 
@@ -1934,7 +2013,12 @@ def placeObjects(room):
                 fighterComponent = Fighter(hp=20, armor=2, power=4, xp = 100, deathFunction = monsterDeath, accuracy = 7, evasion = 1, lootFunction=trollMace, lootRate=15)
                 AI_component = BasicMonster()
                 monster = GameObject(x, y, char = 'T', color = colors.darker_green,name = 'troll', blocks = True, Fighter = fighterComponent, AI = AI_component)
-        
+            
+            elif monsterChoice == 'snake':
+                fighterComponent = Fighter(hp = 5, armor = 0, power = 1, xp = 10, deathFunction = monsterDeath, accuracy = 20, evasion = 70)
+                AI_component = FastMonster(2)
+                monster = GameObject(x, y, char = 's', color = colors.light_green, name = 'snake', blocks = True, Fighter = fighterComponent, AI = AI_component)
+
         if monster != 'cancelled' and monster != None:
             objects.append(monster)
     
@@ -1971,7 +2055,7 @@ def placeObjects(room):
 
 #_____________ EQUIPEMENT ________________
 class Equipment:
-    def __init__(self, slot, type, powerBonus=0, armorBonus=0, maxHP_Bonus=0, accuracyBonus=0, evasionBonus=0, criticalBonus = 0, maxMP_Bonus = 0, burning = False, ranged = False, rangedPower = 0, maxRange = 0):
+    def __init__(self, slot, type, powerBonus=0, armorBonus=0, maxHP_Bonus=0, accuracyBonus=0, evasionBonus=0, criticalBonus = 0, maxMP_Bonus = 0, burning = False, ranged = False, rangedPower = 0, maxRange = 0, ammo = None):
         self.slot = slot
         self.type = type
         self.basePowerBonus = powerBonus
@@ -1987,6 +2071,7 @@ class Equipment:
         self.ranged = ranged
         self.rangedPower = rangedPower
         self.maxRange = maxRange
+        self.ammo = ammo
  
     def toggleEquip(self):
         if self.isEquipped:
@@ -2126,8 +2211,8 @@ def inventoryMenu(header):
         options = []
         for item in inventory:
             text = item.name
-            if item.Equipment and item.Equipment.isEquipped:
-                text = text + ' (on ' + item.Equipment.slot + ')'
+            if item.Item.stackable:
+                text = text + ' (' + str(item.Item.amount) + ')'
             options.append(text)
     index = menu(header, options, INVENTORY_WIDTH)
     if index is None or len(inventory) == 0:
@@ -2443,16 +2528,20 @@ def newGame():
     initializeFOV()
     message('Zargothrox says : Prepare to get lost in the Realm of Madness !', colors.dark_red)
     
-    equipmentComponent = Equipment(slot='right hand', type = 'light weapon', powerBonus=2)
+    equipmentComponent = Equipment(slot='right hand', type = 'light weapon', powerBonus=2, burning = False)
     object = GameObject(0, 0, '-', 'dagger', colors.light_sky, Equipment=equipmentComponent, Item=Item(), darkColor = colors.darker_sky)
     inventory.append(object)
     equipmentComponent.equip()
     object.alwaysVisible = True
     if player.Player.classes == 'Rogue':
-        equipmentComponent = Equipment(slot = 'both hands', type = 'missile weapon', powerBonus = 1, ranged = True, rangedPower = 7, maxRange = SIGHT_RADIUS)
+        equipmentComponent = Equipment(slot = 'both hands', type = 'missile weapon', powerBonus = 1, ranged = True, rangedPower = 7, maxRange = SIGHT_RADIUS, ammo = 'arrow')
         object = GameObject(0, 0, ')', 'shortbow', colors.light_orange, Equipment = equipmentComponent, Item = Item(), darkColor = colors.dark_orange)
         inventory.append(object)
         object.alwaysVisible = True
+        
+        itemComponent = Item(stackable = True, amount = 30)
+        object = GameObject(0, 0, '^', 'arrow', colors.light_orange, Item = itemComponent)
+        inventory.append(object)
 
 def loadGame():
     global objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipmentList, stairs, upStairs
