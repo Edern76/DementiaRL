@@ -4,6 +4,7 @@ from random import randint
 from math import *
 from os import makedirs
 from dill import objects
+from sympy.utilities.iterables import bracelets
 
 # Naming conventions :
 # MY_CONSTANT
@@ -75,7 +76,7 @@ FOV_ALGO = 'BASIC'
 FOV_LIGHT_WALLS = True
 SIGHT_RADIUS = 10
 MAX_ROOM_MONSTERS = 3
-MAX_ROOM_ITEMS = 5
+MAX_ROOM_ITEMS = 3
 GRAPHICS = 'modern'
 LEVEL_UP_BASE = 200 # Set to 200 once testing complete
 LEVEL_UP_FACTOR = 150
@@ -228,6 +229,7 @@ def learnSpell(spell):
     else:
         message("You already know this spell")
         return "cancelled"
+
 def castRegenMana(regenAmount):
     if player.Fighter.MP != player.Fighter.maxMP:
         player.Fighter.MP += regenAmount
@@ -356,11 +358,13 @@ def castEnrage(enrageTurns):
     player.Fighter.basePower += 10
     message('You are now enraged !', colors.dark_amber)
 
-
-fireball = Spell(ressourceCost = 10, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 3, arg2 = 12, arg3 = None)
-heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 10, arg2 = None, arg3 = None)
-darkPact = Spell(ressourceCost = DARK_PACT_DAMAGE, cooldown = 8, useFunction = castDarkRitual, name = "Dark ritual", ressource = 'HP', type = "Occult", magicLevel = 2, arg1 = 5, arg2 = DARK_PACT_DAMAGE , arg3=None)
-enrage = Spell(ressourceCost = 5, cooldown = 30, useFunction = castEnrage, name = 'Enrage', ressource = 'MP', type = 'Strength', magicLevel = 0, arg1 = 5, arg2 = None, arg3 = None)
+fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 3, arg2 = 12)
+heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 10)
+darkPact = Spell(ressourceCost = DARK_PACT_DAMAGE, cooldown = 8, useFunction = castDarkRitual, name = "Dark ritual", ressource = 'HP', type = "Occult", magicLevel = 2, arg1 = 5, arg2 = DARK_PACT_DAMAGE)
+enrage = Spell(ressourceCost = 5, cooldown = 30, useFunction = castEnrage, name = 'Enrage', ressource = 'MP', type = 'Strength', magicLevel = 0, arg1 = 5)
+lightning = Spell(ressourceCost = 10, cooldown = 7, useFunction = castLightning, name = 'Lightning bolt', ressource = 'MP', type = 'Magic', magicLevel = 3)
+confuse = Spell(ressourceCost = 5, cooldown = 4, useFunction = castConfuse, name = 'Confusion', ressource = 'MP', type = 'Magic', magicLevel = 1)
+ice = Spell(ressourceCost = 9, cooldown = 5, useFunction = castFreeze, name = 'Ice bolt', ressource = 'MP', type = 'Magic', magicLevel = 2)
 #_____________SPELLS_____________
 
 #______________CHARACTER GENERATION____________
@@ -425,6 +429,7 @@ def characterCreation():
     MAX_RACES = 1
     actualRaces = 0
     selectedRaces = [False, False, False, False, False]
+    chosenRace = None
     
     classes = ['Knight', 'Barbarian', 'Rogue', 'Mage ']
     classesDescription = ['A warrior who wears armor and yields shields',
@@ -444,6 +449,7 @@ def characterCreation():
     selectedClasses = [False, False, False, False]
     levelUpStats = [0, 0, 0, 0, 0, 0, 0]
     classesSpells = [[], [enrage], [], [fireball]]
+    chosenClass = None
 
     attributes = ['Strength', 'Dexterity', 'Constitution', 'Willpower']
     attributesDescription = ['Strength augments the power of your attacks',
@@ -650,6 +656,7 @@ def characterCreation():
                         selectedRaces[index] = True
                         applyBonus(racesBonus, index)
                         actualRaces += 1
+                        chosenRace = races[index]
                 else:
                     if actualClasses < MAX_CLASSES:
                         previousListLen = len(races)
@@ -658,6 +665,7 @@ def characterCreation():
                         levelUpStats = classesLevelUp[index - previousListLen]
                         actualClasses += 1
                         startingSpells = classesSpells[index - previousListLen]
+                        chosenClass = classes[index - previousListLen]
             if leftIndexMin <= index <= leftIndexMax:
                 if index + 1 <= len(races) + len(classes) + len(attributes):
                     if actualAttributesPoints < MAX_ATTRIBUTES_POINTS:
@@ -684,26 +692,28 @@ def characterCreation():
             if index == maxIndex - 1:
                 if actualClasses > 0 and actualRaces > 0:
                     createdCharacter = [power, accuracy, evasion, armor, maxHP, maxMP, critical]
-                    return createdCharacter, levelUpStats, actualPerSkills, skillsBonus, startingSpells
+                    return createdCharacter, levelUpStats, actualPerSkills, skillsBonus, startingSpells, chosenRace, chosenClass
             if index == maxIndex:
-                return 'cancelled', 'cancelled', 'cancelled', 'cancelled', 'cancelled'
+                return 'cancelled', 'cancelled', 'cancelled', 'cancelled', 'cancelled', 'cancelled', 'cancelled'
         #removing choice bonus
         if key.keychar.upper() == 'BACKSPACE':
             if midIndexMin <= index <= midIndexMax:
                 if index + 1 <= len(races):
                     if actualRaces > 0:
                         previousListLen = 0
-                        selectedRaces[index - previousListLen] = False
-                        removeBonus(racesBonus, index)
-                        actualRaces -= 1
+                        if selectedRaces[index - previousListLen]:
+                            selectedRaces[index - previousListLen] = False
+                            removeBonus(racesBonus, index)
+                            actualRaces -= 1
                 else:
                     if actualClasses > 0:
                         previousListLen = len(races)
-                        selectedClasses[index - previousListLen] = False
-                        removeBonus(classesBonus, index - previousListLen)
-                        levelUpStats = [0, 0, 0, 0, 0, 0, 0]
-                        actualClasses -= 1
-                        startingSpells = []
+                        if selectedClasses[index-previousListLen]:
+                            selectedClasses[index - previousListLen] = False
+                            removeBonus(classesBonus, index - previousListLen)
+                            levelUpStats = [0, 0, 0, 0, 0, 0, 0]
+                            actualClasses -= 1
+                            startingSpells = []
             if leftIndexMin <= index <= leftIndexMax:
                 if index + 1 <= len(races) + len(classes) + len(attributes):
                     if actualAttributesPoints > 0:
@@ -717,9 +727,10 @@ def characterCreation():
                 else:
                     if actualTraits > 0:
                         previousListLen = len(races) + len(classes) + len(attributes)
-                        selectedTraits[index - previousListLen] = False
-                        removeBonus(traitsBonus, index - previousListLen)
-                        actualTraits -= 1
+                        if selectedTraits[index - previousListLen]:
+                            selectedTraits[index - previousListLen] = False
+                            removeBonus(traitsBonus, index - previousListLen)
+                            actualTraits -= 1
             if rightIndexMin <= index <= rightIndexMax:
                 if actualSkills > 0:
                     previousListLen = len(races) + len(classes) + len(attributes) + len(traits)
@@ -961,10 +972,11 @@ class Fighter: #All NPCs, enemies and the player
                         else:
                             message('You attack ' + target.name + ' for ' + str(damage) + ' hit points.', colors.dark_green)
                         target.Fighter.takeDamage(damage)
-                        weapon = getEquippedInSlot('right hand')
-                        if weapon is not None:
-                            if weapon.burning:
-                                applyBurn(target, chance = 25)
+                        weapons = getEquippedInHands()
+                        for weapon in weapons:
+                            if weapon is not None:
+                                if weapon.Equipment.burning:
+                                    applyBurn(target, chance = 25)
                     
                     else:
                         message('You attack ' + target.name + ' but it has no effect!', colors.grey)
@@ -990,6 +1002,23 @@ class BasicMonster: #Basic monsters' AI
         else:
             if not monster.Fighter.frozen:
                 monster.move(randint(-1, 1), randint(-1, 1)) #wandering
+
+class FastMonster:
+    def __init__(self, speed):
+        self.speed = speed
+    
+    def takeTurn(self):
+        monster = self.owner
+        for loop in range(self.speed):
+            if (monster.x, monster.y) in visibleTiles and not monster.Fighter.frozen:
+                if monster.distanceTo(player) >= 2:
+                    monster.moveAstar(player.x, player.y)
+                elif player.Fighter.hp > 0 and not monster.Fighter.frozen:
+                    monster.Fighter.attack(player)
+            else:
+                if not monster.Fighter.frozen:
+                    monster.move(randint(-1, 1), randint(-1, 1))
+            
 
 class SplosionAI:
     def takeTurn(self):
@@ -1017,10 +1046,12 @@ class ConfusedMonster:
             message('The ' + self.owner.name + ' is no longer confused!', colors.red)
 
 class Player:
-    def __init__(self, actualPerSkills, levelUpStats, skillsBonus):
+    def __init__(self, actualPerSkills, levelUpStats, skillsBonus, race, classes):
         self.actualPerSkills = actualPerSkills
         self.levelUpStats = levelUpStats
         self.skillsBonus = skillsBonus
+        self.race = race
+        self.classes = classes
         if DEBUG:
             print('Player component initialized')
         
@@ -1038,29 +1069,57 @@ class Player:
             self.owner.color = (120, 0, 0)
 
 class Item:
-    def __init__(self, useFunction = None,  arg1 = None, arg2 = None, arg3 = None):
+    def __init__(self, useFunction = None,  arg1 = None, arg2 = None, arg3 = None, stackable = False, amount = 0):
         self.useFunction = useFunction
         self.arg1 = arg1
         self.arg2 = arg2
         self.arg3 = arg3
+        self.stackable = stackable
+        self.amount = amount
 
     def pickUp(self):
-        if len(inventory)>=26:
-            message('Your bag already feels really heavy, you cannot pick up ' + self.owner.name + '.', colors.red)
+        if not self.stackable:
+            if len(inventory)>=26:
+                message('Your bag already feels really heavy, you cannot pick up ' + self.owner.name + '.', colors.red)
+            else:
+                inventory.append(self.owner)
+                objects.remove(self.owner)
+                message('You picked up a ' + self.owner.name + '!', colors.green)
+                equipment = self.owner.Equipment
+                if equipment:
+                    handed = equipment.slot == 'left hand' or equipment.slot == 'right hand' or equipment.slot == 'both hands'
+                    if not handed and getEquippedInSlot(equipment.slot) is None:
+                        equipment.equip()
+                    elif handed:
+                        if equipment.slot == 'both hands' and getEquippedInHands() is None:
+                            equipment.equip()
+                        elif equipment.slot == 'left hand' and getEquippedInSlot('left hand') is None and getEquippedInSlot('both hands') is None:
+                            equipment.equip()
+                        elif equipment.slot == 'right hand' and getEquippedInSlot('right hand') is None and getEquippedInSlot('both hands') is None:
+                            equipment.equip()
         else:
-            inventory.append(self.owner)
-            objects.remove(self.owner)
-            message('You picked up a ' + self.owner.name + '!', colors.green)
-            equipment = self.owner.Equipment
-            if equipment and getEquippedInSlot(equipment.slot) is None:
-                equipment.equip()
+            itemFound = False
+            for item in inventory:
+                if item.name == self.owner.name:
+                    item.Item.amount += self.amount
+                    objects.remove(self.owner)
+                    message('You picked up ' + str(self.amount) + ' ' + self.owner.name + 's !', colors.green)
+                    itemFound = True
+                    break
+            if not itemFound:
+                if len(inventory) >= 26:
+                   message('Your bag already feels really heavy, you cannot pick up ' + str(self.amount) + self.owner.name + 's.', colors.red)
+                else:
+                    inventory.append(self.owner)
+                    objects.remove(self.owner)
+                    message('You picked up ' + str(self.amount) + ' ' + self.owner.name + 's !', colors.green)
 
     def use(self):
         if self.owner.Equipment:
             self.owner.Equipment.toggleEquip()
             return
         if self.useFunction is None:
-            message('The' + self.owner.name + 'cannot be used !')
+            message('The ' + self.owner.name + ' cannot be used !')
             return 'cancelled'
         else:
             if self.arg1 is None:
@@ -1089,7 +1148,10 @@ class Item:
         inventory.remove(self.owner)
         self.owner.x = player.x
         self.owner.y = player.y
-        message('You dropped a ' + self.owner.name + '.', colors.yellow)
+        if self.stackable:
+            message('You dropped ' + str(self.amount) + ' ' + self.owner.name + 's.', colors.yellow)
+        else:
+            message('You dropped a ' + self.owner.name + '.', colors.yellow)
         if self.owner.Equipment:
             self.owner.Equipment.unequip()
 
@@ -1264,6 +1326,13 @@ def getInput():
                             player.Fighter.MP -= chosenSpell.ressourceCost
                         elif chosenSpell.ressource == 'HP':
                             player.Fighter.takeDamage(chosenSpell.ressourceCost)
+                        return
+    elif userInput.keychar.upper() == 'X':
+        shooting = shoot()
+        if shooting == 'didnt-take-turn':
+            return 'didnt-take-turn'
+        else:
+            return
 
     if gameState ==  'looking':
         global lookCursor
@@ -1325,6 +1394,8 @@ def getInput():
                 if using == 'cancelled':
                     FOV_recompute = True
                     return 'didnt-take-turn'
+            else:
+                return 'didnt-take-turn'
         elif userInput.keychar.upper() == 'E':
             chosenItem = equipmentMenu('Press the key next to an equipment to unequip it')
             if chosenItem is not None:
@@ -1356,6 +1427,76 @@ def moveOrAttack(dx, dy):
         player.Fighter.attack(target)
     else:
         player.move(dx, dy)
+
+def shoot(): #to do: make shooting AND CASTING SPELLS cost a turn + implement throwing weapons + add missile and throwing skills
+    weapons = getEquippedInHands()
+    if weapons is not None:
+        for weapon in weapons:
+            if weapon.Equipment.ranged:
+                if weapon.Equipment.ammo is not None:
+                    ammo = weapon.Equipment.ammo
+                    for object in inventory:
+                        foundAmmo = False
+                        if object.name == ammo:
+                            message('Choose a target for your ' + weapon.name + '.', colors.cyan)
+                            target = targetMonster(weapon.Equipment.maxRange)
+                            if target is None:
+                                FOV_recompute = True
+                                message('Invalid target.')
+                                return 'didnt-take-turn'
+                            else:
+                                FOV_recompute = True
+                                [hit, criticalHit] = player.Fighter.toHit(target)
+                                if hit:
+                                    damage = weapon.Equipment.rangedPower - target.Fighter.armor
+                                    if damage <= 0:
+                                        message('You hit ' + target.name + ' but it has no effect !')
+                                    else:
+                                        if criticalHit:
+                                            damage = damage * 3
+                                            message('You critically hit ' + target.name + ' for ' + str(damage) + ' damage !', colors.darker_green)
+                                        else:
+                                            message('You hit ' + target.name + ' for ' + str(damage) + ' damage !', colors.dark_green)
+                                        target.Fighter.takeDamage(damage)
+                                else:
+                                    message('You missed ' + target.name + '!', colors.grey)
+                            object.Item.amount -= 1
+                            foundAmmo = True
+                            break
+                    if not foundAmmo:
+                        message('You have no ammuniion for your ' + weapon.name + ' !', colors.red)
+                        return 'didnt-take-turn'
+                else:
+                    message('Choose a target for your ' + weapon.name + '.', colors.cyan)
+                    target = targetMonster(weapon.Equipment.maxRange)
+                    if target is None:
+                        FOV_recompute = True
+                        message('Invalid target.')
+                        return 'didnt-take-turn'
+                    else:
+                        FOV_recompute = True
+                        [hit, criticalHit] = player.Fighter.toHit(target)
+                        if hit:
+                            damage = weapon.Equipment.rangedPower - target.Fighter.armor
+                            if damage <= 0:
+                                message('You hit ' + target.name + ' but it has no effect !')
+                            else:
+                                if criticalHit:
+                                    damage = damage * 3
+                                    message('You critically hit ' + target.name + ' for ' + str(damage) + ' damage !', colors.darker_green)
+                                else:
+                                    message('You hit ' + target.name + ' for ' + str(damage) + ' damage !', colors.dark_green)
+                                target.Fighter.takeDamage(damage)
+                        else:
+                            message('You missed ' + target.name + '!', colors.grey)
+            else:
+                FOV_recompute = True
+                message('You have no ranged weapon equipped.')
+                return 'didnt-take-turn'
+    else:
+        FOV_recompute = True
+        message('You have no ranged weapon equipped.')
+        return 'didnt-take-turn'
 
 def checkLevelUp():
     global FOV_recompute
@@ -1457,7 +1598,7 @@ def castCreateWall():
             myMap[x][y].blocked = True
             myMap[x][y].block_sight = True
 
-def applyBurn(target, chance = 50):
+def applyBurn(target, chance = 70):
     if target.Fighter and randint(0, 100) > chance and not target.Fighter.burning:
         if not target.Fighter.frozen:
             target.Fighter.burning = True
@@ -1751,21 +1892,21 @@ def makeMap():
 #_____________ MAP CREATION __________________
 
 #_____________ ROOM POPULATION + ITEMS GENERATION_______________
-monsterChances = {'orc': 80, 'troll': 20}
-itemChances = {'potion': 35, 'scroll': 45, 'sword': 7, 'shield': 7, 'spellbook': 6}
+monsterChances = {'orc': 70, 'troll': 20, 'snake': 10}
+itemChances = {'potion': 35, 'scroll': 26, 'sword': 7, 'shield': 7, 'spellbook': 25}
 potionChances = {'heal': 70, 'mana': 30}
-spellbookChances = {'darkPact' : 100}
 
 def createSword(x, y):
-    global sword
     name = 'sword'
     sizeChance = {'short' : 40, 'long' : 60}
     sizeChoice = randomChoice(sizeChance)
     name = sizeChoice + name
     if sizeChoice == 'short':
         swordPow = 3
+        char = '-'
     else:
         swordPow = 5
+        char = '/'
     qualityChances = {'normal' : 70, 'rusty' : 20, 'sharp' : 10}
     qualityChoice = randomChoice(qualityChances)
     if qualityChoice == 'rusty':
@@ -1782,11 +1923,10 @@ def createSword(x, y):
     else:
         burningSword = False
     equipmentComponent = Equipment(slot='right hand', type = 'light weapon', powerBonus = swordPow, burning = burningSword)
-    sword = GameObject(x, y, '/', name, colors.sky, Equipment = equipmentComponent, Item = Item())
+    sword = GameObject(x, y, char, name, colors.sky, Equipment = equipmentComponent, Item = Item())
     return sword 
 
 def createScroll(x, y):
-    global scroll
     scrollChances = {'lightning': 12, 'confuse': 12, 'fireball': 25, 'armageddon': 10, 'ice': 25, 'none': 1}
     scrollChoice = randomChoice(scrollChances)
     if scrollChoice == 'lightning':
@@ -1809,6 +1949,25 @@ def createScroll(x, y):
     elif scrollChoice == 'none':
         scroll = None
     return scroll
+
+def createSpellbook(x, y):
+    spellbookChances = {'darkPact' : 7, 'healSelf': 8, 'fireball': 30, 'lightning': 15, 'confuse': 20, 'ice': 20}
+    spellbookChoice = randomChoice(spellbookChances)
+    if spellbookChoice == "darkPact":
+        spellbook = GameObject(x, y, '=', 'spellbook of arcane rituals', colors.violet, Item = Item(useFunction = learnSpell, arg1 = darkPact), blocks = False)
+    elif spellbookChoice == "healSelf":
+        spellbook = GameObject(x, y, '=', 'spellbook of healing', colors.violet, Item = Item(useFunction = learnSpell, arg1 = heal), blocks = False)
+    elif spellbookChoice == "fireball":
+        spellbook = GameObject(x, y, '=', 'spellbook of fireball', colors.violet, Item = Item(useFunction = learnSpell, arg1 = fireball), blocks = False)
+    elif spellbookChoice == "lightning":
+        spellbook = GameObject(x, y, '=', 'spellbook of lightning bolt', colors.violet, Item = Item(useFunction = learnSpell, arg1 = lightning), blocks = False)
+    elif spellbookChoice == "confuse":
+        spellbook = GameObject(x, y, '=', 'spellbook of confusion', colors.violet, Item = Item(useFunction = learnSpell, arg1 = confuse), blocks = False)
+    elif spellbookChoice == "ice":
+        spellbook = GameObject(x, y, '=', 'spellbook of ice bolt', colors.violet, Item = Item(useFunction = learnSpell, arg1 = ice), blocks = False)
+    elif spellbookChoice == 'none':
+        spellbook = None
+    return spellbook
 
 def randomChoiceIndex(chances):
     dice = randint(1, sum(chances))
@@ -1849,12 +2008,17 @@ def placeObjects(room):
                 monsterChances['troll'] = 20
                 
             elif monsterChoice == 'troll':
-                equipmentComponent = Equipment(slot = 'right hand', type = 'heavy weapon', powerBonus = 5, accuracyBonus = -20)
+                equipmentComponent = Equipment(slot = 'both hands', type = 'heavy weapon', powerBonus = 5, accuracyBonus = -20)
                 trollMace = GameObject(x, y, '/', 'troll mace', colors.darker_orange, Equipment=equipmentComponent, Item=Item())
                 fighterComponent = Fighter(hp=20, armor=2, power=4, xp = 100, deathFunction = monsterDeath, accuracy = 7, evasion = 1, lootFunction=trollMace, lootRate=15)
                 AI_component = BasicMonster()
                 monster = GameObject(x, y, char = 'T', color = colors.darker_green,name = 'troll', blocks = True, Fighter = fighterComponent, AI = AI_component)
-        
+            
+            elif monsterChoice == 'snake':
+                fighterComponent = Fighter(hp = 5, armor = 0, power = 1, xp = 10, deathFunction = monsterDeath, accuracy = 20, evasion = 70)
+                AI_component = FastMonster(2)
+                monster = GameObject(x, y, char = 's', color = colors.light_green, name = 'snake', blocks = True, Fighter = fighterComponent, AI = AI_component)
+
         if monster != 'cancelled' and monster != None:
             objects.append(monster)
     
@@ -1872,20 +2036,16 @@ def placeObjects(room):
                 if potionChoice == 'mana':
                     item = GameObject(x, y, '!', 'mana regeneration potion', colors.blue, Item = Item(useFunction = castRegenMana, arg1 = 10), blocks = False)
             elif itemChoice == 'scroll':
-                createScroll(x, y)
-                item = scroll
+                item = createScroll(x, y)
             elif itemChoice == 'none':
                 item = None
             elif itemChoice == 'sword':
-                createSword(x, y)
-                item = sword
+                item = createSword(x, y)
             elif itemChoice == 'shield':
                 equipmentComponent = Equipment(slot = 'left hand', type = 'shield', armorBonus=1)
                 item = GameObject(x, y, '[', 'shield', colors.darker_orange, Equipment=equipmentComponent, Item=Item())
             elif itemChoice == 'spellbook':
-                spellbookChoice = randomChoice(spellbookChances)
-                if spellbookChoice == "darkPact":
-                    item = GameObject(x, y, '=', 'spellbook of arcane rituals', colors.violet, Item = Item(useFunction = learnSpell, arg1 = darkPact), blocks = False)
+                item = createSpellbook(x, y)
             else:
                 item = None
             if item is not None:            
@@ -1895,7 +2055,7 @@ def placeObjects(room):
 
 #_____________ EQUIPEMENT ________________
 class Equipment:
-    def __init__(self, slot, type, powerBonus=0, armorBonus=0, maxHP_Bonus=0, accuracyBonus=0, evasionBonus=0, criticalBonus = 0, maxMP_Bonus = 0, burning = False):
+    def __init__(self, slot, type, powerBonus=0, armorBonus=0, maxHP_Bonus=0, accuracyBonus=0, evasionBonus=0, criticalBonus = 0, maxMP_Bonus = 0, burning = False, ranged = False, rangedPower = 0, maxRange = 0, ammo = None):
         self.slot = slot
         self.type = type
         self.basePowerBonus = powerBonus
@@ -1908,17 +2068,32 @@ class Equipment:
         self.isEquipped = False
         
         self.burning = burning
+        self.ranged = ranged
+        self.rangedPower = rangedPower
+        self.maxRange = maxRange
+        self.ammo = ammo
  
     def toggleEquip(self):
         if self.isEquipped:
             self.unequip()
         else:
             self.equip()
- 
+
     def equip(self):
+        rightEquipment = None
+        leftEquipment = None
         oldEquipment = getEquippedInSlot(self.slot)
+        if oldEquipment is None and (self.slot == 'right hand' or self.slot == 'left hand'):
+            oldEquipment = getEquippedInSlot('both hands')
+        if self.slot == 'both hands':
+            rightEquipment = getEquippedInSlot('right hand')
+            leftEquipment = getEquippedInSlot('left hand')
         if oldEquipment is not None:
             oldEquipment.unequip()
+        if rightEquipment is not None:
+            rightEquipment.unequip()
+        if leftEquipment is not None:
+            leftEquipment.unequip()
         inventory.remove(self.owner)
         equipmentList.append(self.owner)
         self.isEquipped = True
@@ -1945,9 +2120,6 @@ class Equipment:
         elif self.type == 'heavy weapon':
             bonus = (20 * player.Player.actualPerSkills[1]) / 100
             return int(self.basePowerBonus * bonus + self.basePowerBonus)
-        elif self.type == 'missile weapon':
-            bonus = (20 * player.Player.actualPerSkills[2]) / 100
-            return int(self.basePowerBonus * bonus + self.basePowerBonus)
         elif self.type == 'throwing weapon':
             bonus = (20 * player.Player.actualPerSkills[3]) / 100
             return int(self.basePowerBonus * bonus + self.basePowerBonus)
@@ -1960,6 +2132,16 @@ def getEquippedInSlot(slot):
             return object.Equipment
     return None
 
+def getEquippedInHands():
+    inHands = []
+    for object in equipmentList:
+        if object.Equipment and (object.Equipment.slot == 'right hand' or object.Equipment.slot == 'left hand' or object.Equipment.slot == 'both hands') and object.Equipment.isEquipped:
+            inHands.append(object)
+    if inHands == []:
+        return None
+    else:
+        return inHands
+
 def getAllEquipped(object):  #returns a list of equipped items
     if object == player:
         equippedList = []
@@ -1970,6 +2152,7 @@ def getAllEquipped(object):  #returns a list of equipped items
     else:
         return []
 #_____________ EQUIPEMENT ________________
+
 def lootItem(object, x, y):
     objects.append(object)
     object.x = x
@@ -2028,8 +2211,8 @@ def inventoryMenu(header):
         options = []
         for item in inventory:
             text = item.name
-            if item.Equipment and item.Equipment.isEquipped:
-                text = text + ' (on ' + item.Equipment.slot + ')'
+            if item.Item.stackable:
+                text = text + ' (' + str(item.Item.amount) + ')'
             options.append(text)
     index = menu(header, options, INVENTORY_WIDTH)
     if index is None or len(inventory) == 0:
@@ -2101,7 +2284,7 @@ def equipmentMenu(header):
         return equipmentList[index].Item
 
 def mainMenu():
-    global playerComponent, levelUpStats, actualPerSkills, skillsBonus, startingSpells
+    global playerComponent, levelUpStats, actualPerSkills, skillsBonus, startingSpells, chosenRace, chosenClass
     choices = ['New Game', 'Continue', 'Quit']
     index = 0
     while not tdl.event.isWindowClosed():
@@ -2123,7 +2306,7 @@ def mainMenu():
             index = 0
         if key.keychar.upper() == "ENTER":
             if index == 0:
-                [playerComponent, levelUpStats, actualPerSkills, skillsBonus, startingSpells] = characterCreation()
+                [playerComponent, levelUpStats, actualPerSkills, skillsBonus, startingSpells, chosenRace, chosenClass] = characterCreation()
                 if playerComponent != 'cancelled':
                     newGame()
                     playGame()
@@ -2330,7 +2513,7 @@ def saveGame():
 def newGame():
     global objects, inventory, gameMsgs, gameState, player, dungeonLevel
     playFight = Fighter(hp = playerComponent[4], power= playerComponent[0], armor= playerComponent[3], deathFunction=playerDeath, xp=0, evasion = playerComponent[2], accuracy = playerComponent[1], maxMP= playerComponent[5], knownSpells=startingSpells, critical = playerComponent[6])
-    playComp = Player(actualPerSkills, levelUpStats, skillsBonus)
+    playComp = Player(actualPerSkills, levelUpStats, skillsBonus, chosenRace, chosenClass)
     player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = 'Hero', color = (0, 210, 0))
     player.level = 1
 
@@ -2344,11 +2527,21 @@ def newGame():
     FOV_recompute = True
     initializeFOV()
     message('Zargothrox says : Prepare to get lost in the Realm of Madness !', colors.dark_red)
-    equipmentComponent = Equipment(slot='right hand', type = 'light weapon', powerBonus=2)
+    
+    equipmentComponent = Equipment(slot='right hand', type = 'light weapon', powerBonus=2, burning = False)
     object = GameObject(0, 0, '-', 'dagger', colors.light_sky, Equipment=equipmentComponent, Item=Item(), darkColor = colors.darker_sky)
     inventory.append(object)
     equipmentComponent.equip()
     object.alwaysVisible = True
+    if player.Player.classes == 'Rogue':
+        equipmentComponent = Equipment(slot = 'both hands', type = 'missile weapon', powerBonus = 1, ranged = True, rangedPower = 7, maxRange = SIGHT_RADIUS, ammo = 'arrow')
+        object = GameObject(0, 0, ')', 'shortbow', colors.light_orange, Equipment = equipmentComponent, Item = Item(), darkColor = colors.dark_orange)
+        inventory.append(object)
+        object.alwaysVisible = True
+        
+        itemComponent = Item(stackable = True, amount = 30)
+        object = GameObject(0, 0, '^', 'arrow', colors.light_orange, Item = itemComponent)
+        inventory.append(object)
 
 def loadGame():
     global objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipmentList, stairs, upStairs
