@@ -415,12 +415,12 @@ def removeBonus(list, chosenList):
 #Bonus template: [power, accuracy, evasion, armor, maxHP, maxMP, critical]
 
 def characterCreation():
-    races =['Human', 'Minotaur', 'Insectoid', 'Lizardman', 'Ratling']
-    racesDescription = ['A random human',
+    races = ['Human', 'Minotaur', 'Insectoid', 'Lizardman', 'Ratling']
+    racesDescription = ['Humans gain experience faster',
                         'Minotaurs are tougher and stronger than Humans, but less smart',
-                        'Insectoids are stronger than human but are more importantly very good at arcane arts',
+                        'Insectoids are stronger than human but, more importantly, are very good at arcane arts',
                         'Lizardmen are sneaky thieves and assassins',
-                        'Ratlings are very agile']
+                        'Ratlings are very agile but absurdly weak']
     racesBonus = [[0, 0, 0, 0, 0, 0, 0], #Human
                   [5, -8, -4, 0, 20, -15, 0], #Minotaur
                   [1, -4, -2, 0, -5, 10, 0], #Insectoid
@@ -466,12 +466,30 @@ def characterCreation():
     actualPerAttributes = [0, 0, 0, 0]
     selectedAttributes = [False, False, False, False]
     
-    traits = ['Placeholder']
-    traitsDescription = ['This is for placeholding']
-    traitsBonus= [[0, 0, 0, 0, 0, 0, 0]]
+    traits = ['Aggressive', 'Aura', 'Evasive', 'Healthy', 'Muscular', 'Natural armor', 'Strong mind', 'Agile', 'Martial training', 'Tough']
+    traitsDescription = ['Your anger is uncontrollable',
+                         'You are surrounded by a potent aura',
+                         'You are aware of how to stay out of trouble',
+                         'You are healthy',
+                         'You are very strong',
+                         'Your skin is rock-hard',
+                         'Your mind is fast and potent',
+                         'You have incredible reflexes',
+                         'You are trained to master all weapons',
+                         'You can endure harm better']
+    traitsBonus= [[0, 0, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0, 20, 0],
+                  [0, 0, 5, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 10, 0, 0],
+                  [2, 0, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 1, 0, 0, 0],
+                  [0, 0, 0, 0, 0, 10, 0],
+                  [0, 4, 2, 0, 0, 0, 0],
+                  [0, 7, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 20, 0, 0]]
     MAX_TRAITS = 2
     actualTraits = 0
-    selectedTraits = [False]
+    selectedTraits = [False, False, False, False, False, False, False, False, False, False]
     
     skills = ['Light weapons', 'Heavy weapons', 'Missile weapons', 'Throwing weapons', 'Magic ', 'Armor wielding', 'Athletics', 'Concentration', 'Dodge ', 'Critical ', 'Accuracy']
     skillsDescription = ['+20% damage per skillpoints with light weapons',
@@ -623,7 +641,7 @@ def characterCreation():
                 description(traitsDescription[index - previousListLen])
         if rightIndexMin <= index <= rightIndexMax:
             previousListLen = len(races) + len(classes) + len(attributes) + len(traits)
-            drawCenteredOnX(cons = root, x = rightX, y = 22 + index, text = skills[index - previousListLen], fg = colors.black, bg = colors.white)
+            drawCenteredOnX(cons = root, x = rightX, y = 13 + index, text = skills[index - previousListLen], fg = colors.black, bg = colors.white)
             description(skillsDescription[index - previousListLen])
         if index == maxIndex - 1:
             drawCentered(cons = root, y = 90, text = 'Start Game', fg = colors.black, bg = colors.white)
@@ -678,9 +696,10 @@ def characterCreation():
                 else:
                     if actualTraits < MAX_TRAITS:
                         previousListLen = len(races) + len(classes) + len(attributes)
-                        selectedTraits[index - previousListLen] = True
-                        applyBonus(traitsBonus, index - previousListLen)
-                        actualTraits += 1
+                        if not selectedTraits[index - previousListLen]:
+                            selectedTraits[index - previousListLen] = True
+                            applyBonus(traitsBonus, index - previousListLen)
+                            actualTraits += 1
             if rightIndexMin <= index <= rightIndexMax:
                 if actualSkills < MAX_SKILLS:
                     previousListLen = len(races) + len(classes) + len(attributes) + len(traits)
@@ -1286,7 +1305,10 @@ def getInput():
         FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'C':
-        levelUp_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
+        if not player.Player.race == 'Human':
+            levelUp_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
+        else:
+            levelUp_xp = LEVEL_UP_BASE + (player.level - 1) * LEVEL_UP_FACTOR
         menu('Character Information \n \n Level: ' + str(player.level) + '\n Experience: ' + str(player.Fighter.xp) +
                     '\n Experience to level up: ' + str(levelUp_xp) + '\n \n Maximum HP: ' + str(player.Fighter.maxHP) +
                     '\n Attack: ' + str(player.Fighter.power) + '\n Armor: ' + str(player.Fighter.armor), [], CHARACTER_SCREEN_WIDTH)
@@ -1500,7 +1522,10 @@ def shoot(): #to do: make shooting AND CASTING SPELLS cost a turn + implement th
 
 def checkLevelUp():
     global FOV_recompute
-    levelUp_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
+    if not player.Player.race == 'Human':
+        levelUp_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
+    else:
+        levelUp_xp = LEVEL_UP_BASE + (player.level - 1) * LEVEL_UP_FACTOR
     if player.Fighter.xp >= levelUp_xp:
         player.level += 1
         player.Fighter.xp -= levelUp_xp
