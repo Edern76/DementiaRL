@@ -415,12 +415,12 @@ def removeBonus(list, chosenList):
 #Bonus template: [power, accuracy, evasion, armor, maxHP, maxMP, critical]
 
 def characterCreation():
-    races =['Human', 'Minotaur', 'Insectoid', 'Lizardman', 'Ratling']
-    racesDescription = ['A random human',
+    races = ['Human', 'Minotaur', 'Insectoid', 'Lizardman', 'Ratling']
+    racesDescription = ['Humans gain experience faster',
                         'Minotaurs are tougher and stronger than Humans, but less smart',
-                        'Insectoids are stronger than human but are more importantly very good at arcane arts',
+                        'Insectoids are stronger than human but, more importantly, are very good at arcane arts',
                         'Lizardmen are sneaky thieves and assassins',
-                        'Ratlings are very agile']
+                        'Ratlings are very agile but absurdly weak']
     racesBonus = [[0, 0, 0, 0, 0, 0, 0], #Human
                   [5, -8, -4, 0, 20, -15, 0], #Minotaur
                   [1, -4, -2, 0, -5, 10, 0], #Insectoid
@@ -466,12 +466,30 @@ def characterCreation():
     actualPerAttributes = [0, 0, 0, 0]
     selectedAttributes = [False, False, False, False]
     
-    traits = ['Placeholder']
-    traitsDescription = ['This is for placeholding']
-    traitsBonus= [[0, 0, 0, 0, 0, 0, 0]]
+    traits = ['Aggressive', 'Aura', 'Evasive', 'Healthy', 'Muscular', 'Natural armor', 'Strong mind', 'Agile', 'Martial training', 'Tough']
+    traitsDescription = ['Your anger is uncontrollable',
+                         'You are surrounded by a potent aura',
+                         'You are aware of how to stay out of trouble',
+                         'You are healthy',
+                         'You are very strong',
+                         'Your skin is rock-hard',
+                         'Your mind is fast and potent',
+                         'You have incredible reflexes',
+                         'You are trained to master all weapons',
+                         'You can endure harm better']
+    traitsBonus= [[0, 0, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0, 20, 0],
+                  [0, 0, 5, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 10, 0, 0],
+                  [2, 0, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 1, 0, 0, 0],
+                  [0, 0, 0, 0, 0, 10, 0],
+                  [0, 4, 2, 0, 0, 0, 0],
+                  [0, 7, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 20, 0, 0]]
     MAX_TRAITS = 2
     actualTraits = 0
-    selectedTraits = [False]
+    selectedTraits = [False, False, False, False, False, False, False, False, False, False]
     
     skills = ['Light weapons', 'Heavy weapons', 'Missile weapons', 'Throwing weapons', 'Magic ', 'Armor wielding', 'Athletics', 'Concentration', 'Dodge ', 'Critical ', 'Accuracy']
     skillsDescription = ['+20% damage per skillpoints with light weapons',
@@ -623,7 +641,7 @@ def characterCreation():
                 description(traitsDescription[index - previousListLen])
         if rightIndexMin <= index <= rightIndexMax:
             previousListLen = len(races) + len(classes) + len(attributes) + len(traits)
-            drawCenteredOnX(cons = root, x = rightX, y = 22 + index, text = skills[index - previousListLen], fg = colors.black, bg = colors.white)
+            drawCenteredOnX(cons = root, x = rightX, y = 13 + index, text = skills[index - previousListLen], fg = colors.black, bg = colors.white)
             description(skillsDescription[index - previousListLen])
         if index == maxIndex - 1:
             drawCentered(cons = root, y = 90, text = 'Start Game', fg = colors.black, bg = colors.white)
@@ -678,9 +696,10 @@ def characterCreation():
                 else:
                     if actualTraits < MAX_TRAITS:
                         previousListLen = len(races) + len(classes) + len(attributes)
-                        selectedTraits[index - previousListLen] = True
-                        applyBonus(traitsBonus, index - previousListLen)
-                        actualTraits += 1
+                        if not selectedTraits[index - previousListLen]:
+                            selectedTraits[index - previousListLen] = True
+                            applyBonus(traitsBonus, index - previousListLen)
+                            actualTraits += 1
             if rightIndexMin <= index <= rightIndexMax:
                 if actualSkills < MAX_SKILLS:
                     previousListLen = len(races) + len(classes) + len(attributes) + len(traits)
@@ -958,13 +977,25 @@ class Fighter: #All NPCs, enemies and the player
             if not self.frozen:
                 if not self.owner.Player:
                     if damage > 0:
-                        if criticalHit:
-                            message(self.owner.name.capitalize() + ' critically hits you for ' + str(damage) + ' hit points!', colors.dark_orange)
+                        if target == player:
+                            if criticalHit:
+                                message(self.owner.name.capitalize() + ' critically hits you for ' + str(damage) + ' hit points!', colors.dark_orange)
+                            else:
+                                message(self.owner.name.capitalize() + ' attacks you for ' + str(damage) + ' hit points.', colors.orange)
+                        elif self.owner.AI and self.owner.AI.__class__.__name__ == "FriendlyMonster" and self.owner.AI.friendlyTowards == player:
+                            if criticalHit:
+                                message('Your fellow ' + self.owner.name + ' critically hits '+ target.name +' for ' + str(damage) + ' hit points!', colors.darker_green)
+                            else:
+                                message('Your fellow ' + self.owner.name + ' attacks '+ target.name + ' for ' + str(damage) + ' hit points.', colors.dark_green)
                         else:
-                            message(self.owner.name.capitalize() + ' attacks you for ' + str(damage) + ' hit points.', colors.orange)
+                            if criticalHit:
+                                message(self.owner.name.capitalize() + ' critically hits '+ target.name +' for ' + str(damage) + ' hit points!')
+                            else:
+                                message(self.owner.name.capitalize() + ' attacks '+ target.name + ' for ' + str(damage) + ' hit points.')
                         target.Fighter.takeDamage(damage)
                     else:
-                        message(self.owner.name.capitalize() + ' attacks you but it has no effect!')
+                        if target == player:
+                            message(self.owner.name.capitalize() + ' attacks you but it has no effect !')
                 else:
                     if damage > 0:
                         if criticalHit:
@@ -994,14 +1025,45 @@ class Fighter: #All NPCs, enemies and the player
 class BasicMonster: #Basic monsters' AI
     def takeTurn(self):
         monster = self.owner
-        if (monster.x, monster.y) in visibleTiles and not monster.Fighter.frozen: #chasing the player
-            if monster.distanceTo(player) >= 2:
+        targets = []
+        selectedTarget = None
+        priorityTargetFound = False
+        if not self.owner.Fighter.frozen:
+            for object in objects:
+                if (object.x, object.y) in visibleTiles and (object == player or (object.AI and object.AI.__class__.__name__ == "FriendlyMonster" and object.AI.friendlyTowards == player)):
+                    targets.append(object)
+            if DEBUG:
+                print(monster.name.capitalize() + " can target", end=" ")
+                if targets:
+                    for loop in range (len(targets)):
+                        print(targets[loop].name.capitalize() + ", ", sep ="", end ="")
+                else:
+                    print("absolutely nothing but nothingness.", end ="")
+                print()
+            if targets:
+                if player in targets: #Target player in priority
+                    selectedTarget = player
+                    del targets[targets.index(player)]
+                    if monster.distanceTo(player) < 2:
+                        priorityTargetFound = True
+                if not priorityTargetFound:
+                    for enemyIndex in range(len(targets)):
+                        enemy = targets[enemyIndex]
+                        if monster.distanceTo(enemy) < 2:
+                            selectedTarget = enemy
+                        else:
+                            if selectedTarget == None or monster.distanceTo(selectedTarget) > monster.distanceTo(enemy):
+                                selectedTarget = enemy
+            if selectedTarget is not None:
+                if monster.distanceTo(selectedTarget) < 2:
+                    monster.Fighter.attack(selectedTarget)
+                else:
+                    monster.moveAstar(selectedTarget.x, selectedTarget.y)
+            elif (monster.x, monster.y) in visibleTiles and monster.distanceTo(player) >= 2:
                 monster.moveAstar(player.x, player.y)
-            elif player.Fighter.hp > 0 and not monster.Fighter.frozen:
-                monster.Fighter.attack(player)
-        else:
-            if not monster.Fighter.frozen:
-                monster.move(randint(-1, 1), randint(-1, 1)) #wandering
+            else:
+                if not monster.Fighter.frozen and monster.distanceTo(player) >= 2:
+                    monster.move(randint(-1, 1), randint(-1, 1)) #wandering
 
 class FastMonster:
     def __init__(self, speed):
@@ -1010,14 +1072,45 @@ class FastMonster:
     def takeTurn(self):
         monster = self.owner
         for loop in range(self.speed):
-            if (monster.x, monster.y) in visibleTiles and not monster.Fighter.frozen:
-                if monster.distanceTo(player) >= 2:
+            targets = []
+            selectedTarget = None
+            priorityTargetFound = False
+            if not self.owner.Fighter.frozen:
+                for object in objects:
+                    if (object.x, object.y) in visibleTiles and (object == player or (object.AI and object.AI.__class__.__name__ == "FriendlyMonster" and object.AI.friendlyTowards == player)):
+                        targets.append(object)
+                if DEBUG:
+                    print(monster.name.capitalize() + " can target", end=" ")
+                    if targets:
+                        for loop in range (len(targets)):
+                            print(targets[loop].name.capitalize() + ", ", sep ="", end ="")
+                    else:
+                        print("absolutely nothing but nothingness.", end ="")
+                    print()
+                if targets:
+                    if player in targets: #Target player in priority
+                        selectedTarget = player
+                        del targets[targets.index(player)]
+                        if monster.distanceTo(player) < 2:
+                            priorityTargetFound = True
+                    if not priorityTargetFound:
+                        for enemyIndex in range(len(targets)):
+                            enemy = targets[enemyIndex]
+                            if monster.distanceTo(enemy) < 2:
+                                selectedTarget = enemy
+                            else:
+                                if selectedTarget == None or monster.distanceTo(selectedTarget) > monster.distanceTo(enemy):
+                                    selectedTarget = enemy
+                if selectedTarget is not None:
+                    if monster.distanceTo(selectedTarget) < 2:
+                        monster.Fighter.attack(selectedTarget)
+                    else:
+                        monster.moveAstar(selectedTarget.x, selectedTarget.y)
+                elif (monster.x, monster.y) in visibleTiles and monster.distanceTo(player) >= 2:
                     monster.moveAstar(player.x, player.y)
-                elif player.Fighter.hp > 0 and not monster.Fighter.frozen:
-                    monster.Fighter.attack(player)
-            else:
-                if not monster.Fighter.frozen:
-                    monster.move(randint(-1, 1), randint(-1, 1))
+                else:
+                    if not monster.Fighter.frozen and monster.distanceTo(player) >= 2:
+                        monster.move(randint(-1, 1), randint(-1, 1)) #wandering
             
 
 class SplosionAI:
@@ -1044,7 +1137,47 @@ class ConfusedMonster:
         else:
             self.owner.AI = self.old_AI
             message('The ' + self.owner.name + ' is no longer confused!', colors.red)
-
+            
+class FriendlyMonster:
+    def __init__(self, friendlyTowards = player):
+        self.friendlyTowards = friendlyTowards
+    
+    def takeTurn(self):
+        monster = self.owner
+        targets = []
+        selectedTarget = None
+        if self.friendlyTowards == player and not self.owner.Fighter.frozen: #If the monster is friendly towards the player
+            for object in objects:
+                if (object.x, object.y) in visibleTiles and object.AI and object.AI.__class__.__name__ != "FriendlyMonster" and object.Fighter and object.Fighter.hp > 0:
+                    targets.append(object)
+            if DEBUG:
+                print(monster.name.capitalize() + " can target", end=" ")
+                if targets:
+                    for loop in range (len(targets)):
+                        print(targets[loop].name.capitalize() + ", ", sep ="", end ="")
+                else:
+                    print("absolutely nothing but nothingness.", end ="")
+                print()
+            if targets:
+                for enemyIndex in range(len(targets)):
+                    enemy = targets[enemyIndex]
+                    if monster.distanceTo(enemy) < 2:
+                        selectedTarget = enemy
+                    else:
+                        if selectedTarget == None or monster.distanceTo(selectedTarget) > monster.distanceTo(enemy):
+                            selectedTarget = enemy
+            if selectedTarget is not None:
+                if monster.distanceTo(selectedTarget) < 2:
+                    monster.Fighter.attack(selectedTarget)
+                else:
+                    monster.moveAstar(selectedTarget.x, selectedTarget.y)
+            elif (monster.x, monster.y) in visibleTiles and monster.distanceTo(player) >= 2:
+                monster.moveAstar(player.x, player.y)
+            else:
+                if not monster.Fighter.frozen and monster.distanceTo(player) >= 2:
+                    monster.move(randint(-1, 1), randint(-1, 1))
+        else:
+            pass #Implement here code in case the monster is friendly towards another monster
 class Player:
     def __init__(self, actualPerSkills, levelUpStats, skillsBonus, race, classes):
         self.actualPerSkills = actualPerSkills
@@ -1235,6 +1368,10 @@ def getInput():
         castCreateWall()
         FOV_recompute = True
         return 'didnt-take-turn'
+    elif userInput.keychar.upper() == 'F10' and DEBUG and not tdl.event.isWindowClosed(): #For some reason, Bad Things (tm) happen if you don't perform a tdl.event.isWindowClosed() check here. Yeah, don't ask why.
+        castCreateOrc(friendly = True)
+        FOV_recompute = True
+        return 'didnt-take-turn'
     elif userInput.keychar == 'S' and DEBUG and not tdl.event.isWindowClosed():
         message("Force-saved level {}", colors.purple)
         saveLevel()
@@ -1286,7 +1423,10 @@ def getInput():
         FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'C':
-        levelUp_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
+        if not player.Player.race == 'Human':
+            levelUp_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
+        else:
+            levelUp_xp = LEVEL_UP_BASE + (player.level - 1) * LEVEL_UP_FACTOR
         menu('Character Information \n \n Level: ' + str(player.level) + '\n Experience: ' + str(player.Fighter.xp) +
                     '\n Experience to level up: ' + str(levelUp_xp) + '\n \n Maximum HP: ' + str(player.Fighter.maxHP) +
                     '\n Attack: ' + str(player.Fighter.power) + '\n Armor: ' + str(player.Fighter.armor), [], CHARACTER_SCREEN_WIDTH)
@@ -1500,7 +1640,10 @@ def shoot(): #to do: make shooting AND CASTING SPELLS cost a turn + implement th
 
 def checkLevelUp():
     global FOV_recompute
-    levelUp_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
+    if not player.Player.race == 'Human':
+        levelUp_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
+    else:
+        levelUp_xp = LEVEL_UP_BASE + (player.level - 1) * LEVEL_UP_FACTOR
     if player.Fighter.xp >= levelUp_xp:
         player.level += 1
         player.Fighter.xp -= levelUp_xp
@@ -1641,12 +1784,15 @@ def monsterArmageddon(monsterName ,monsterX, monsterY, radius = 4, damage = 40):
 
 # Add push monster spell (create an invisble projectile that pass through a monster, when the said projectile hits a wall, teleport monster to the projectile position and deal X damage to the said monster.)
     
-def createOrc(x, y):
+def createOrc(x, y, friendly = False):
     if x != player.x or y != player.y:
         equipmentComponent = Equipment(slot='head', type = 'armor', armorBonus = 1)
         orcHelmet = GameObject(x = None, y = None, char = '[', name = 'orc helmet', color = colors.brass, Equipment = equipmentComponent, Item = Item())
         fighterComponent = Fighter(hp=15, armor=0, power=3, xp = 35, deathFunction = monsterDeath, evasion = 25, accuracy = 10, lootFunction = orcHelmet, lootRate = 30)
-        AI_component = BasicMonster()
+        if not friendly:
+            AI_component = BasicMonster()
+        else:
+            AI_component = FriendlyMonster(friendlyTowards = player)
         monster = GameObject(x, y, char = 'o', color = colors.desaturated_green, name = 'orc', blocks = True, Fighter=fighterComponent, AI = AI_component)
         return monster
     else:
@@ -1661,13 +1807,13 @@ def createHiroshiman(x, y):
     else:
         return 'cancelled'
 
-def castCreateOrc():
+def castCreateOrc(friendly = False):
     target = targetTile()
     if target == 'cancelled':
         return 'cancelled'
     else:
         (x,y) = target
-        monster = createOrc(x, y)
+        monster = createOrc(x, y, friendly = friendly)
         objects.append(monster)
 
 def castCreateHiroshiman():
