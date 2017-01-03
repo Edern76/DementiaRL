@@ -1568,7 +1568,7 @@ def moveOrAttack(dx, dy):
     else:
         player.move(dx, dy)
 
-def shoot(): #to do: make shooting AND CASTING SPELLS cost a turn + implement throwing weapons + add missile and throwing skills
+def shoot(): 
     weapons = getEquippedInHands()
     if weapons is not None:
         for weapon in weapons:
@@ -1602,6 +1602,8 @@ def shoot(): #to do: make shooting AND CASTING SPELLS cost a turn + implement th
                                     message('You missed ' + target.name + '!', colors.grey)
                             object.Item.amount -= 1
                             foundAmmo = True
+                            if object.Item.amount <= 0:
+                                inventory.remove(object)
                             break
                     if not foundAmmo:
                         message('You have no ammuniion for your ' + weapon.name + ' !', colors.red)
@@ -2215,7 +2217,7 @@ class Equipment:
         
         self.burning = burning
         self.ranged = ranged
-        self.rangedPower = rangedPower
+        self.baseRangedPower = rangedPower
         self.maxRange = maxRange
         self.ammo = ammo
  
@@ -2271,6 +2273,17 @@ class Equipment:
             return int(self.basePowerBonus * bonus + self.basePowerBonus)
         else:
             return self.basePowerBonus
+    
+    @property
+    def rangedPower(self):
+        if self.type == 'missile weapon':
+            bonus = (20 * player.Player.actualPerSkills[2]) / 100
+            return int(self.baseRangedPower * bonus + self.baseRangedPower)
+        elif self.type == 'throwing weapon':
+            bonus = (20 * player.Player.actualPerSkills[3]) / 100
+            return int(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.power)
+        else:
+            return self.baseRangedPower
 
 def getEquippedInSlot(slot):
     for object in equipmentList:
