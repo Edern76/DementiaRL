@@ -1072,14 +1072,45 @@ class FastMonster:
     def takeTurn(self):
         monster = self.owner
         for loop in range(self.speed):
-            if (monster.x, monster.y) in visibleTiles and not monster.Fighter.frozen:
-                if monster.distanceTo(player) >= 2:
+            targets = []
+            selectedTarget = None
+            priorityTargetFound = False
+            if not self.owner.Fighter.frozen:
+                for object in objects:
+                    if (object.x, object.y) in visibleTiles and (object == player or (object.AI and object.AI.__class__.__name__ == "FriendlyMonster" and object.AI.friendlyTowards == player)):
+                        targets.append(object)
+                if DEBUG:
+                    print(monster.name.capitalize() + " can target", end=" ")
+                    if targets:
+                        for loop in range (len(targets)):
+                            print(targets[loop].name.capitalize() + ", ", sep ="", end ="")
+                    else:
+                        print("absolutely nothing but nothingness.", end ="")
+                    print()
+                if targets:
+                    if player in targets: #Target player in priority
+                        selectedTarget = player
+                        del targets[targets.index(player)]
+                        if monster.distanceTo(player) < 2:
+                            priorityTargetFound = True
+                    if not priorityTargetFound:
+                        for enemyIndex in range(len(targets)):
+                            enemy = targets[enemyIndex]
+                            if monster.distanceTo(enemy) < 2:
+                                selectedTarget = enemy
+                            else:
+                                if selectedTarget == None or monster.distanceTo(selectedTarget) > monster.distanceTo(enemy):
+                                    selectedTarget = enemy
+                if selectedTarget is not None:
+                    if monster.distanceTo(selectedTarget) < 2:
+                        monster.Fighter.attack(selectedTarget)
+                    else:
+                        monster.moveAstar(selectedTarget.x, selectedTarget.y)
+                elif (monster.x, monster.y) in visibleTiles and monster.distanceTo(player) >= 2:
                     monster.moveAstar(player.x, player.y)
-                elif player.Fighter.hp > 0 and not monster.Fighter.frozen:
-                    monster.Fighter.attack(player)
-            else:
-                if not monster.Fighter.frozen:
-                    monster.move(randint(-1, 1), randint(-1, 1))
+                else:
+                    if not monster.Fighter.frozen and monster.distanceTo(player) >= 2:
+                        monster.move(randint(-1, 1), randint(-1, 1)) #wandering
             
 
 class SplosionAI:
