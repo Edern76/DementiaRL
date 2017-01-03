@@ -977,13 +977,25 @@ class Fighter: #All NPCs, enemies and the player
             if not self.frozen:
                 if not self.owner.Player:
                     if damage > 0:
-                        if criticalHit:
-                            message(self.owner.name.capitalize() + ' critically hits you for ' + str(damage) + ' hit points!', colors.dark_orange)
+                        if target == player:
+                            if criticalHit:
+                                message(self.owner.name.capitalize() + ' critically hits you for ' + str(damage) + ' hit points!', colors.dark_orange)
+                            else:
+                                message(self.owner.name.capitalize() + ' attacks you for ' + str(damage) + ' hit points.', colors.orange)
+                        elif self.owner.AI and self.owner.AI.__class__.__name__ == "FriendlyMonster" and self.owner.AI.friendlyTowards == player:
+                            if criticalHit:
+                                message('Your fellow ' + self.owner.name + ' critically hits '+ target.name +' for ' + str(damage) + ' hit points!', colors.darker_green)
+                            else:
+                                message('Your fellow ' + self.owner.name + ' attacks '+ target.name + ' for ' + str(damage) + ' hit points.', colors.dark_green)
                         else:
-                            message(self.owner.name.capitalize() + ' attacks you for ' + str(damage) + ' hit points.', colors.orange)
+                            if criticalHit:
+                                message(self.owner.name.capitalize() + ' critically hits '+ target.name +' for ' + str(damage) + ' hit points!')
+                            else:
+                                message(self.owner.name.capitalize() + ' attacks '+ target.name + ' for ' + str(damage) + ' hit points.')
                         target.Fighter.takeDamage(damage)
                     else:
-                        message(self.owner.name.capitalize() + ' attacks you but it has no effect!')
+                        if target == player:
+                            message(self.owner.name.capitalize() + ' attacks you but it has no effect !')
                 else:
                     if damage > 0:
                         if criticalHit:
@@ -1013,14 +1025,45 @@ class Fighter: #All NPCs, enemies and the player
 class BasicMonster: #Basic monsters' AI
     def takeTurn(self):
         monster = self.owner
-        if (monster.x, monster.y) in visibleTiles and not monster.Fighter.frozen: #chasing the player
-            if monster.distanceTo(player) >= 2:
+        targets = []
+        selectedTarget = None
+        priorityTargetFound = False
+        if not self.owner.Fighter.frozen:
+            for object in objects:
+                if (object.x, object.y) in visibleTiles and (object == player or (object.AI and object.AI.__class__.__name__ == "FriendlyMonster" and object.AI.friendlyTowards == player)):
+                    targets.append(object)
+            if DEBUG:
+                print(monster.name.capitalize() + " can target", end=" ")
+                if targets:
+                    for loop in range (len(targets)):
+                        print(targets[loop].name.capitalize() + ", ", sep ="", end ="")
+                else:
+                    print("absolutely nothing but nothingness.", end ="")
+                print()
+            if targets:
+                if player in targets: #Target player in priority
+                    selectedTarget = player
+                    del targets[targets.index(player)]
+                    if monster.distanceTo(player) < 2:
+                        priorityTargetFound = True
+                if not priorityTargetFound:
+                    for enemyIndex in range(len(targets)):
+                        enemy = targets[enemyIndex]
+                        if monster.distanceTo(enemy) < 2:
+                            selectedTarget = enemy
+                        else:
+                            if selectedTarget == None or monster.distanceTo(selectedTarget) > monster.distanceTo(enemy):
+                                selectedTarget = enemy
+            if selectedTarget is not None:
+                if monster.distanceTo(selectedTarget) < 2:
+                    monster.Fighter.attack(selectedTarget)
+                else:
+                    monster.moveAstar(selectedTarget.x, selectedTarget.y)
+            elif (monster.x, monster.y) in visibleTiles and monster.distanceTo(player) >= 2:
                 monster.moveAstar(player.x, player.y)
-            elif player.Fighter.hp > 0 and not monster.Fighter.frozen:
-                monster.Fighter.attack(player)
-        else:
-            if not monster.Fighter.frozen:
-                monster.move(randint(-1, 1), randint(-1, 1)) #wandering
+            else:
+                if not monster.Fighter.frozen and monster.distanceTo(player) >= 2:
+                    monster.move(randint(-1, 1), randint(-1, 1)) #wandering
 
 class FastMonster:
     def __init__(self, speed):
@@ -1097,10 +1140,10 @@ class FriendlyMonster:
                     monster.Fighter.attack(selectedTarget)
                 else:
                     monster.moveAstar(selectedTarget.x, selectedTarget.y)
-            elif (monster.x, monster.y) in visibleTiles:
+            elif (monster.x, monster.y) in visibleTiles and monster.distanceTo(player) >= 2:
                 monster.moveAstar(player.x, player.y)
             else:
-                if not monster.Fighter.frozen:
+                if not monster.Fighter.frozen and monster.distanceTo(player) >= 2:
                     monster.move(randint(-1, 1), randint(-1, 1))
         else:
             pass #Implement here code in case the monster is friendly towards another monster
