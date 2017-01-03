@@ -88,6 +88,8 @@ LIGHTNING_RANGE = 5
 CONFUSE_NUMBER_TURNS = 10
 CONFUSE_RANGE = 8
 DARK_PACT_DAMAGE = 12
+FIREBALL_SPELL_BASE_DAMAGE = 6
+FIREBALL_SPELL_BASE_RADIUS = 1
 # - Spells -
 #_____________ CONSTANTS __________________
 
@@ -200,7 +202,13 @@ class Spell:
         self.arg2 = arg2
         self.arg3 = arg3
 
+    def updateSpellStats(self):
+        if self.name == 'Fireball':
+            self.arg1 = FIREBALL_SPELL_BASE_RADIUS + player.Player.actualPerSkills[4]
+            self.arg2 = FIREBALL_SPELL_BASE_DAMAGE * player.Player.actualPerSkills[4]
+
     def cast(self):
+        self.updateSpellStats()
         if self.arg1 is None:
             if self.useFunction() != 'cancelled':
                 return 'used'
@@ -358,7 +366,7 @@ def castEnrage(enrageTurns):
     player.Fighter.basePower += 10
     message('You are now enraged !', colors.dark_amber)
 
-fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 3, arg2 = 12)
+fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 1, arg2 = 6)
 heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 10)
 darkPact = Spell(ressourceCost = DARK_PACT_DAMAGE, cooldown = 8, useFunction = castDarkRitual, name = "Dark ritual", ressource = 'HP', type = "Occult", magicLevel = 2, arg1 = 5, arg2 = DARK_PACT_DAMAGE)
 enrage = Spell(ressourceCost = 5, cooldown = 30, useFunction = castEnrage, name = 'Enrage', ressource = 'MP', type = 'Strength', magicLevel = 0, arg1 = 5)
