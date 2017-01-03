@@ -1072,20 +1072,21 @@ class FriendlyMonster:
         monster = self.owner
         targets = []
         selectedTarget = None
-        if self.friendlyTowards == player and not self.Fighter.frozen: #If the monster is friendly towards the player
+        if self.friendlyTowards == player and not self.owner.Fighter.frozen: #If the monster is friendly towards the player
             for object in objects:
-                if (object.x, object.y) in visibleTiles and object.AI and object.AI.__name__ != "FriendlyMonster" and object.Fighter and object.Fighter.hp > 0:
+                if (object.x, object.y) in visibleTiles and object.AI and object.AI.__class__.__name__ != "FriendlyMonster" and object.Fighter and object.Fighter.hp > 0:
                     targets.append(object)
             if DEBUG:
                 print(monster.name.capitalize() + " can target", end=" ")
                 if targets:
                     for loop in range (len(targets)):
-                        print(loop.name.capitalize() + ", ", sep ="", end ="")
+                        print(targets[loop].name.capitalize() + ", ", sep ="", end ="")
                 else:
                     print("absolutely nothing but nothingness.", end ="")
                 print()
             if targets:
-                for enemy in range(len(targets)):
+                for enemyIndex in range(len(targets)):
+                    enemy = targets[enemyIndex]
                     if monster.distanceTo(enemy) < 2:
                         selectedTarget = enemy
                     else:
@@ -1093,9 +1094,9 @@ class FriendlyMonster:
                             selectedTarget = enemy
             if selectedTarget is not None:
                 if monster.distanceTo(selectedTarget) < 2:
-                    monster.attack(selectedTarget)
+                    monster.Fighter.attack(selectedTarget)
                 else:
-                    monster.moveAstar(selectedTarget)
+                    monster.moveAstar(selectedTarget.x, selectedTarget.y)
             elif (monster.x, monster.y) in visibleTiles:
                 monster.moveAstar(player.x, player.y)
             else:
@@ -1291,6 +1292,10 @@ def getInput():
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'F9' and DEBUG and not tdl.event.isWindowClosed():
         castCreateWall()
+        FOV_recompute = True
+        return 'didnt-take-turn'
+    elif userInput.keychar.upper() == 'F10' and DEBUG and not tdl.event.isWindowClosed(): #For some reason, Bad Things (tm) happen if you don't perform a tdl.event.isWindowClosed() check here. Yeah, don't ask why.
+        castCreateOrc(friendly = True)
         FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar == 'S' and DEBUG and not tdl.event.isWindowClosed():
@@ -1728,13 +1733,13 @@ def createHiroshiman(x, y):
     else:
         return 'cancelled'
 
-def castCreateOrc():
+def castCreateOrc(friendly = False):
     target = targetTile()
     if target == 'cancelled':
         return 'cancelled'
     else:
         (x,y) = target
-        monster = createOrc(x, y)
+        monster = createOrc(x, y, friendly = friendly)
         objects.append(monster)
 
 def castCreateHiroshiman():
