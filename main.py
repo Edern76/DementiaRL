@@ -1063,7 +1063,46 @@ class ConfusedMonster:
         else:
             self.owner.AI = self.old_AI
             message('The ' + self.owner.name + ' is no longer confused!', colors.red)
-
+            
+class FriendlyMonster:
+    def __init__(self, friendlyTowards = player):
+        self.friendlyTowards = friendlyTowards
+    
+    def takeTurn(self):
+        monster = self.owner
+        targets = []
+        selectedTarget = None
+        if self.friendlyTowards == player and not self.Fighter.frozen: #If the monster is friendly towards the player
+            for object in objects:
+                if (object.x, object.y) in visibleTiles and object.AI and object.AI.__name__ != "FriendlyMonster" and object.Fighter and object.Fighter.hp > 0:
+                    targets.append(object)
+            if DEBUG:
+                print(monster.name.capitalize() + " can target", end=" ")
+                if targets:
+                    for loop in range (len(targets)):
+                        print(loop.name.capitalize() + ", ", sep ="", end ="")
+                else:
+                    print("absolutely nothing but nothingness.", end ="")
+                print()
+            if targets:
+                for enemy in range(len(targets)):
+                    if monster.distanceTo(enemy) < 2:
+                        selectedTarget = enemy
+                    else:
+                        if selectedTarget == None or monster.distanceTo(selectedTarget) > monster.distanceTo(enemy):
+                            selectedTarget = enemy
+            if selectedTarget is not None:
+                if monster.distanceTo(selectedTarget) < 2:
+                    monster.attack(selectedTarget)
+                else:
+                    monster.moveAstar(selectedTarget)
+            elif (monster.x, monster.y) in visibleTiles:
+                monster.moveAstar(player.x, player.y)
+            else:
+                if not monster.Fighter.frozen:
+                    monster.move(randint(-1, 1), randint(-1, 1))
+        else:
+            pass #Implement here code in case the monster is friendly towards another monster
 class Player:
     def __init__(self, actualPerSkills, levelUpStats, skillsBonus, race, classes):
         self.actualPerSkills = actualPerSkills
@@ -1666,12 +1705,15 @@ def monsterArmageddon(monsterName ,monsterX, monsterY, radius = 4, damage = 40):
 
 # Add push monster spell (create an invisble projectile that pass through a monster, when the said projectile hits a wall, teleport monster to the projectile position and deal X damage to the said monster.)
     
-def createOrc(x, y):
+def createOrc(x, y, friendly = False):
     if x != player.x or y != player.y:
         equipmentComponent = Equipment(slot='head', type = 'armor', armorBonus = 1)
         orcHelmet = GameObject(x = None, y = None, char = '[', name = 'orc helmet', color = colors.brass, Equipment = equipmentComponent, Item = Item())
         fighterComponent = Fighter(hp=15, armor=0, power=3, xp = 35, deathFunction = monsterDeath, evasion = 25, accuracy = 10, lootFunction = orcHelmet, lootRate = 30)
-        AI_component = BasicMonster()
+        if not friendly:
+            AI_component = BasicMonster()
+        else:
+            AI_component = FriendlyMonster(friendlyTowards = player)
         monster = GameObject(x, y, char = 'o', color = colors.desaturated_green, name = 'orc', blocks = True, Fighter=fighterComponent, AI = AI_component)
         return monster
     else:
