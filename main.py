@@ -2681,8 +2681,14 @@ def Update():
     root.blit(panel, 0, PANEL_Y, WIDTH, PANEL_HEIGHT, 0, 0)
     
 def GetNamesUnderLookCursor():
-    names = [obj.name for obj in objects
+    names = [obj for obj in objects
                 if obj.x == lookCursor.x and obj.y == lookCursor.y and (obj.x, obj.y in visibleTiles) and obj != lookCursor]
+    for loop in range(len(names)):
+        if names[loop].Fighter:
+            displayName = names[loop].name + ' (' + names[loop].Fighter.damageText + ')'
+        else:
+            displayName = names[loop].name
+        names[loop] = displayName
     names = ', '.join(names)
     return names.capitalize()
 
