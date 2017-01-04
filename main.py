@@ -1120,6 +1120,46 @@ class FastMonster:
                     if not monster.Fighter.frozen and monster.distanceTo(player) >= 2:
                         monster.move(randint(-1, 1), randint(-1, 1)) #wandering
             
+class hostileStationnary:
+    def takeTurn(self):
+        monster = self.owner
+        targets = []
+        selectedTarget = None
+        priorityTargetFound = False
+        if not self.owner.Fighter.frozen:
+            for object in objects:
+                if (object.x, object.y) in visibleTiles and (object == player or (object.AI and object.AI.__class__.__name__ == "FriendlyMonster" and object.AI.friendlyTowards == player)):
+                    targets.append(object)
+            if DEBUG:
+                print(monster.name.capitalize() + " can target", end=" ")
+                if targets:
+                    for loop in range (len(targets)):
+                        print(targets[loop].name.capitalize() + ", ", sep ="", end ="")
+                else:
+                    print("absolutely nothing but nothingness.", end ="")
+                print()
+            if targets:
+                if player in targets: #Target player in priority
+                    selectedTarget = player
+                    del targets[targets.index(player)]
+                    if monster.distanceTo(player) < 2:
+                        priorityTargetFound = True
+                if not priorityTargetFound:
+                    for enemyIndex in range(len(targets)):
+                        enemy = targets[enemyIndex]
+                        if monster.distanceTo(enemy) < 2:
+                            selectedTarget = enemy
+                        else:
+                            if selectedTarget == None or monster.distanceTo(selectedTarget) > monster.distanceTo(enemy):
+                                selectedTarget = enemy
+            if selectedTarget is not None:
+                if monster.distanceTo(selectedTarget) < 2:
+                    monster.Fighter.attack(selectedTarget)
+
+class immobile():
+    def takeTurn(self):
+        monster = self.owner
+        return
 
 class SplosionAI:
     def takeTurn(self):
@@ -1529,9 +1569,12 @@ def getInput():
                     if stairCooldown == 0:
                         global stairCooldown
                         stairCooldown = 2
+                        boss = False
                         if DEBUG:
                             message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
-                        nextLevel()
+                        if dungeonLevel + 1 == 2:
+                            boss = True
+                        nextLevel(boss)
                     else:
                         message("You're too tired to climb down the stairs right now")
                     return None
@@ -1686,15 +1729,15 @@ def checkLevelUp():
                  'Accuracy (from ' + str(player.Player.actualPerSkills[10]) + ')',], LEVEL_SCREEN_WIDTH)
             if choice != None:
                 if player.Player.actualPerSkills[choice] < 5:
-                    player.Fighter.basePower += skillsBonus[choice][0]
-                    player.Fighter.baseAccuracy += skillsBonus[choice][1]
-                    player.Fighter.baseEvasion += skillsBonus[choice][2]
-                    player.Fighter.baseArmor += skillsBonus[choice][3]
-                    player.Fighter.baseMaxHP += skillsBonus[choice][4]
-                    player.Fighter.hp += skillsBonus[choice][4]
-                    player.Fighter.baseMaxMP += skillsBonus[choice][5]
-                    player.Fighter.MP += skillsBonus[choice][5]
-                    player.Fighter.baseCritical += skillsBonus[choice][6]
+                    player.Fighter.basePower += player.Player.skillsBonus[choice][0]
+                    player.Fighter.baseAccuracy += player.Player.skillsBonus[choice][1]
+                    player.Fighter.baseEvasion += player.Player.skillsBonus[choice][2]
+                    player.Fighter.baseArmor += player.Player.skillsBonus[choice][3]
+                    player.Fighter.baseMaxHP += player.Player.skillsBonus[choice][4]
+                    player.Fighter.hp += player.Player.skillsBonus[choice][4]
+                    player.Fighter.baseMaxMP += player.Player.skillsBonus[choice][5]
+                    player.Fighter.MP += player.Player.skillsBonus[choice][5]
+                    player.Fighter.baseCritical += player.Player.skillsBonus[choice][6]
 
                     player.Player.actualPerSkills[choice] += 1
                     
@@ -2045,7 +2088,92 @@ def makeMap():
     objects.append(stairs)
     stairs.sendToBack()
 
+def makeBossLevel():
+    global myMap, stairs, objects, upStairs
+    myMap = [[Tile(True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
+    rooms = []
+    numberRooms = 0
+    objects = [player]
+    
+    for y in range (MAP_HEIGHT):
+        myMap[0][y].unbreakable = True
+        myMap[MAP_WIDTH-1][y].unbreakable = True
+    for x in range(MAP_WIDTH):
+        myMap[x][0].unbreakable = True
+        myMap[x][MAP_HEIGHT-1].unbreakable = True #Borders of the map cannot be broken
+    #spawn room
+    w = randint(ROOM_MIN_SIZE, ROOM_MAX_SIZE)
+    h = randint(ROOM_MIN_SIZE, ROOM_MAX_SIZE)
+    x = randint(0, 50-w-1)
+    y = randint(0, 20-h-1)
+    newRoom = Rectangle(x, y, w, h)
+    createRoom(newRoom)
+    (new_x, new_y) = newRoom.center()
+    
+    player.x = new_x
+    player.y = new_y
+    if dungeonLevel > 1:
+        upStairs = GameObject(new_x, new_y, '<', 'stairs', colors.white, alwaysVisible = True, darkColor = colors.dark_grey)
+        objects.append(upStairs)
+        upStairs.sendToBack()
+    (previous_x, previous_y) = newRoom.center()
+    #boss room
+    w = randint(25, 40)
+    h = randint(20, 35)
+    x = randint(50, 100-w-1)
+    y = randint(20, 60-h-1)
+    bossRoom = Rectangle(x, y, w, h)
+    createRoom(bossRoom)
+    (new_x, new_y) = bossRoom.center()
+    createVerticalTunnel(previous_y, new_y, previous_x)
+    createHorizontalTunnel(previous_x, new_x, new_y)
+    
+    bossName = None
+    if dungeonLevel == 2:
+        bossName = 'Gluttony'
+
+    placeBoss(bossName, new_x, y + 1)
+    
+    (previous_x, previous_y) = bossRoom.center()
+    #end room
+    w = randint(ROOM_MIN_SIZE, ROOM_MAX_SIZE)
+    h = randint(ROOM_MIN_SIZE, ROOM_MAX_SIZE)
+    x = randint(100, MAP_WIDTH-w-1)
+    y = randint(0, MAP_HEIGHT-h-1)
+    newRoom = Rectangle(x, y, w, h)
+    createRoom(newRoom)
+    (new_x, new_y) = newRoom.center()
+    if randint(0, 1):
+        createHorizontalTunnel(previous_x, new_x, previous_y)
+        createVerticalTunnel(previous_y, new_y, new_x)
+    else:
+        createVerticalTunnel(previous_y, new_y, previous_x)
+        createHorizontalTunnel(previous_x, new_x, new_y)
+    stairs = GameObject(new_x, new_y, '>', 'stairs', colors.white, alwaysVisible = True, darkColor = colors.dark_grey)
+    objects.append(stairs)
+    stairs.sendToBack()
+    
 #_____________ MAP CREATION __________________
+
+#_____________ BOSS FIGHT __________________
+def placeBoss(name, x, y):
+    bossX = x
+    bossY = y
+    if name == 'Gluttony':
+        fighterComponent = Fighter(hp=500, armor=1, power=6, xp = 1000, deathFunction = monsterDeath, accuracy = 13, evasion = 1)
+        AI_component = hostileStationnary()
+        boss = GameObject(x, y, char = 'G', color = colors.darker_lime, name = name, blocks = True, Fighter = fighterComponent, AI = AI_component)
+        objects.append(boss)
+        
+        for x in range(50, 100):
+            for y in range(20, 60):
+                if not isBlocked(x, y) and boss.distanceToCoords(x, y) <= 3:
+                    fatFighterComponent = Fighter(hp = 12, armor = 0, power = 0, xp = 0, deathFunction=fatDeath, accuracy= 0, evasion=1)
+                    fat_AI_component = immobile()
+                    fat = GameObject(x, y, char = '#', color = colors.darker_lime, name = "Gluttony's fat", blocks = True, Fighter = fatFighterComponent, AI = fat_AI_component)
+                    objects.append(fat)
+                
+#_____________ BOSS FIGHT __________________
 
 #_____________ ROOM POPULATION + ITEMS GENERATION_______________
 monsterChances = {'orc': 70, 'troll': 20, 'snake': 10}
@@ -2350,6 +2478,14 @@ def monsterDeath(monster):
     monster.Fighter = None
     monster.sendToBack()
 
+def fatDeath(monster):
+    message('You destroy some awful fat !', colors.dark_sky)
+    
+    monster.char = None
+    monster.color = None
+    monster.blocks = False
+    monster.AI = None
+    monster.Fighter = None
 #_____________ GUI _______________
 def renderBar(x, y, totalWidth, name, value, maximum, barColor, backColor):
     barWidth = int(float(value) / maximum * totalWidth) #Width of the bar is proportional to the ratio of the current value over the maximum value
@@ -2777,7 +2913,7 @@ def loadLevel(level):
     dungeonLevel = level
     initializeFOV()
 
-def nextLevel():
+def nextLevel(boss = False):
     global dungeonLevel
     returned = "borked"
     while returned != "completed":
@@ -2797,7 +2933,10 @@ def nextLevel():
         objects = tempObjects
         player = tempPlayer
         stairs = tempStairs
-        makeMap()  #create a fresh new level!
+        if not boss:
+            makeMap()  #create a fresh new level!
+        else:
+            makeBossLevel()
         print("Created a new level")
     if hiroshimanNumber == 1 and not hiroshimanHasAppeared:
         global hiroshimanHasAppeared
