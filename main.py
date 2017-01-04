@@ -1061,7 +1061,10 @@ class Fighter: #All NPCs, enemies and the player
                         message('You attack ' + target.name + ' but it has no effect!', colors.grey)
         else:
             if not self.owner.Player:
-                message(self.owner.name.capitalize() + ' missed you!', colors.white)
+                if target == player:
+                    message(self.owner.name.capitalize() + ' missed you!', colors.white)
+                else:
+                    message(self.owner.name.capitalize() + ' missed ' + target.name + '.')
             else:
                 message('You missed ' + target.name + '!', colors.grey)
         
