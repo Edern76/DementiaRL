@@ -3,8 +3,6 @@ from tdl import *
 from random import randint
 from math import *
 from os import makedirs
-from dill import objects
-from sympy.utilities.iterables import bracelets
 
 # Naming conventions :
 # MY_CONSTANT
