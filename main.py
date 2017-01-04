@@ -3,8 +3,6 @@ from tdl import *
 from random import randint
 from math import *
 from os import makedirs
-from dill import objects
-from sympy.utilities.iterables import bracelets
 
 # Naming conventions :
 # MY_CONSTANT
@@ -90,6 +88,9 @@ CONFUSE_RANGE = 8
 DARK_PACT_DAMAGE = 12
 FIREBALL_SPELL_BASE_DAMAGE = 6
 FIREBALL_SPELL_BASE_RADIUS = 1
+FIREBALL_SPELL_BASE_RANGE = 4
+
+RESURECTABLE_CORPSES = ["orc", "troll"]
 # - Spells -
 #_____________ CONSTANTS __________________
 
@@ -206,6 +207,7 @@ class Spell:
         if self.name == 'Fireball':
             self.arg1 = FIREBALL_SPELL_BASE_RADIUS + player.Player.actualPerSkills[4]
             self.arg2 = FIREBALL_SPELL_BASE_DAMAGE * player.Player.actualPerSkills[4]
+            self.arg3 = FIREBALL_SPELL_BASE_RANGE + player.Player.actualPerSkills[4] 
 
     def cast(self):
         self.updateSpellStats()
@@ -296,9 +298,9 @@ def castFreeze():
         message("The " + target.name + " is already frozen.")
         return 'cancelled'
     
-def castFireball(radius = 3, damage = 12):
+def castFireball(radius = 3, damage = 12, range = 4):
     message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
-    target = targetTile(maxRange = 4)
+    target = targetTile(maxRange = range)
     if target == 'cancelled':
         message('Spell casting cancelled')
         return target
@@ -366,13 +368,48 @@ def castEnrage(enrageTurns):
     player.Fighter.basePower += 10
     message('You are now enraged !', colors.dark_amber)
 
-fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 1, arg2 = 6)
+def castRessurect(range = 4):
+    target = targetTile(range)
+    if target == "cancelled":
+        message("Spell casting cancelled")
+        return target
+    else:
+        (x,y) = target
+        ressurectable = None
+        corpseType = None
+        for obj in objects:
+            if obj.x == x and obj.y == y and obj.name.upper().startswith("REMAINS"):
+                print("Trying to rez " + obj.name)
+                convName = obj.name.split()[-1]
+                corpseType = convName
+                print("Corpse type = " + corpseType)
+                if corpseType is not None and corpseType in RESURECTABLE_CORPSES:
+                    ressurectable = obj
+                    break
+        if not ressurectable:
+            message("There are no valid corpses on this tile")
+            return "cancelled"
+        else:
+            global objects
+            monster = None
+            objects.remove(ressurectable)
+            if corpseType == "orc":
+                monster = createOrc(x, y, friendly = True, corpse = True)
+            elif corpseType == "troll":
+                monster = createTroll(x, y, friendly = True, corpse = True)
+            if monster is not None:
+                objects.append(monster)
+            
+            
+
+fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 1, arg2 = 6, arg3 = 4)
 heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 10)
 darkPact = Spell(ressourceCost = DARK_PACT_DAMAGE, cooldown = 8, useFunction = castDarkRitual, name = "Dark ritual", ressource = 'HP', type = "Occult", magicLevel = 2, arg1 = 5, arg2 = DARK_PACT_DAMAGE)
 enrage = Spell(ressourceCost = 5, cooldown = 30, useFunction = castEnrage, name = 'Enrage', ressource = 'MP', type = 'Strength', magicLevel = 0, arg1 = 5)
 lightning = Spell(ressourceCost = 10, cooldown = 7, useFunction = castLightning, name = 'Lightning bolt', ressource = 'MP', type = 'Magic', magicLevel = 3)
 confuse = Spell(ressourceCost = 5, cooldown = 4, useFunction = castConfuse, name = 'Confusion', ressource = 'MP', type = 'Magic', magicLevel = 1)
 ice = Spell(ressourceCost = 9, cooldown = 5, useFunction = castFreeze, name = 'Ice bolt', ressource = 'MP', type = 'Magic', magicLevel = 2)
+ressurect = Spell(ressourceCost = 10, cooldown = 15, useFunction=castRessurect, name = "Dark ressurection", ressource = 'MP', type = "Occult", arg1 = 4)
 #_____________SPELLS_____________
 
 #______________CHARACTER GENERATION____________
@@ -439,24 +476,27 @@ def characterCreation():
     selectedRaces = [False, False, False, False, False]
     chosenRace = None
     
-    classes = ['Knight', 'Barbarian', 'Rogue', 'Mage ']
+    classes = ['Knight', 'Barbarian', 'Rogue', 'Mage ', 'Necromancer']
     classesDescription = ['A warrior who wears armor and yields shields',
                           'A brutal fighter who is mighty strong',
                           'A rogue who is stealthy and backstabby (probably has a french accent)',
-                          'A wizard who zaps everything']
+                          'A wizard who zaps everything',
+                          'A master of the occult arts who has the ability to raise and control the dead.']
     classesBonus = [[0, 0, 0, 1, 60, 30, 0], #Knight
                     [1, 0, 0, 0, 80, 30, 0], #Barbarian
                     [0, 8, 10, 0, 45, 40, 3], #Rogue
-                    [0, 0, 0, 0, 35, 50, 0]] #Mage
+                    [0, 0, 0, 0, 35, 50, 0], #Mage
+                    [0, 0, 0, 0, 50, 15, 0]] #Necromancer
     classesLevelUp = [[0, 0, 0, 1, 7, 3, 0],
                       [1, 0, 0, 0, 10, 3, 0],
                       [0, 2, 1, 0, 5, 5, 0],
-                      [0, 0, 0, 0, 3, 7, 0]]
+                      [0, 0, 0, 0, 3, 7, 0],
+                      [0, 0, 0, 0, 2, 1, 0]]
     MAX_CLASSES = 1
     actualClasses = 0
-    selectedClasses = [False, False, False, False]
+    selectedClasses = [False, False, False, False, False]
     levelUpStats = [0, 0, 0, 0, 0, 0, 0]
-    classesSpells = [[], [enrage], [], [fireball]]
+    classesSpells = [[], [enrage], [], [fireball], [darkPact, ressurect]]
     chosenClass = None
 
     attributes = ['Strength', 'Dexterity', 'Constitution', 'Willpower']
@@ -641,15 +681,15 @@ def characterCreation():
         if leftIndexMin <= index <= leftIndexMax:
             if index + 1 <= len(races) + len(classes) + len(attributes):
                 previousListLen = len(races) + len(classes)
-                drawCenteredOnX(cons = root, x = leftX, y = 27 + index, text = attributes[index - previousListLen], fg = colors.black, bg = colors.white)
+                drawCenteredOnX(cons = root, x = leftX, y = 26 + index, text = attributes[index - previousListLen], fg = colors.black, bg = colors.white)
                 description(attributesDescription[index - previousListLen])
             else:
                 previousListLen = len(races) + len(classes) + len(attributes)
-                drawCenteredOnX(cons = root, x = leftX, y = 35 + index, text = traits[index - previousListLen], fg = colors.black, bg = colors.white)
+                drawCenteredOnX(cons = root, x = leftX, y = 34 + index, text = traits[index - previousListLen], fg = colors.black, bg = colors.white)
                 description(traitsDescription[index - previousListLen])
         if rightIndexMin <= index <= rightIndexMax:
             previousListLen = len(races) + len(classes) + len(attributes) + len(traits)
-            drawCenteredOnX(cons = root, x = rightX, y = 13 + index, text = skills[index - previousListLen], fg = colors.black, bg = colors.white)
+            drawCenteredOnX(cons = root, x = rightX, y = 12 + index, text = skills[index - previousListLen], fg = colors.black, bg = colors.white)
             description(skillsDescription[index - previousListLen])
         if index == maxIndex - 1:
             drawCentered(cons = root, y = 90, text = 'Start Game', fg = colors.black, bg = colors.white)
@@ -902,6 +942,8 @@ class Fighter: #All NPCs, enemies and the player
         self.baseMaxMP = maxMP
         self.MP = maxMP
         
+        self.damageText = 'unscathed'
+        
         if knownSpells != None:
             self.knownSpells = knownSpells
         else:
@@ -947,11 +989,12 @@ class Fighter: #All NPCs, enemies and the player
     def takeDamage(self, damage):
         if damage > 0:
             self.hp -= damage
+            self.updateDamageText()
         if self.hp <= 0:
             death=self.deathFunction
             if death is not None:
                 death(self.owner)
-            if self.owner != player:
+            if self.owner != player and (not self.owner.AI or self.owner.AI.__class__.__name__ != "FriendlyMonster"):
                 player.Fighter.xp += self.xp
 
     def toHit(self, target):
@@ -1021,7 +1064,10 @@ class Fighter: #All NPCs, enemies and the player
                         message('You attack ' + target.name + ' but it has no effect!', colors.grey)
         else:
             if not self.owner.Player:
-                message(self.owner.name.capitalize() + ' missed you!', colors.white)
+                if target == player:
+                    message(self.owner.name.capitalize() + ' missed you!', colors.white)
+                else:
+                    message(self.owner.name.capitalize() + ' missed ' + target.name + '.')
             else:
                 message('You missed ' + target.name + '!', colors.grey)
         
@@ -1029,6 +1075,21 @@ class Fighter: #All NPCs, enemies and the player
         self.hp += amount
         if self.hp > self.maxHP:
             self.hp = self.maxHP
+    
+    def updateDamageText(self):
+        self.hpRatio = ((self.hp / self.maxHP) * 100)
+        if self.hpRatio == 100:
+            self.damageText = 'unscathed'
+        if self.hpRatio < 95 and self.hpRatio >= 75:
+            self.damageText = 'healthy'
+        elif self.hpRatio < 75 and self.hpRatio >= 50:
+            self.damageText = 'lightly wounded'
+        elif self.hpRatio < 50 and self.hpRatio >= 25:
+            self.damageText = 'wounded'
+        elif self.hpRatio < 25 and self.hpRatio > 0:
+            self.damageText = 'near death'
+        elif self.hpRatio == 0:
+            self.damageText = None
 
 class BasicMonster: #Basic monsters' AI
     def takeTurn(self):
@@ -1238,7 +1299,9 @@ class Player:
         
     def changeColor(self):
         self.hpRatio = ((self.owner.Fighter.hp / self.owner.Fighter.maxHP) * 100)
-        if self.hpRatio < 95 and self.hpRatio >= 75:
+        if self.hpRatio == 100:
+            self.owner.color = (0, 210, 0)
+        elif self.hpRatio < 95 and self.hpRatio >= 75:
             self.owner.color = (120, 255, 0)
         elif self.hpRatio < 75 and self.hpRatio >= 50:
             self.owner.color = (255, 255, 0)
@@ -1418,6 +1481,10 @@ def getInput():
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'F10' and DEBUG and not tdl.event.isWindowClosed(): #For some reason, Bad Things (tm) happen if you don't perform a tdl.event.isWindowClosed() check here. Yeah, don't ask why.
         castCreateOrc(friendly = True)
+        FOV_recompute = True
+        return 'didnt-take-turn'
+    elif userInput.keychar.upper() == 'F11' and DEBUG and not tdl.event.isWindowClosed(): #For some reason, Bad Things (tm) happen if you don't perform a tdl.event.isWindowClosed() check here. Yeah, don't ask why.
+        learnSpell(ressurect)
         FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar == 'S' and DEBUG and not tdl.event.isWindowClosed():
@@ -1837,18 +1904,54 @@ def monsterArmageddon(monsterName ,monsterX, monsterY, radius = 4, damage = 40):
 
 # Add push monster spell (create an invisble projectile that pass through a monster, when the said projectile hits a wall, teleport monster to the projectile position and deal X damage to the said monster.)
     
-def createOrc(x, y, friendly = False):
+def createOrc(x, y, friendly = False, corpse = False):
     if x != player.x or y != player.y:
-        equipmentComponent = Equipment(slot='head', type = 'armor', armorBonus = 1)
-        orcHelmet = GameObject(x = None, y = None, char = '[', name = 'orc helmet', color = colors.brass, Equipment = equipmentComponent, Item = Item())
-        fighterComponent = Fighter(hp=15, armor=0, power=3, xp = 35, deathFunction = monsterDeath, evasion = 25, accuracy = 10, lootFunction = orcHelmet, lootRate = 30)
+        if not corpse:
+            equipmentComponent = Equipment(slot='head', type = 'armor', armorBonus = 1)
+            orcHelmet = GameObject(x = None, y = None, char = '[', name = 'orc helmet', color = colors.brass, Equipment = equipmentComponent, Item = Item())
+            lootOnDeath = orcHelmet
+            deathType = monsterDeath
+            orcName = "orc"
+            color = colors.desaturated_green
+        else:
+            orcName = "orc skeleton"
+            deathType = zombieDeath
+            lootOnDeath = None
+            color = colors.lighter_gray
         if not friendly:
             AI_component = BasicMonster()
         else:
             AI_component = FriendlyMonster(friendlyTowards = player)
-        monster = GameObject(x, y, char = 'o', color = colors.desaturated_green, name = 'orc', blocks = True, Fighter=fighterComponent, AI = AI_component)
+        fighterComponent = Fighter(hp=15, armor=0, power=3, xp = 35, deathFunction = deathType, evasion = 25, accuracy = 10, lootFunction = lootOnDeath, lootRate = 30)
+        monster = GameObject(x, y, char = 'o', color = color, name = orcName, blocks = True, Fighter=fighterComponent, AI = AI_component)
         return monster
     else:
+        return 'cancelled'
+
+def createTroll(x, y, friendly = False, corpse = False):
+    if x != player.x or y != player.y:
+        if not corpse:
+            equipmentComponent = Equipment(slot = 'both hands', type = 'heavy weapon', powerBonus = 5, accuracyBonus = -20)
+            trollMace = GameObject(x, y, '/', 'troll mace', colors.darker_orange, Equipment=equipmentComponent, Item=Item())
+            lootOnDeath = trollMace
+            deathType = monsterDeath
+            monName = "troll"
+            color = colors.darker_green
+        else:
+            monName = "troll skeleton"
+            deathType = zombieDeath
+            lootOnDeath = None
+            color = colors.lighter_grey
+        if not friendly:
+            AI_component = BasicMonster()
+        else:
+            AI_component = FriendlyMonster(friendlyTowards = player)
+        fighterComponent = Fighter(hp=20, armor=2, power=4, xp = 100, deathFunction = deathType, accuracy = 7, evasion = 1, lootFunction=lootOnDeath, lootRate=15)
+        monster = GameObject(x, y, char = 'T', color = color, name = monName, blocks = True, Fighter=fighterComponent, AI = AI_component)
+        return monster
+    else:
+        if corpse:
+            message("You briefly feel something moving beneath your feet...")
         return 'cancelled'
     
 def createHiroshiman(x, y):
@@ -2292,11 +2395,7 @@ def placeObjects(room):
                 monsterChances['troll'] = 20
                 
             elif monsterChoice == 'troll':
-                equipmentComponent = Equipment(slot = 'both hands', type = 'heavy weapon', powerBonus = 5, accuracyBonus = -20)
-                trollMace = GameObject(x, y, '/', 'troll mace', colors.darker_orange, Equipment=equipmentComponent, Item=Item())
-                fighterComponent = Fighter(hp=20, armor=2, power=4, xp = 100, deathFunction = monsterDeath, accuracy = 7, evasion = 1, lootFunction=trollMace, lootRate=15)
-                AI_component = BasicMonster()
-                monster = GameObject(x, y, char = 'T', color = colors.darker_green,name = 'troll', blocks = True, Fighter = fighterComponent, AI = AI_component)
+                monster = createTroll(x, y)
             
             elif monsterChoice == 'snake':
                 fighterComponent = Fighter(hp = 5, armor = 0, power = 1, xp = 10, deathFunction = monsterDeath, accuracy = 20, evasion = 70)
@@ -2486,6 +2585,18 @@ def fatDeath(monster):
     monster.blocks = False
     monster.AI = None
     monster.Fighter = None
+
+def zombieDeath(monster):
+    global objects
+    message(monster.name.capitalize() + ' is destroyed !')
+    objects.remove(monster)
+    monster.char = ''
+    monster.color = Ellipsis
+    monster.blocks = False
+    monster.AI = None
+    monster.name = None
+    monster.Fighter = None
+
 #_____________ GUI _______________
 def renderBar(x, y, totalWidth, name, value, maximum, barColor, backColor):
     barWidth = int(float(value) / maximum * totalWidth) #Width of the bar is proportional to the ratio of the current value over the maximum value
@@ -2714,8 +2825,14 @@ def Update():
     root.blit(panel, 0, PANEL_Y, WIDTH, PANEL_HEIGHT, 0, 0)
     
 def GetNamesUnderLookCursor():
-    names = [obj.name for obj in objects
+    names = [obj for obj in objects
                 if obj.x == lookCursor.x and obj.y == lookCursor.y and (obj.x, obj.y in visibleTiles) and obj != lookCursor]
+    for loop in range(len(names)):
+        if names[loop].Fighter:
+            displayName = names[loop].name + ' (' + names[loop].Fighter.damageText + ')'
+        else:
+            displayName = names[loop].name
+        names[loop] = displayName
     names = ', '.join(names)
     return names.capitalize()
 
@@ -2984,7 +3101,7 @@ def playGame():
                     try:
                         object.Fighter.burnCooldown -= 1
                         object.Fighter.takeDamage(3)
-                        message('The ' + object.name + ' keeps burning !')
+                        message('The ' + str(object.name) + ' keeps burning !')
                         if object.Fighter.burnCooldown < 0:
                             object.Fighter.burnCooldown = 0
                         if object.Fighter.burnCooldown == 0:
