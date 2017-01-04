@@ -391,11 +391,14 @@ def castRessurect(range = 4):
             return "cancelled"
         else:
             global objects
+            monster = None
             objects.remove(ressurectable)
             if corpseType == "orc":
-                createOrc(x, y, friendly = True, corpse = True)
+                monster = createOrc(x, y, friendly = True, corpse = True)
             elif corpseType == "troll":
-                createTroll(x, y, friendly = True, corpse = True)
+                monster = createTroll(x, y, friendly = True, corpse = True)
+            if monster is not None:
+                objects.append(monster)
             
             
 
@@ -936,6 +939,8 @@ class Fighter: #All NPCs, enemies and the player
         self.baseMaxMP = maxMP
         self.MP = maxMP
         
+        self.damageText = 'unscathed'
+        
         if knownSpells != None:
             self.knownSpells = knownSpells
         else:
@@ -981,11 +986,12 @@ class Fighter: #All NPCs, enemies and the player
     def takeDamage(self, damage):
         if damage > 0:
             self.hp -= damage
+            self.updateDamageText()
         if self.hp <= 0:
             death=self.deathFunction
             if death is not None:
                 death(self.owner)
-            if self.owner != player:
+            if self.owner != player and (not self.owner.AI or self.owner.AI.__class__.__name__ != "FriendlyMonster"):
                 player.Fighter.xp += self.xp
 
     def toHit(self, target):
@@ -1063,6 +1069,21 @@ class Fighter: #All NPCs, enemies and the player
         self.hp += amount
         if self.hp > self.maxHP:
             self.hp = self.maxHP
+    
+    def updateDamageText(self):
+        self.hpRatio = ((self.hp / self.maxHP) * 100)
+        if self.hpRatio == 100:
+            self.damageText = 'unscathed'
+        if self.hpRatio < 95 and self.hpRatio >= 75:
+            self.damageText = 'healthy'
+        elif self.hpRatio < 75 and self.hpRatio >= 50:
+            self.damageText = 'lightly wounded'
+        elif self.hpRatio < 50 and self.hpRatio >= 25:
+            self.damageText = 'wounded'
+        elif self.hpRatio < 25 and self.hpRatio > 0:
+            self.damageText = 'near death'
+        elif self.hpRatio == 0:
+            self.damageText = None
 
 class BasicMonster: #Basic monsters' AI
     def takeTurn(self):
@@ -1232,7 +1253,9 @@ class Player:
         
     def changeColor(self):
         self.hpRatio = ((self.owner.Fighter.hp / self.owner.Fighter.maxHP) * 100)
-        if self.hpRatio < 95 and self.hpRatio >= 75:
+        if self.hpRatio == 100:
+            self.owner.color = (0, 210, 0)
+        elif self.hpRatio < 95 and self.hpRatio >= 75:
             self.owner.color = (120, 255, 0)
         elif self.hpRatio < 75 and self.hpRatio >= 50:
             self.owner.color = (255, 255, 0)
@@ -2418,7 +2441,7 @@ def monsterDeath(monster):
 
 def zombieDeath(monster):
     global objects
-    message(monster.name.capitalize() + 'is destroyed !')
+    message(monster.name.capitalize() + ' is destroyed !')
     objects.remove(monster)
     monster.char = ''
     monster.color = Ellipsis
