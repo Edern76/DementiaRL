@@ -474,24 +474,27 @@ def characterCreation():
     selectedRaces = [False, False, False, False, False]
     chosenRace = None
     
-    classes = ['Knight', 'Barbarian', 'Rogue', 'Mage ']
+    classes = ['Knight', 'Barbarian', 'Rogue', 'Mage ', 'Necromancer']
     classesDescription = ['A warrior who wears armor and yields shields',
                           'A brutal fighter who is mighty strong',
                           'A rogue who is stealthy and backstabby (probably has a french accent)',
-                          'A wizard who zaps everything']
+                          'A wizard who zaps everything',
+                          'A master of the occult arts who has the ability to raise and control the dead.']
     classesBonus = [[0, 0, 0, 1, 60, 30, 0], #Knight
                     [1, 0, 0, 0, 80, 30, 0], #Barbarian
                     [0, 8, 10, 0, 45, 40, 3], #Rogue
-                    [0, 0, 0, 0, 35, 50, 0]] #Mage
+                    [0, 0, 0, 0, 35, 50, 0], #Mage
+                    [0, 0, 0, 0, 50, 15, 0]] #Necromancer
     classesLevelUp = [[0, 0, 0, 1, 7, 3, 0],
                       [1, 0, 0, 0, 10, 3, 0],
                       [0, 2, 1, 0, 5, 5, 0],
-                      [0, 0, 0, 0, 3, 7, 0]]
+                      [0, 0, 0, 0, 3, 7, 0],
+                      [0, 0, 0, 0, 2, 1, 0]]
     MAX_CLASSES = 1
     actualClasses = 0
-    selectedClasses = [False, False, False, False]
+    selectedClasses = [False, False, False, False, False]
     levelUpStats = [0, 0, 0, 0, 0, 0, 0]
-    classesSpells = [[], [enrage], [], [fireball]]
+    classesSpells = [[], [enrage], [], [fireball], [darkPact, ressurect]]
     chosenClass = None
 
     attributes = ['Strength', 'Dexterity', 'Constitution', 'Willpower']
@@ -676,15 +679,15 @@ def characterCreation():
         if leftIndexMin <= index <= leftIndexMax:
             if index + 1 <= len(races) + len(classes) + len(attributes):
                 previousListLen = len(races) + len(classes)
-                drawCenteredOnX(cons = root, x = leftX, y = 27 + index, text = attributes[index - previousListLen], fg = colors.black, bg = colors.white)
+                drawCenteredOnX(cons = root, x = leftX, y = 26 + index, text = attributes[index - previousListLen], fg = colors.black, bg = colors.white)
                 description(attributesDescription[index - previousListLen])
             else:
                 previousListLen = len(races) + len(classes) + len(attributes)
-                drawCenteredOnX(cons = root, x = leftX, y = 35 + index, text = traits[index - previousListLen], fg = colors.black, bg = colors.white)
+                drawCenteredOnX(cons = root, x = leftX, y = 34 + index, text = traits[index - previousListLen], fg = colors.black, bg = colors.white)
                 description(traitsDescription[index - previousListLen])
         if rightIndexMin <= index <= rightIndexMax:
             previousListLen = len(races) + len(classes) + len(attributes) + len(traits)
-            drawCenteredOnX(cons = root, x = rightX, y = 13 + index, text = skills[index - previousListLen], fg = colors.black, bg = colors.white)
+            drawCenteredOnX(cons = root, x = rightX, y = 12 + index, text = skills[index - previousListLen], fg = colors.black, bg = colors.white)
             description(skillsDescription[index - previousListLen])
         if index == maxIndex - 1:
             drawCentered(cons = root, y = 90, text = 'Start Game', fg = colors.black, bg = colors.white)
