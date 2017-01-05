@@ -2259,22 +2259,61 @@ def makeBossLevel():
 #_____________ MAP CREATION __________________
 
 #_____________ BOSS FIGHT __________________
+def createFat(x, y):
+    fatFighterComponent = Fighter(hp = 5, armor = 0, power = 1, xp = 0, deathFunction=fatDeath, accuracy= 0, evasion=1)
+    fat_AI_component = hostileStationnary()
+    fat = GameObject(x, y, char = '#', color = colors.darker_lime, name = "Gluttony's fat", blocks = True, Fighter = fatFighterComponent, AI = fat_AI_component)
+    objects.append(fat)
+
+def fatSpread(spreadRate):
+    fatList = []
+    for object in objects:
+        if object.name == "Gluttony's fat":
+            fatList.append(object)
+    chosenFat = randint(0, len(fatList) - 1)
+    chosenSide = randint(0, 3)
+    coords = [[0, -1], [1, 0], [0, 1], [-1, 0]]
+    fatCreated = False
+    rotation = 0
+    for loop in range(spreadRate):
+        while not fatCreated:
+            fat = fatList[chosenFat]
+            x = fat.x + coords[chosenSide][0]
+            y = fat.y + coords[chosenSide][1]
+            if not isBlocked(x, y):
+                createFat(x, y)
+                fatCreated = True
+                break
+            else:
+                chosenSide += 1
+                if chosenSide > 3:
+                    chosenSide = 0
+                rotation += 1
+                if rotation > 3:
+                    chosenFat += 1
+                    if chosenFat > len(fatList) - 1:
+                        chosenFat = 0
+                    chosenSide = randint(0, 3)
+                    rotation = 0
+
+class Gluttony():
+    def takeTurn(self):
+        boss = self.owner
+        fatSpread(2)
+        if boss.distanceTo(player) < 2:
+            boss.Fighter.attack(player)
+
 def placeBoss(name, x, y):
-    bossX = x
-    bossY = y
     if name == 'Gluttony':
         fighterComponent = Fighter(hp=500, armor=1, power=6, xp = 1000, deathFunction = monsterDeath, accuracy = 13, evasion = 1)
-        AI_component = hostileStationnary()
+        AI_component = Gluttony()
         boss = GameObject(x, y, char = 'G', color = colors.darker_lime, name = name, blocks = True, Fighter = fighterComponent, AI = AI_component)
         objects.append(boss)
         
         for x in range(50, 100):
             for y in range(20, 60):
                 if not isBlocked(x, y) and boss.distanceToCoords(x, y) <= 3:
-                    fatFighterComponent = Fighter(hp = 12, armor = 0, power = 0, xp = 0, deathFunction=fatDeath, accuracy= 0, evasion=1)
-                    fat_AI_component = immobile()
-                    fat = GameObject(x, y, char = '#', color = colors.darker_lime, name = "Gluttony's fat", blocks = True, Fighter = fatFighterComponent, AI = fat_AI_component)
-                    objects.append(fat)
+                    createFat(x, y)
                 
 #_____________ BOSS FIGHT __________________
 
