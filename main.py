@@ -80,6 +80,10 @@ LEVEL_UP_BASE = 200 # Set to 200 once testing complete
 LEVEL_UP_FACTOR = 150
 NATURAL_REGEN = False
 
+boss_FOV_recompute = True
+BOSS_FOV_ALGO = 'BASIC'
+BOSS_SIGHT_RADIUS = 60
+
 # - Spells -
 LIGHTNING_DAMAGE = 20
 LIGHTNING_RANGE = 5
@@ -2259,10 +2263,18 @@ def makeBossLevel():
 #_____________ MAP CREATION __________________
 
 #_____________ BOSS FIGHT __________________
+def fatDeath(monster):
+    monster.char = '%'
+    monster.color = colors.dark_red
+    monster.name = None
+    monster.blocks = False
+    monster.AI = None
+    monster.Fighter = None
+
 def createFat(x, y):
     fatFighterComponent = Fighter(hp = 5, armor = 0, power = 1, xp = 0, deathFunction=fatDeath, accuracy= 0, evasion=1)
-    fat_AI_component = hostileStationnary()
-    fat = GameObject(x, y, char = '#', color = colors.darker_lime, name = "Gluttony's fat", blocks = True, Fighter = fatFighterComponent, AI = fat_AI_component)
+    fat_AI_component = immobile()
+    fat = GameObject(x, y, char = '#', color = colors.dark_lime, name = "Gluttony's fat", blocks = True, Fighter = fatFighterComponent, AI = fat_AI_component)
     objects.append(fat)
 
 def fatSpread(spreadRate):
@@ -2299,13 +2311,37 @@ def fatSpread(spreadRate):
 class Gluttony():
     def takeTurn(self):
         boss = self.owner
+        
+        bossVisibleTiles = tdl.map.quickFOV(boss.x, boss.y, isVisibleTile, fov = BOSS_FOV_ALGO, radius = BOSS_SIGHT_RADIUS, lightWalls= False)
+        
         fatSpread(2)
         if boss.distanceTo(player) < 2:
             boss.Fighter.attack(player)
+        for object in objects:
+            if object.name == "Gluttony's fat" and object.distanceTo(player) < 2:
+                player.Fighter.takeDamage(1)
+                message('The massive chunks of flesh around you start crushing you slowly! You lose 1 hit point.', colors.dark_orange)
+                break
+        if (player.x, player.y) in bossVisibleTiles:
+            message('Gluttony says: I see you', colors.red)
+
+def gluttonysDeath(monster):
+    message(monster.name.capitalize() + ' is dead! You have slain a boss and gain ' + str(monster.Fighter.xp) + ' XP!', colors.dark_sky)
+
+    monster.char = '%'
+    monster.color = colors.dark_red
+    monster.blocks = False
+    monster.AI = None
+    monster.name = 'remains of ' + monster.name
+    monster.Fighter = None
+    monster.sendToBack()
+    for object in objects:
+        if object.name == "Gluttony's fat":
+            object.Fighter.hp = 0
 
 def placeBoss(name, x, y):
     if name == 'Gluttony':
-        fighterComponent = Fighter(hp=500, armor=1, power=6, xp = 1000, deathFunction = monsterDeath, accuracy = 13, evasion = 1)
+        fighterComponent = Fighter(hp=500, armor=1, power=6, xp = 1000, deathFunction = gluttonysDeath, accuracy = 13, evasion = 1)
         AI_component = Gluttony()
         boss = GameObject(x, y, char = 'G', color = colors.darker_lime, name = name, blocks = True, Fighter = fighterComponent, AI = AI_component)
         objects.append(boss)
@@ -2615,15 +2651,6 @@ def monsterDeath(monster):
     monster.name = 'remains of ' + monster.name
     monster.Fighter = None
     monster.sendToBack()
-
-def fatDeath(monster):
-    message('You destroy some awful fat !', colors.dark_sky)
-    
-    monster.char = None
-    monster.color = None
-    monster.blocks = False
-    monster.AI = None
-    monster.Fighter = None
 
 def zombieDeath(monster):
     global objects
