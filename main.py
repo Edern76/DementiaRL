@@ -917,7 +917,7 @@ class GameObject:
                 print(self.name + " found no Astar path")
 
 class Fighter: #All NPCs, enemies and the player
-    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, lootFunction = None, lootRate = 0):
+    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, lootFunction = None, lootRate = 0, shootCooldown = 0, landCooldown = 0):
         self.baseMaxHP = hp
         self.hp = hp
         self.baseArmor = armor
@@ -942,6 +942,11 @@ class Fighter: #All NPCs, enemies and the player
         
         self.healCountdown = 10
         self.MPRegenCountdown = 10
+
+        self.baseShootCooldown = shootCooldown
+        self.curShootCooldown = 0
+        self.baseLandCooldown = landCooldown
+        self.curLandCooldown = 0
         
         self.baseMaxMP = maxMP
         self.MP = maxMP
@@ -1403,14 +1408,17 @@ class Item:
         if self.owner.Equipment:
             self.owner.Equipment.unequip()
 
-def quitGame(message):
+def quitGame(message, backToMainMenu = False):
     global objects
     global inventory
     saveGame()
     for obj in objects:
         del obj
     inventory = []
-    raise SystemExit(str(message))
+    if backToMainMenu:
+        mainMenu()
+    else:
+        raise SystemExit(str(message))
 
 def getInput():
     global FOV_recompute
@@ -1865,7 +1873,7 @@ def castCreateWall():
             myMap[x][y].blocked = True
             myMap[x][y].block_sight = True
 
-def applyBurn(target, chance = 70):
+def applyBurn(target, chance = 30):
     if target.Fighter and randint(0, 100) > chance and not target.Fighter.burning:
         if not target.Fighter.frozen:
             target.Fighter.burning = True
@@ -2018,7 +2026,7 @@ ROOM_MIN_SIZE = 6
 MAX_ROOMS = 30
 
 class Tile:
-    def __init__(self, blocked, block_sight = None):
+    def __init__(self, blocked, block_sight = None, acid = False, acidCooldown = 5):
         self.blocked = blocked
         self.explored = False
         self.unbreakable = False
@@ -2026,7 +2034,10 @@ class Tile:
             block_sight = blocked
             self.block_sight = block_sight
         else:
-            self.block_sight = block_sight    
+            self.block_sight = block_sight
+        self.acid = acid
+        self.baseAcidCooldown = acidCooldown
+        self.curAcidCooldown = 0
 
 class Rectangle:
     def __init__(self, x, y, w, h):
@@ -2266,7 +2277,7 @@ def makeBossLevel():
 def fatDeath(monster):
     monster.char = '%'
     monster.color = colors.dark_red
-    monster.name = None
+    monster.name = 'some mangled fat'
     monster.blocks = False
     monster.AI = None
     monster.Fighter = None
@@ -2280,7 +2291,7 @@ def createFat(x, y):
 def fatSpread(spreadRate):
     fatList = []
     for object in objects:
-        if object.name == "Gluttony's fat":
+        if object.name == "Gluttony's fat" or object.name == 'Gluttony':
             fatList.append(object)
     chosenFat = randint(0, len(fatList) - 1)
     chosenSide = randint(0, 3)
@@ -2311,19 +2322,43 @@ def fatSpread(spreadRate):
 class Gluttony():
     def takeTurn(self):
         boss = self.owner
-        
         bossVisibleTiles = tdl.map.quickFOV(boss.x, boss.y, isVisibleTile, fov = BOSS_FOV_ALGO, radius = BOSS_SIGHT_RADIUS, lightWalls= False)
         
-        fatSpread(2)
+        fatSpread(1)
         if boss.distanceTo(player) < 2:
             boss.Fighter.attack(player)
+        elif (player.x, player.y) in bossVisibleTiles:
+            if boss.Fighter.curShootCooldown <= 0:
+                crosshair = GameObject(player.x, player.y, 'X', 'crosshair', color = colors.red, Ghost = True)
+                objects.append(crosshair)
+                boss.Fighter.curShootCooldown = boss.Fighter.baseShootCooldown
+                boss.Fighter.curLandCooldown = boss.Fighter.baseLandCooldown
+                message('Gluttony vomits huge quantities of seemingly acid liquid up in the air, in your direction! The mixture will soon land.', colors.dark_yellow)
+
+        for object in objects:
+            if object.name == 'crosshair' and boss.Fighter.curLandCooldown <= 0:
+                for x in range(MAP_WIDTH):
+                    for y in range(MAP_HEIGHT):
+                        if not isBlocked(x, y) and object.distanceToCoords(x, y) <= 2:
+                            myMap[x][y].acid = True
+                            myMap[x][y].curAcidCooldown = myMap[x][y].baseAcidCooldown
+                            for fighter in objects:
+                                if (fighter.x == x and fighter.y == y) and not (fighter.x == object.x and fighter.y == object.y):
+                                    if fighter.Fighter:
+                                        fighter.Fighter.takeDamage(2)
+                                        message(fighter.name + " is touched by the vomit  splatters and suffers 2 damage!", color = colors.orange)
+                for fighter in objects:
+                    if fighter.x == object.x and fighter.y == object.y:
+                        if fighter.Fighter:
+                            fighter.Fighter.takeDamage(10)
+                            message(fighter.name + " is hit by Gluttony's vomit and suffers 10 damage!", color = colors.orange)
+                objects.remove(object)
+
         for object in objects:
             if object.name == "Gluttony's fat" and object.distanceTo(player) < 2:
                 player.Fighter.takeDamage(1)
                 message('The massive chunks of flesh around you start crushing you slowly! You lose 1 hit point.', colors.dark_orange)
                 break
-        if (player.x, player.y) in bossVisibleTiles:
-            message('Gluttony says: I see you', colors.red)
 
 def gluttonysDeath(monster):
     message(monster.name.capitalize() + ' is dead! You have slain a boss and gain ' + str(monster.Fighter.xp) + ' XP!', colors.dark_sky)
@@ -2341,7 +2376,7 @@ def gluttonysDeath(monster):
 
 def placeBoss(name, x, y):
     if name == 'Gluttony':
-        fighterComponent = Fighter(hp=500, armor=1, power=6, xp = 1000, deathFunction = gluttonysDeath, accuracy = 13, evasion = 1)
+        fighterComponent = Fighter(hp=500, armor=1, power=6, xp = 1000, deathFunction = gluttonysDeath, accuracy = 13, evasion = 1, shootCooldown = 10, landCooldown = 4)
         AI_component = Gluttony()
         boss = GameObject(x, y, char = 'G', color = colors.darker_lime, name = name, blocks = True, Fighter = fighterComponent, AI = AI_component)
         objects.append(boss)
@@ -2827,6 +2862,7 @@ def Update():
             for x in range(MAP_WIDTH):
                 visible = (x, y) in visibleTiles
                 wall = myMap[x][y].block_sight
+                acid = myMap[x][y].acid
                 if not visible:
                     if myMap[x][y].explored:
                         if wall:
@@ -2847,7 +2883,10 @@ def Update():
                             con.draw_char(x, y, '#', fg=colors.white, bg=None)
                     else:
                         if GRAPHICS == 'modern':
-                            con.draw_char(x, y, None, fg=None, bg=color_light_ground)
+                            if acid:
+                                con.draw_char(x, y, None, fg=None, bg=colors.desaturated_chartreuse)
+                            else:
+                                con.draw_char(x, y, None, fg=None, bg=color_light_ground)
                         elif GRAPHICS == 'classic':
                             con.draw_char(x, y, '.', fg=colors.white, bg=None)    
                     myMap[x][y].explored = True
@@ -3138,7 +3177,7 @@ def playGame():
         playerAction = getInput()
         FOV_recompute = True #So as to avoid the blackscreen bug no matter which key we press
         if playerAction == 'exit':
-            quitGame('Player pressed escape')
+            quitGame('Player pressed escape', True)
         if gameState == 'playing' and playerAction != 'didnt-take-turn':
             for object in objects:
                 if object.AI:
@@ -3151,6 +3190,11 @@ def playGame():
                         object.Fighter.frozen = False
                         message(object.name.capitalize() + "'s ice shatters !", colors.light_violet)
                 
+                if object.Fighter and object.Fighter.baseShootCooldown > 0:
+                    object.Fighter.curShootCooldown -= 1
+                if object.Fighter and object.Fighter.baseLandCooldown > 0:
+                    object.Fighter.curLandCooldown -= 1
+
                 if object.Fighter and object.Fighter.enraged:
                     object.Fighter.enrageCooldown -= 1
                     if object.Fighter.enrageCooldown < 0:
@@ -3177,6 +3221,7 @@ def playGame():
                         global DEBUG
                         if DEBUG:
                             message('Failed to apply burn to ' + object.name, colors.violet)
+
                 if object.Fighter and object.Fighter.spellsOnCooldown:
                     try:
                         for spell in object.Fighter.spellsOnCooldown:
@@ -3200,6 +3245,14 @@ def playGame():
                         else:
                             object.Fighter.MPRegenCountdown = 10
                         object.Fighter.MP += 1
+            
+            for x in range(MAP_WIDTH):
+                for y in range(MAP_HEIGHT):
+                    if myMap[x][y].acid:
+                        myMap[x][y].curAcidCooldown -= 1
+                        if myMap[x][y].curAcidCooldown <= 0:
+                            myMap[x][y].acid = False
+                        
             global stairCooldown
             if stairCooldown > 0:
                 stairCooldown -= 1
