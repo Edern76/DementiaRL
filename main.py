@@ -921,6 +921,7 @@ class Fighter: #All NPCs, enemies and the player
         self.baseMaxHP = hp
         self.hp = hp
         self.baseArmor = armor
+        self.BASE_ARMOR = armor
         self.basePower = power
         self.actualBasePower = power
         self.deathFunction = deathFunction
@@ -947,6 +948,9 @@ class Fighter: #All NPCs, enemies and the player
         self.curShootCooldown = 0
         self.baseLandCooldown = landCooldown
         self.curLandCooldown = 0
+        
+        self.acidified = False
+        self.acidifiedCooldown = 0
         
         self.baseMaxMP = maxMP
         self.MP = maxMP
@@ -1651,7 +1655,7 @@ def getInput():
                         boss = False
                         if DEBUG:
                             message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
-                        if dungeonLevel + 1 == 2:
+                        if dungeonLevel + 1 >= 2:
                             boss = True
                         nextLevel(boss)
                     else:
@@ -1786,6 +1790,7 @@ def checkLevelUp():
         player.Fighter.baseAccuracy += player.Player.levelUpStats[1]
         player.Fighter.baseEvasion += player.Player.levelUpStats[2]
         player.Fighter.baseArmor += player.Player.levelUpStats[3]
+        player.Fighter.BASE_ARMOR += player.Player.levelUpStats[3]
         player.Fighter.baseMaxHP += player.Player.levelUpStats[4]
         player.Fighter.hp += player.Player.levelUpStats[4]
         player.Fighter.baseMaxMP += player.Player.levelUpStats[5]
@@ -2247,7 +2252,7 @@ def makeBossLevel():
     createHorizontalTunnel(previous_x, new_x, new_y)
     
     bossName = None
-    if dungeonLevel == 2:
+    if dungeonLevel >= 2:
         bossName = 'Gluttony'
 
     placeBoss(bossName, new_x, y + 1)
@@ -2274,13 +2279,19 @@ def makeBossLevel():
 #_____________ MAP CREATION __________________
 
 #_____________ BOSS FIGHT __________________
+deathX = 0
+deathY = 0
+
 def fatDeath(monster):
+    global deathX, deathY
     monster.char = '%'
     monster.color = colors.dark_red
     monster.name = 'some mangled fat'
     monster.blocks = False
     monster.AI = None
     monster.Fighter = None
+    deathX = monster.x
+    deathY = monster.y
 
 def createFat(x, y):
     fatFighterComponent = Fighter(hp = 5, armor = 0, power = 1, xp = 0, deathFunction=fatDeath, accuracy= 0, evasion=1)
@@ -2303,7 +2314,7 @@ def fatSpread(spreadRate):
             fat = fatList[chosenFat]
             x = fat.x + coords[chosenSide][0]
             y = fat.y + coords[chosenSide][1]
-            if not isBlocked(x, y):
+            if not isBlocked(x, y) and x != deathX and y != deathY:
                 createFat(x, y)
                 fatCreated = True
                 break
@@ -2353,6 +2364,7 @@ class Gluttony():
                             fighter.Fighter.takeDamage(10)
                             message(fighter.name + " is hit by Gluttony's vomit and suffers 10 damage!", color = colors.orange)
                 objects.remove(object)
+                break
 
         for object in objects:
             if object.name == "Gluttony's fat" and object.distanceTo(player) < 2:
@@ -3245,6 +3257,21 @@ def playGame():
                         else:
                             object.Fighter.MPRegenCountdown = 10
                         object.Fighter.MP += 1
+                
+                x = object.x
+                y = object.y
+                if myMap[x][y].acid and object.Fighter:
+                    object.Fighter.takeDamage(1)
+                    object.Fighter.acidified = True
+                    object.Fighter.acidifiedCooldown = 6
+                    curArmor = object.Fighter.armor - object.Fighter.baseArmor
+                    object.Fighter.baseArmor = -curArmor
+                
+                if object.Fighter and object.Fighter.acidified:
+                    object.Fighter.acidifiedCooldown -= 1
+                    if object.Fighter.acidifiedCooldown <= 0:
+                        object.Fighter.acidified = False
+                        object.Fighter.baseArmor = object.Fighter.BASE_ARMOR
             
             for x in range(MAP_WIDTH):
                 for y in range(MAP_HEIGHT):
