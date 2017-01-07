@@ -1110,7 +1110,7 @@ class BasicMonster: #Basic monsters' AI
         targets = []
         selectedTarget = None
         priorityTargetFound = False
-        if not self.owner.Fighter.frozen:
+        if not self.owner.Fighter.frozen and (monster.x, monster.y in visibleTiles):
             for object in objects:
                 if (object.x, object.y) in visibleTiles and (object == player or (object.AI and object.AI.__class__.__name__ == "FriendlyMonster" and object.AI.friendlyTowards == player)):
                     targets.append(object)
@@ -1141,8 +1141,8 @@ class BasicMonster: #Basic monsters' AI
                     monster.Fighter.attack(selectedTarget)
                 else:
                     monster.moveAstar(selectedTarget.x, selectedTarget.y)
-            elif (monster.x, monster.y) in visibleTiles and monster.distanceTo(player) >= 2:
-                monster.moveAstar(player.x, player.y)
+            #elif (monster.x, monster.y) in visibleTiles and monster.distanceTo(player) >= 2:
+                #monster.moveAstar(player.x, player.y)
             else:
                 if not monster.Fighter.frozen and monster.distanceTo(player) >= 2:
                     monster.move(randint(-1, 1), randint(-1, 1)) #wandering
@@ -1862,10 +1862,9 @@ def tileDistance(x1, y1, x2, y2):
 
 def getMoveCost(destX, destY, sourceX, sourceY):
     if isBlocked(destX, destY):
-        return None
+        return 0.0
     else:
-        cost = tileDistance(destX, destY, sourceX, sourceY)
-        return int(cost)
+        return 1.0
 
 def castCreateWall():
     target = targetTile()
