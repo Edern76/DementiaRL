@@ -917,7 +917,7 @@ class GameObject:
                 print(self.name + " found no Astar path")
 
 class Fighter: #All NPCs, enemies and the player
-    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, lootFunction = None, lootRate = 0, shootCooldown = 0, landCooldown = 0):
+    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, lootFunction = None, lootRate = 0, shootCooldown = 0, landCooldown = 0, transferDamage = None):
         self.baseMaxHP = hp
         self.hp = hp
         self.baseArmor = armor
@@ -963,6 +963,8 @@ class Fighter: #All NPCs, enemies and the player
             self.knownSpells = []
         
         self.spellsOnCooldown = []
+        
+        self.transferDamage = transferDamage
 
     @property
     def power(self):
@@ -1116,7 +1118,7 @@ class BasicMonster: #Basic monsters' AI
         targets = []
         selectedTarget = None
         priorityTargetFound = False
-        if not self.owner.Fighter.frozen and (monster.x, monster.y in visibleTiles):
+        if not self.owner.Fighter.frozen and ((monster.x, monster.y) in visibleTiles):
             for object in objects:
                 if (object.x, object.y) in visibleTiles and (object == player or (object.AI and object.AI.__class__.__name__ == "FriendlyMonster" and object.AI.friendlyTowards == player)):
                     targets.append(object)
@@ -1163,7 +1165,7 @@ class FastMonster:
             targets = []
             selectedTarget = None
             priorityTargetFound = False
-            if not self.owner.Fighter.frozen:
+            if not self.owner.Fighter.frozen and ((monster.x, monster.y) in visibleTiles):
                 for object in objects:
                     if (object.x, object.y) in visibleTiles and (object == player or (object.AI and object.AI.__class__.__name__ == "FriendlyMonster" and object.AI.friendlyTowards == player)):
                         targets.append(object)
@@ -1877,8 +1879,8 @@ def tileDistance(x1, y1, x2, y2):
         dy = y2 - y1
         return math.sqrt(dx ** 2 + dy ** 2)
 
-def getMoveCost(destX, destY, sourceX, sourceY):
-    if isBlocked(destX, destY):
+def getMoveCost(destX, destY):
+    if myMap[destX][destY].blocked and (player.x, player.y) != (destX, destY):
         return 0.0
     else:
         return 1.0
@@ -2876,7 +2878,7 @@ def initializeFOV():
     global FOV_recompute, visibleTiles, pathfinder
     FOV_recompute = True
     visibleTiles = tdl.map.quickFOV(player.x, player.y, isVisibleTile, fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
-    pathfinder = tdl.map.AStar(MAP_WIDTH, MAP_HEIGHT, callback = getMoveCost, advanced=True)
+    pathfinder = tdl.map.AStar(MAP_WIDTH, MAP_HEIGHT, callback = getMoveCost, advanced=False)
     con.clear()
 
 def Update():
@@ -2890,7 +2892,7 @@ def Update():
         FOV_recompute = False
         global pathfinder
         visibleTiles = tdl.map.quickFOV(player.x, player.y, isVisibleTile, fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
-        pathfinder = tdl.map.AStar(MAP_WIDTH, MAP_HEIGHT, callback = getMoveCost, advanced=True)
+        pathfinder = tdl.map.AStar(MAP_WIDTH, MAP_HEIGHT, callback = getMoveCost, advanced=False)
         for y in range(MAP_HEIGHT):
             for x in range(MAP_WIDTH):
                 visible = (x, y) in visibleTiles
