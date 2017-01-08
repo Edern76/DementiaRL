@@ -1757,7 +1757,7 @@ def shoot():
                                 inventory.remove(object)
                             break
                     if not foundAmmo:
-                        message('You have no ammuniion for your ' + weapon.name + ' !', colors.red)
+                        message('You have no ammunition for your ' + weapon.name + ' !', colors.red)
                         return 'didnt-take-turn'
                 else:
                     message('Choose a target for your ' + weapon.name + '.', colors.cyan)
