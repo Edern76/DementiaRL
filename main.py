@@ -897,6 +897,7 @@ class GameObject:
     
     def moveAstar(self, destX, destY):
         global tilesinPath, pathfinder
+        #TODO : Add another path check using another pathfinder accounting enemies as blocking (so as to try to find a way around them), then if no path is found using this way (e.g tunnel), use the normal pathfinder, and if there is still path found , use moveTowards()
         self.astarPath = pathfinder.get_path(self.x, self.y, destX, destY)
         tilesinPath.extend(self.astarPath)
         if len(self.astarPath) != 0:
@@ -912,6 +913,7 @@ class GameObject:
                 print(self.name + " moved to " + str(self.x) + ', ' + str(self.y))
             
         else:
+            
             self.moveTowards(destX, destY)
             if DEBUG:
                 print(self.name + " found no Astar path")
@@ -2878,7 +2880,7 @@ def initializeFOV():
     global FOV_recompute, visibleTiles, pathfinder
     FOV_recompute = True
     visibleTiles = tdl.map.quickFOV(player.x, player.y, isVisibleTile, fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
-    pathfinder = tdl.map.AStar(MAP_WIDTH, MAP_HEIGHT, callback = getMoveCost, advanced=False)
+    pathfinder = tdl.map.AStar(MAP_WIDTH, MAP_HEIGHT, callback = getMoveCost, diagnalCost=1, advanced=False)
     con.clear()
 
 def Update():
@@ -2892,7 +2894,7 @@ def Update():
         FOV_recompute = False
         global pathfinder
         visibleTiles = tdl.map.quickFOV(player.x, player.y, isVisibleTile, fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
-        pathfinder = tdl.map.AStar(MAP_WIDTH, MAP_HEIGHT, callback = getMoveCost, advanced=False)
+        pathfinder = tdl.map.AStar(MAP_WIDTH, MAP_HEIGHT, callback = getMoveCost, diagnalCost=1, advanced=False)
         for y in range(MAP_HEIGHT):
             for x in range(MAP_WIDTH):
                 visible = (x, y) in visibleTiles
