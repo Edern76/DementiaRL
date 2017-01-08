@@ -763,9 +763,9 @@ def characterCreation():
             if index == maxIndex - 1:
                 if actualClasses > 0 and actualRaces > 0:
                     createdCharacter = [power, accuracy, evasion, armor, maxHP, maxMP, critical]
-                    return createdCharacter, levelUpStats, actualPerSkills, skillsBonus, startingSpells, chosenRace, chosenClass
+                    return createdCharacter, levelUpStats, actualPerSkills, skillsBonus, startingSpells, chosenRace, chosenClass, selectedTraits
             if index == maxIndex:
-                return 'cancelled', 'cancelled', 'cancelled', 'cancelled', 'cancelled', 'cancelled', 'cancelled'
+                return 'cancelled', 'cancelled', 'cancelled', 'cancelled', 'cancelled', 'cancelled', 'cancelled', 'cancelled'
         #removing choice bonus
         if key.keychar.upper() == 'BACKSPACE':
             if midIndexMin <= index <= midIndexMax:
@@ -1035,9 +1035,15 @@ class Fighter: #All NPCs, enemies and the player
         [hit, criticalHit] = self.toHit(target)
         if hit:
             if criticalHit:
-                damage = (self.power - target.Fighter.armor) * 3
+                if self.owner.Player and self.owner.Player.traits[0]:
+                    damage = (self.power + 4 - target.Fighter.armor) * 3
+                else:
+                    damage = (self.power - target.Fighter.armor) * 3
             else:
-                damage = self.power - target.Fighter.armor
+                if self.owner.Player and self.owner.Player.traits[0]:
+                    damage = self.power + 4 - target.Fighter.armor
+                else:
+                    damage = self.power - target.Fighter.armor
             if not self.frozen:
                 if not self.owner.Player:
                     if damage > 0:
@@ -1307,12 +1313,13 @@ class FriendlyMonster:
         else:
             pass #Implement here code in case the monster is friendly towards another monster
 class Player:
-    def __init__(self, actualPerSkills, levelUpStats, skillsBonus, race, classes):
+    def __init__(self, actualPerSkills, levelUpStats, skillsBonus, race, classes, traits):
         self.actualPerSkills = actualPerSkills
         self.levelUpStats = levelUpStats
         self.skillsBonus = skillsBonus
         self.race = race
         self.classes = classes
+        self.traits = traits
         if DEBUG:
             print('Player component initialized')
         
@@ -1728,7 +1735,11 @@ def shoot():
                                 FOV_recompute = True
                                 [hit, criticalHit] = player.Fighter.toHit(target)
                                 if hit:
-                                    damage = weapon.Equipment.rangedPower - target.Fighter.armor
+                                    if player.Player.traits[0]:
+                                        damage = weapon.Equipment.rangedPower + 4 - target.Fighter.armor
+                                    else:
+                                        damage = weapon.Equipment.rangedPower - target.Fighter.armor
+
                                     if damage <= 0:
                                         message('You hit ' + target.name + ' but it has no effect !')
                                     else:
@@ -2821,7 +2832,7 @@ def equipmentMenu(header):
         return equipmentList[index].Item
 
 def mainMenu():
-    global playerComponent, levelUpStats, actualPerSkills, skillsBonus, startingSpells, chosenRace, chosenClass
+    global playerComponent, levelUpStats, actualPerSkills, skillsBonus, startingSpells, chosenRace, chosenClass, chosenTraits
     choices = ['New Game', 'Continue', 'Quit']
     index = 0
     while not tdl.event.isWindowClosed():
@@ -2843,7 +2854,7 @@ def mainMenu():
             index = 0
         if key.keychar.upper() == "ENTER":
             if index == 0:
-                [playerComponent, levelUpStats, actualPerSkills, skillsBonus, startingSpells, chosenRace, chosenClass] = characterCreation()
+                [playerComponent, levelUpStats, actualPerSkills, skillsBonus, startingSpells, chosenRace, chosenClass, chosenTraits] = characterCreation()
                 if playerComponent != 'cancelled':
                     newGame()
                     playGame()
@@ -3060,7 +3071,7 @@ def saveGame():
 def newGame():
     global objects, inventory, gameMsgs, gameState, player, dungeonLevel
     playFight = Fighter(hp = playerComponent[4], power= playerComponent[0], armor= playerComponent[3], deathFunction=playerDeath, xp=0, evasion = playerComponent[2], accuracy = playerComponent[1], maxMP= playerComponent[5], knownSpells=startingSpells, critical = playerComponent[6])
-    playComp = Player(actualPerSkills, levelUpStats, skillsBonus, chosenRace, chosenClass)
+    playComp = Player(actualPerSkills, levelUpStats, skillsBonus, chosenRace, chosenClass, chosenTraits)
     player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = 'Hero', color = (0, 210, 0))
     player.level = 1
 
