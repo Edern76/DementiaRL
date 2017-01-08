@@ -2392,8 +2392,9 @@ def gluttonysDeath(monster):
     monster.Fighter = None
     monster.sendToBack()
     for object in objects:
-        if object.name == "Gluttony's fat":
+        if object.name == "Gluttony's fat" or (object.AI and (object.AI.__class__.__name__ == "immobile")):
             object.Fighter.hp = 0
+            fatDeath(object)
 
 def placeBoss(name, x, y):
     if name == 'Gluttony':
