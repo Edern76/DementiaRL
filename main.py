@@ -1252,13 +1252,19 @@ class ConfusedMonster:
         self.numberTurns = numberTurns
  
     def takeTurn(self):
-        if self.numberTurns > 0:  
-            self.owner.move(randint(-1, 1), randint(-1, 1))
-            self.numberTurns -= 1
- 
+        if not self.old_AI.__class__.__name__ == 'hostileStationnary' or not self.old_AI.__class__.__name__ == 'immobile':
+            if self.numberTurns > 0:  
+                self.owner.move(randint(-1, 1), randint(-1, 1))
+                self.numberTurns -= 1
+            else:
+                self.owner.AI = self.old_AI
+                message('The ' + self.owner.name + ' is no longer confused!', colors.red)
         else:
-            self.owner.AI = self.old_AI
-            message('The ' + self.owner.name + ' is no longer confused!', colors.red)
+            if self.numberTurns > 0:  
+                pass
+            else:
+                self.owner.AI = self.old_AI
+                message('The ' + self.owner.name + ' is no longer confused!', colors.red)
             
 class FriendlyMonster:
     def __init__(self, friendlyTowards = player):
@@ -1947,7 +1953,7 @@ def createOrc(x, y, friendly = False, corpse = False):
 def createTroll(x, y, friendly = False, corpse = False):
     if x != player.x or y != player.y:
         if not corpse:
-            equipmentComponent = Equipment(slot = 'both hands', type = 'heavy weapon', powerBonus = 5, accuracyBonus = -20)
+            equipmentComponent = Equipment(slot = 'both hands', type = 'heavy weapon', powerBonus = 8, accuracyBonus = -20)
             trollMace = GameObject(x, y, '/', 'troll mace', colors.darker_orange, Equipment=equipmentComponent, Item=Item())
             lootOnDeath = trollMace
             deathType = monsterDeath
@@ -2335,15 +2341,19 @@ class Gluttony():
         bossVisibleTiles = tdl.map.quickFOV(boss.x, boss.y, isVisibleTile, fov = BOSS_FOV_ALGO, radius = BOSS_SIGHT_RADIUS, lightWalls= False)
         
         fatSpread(1)
-        if boss.distanceTo(player) < 2:
-            boss.Fighter.attack(player)
-        elif (player.x, player.y) in bossVisibleTiles:
-            if boss.Fighter.curShootCooldown <= 0:
-                crosshair = GameObject(player.x, player.y, 'X', 'crosshair', color = colors.red, Ghost = True)
-                objects.append(crosshair)
-                boss.Fighter.curShootCooldown = boss.Fighter.baseShootCooldown
-                boss.Fighter.curLandCooldown = boss.Fighter.baseLandCooldown
-                message('Gluttony vomits huge quantities of seemingly acid liquid up in the air, in your direction! The mixture will soon land.', colors.dark_yellow)
+        
+        if not boss.Fighter.frozen:
+            if boss.distanceTo(player) < 2:
+                boss.Fighter.attack(player)
+            elif (player.x, player.y) in bossVisibleTiles:
+                if boss.Fighter.curShootCooldown <= 0:
+                    crosshair = GameObject(player.x, player.y, 'X', 'crosshair', color = colors.red, Ghost = True)
+                    objects.append(crosshair)
+                    boss.Fighter.curShootCooldown = boss.Fighter.baseShootCooldown
+                    boss.Fighter.curLandCooldown = boss.Fighter.baseLandCooldown
+                    message('Gluttony vomits huge quantities of seemingly acid liquid up in the air, in your direction! The mixture will soon land.', colors.dark_yellow)
+        else:
+            pass
 
         for object in objects:
             if object.name == 'crosshair' and boss.Fighter.curLandCooldown <= 0:
