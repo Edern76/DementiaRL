@@ -3193,7 +3193,7 @@ def playGame():
             for object in objects:
                 if object.AI:
                     object.AI.takeTurn()
-                if object.Fighter and object.Fighter.frozen:
+                if object.Fighter and object.Fighter.frozen and object.Fighter is not None:
                     object.Fighter.freezeCooldown -= 1
                     if object.Fighter.freezeCooldown < 0:
                         object.Fighter.freezeCooldown = 0
@@ -3201,12 +3201,12 @@ def playGame():
                         object.Fighter.frozen = False
                         message(object.name.capitalize() + "'s ice shatters !", colors.light_violet)
                 
-                if object.Fighter and object.Fighter.baseShootCooldown > 0:
+                if object.Fighter and object.Fighter.baseShootCooldown > 0 and object.Fighter is not None:
                     object.Fighter.curShootCooldown -= 1
-                if object.Fighter and object.Fighter.baseLandCooldown > 0:
+                if object.Fighter and object.Fighter.baseLandCooldown > 0 and object.Fighter is not None:
                     object.Fighter.curLandCooldown -= 1
 
-                if object.Fighter and object.Fighter.enraged:
+                if object.Fighter and object.Fighter.enraged and object.Fighter is not None:
                     object.Fighter.enrageCooldown -= 1
                     if object.Fighter.enrageCooldown < 0:
                         object.Fighter.enrageCooldown = 0
@@ -3218,7 +3218,7 @@ def playGame():
                             message('You are no longer enraged.', colors.amber)
                         object.Fighter.basePower = object.Fighter.actualBasePower
 
-                if object.Fighter and object.Fighter.burning:
+                if object.Fighter and object.Fighter.burning and object.Fighter is not None:
                     try:
                         object.Fighter.burnCooldown -= 1
                         object.Fighter.takeDamage(3)
@@ -3233,7 +3233,7 @@ def playGame():
                         if DEBUG:
                             message('Failed to apply burn to ' + object.name, colors.violet)
 
-                if object.Fighter and object.Fighter.spellsOnCooldown:
+                if object.Fighter and object.Fighter.spellsOnCooldown and object.Fighter is not None:
                     try:
                         for spell in object.Fighter.spellsOnCooldown:
                             spell.curCooldown -= 1
@@ -3246,7 +3246,7 @@ def playGame():
                                     message(spell.name + " is now ready.")
                     except:
                         continue
-                if object.Fighter and object.Fighter.MP < object.Fighter.maxMP:
+                if object.Fighter and object.Fighter.MP < object.Fighter.maxMP and object.Fighter is not None:
                     object.Fighter.MPRegenCountdown -= 1
                     if object.Fighter.MPRegenCountdown < 0:
                         object.Fighter.MPRegenCountdown = 0
@@ -3259,14 +3259,14 @@ def playGame():
                 
                 x = object.x
                 y = object.y
-                if myMap[x][y].acid and object.Fighter:
+                if myMap[x][y].acid and object.Fighter and object.Fighter is not None:
                     object.Fighter.takeDamage(1)
                     object.Fighter.acidified = True
                     object.Fighter.acidifiedCooldown = 6
                     curArmor = object.Fighter.armor - object.Fighter.baseArmor
                     object.Fighter.baseArmor = -curArmor
                 
-                if object.Fighter and object.Fighter.acidified:
+                if object.Fighter and object.Fighter.acidified and object.Fighter is not None:
                     object.Fighter.acidifiedCooldown -= 1
                     if object.Fighter.acidifiedCooldown <= 0:
                         object.Fighter.acidified = False
