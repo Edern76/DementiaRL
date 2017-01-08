@@ -907,6 +907,7 @@ class GameObject:
                     print (str(x) + "/" + str(y) + ";", end = " ", sep = " ")
                     print()
             (x, y) = self.astarPath[0]
+            #TODO : Add a isBlcoked check here
             self.x = x
             self.y = y
             if DEBUG:
