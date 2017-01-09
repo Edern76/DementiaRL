@@ -143,6 +143,70 @@ absPicklePath = os.path.join(curDir, relPicklePath)
 stairCooldown = 0
 pathfinder = None
 
+def get_line(start, end):
+    """Bresenham's Line Algorithm
+    Produces a list of tuples from start and end
+ 
+    >>> points1 = get_line((0, 0), (3, 4))
+    >>> points2 = get_line((3, 4), (0, 0))
+    >>> assert(set(points1) == set(points2))
+    >>> print points1
+    [(0, 0), (1, 1), (1, 2), (2, 3), (3, 4)]
+    >>> print points2
+    [(3, 4), (2, 3), (1, 2), (1, 1), (0, 0)]
+    """
+    # Setup initial conditions
+    x1, y1 = start
+    x2, y2 = end
+    dx = x2 - x1
+    dy = y2 - y1
+ 
+    # Determine how steep the line is
+    is_steep = abs(dy) > abs(dx)
+ 
+    # Rotate line
+    if is_steep:
+        x1, y1 = y1, x1
+        x2, y2 = y2, x2
+ 
+    # Swap start and end points if necessary and store swap state
+    swapped = False
+    if x1 > x2:
+        x1, x2 = x2, x1
+        y1, y2 = y2, y1
+        swapped = True
+ 
+    # Recalculate differentials
+    dx = x2 - x1
+    dy = y2 - y1
+ 
+    # Calculate error
+    error = int(dx / 2.0)
+    ystep = 1 if y1 < y2 else -1
+ 
+    # Iterate over bounding box generating points between start and end
+    y = y1
+    points = []
+    for x in range(x1, x2 + 1):
+        coord = (y, x) if is_steep else (x, y)
+        points.append(coord)
+        error -= abs(dy)
+        if error < 0:
+            y += ystep
+            error += dx
+ 
+    # Reverse the list if the coordinates were swapped
+    if swapped:
+        points.reverse()
+    return points
+
+def animStep(waitTime = .125):
+    global FOV_recompute
+    FOV_recompute = True
+    Update()
+    tdl.flush()
+    time.sleep(waitTime)
+
 #_____________MENU_______________
 def menu(header, options, width):
     if len(options) > 26: raise ValueError('Cannot have a menu with more than 26 options')
@@ -310,6 +374,7 @@ def castFireball(radius = 3, damage = 12, range = 4):
         return target
     else:
         (x,y) = target
+        projectile(player.x, player.y, x, y, '*', colors.flame)
         for obj in objects:
             if obj.distanceToCoords(x, y) <= radius and obj.Fighter:
                 if obj != player:
@@ -1271,7 +1336,7 @@ class ConfusedMonster:
         self.numberTurns = numberTurns
  
     def takeTurn(self):
-        if not self.old_AI.__class__.__name__ == 'hostileStationnary' or not self.old_AI.__class__.__name__ == 'immobile':
+        if self.old_AI.__class__.__name__ != 'hostileStationnary' and self.old_AI.__class__.__name__ != 'immobile':
             if self.numberTurns > 0:  
                 self.owner.move(randint(-1, 1), randint(-1, 1))
                 self.numberTurns -= 1
@@ -1391,7 +1456,7 @@ class Item:
                     break
             if not itemFound:
                 if len(inventory) >= 26:
-                   message('Your bag already feels really heavy, you cannot pick up ' + str(self.amount) + self.owner.name + 's.', colors.red)
+                    message('Your bag already feels really heavy, you cannot pick up ' + str(self.amount) + self.owner.name + 's.', colors.red)
                 else:
                     inventory.append(self.owner)
                     objects.remove(self.owner)
@@ -1711,6 +1776,16 @@ def getInput():
             return 'didnt-take-turn'
     FOV_recompute = True
 
+def projectile(sourceX, sourceY, destX, destY, char, color):
+    line = get_line((sourceX, sourceY), (destX, destY))
+    proj = GameObject(0, 0, char, 'proj', color)
+    objects.append(proj)
+    for loop in range(len(line)):
+        (x, y) = line.pop(0)
+        proj.x, proj.y = x, y
+        animStep(.100)
+    objects.remove(proj)
+
 def moveOrAttack(dx, dy):
     global FOV_recompute
     x = player.x + dx
@@ -1745,6 +1820,7 @@ def shoot():
                                 message('Invalid target.')
                                 return 'didnt-take-turn'
                             else:
+                                projectile(player.x, player.y, target.x, target.y, '.', colors.light_orange)
                                 FOV_recompute = True
                                 [hit, criticalHit] = player.Fighter.toHit(target)
                                 if hit:
@@ -2381,6 +2457,7 @@ class Gluttony():
 
         for object in objects:
             if object.name == 'crosshair' and boss.Fighter.curLandCooldown <= 0:
+                projectile(boss.x, boss.y, object.x, object.y, '*', colors.desaturated_chartreuse)
                 for x in range(MAP_WIDTH):
                     for y in range(MAP_HEIGHT):
                         if not isBlocked(x, y) and object.distanceToCoords(x, y) <= 2:
