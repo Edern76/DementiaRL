@@ -855,6 +855,7 @@ class GameObject:
         self.Equipment = Equipment
         if self.Equipment:
             self.Equipment.owner = self
+        self.astarPath = []
 
     def moveTowards(self, target_x, target_y):
         dx = target_x - self.x
@@ -894,6 +895,14 @@ class GameObject:
         global objects
         objects.remove(self)
         objects.insert(0, self)
+
+    def moveNextStepOnPath(self):
+        if self.astarPath:
+            x, y = self.astarPath.pop(0)
+            if isBlocked(x, y):
+                self.astarPath = []
+            else:
+                self.x, self.y = x, y
     
     def moveAstar(self, destX, destY):
         global tilesinPath, pathfinder
@@ -907,14 +916,13 @@ class GameObject:
                     print (str(x) + "/" + str(y) + ";", end = " ", sep = " ")
                     print()
             (x, y) = self.astarPath[0]
-            #TODO : Add a isBlcoked check here
-            self.x = x
-            self.y = y
-            if DEBUG:
-                print(self.name + " moved to " + str(self.x) + ', ' + str(self.y))
+            if not isBlocked(x, y):
+                self.x = x
+                self.y = y
+                if DEBUG:
+                    print(self.name + " moved to " + str(self.x) + ', ' + str(self.y))
             
         else:
-            
             self.moveTowards(destX, destY)
             if DEBUG:
                 print(self.name + " found no Astar path")
