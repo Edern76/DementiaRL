@@ -318,6 +318,7 @@ def castFireball(radius = 3, damage = 12, range = 4):
     else:
         (x,y) = target
         projectile(player.x, player.y, x, y, '*', colors.flame)
+        #TODO : Make where the projectile lands actually matter
         for obj in objects:
             if obj.distanceToCoords(x, y) <= radius and obj.Fighter:
                 if obj != player:
@@ -1791,7 +1792,11 @@ def projectile(sourceX, sourceY, destX, destY, char, color):
         (x, y) = line.pop(0)
         proj.x, proj.y = x, y
         animStep(.050)
+        if isBlocked(x, y):
+            break
+    #TODO : Have the line continue until it hits a wall
     objects.remove(proj)
+    return (x,y)
 
 def checkDiagonals(monster, target):
     diagonals = [(1,1), (1, -1), (-1, 1), (-1, -1)]
@@ -1835,32 +1840,41 @@ def shoot():
                         foundAmmo = False
                         if object.name == ammo:
                             message('Choose a target for your ' + weapon.name + '.', colors.cyan)
-                            target = targetMonster(weapon.Equipment.maxRange)
-                            if target is None:
+                            aimedTile = targetTile(weapon.Equipment.maxRange)
+                            if aimedTile == "cancelled":
                                 FOV_recompute = True
                                 message('Invalid target.')
                                 return 'didnt-take-turn'
                             else:
-                                projectile(player.x, player.y, target.x, target.y, '.', colors.light_orange)
+                                (aimX, aimY) = aimedTile
+                                (targetX, targetY) = projectile(player.x, player.y, aimX, aimY, '.', colors.light_orange)
                                 FOV_recompute = True
-                                [hit, criticalHit] = player.Fighter.toHit(target)
-                                if hit:
-                                    if player.Player.traits[0]:
-                                        damage = weapon.Equipment.rangedPower + 4 - target.Fighter.armor
-                                    else:
-                                        damage = weapon.Equipment.rangedPower - target.Fighter.armor
-
-                                    if damage <= 0:
-                                        message('You hit ' + target.name + ' but it has no effect !')
-                                    else:
-                                        if criticalHit:
-                                            damage = damage * 3
-                                            message('You critically hit ' + target.name + ' for ' + str(damage) + ' damage !', colors.darker_green)
+                                monsterTarget = None
+                                for thing in objects:
+                                    if thing.Fighter and thing.Fighter.hp > 0 and thing.x == targetX and thing.y == targetY:
+                                        monsterTarget = thing
+                                        break
+                                if monsterTarget:
+                                    [hit, criticalHit] = player.Fighter.toHit(monsterTarget)
+                                    if hit:
+                                        if player.Player.traits[0]:
+                                            damage = weapon.Equipment.rangedPower + 4 - monsterTarget.Fighter.armor
                                         else:
-                                            message('You hit ' + target.name + ' for ' + str(damage) + ' damage !', colors.dark_green)
-                                        target.Fighter.takeDamage(damage)
+                                            damage = weapon.Equipment.rangedPower - monsterTarget.Fighter.armor
+    
+                                        if damage <= 0:
+                                            message('You hit ' + monsterTarget.name + ' but it has no effect !')
+                                        else:
+                                            if criticalHit:
+                                                damage = damage * 3
+                                                message('You critically hit ' + monsterTarget.name + ' for ' + str(damage) + ' damage !', colors.darker_green)
+                                            else:
+                                                message('You hit ' + monsterTarget.name + ' for ' + str(damage) + ' damage !', colors.dark_green)
+                                                monsterTarget.Fighter.takeDamage(damage)
+                                    else:
+                                        message('You missed ' + monsterTarget.name + '!', colors.grey)
                                 else:
-                                    message('You missed ' + target.name + '!', colors.grey)
+                                    message("Your arrow didn't hit anything", colors.grey)
                             object.Item.amount -= 1
                             foundAmmo = True
                             if object.Item.amount <= 0:
