@@ -921,6 +921,8 @@ class GameObject:
         if self.Equipment:
             self.Equipment.owner = self
         self.astarPath = []
+        self.lastTargetX = None
+        self.lastTargetY = None
 
     def moveTowards(self, target_x, target_y):
         dx = target_x - self.x
@@ -966,12 +968,29 @@ class GameObject:
             x, y = self.astarPath.pop(0)
             if isBlocked(x, y):
                 self.astarPath = []
+                self.lastTargetX = None
+                self.lastTargetY = None
+                if DEBUG:
+                    print(self.name.capitalize() + " : Path blocked, deleting path")
+                    return 'fail'
             else:
                 self.x, self.y = x, y
+                if DEBUG:
+                    print(self.name.capitalize() + " : Pathing successful" + self.name + " moved to " + str(self.x) + ', ' + str(self.y))
+                return "complete"
+        else:
+            return "fail"
     
-    def moveAstar(self, destX, destY):
+    def moveAstar(self, destX, destY, fallback = True):
         global tilesinPath, pathfinder
         #TODO : Add another path check using another pathfinder accounting enemies as blocking (so as to try to find a way around them), then if no path is found using this way (e.g tunnel), use the normal pathfinder, and if there is still path found , use moveTowards()
+        #if destX is not None and destY is not None and destX == self.lastTargetX and destY == self.lastTargetY and self.astarPath:
+            #self.moveNextStepOnPath()
+            #print(self.name.capitalize() + " : Following old path")
+        #else:
+        print(self.name.capitalize() + " : No path found, trying to create new")
+        self.lastTargetX = destX
+        self.lastTargetY = destY
         self.astarPath = pathfinder.get_path(self.x, self.y, destX, destY)
         tilesinPath.extend(self.astarPath)
         if len(self.astarPath) != 0:
@@ -980,17 +999,14 @@ class GameObject:
                 for (x,y) in self.astarPath:
                     print (str(x) + "/" + str(y) + ";", end = " ", sep = " ")
                     print()
-            (x, y) = self.astarPath[0]
-            if not isBlocked(x, y):
-                self.x = x
-                self.y = y
-                if DEBUG:
-                    print(self.name + " moved to " + str(self.x) + ', ' + str(self.y))
-            
-        else:
+            self.moveNextStepOnPath()  
+                
+        elif fallback:
             self.moveTowards(destX, destY)
             if DEBUG:
                 print(self.name + " found no Astar path")
+        else:
+            return "fail"
 
 class Fighter: #All NPCs, enemies and the player
     def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, lootFunction = None, lootRate = 0, shootCooldown = 0, landCooldown = 0, transferDamage = None):
@@ -1194,9 +1210,11 @@ class BasicMonster: #Basic monsters' AI
         targets = []
         selectedTarget = None
         priorityTargetFound = False
-        if not self.owner.Fighter.frozen and ((monster.x, monster.y) in visibleTiles):
+        monsterVisibleTiles = tdl.map.quick_fov(x = monster.x, y = monster.y,callback = isVisibleTile , fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
+        if not self.owner.Fighter.frozen and monster.distanceTo(player) <= 15:
+            print(monster.name + " is less than 15 tiles to player.")
             for object in objects:
-                if (object.x, object.y) in visibleTiles and (object == player or (object.AI and object.AI.__class__.__name__ == "FriendlyMonster" and object.AI.friendlyTowards == player)):
+                if (object.x, object.y) in monsterVisibleTiles and (object == player or (object.AI and object.AI.__class__.__name__ == "FriendlyMonster" and object.AI.friendlyTowards == player)):
                     targets.append(object)
             if DEBUG:
                 print(monster.name.capitalize() + " can target", end=" ")
@@ -1224,12 +1242,26 @@ class BasicMonster: #Basic monsters' AI
                 if monster.distanceTo(selectedTarget) < 2:
                     monster.Fighter.attack(selectedTarget)
                 else:
-                    monster.moveAstar(selectedTarget.x, selectedTarget.y)
+                    state = monster.moveAstar(selectedTarget.x, selectedTarget.y, fallback = False)
+                    if state == "fail":
+                        diagState = checkDiagonals(monster, selectedTarget)
+                        if diagState is None:
+                            monster.moveTowards(selectedTarget.x, selectedTarget.y)
             #elif (monster.x, monster.y) in visibleTiles and monster.distanceTo(player) >= 2:
                 #monster.moveAstar(player.x, player.y)
             else:
                 if not monster.Fighter.frozen and monster.distanceTo(player) >= 2:
-                    monster.move(randint(-1, 1), randint(-1, 1)) #wandering
+                    pathState = "complete"
+                    diagPathState = None
+                    if monster.astarPath:
+                        pathState = monster.moveNextStepOnPath()
+                    elif not monster.astarPath or pathState == "fail":
+                            if monster.distanceTo(player) <= 15 and not (monster.x == player.x and monster.y == player.y):
+                                diagPathState = checkDiagonals(monster, player)
+                            elif diagPathState is None or monster.distanceTo(player) > 15:
+                                monster.move(randint(-1, 1), randint(-1, 1)) #wandering
+                        
+                    
 
 class FastMonster:
     def __init__(self, speed):
@@ -1594,6 +1626,9 @@ def getInput():
         learnSpell(ressurect)
         FOV_recompute = True
         return 'didnt-take-turn'
+    elif userInput.keychar.upper() == 'F12' and DEBUG and not tdl.event.isWindowClosed():
+        castCreateChasm()
+        FOV_recompute = True
     elif userInput.keychar == 'S' and DEBUG and not tdl.event.isWindowClosed():
         message("Force-saved level {}", colors.purple)
         saveLevel()
@@ -1786,6 +1821,20 @@ def projectile(sourceX, sourceY, destX, destY, char, color):
         animStep(.100)
     objects.remove(proj)
 
+def checkDiagonals(monster, target):
+    diagonals = [(1,1), (1, -1), (-1, 1), (-1, -1)]
+    sameX = monster.x == target.x
+    sameY = monster.y == target.y
+    for i in range(len(diagonals)):
+        nx, ny = diagonals[i]
+        closerPath = ((not sameX) and monster.x + nx == target.x) or ((not sameY and monster.y + ny == target.y))
+        if closerPath and not isBlocked(monster.x + nx, monster.y + ny):
+            monster.x += nx
+            monster.y += ny
+            return "complete"
+            break
+    return None
+
 def moveOrAttack(dx, dy):
     global FOV_recompute
     x = player.x + dx
@@ -1944,8 +1993,8 @@ def isVisibleTile(x, y):
         return False
     elif y >= MAP_HEIGHT or y < 0:
         return False
-    elif myMap[x][y].blocked == True:
-        return False
+    #elif myMap[x][y].blocked == True:
+        #return False
     elif myMap[x][y].block_sight == True:
         return False
     else:
@@ -1982,6 +2031,17 @@ def castCreateWall():
             global myMap
             myMap[x][y].blocked = True
             myMap[x][y].block_sight = True
+
+def castCreateChasm():
+    target = targetTile()
+    if target == 'cancelled':
+        return target
+    else:
+        (x,y) = target
+        if not isBlocked(x, y):
+            global myMap
+            myMap[x][y].blocked = True
+            myMap[x][y].block_sight = False
 
 def applyBurn(target, chance = 30):
     if target.Fighter and randint(0, 100) > chance and not target.Fighter.burning:
@@ -2177,12 +2237,16 @@ def createHorizontalTunnel(x1, x2, y):
     for x in range(min(x1, x2), max(x1, x2) + 1):
         myMap[x][y].blocked = False
         myMap[x][y].block_sight = False
+        #myMap[x][y+1].blocked = False
+        #myMap[x][y+1].block_sight = False
             
 def createVerticalTunnel(y1, y2, x):
     global myMap
     for y in range(min(y1, y2), max(y1, y2) + 1):
         myMap[x][y].blocked = False
         myMap[x][y].block_sight = False
+        #myMap[x+1][y].blocked = False
+        #myMap[x+1][y].block_sight = False
 
 def secretRoomTest(startingX, endX, startingY, endY):
     for x in range(startingX, endX):
@@ -2986,6 +3050,7 @@ def Update():
                 visible = (x, y) in visibleTiles
                 wall = myMap[x][y].block_sight
                 acid = myMap[x][y].acid
+                chasm = (not myMap[x][y].block_sight) and (myMap[x][y].blocked)
                 if not visible:
                     if myMap[x][y].explored:
                         if wall:
@@ -2993,6 +3058,11 @@ def Update():
                                 con.draw_char(x, y, '#', fg=color_dark_wall, bg=color_dark_ground)
                             elif GRAPHICS == 'classic':
                                 con.draw_char(x, y, '#', fg=colors.dark_gray, bg=None)
+                        elif chasm:
+                            if GRAPHICS == 'modern':
+                                con.draw_char(x, y, None, fg=None, bg=colors.gray)
+                            elif GRAPHICS == 'classic':
+                                con.draw_char(x, y, 'X', fg=colors.gray, bg=None)
                         else:
                             if GRAPHICS == 'modern':
                                 con.draw_char(x, y, None, fg=None, bg=color_dark_ground)
@@ -3004,6 +3074,11 @@ def Update():
                             con.draw_char(x, y, '#', fg=color_light_wall, bg=color_light_ground)
                         elif GRAPHICS == 'classic':
                             con.draw_char(x, y, '#', fg=colors.white, bg=None)
+                    elif chasm:
+                            if GRAPHICS == 'modern':
+                                con.draw_char(x, y, None, fg=None, bg=colors.dark_gray)
+                            elif GRAPHICS == 'classic':
+                                con.draw_char(x, y, 'X', fg=colors.dark_gray, bg=None)
                     else:
                         if GRAPHICS == 'modern':
                             if acid:
