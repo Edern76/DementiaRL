@@ -1790,7 +1790,7 @@ def projectile(sourceX, sourceY, destX, destY, char, color):
     for loop in range(len(line)):
         (x, y) = line.pop(0)
         proj.x, proj.y = x, y
-        animStep(.100)
+        animStep(.050)
     objects.remove(proj)
 
 def checkDiagonals(monster, target):
