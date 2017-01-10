@@ -433,6 +433,10 @@ BASE_ARMOR = 0
 BASE_MAXHP = 0
 BASE_MAXMP = 0
 BASE_CRITICAL = 5
+BASE_STRENGTH = 10
+BASE_DEXTERITY = 10
+BASE_VITALITY = 10
+BASE_WILLPOWER = 10
 
 power = BASE_POWER
 accuracy = BASE_ACCURACY
@@ -441,6 +445,12 @@ armor = BASE_ARMOR
 maxHP = BASE_MAXHP
 maxMP = BASE_MAXMP
 critical = BASE_CRITICAL
+
+strength = BASE_STRENGTH
+dexterity = BASE_DEXTERITY
+vitality = BASE_VITALITY
+willpower = BASE_WILLPOWER
+
 startingSpells = []
 
 def description(text):
@@ -451,7 +461,7 @@ def description(text):
         drawCentered(cons = root, y = 35 + line, text = lines, fg = colors.white, bg = None)
 
 def applyBonus(list, chosenList):
-    global power, accuracy, evasion, armor, maxHP, maxMP, critical
+    global power, accuracy, evasion, armor, maxHP, maxMP, critical, strength, dexterity, vitality, willpower
     power += list[chosenList][0]
     accuracy += list[chosenList][1]
     evasion += list[chosenList][2]
@@ -459,9 +469,13 @@ def applyBonus(list, chosenList):
     maxHP += list[chosenList][4]
     maxMP += list[chosenList][5]
     critical += list[chosenList][6]
+    strength += list[chosenList][7]
+    dexterity += list[chosenList][8]
+    vitality += list[chosenList][9]
+    willpower += list[chosenList][10]
 
 def removeBonus(list, chosenList):
-    global power, accuracy, evasion, armor, maxHP, maxMP, critical
+    global power, accuracy, evasion, armor, maxHP, maxMP, critical, strength, dexterity, vitality, willpower
     power -= list[chosenList][0]
     accuracy -= list[chosenList][1]
     evasion -= list[chosenList][2]
@@ -469,8 +483,12 @@ def removeBonus(list, chosenList):
     maxHP -= list[chosenList][4]
     maxMP -= list[chosenList][5]
     critical -= list[chosenList][6]
+    strength -= list[chosenList][7]
+    dexterity -= list[chosenList][8]
+    vitality -= list[chosenList][9]
+    willpower -= list[chosenList][10]
 
-#Bonus template: [power, accuracy, evasion, armor, maxHP, maxMP, critical]
+#Bonus template: [power, accuracy, evasion, armor, maxHP, maxMP, critical, strength, dexterity, vitality, willpower]
 
 def characterCreation():
     races = ['Human', 'Minotaur', 'Insectoid', 'Lizardman', 'Ratling']
@@ -479,11 +497,11 @@ def characterCreation():
                         'Insectoids are stronger than human but, more importantly, are very good at arcane arts',
                         'Lizardmen are sneaky thieves and assassins',
                         'Ratlings are very agile but absurdly weak']
-    racesBonus = [[0, 0, 0, 0, 0, 0, 0], #Human
-                  [5, -8, -4, 0, 20, -15, 0], #Minotaur
-                  [1, -4, -2, 0, -5, 10, 0], #Insectoid
-                  [0, 4, 2, 0, 0, -10, 0], #Lizardman
-                  [-4, 4, 4, 0, 0, 0, 0]] #Ratling
+    racesBonus = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], #Human
+                  [0, 0, 0, 0, 0, 0, 0, 5, -4, 4, -3], #Minotaur
+                  [0, 0, 0, 0, 0, 0, 0, 1, -1, -2, 2], #Insectoid
+                  [0, 0, 0, 0, 0, 0, 0, 0, 2, 0, -2], #Lizardman
+                  [0, 0, 10, 0, 0, 0, 0, -4, 2, 0, 0]] #Ratling
     MAX_RACES = 1
     actualRaces = 0
     selectedRaces = [False, False, False, False, False]
@@ -495,20 +513,20 @@ def characterCreation():
                           'A rogue who is stealthy and backstabby (probably has a french accent)',
                           'A wizard who zaps everything',
                           'A master of the occult arts who has the ability to raise and control the dead.']
-    classesBonus = [[0, 0, 0, 1, 60, 30, 0], #Knight
-                    [1, 0, 0, 0, 80, 30, 0], #Barbarian
-                    [0, 8, 10, 0, 45, 40, 3], #Rogue
-                    [0, 0, 0, 0, 35, 50, 0], #Mage
-                    [0, 0, 0, 0, 50, 15, 0]] #Necromancer
-    classesLevelUp = [[0, 0, 0, 1, 7, 3, 0],
-                      [1, 0, 0, 0, 10, 3, 0],
-                      [0, 2, 1, 0, 5, 5, 0],
-                      [0, 0, 0, 0, 3, 7, 0],
-                      [0, 0, 0, 0, 2, 1, 0]]
+    classesBonus = [[0, 0, 0, 1, 60, 30, 0, 0, 0, 0, 0], #Knight
+                    [0, 0, 0, 0, 80, 30, 0, 1, 0, 0, 0], #Barbarian
+                    [0, 8, 10, 0, 45, 40, 3, 0, 0, 0, 0], #Rogue
+                    [0, 0, 0, 0, 35, 50, 0, 0, 0, 0, 2], #Mage
+                    [0, 0, 0, 0, 50, 15, 0, 0, 0, 0, 0]] #Necromancer
+    classesLevelUp = [[0, 0, 0, 1, 7, 3, 0, 0, 0, 0, 0],
+                      [0, 0, 0, 0, 10, 3, 0, 1, 0, 0, 0],
+                      [0, 2, 1, 0, 5, 5, 0, 0, 0, 0, 0],
+                      [0, 0, 0, 0, 3, 7, 0, 0, 0, 0, 0],
+                      [0, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0]]
     MAX_CLASSES = 1
     actualClasses = 0
     selectedClasses = [False, False, False, False, False]
-    levelUpStats = [0, 0, 0, 0, 0, 0, 0]
+    levelUpStats = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     classesSpells = [[], [enrage], [], [fireball], [darkPact, ressurect]]
     chosenClass = None
 
@@ -517,10 +535,10 @@ def characterCreation():
                              'Dexterity augments your accuracy and your evasion',
                              'Constitution augments your maximum health',
                              'Willpower augments your energy']
-    attributesBonus = [[1, 0, 0, 0, 0, 0, 0], #strength
-                       [0, 2, 1, 0, 0, 0, 0], #dex
-                       [0, 0, 0, 0, 5, 0, 0], #vitality
-                       [0, 0, 0, 0, 0, 5, 0]] #willpower
+    attributesBonus = [[0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], #strength
+                       [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0], #dex
+                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0], #vitality
+                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]] #willpower
     MAX_ATTRIBUTES_POINTS = 10
     MAX_PER_ATTRIBUTES = 5
     actualAttributesPoints = 0
@@ -538,16 +556,16 @@ def characterCreation():
                          'You have incredible reflexes',
                          'You are trained to master all weapons',
                          'You can endure harm better']
-    traitsBonus= [[0, 0, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 0, 20, 0],
-                  [0, 0, 5, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 10, 0, 0],
-                  [2, 0, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 1, 0, 0, 0],
-                  [0, 0, 0, 0, 0, 10, 0],
-                  [0, 4, 2, 0, 0, 0, 0],
-                  [0, 7, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 20, 0, 0]]
+    traitsBonus= [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0, 20, 0, 0, 0, 0, 0],
+                  [0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0],
+                  [0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0],
+                  [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
+                  [0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0],
+                  [0, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 20, 0, 0, 0, 0, 0, 0]]
     MAX_TRAITS = 2
     actualTraits = 0
     selectedTraits = [False, False, False, False, False, False, False, False, False, False]
@@ -564,17 +582,17 @@ def characterCreation():
                          '+3 evasion per skillpoints',
                          '+3 critical chance par skillpoints ',
                          '+10 accuracy per skillpoints']
-    skillsBonus = [[0, 0, 0, 0, 0, 0, 0], #light
-                   [0, 0, 0, 0, 0, 0, 0], #heavy
-                   [0, 0, 0, 0, 0, 0, 0], #missile
-                   [0, 0, 0, 0, 0, 0, 0], #throwing
-                   [0, 0, 0, 0, 0, 0, 0], #magic
-                   [0, 0, 0, 0, 0, 0, 0], #armor
-                   [0, 0, 0, 0, 20, 0, 0], #athletics
-                   [0, 0, 0, 0, 0, 20, 0], #concentration
-                   [0, 0, 3, 0, 0, 0, 0], #dodge
-                   [0, 0, 0, 0, 0, 0, 3], #crit
-                   [0, 10, 0, 0, 0, 0, 0]] #accuracy
+    skillsBonus = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], #light
+                   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], #heavy
+                   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], #missile
+                   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], #throwing
+                   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], #magic
+                   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], #armor
+                   [0, 0, 0, 0, 20, 0, 0, 0, 0, 0, 0], #athletics
+                   [0, 0, 0, 0, 0, 20, 0, 0, 0, 0, 0], #concentration
+                   [0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0], #dodge
+                   [0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0], #crit
+                   [0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0]] #accuracy
     MAX_SKILLS = 2
     MAX_PER_SKILLS = 1
     actualSkills = 0
@@ -644,42 +662,42 @@ def characterCreation():
         drawCentered(cons = root, y = 91, text = 'Cancel', fg = colors.white, bg = None)
 
         #Displaying stats
-        eightScreen = WIDTH//8
+        #eightScreen = WIDTH//8
         
-        text = 'Power: ' + str(power)
-        drawCenteredOnX(cons = root, x = eightScreen * 1, y = 82, text = text, fg = colors.white, bg = None)
-        X = eightScreen * 1 + ((len(text) + 1)// 2)
-        root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[0]) + '/lvl', fg = colors.yellow, bg = None)
+        #text = 'Power: ' + str(power)
+        #drawCenteredOnX(cons = root, x = eightScreen * 1, y = 82, text = text, fg = colors.white, bg = None)
+        #X = eightScreen * 1 + ((len(text) + 1)// 2)
+        #root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[0]) + '/lvl', fg = colors.yellow, bg = None)
         
-        text = 'Accuracy: ' + str(accuracy)
-        drawCenteredOnX(cons = root, x = eightScreen * 2, y = 82, text = text, fg = colors.white, bg = None)
-        X = eightScreen * 2 + ((len(text) + 1)// 2)
-        root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[1]) + '/lvl', fg = colors.yellow, bg = None)
+        #text = 'Accuracy: ' + str(accuracy)
+        #drawCenteredOnX(cons = root, x = eightScreen * 2, y = 82, text = text, fg = colors.white, bg = None)
+        #X = eightScreen * 2 + ((len(text) + 1)// 2)
+        #root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[1]) + '/lvl', fg = colors.yellow, bg = None)
         
-        text = 'Evasion: ' + str(evasion)
-        drawCenteredOnX(cons = root, x = eightScreen * 3, y = 82, text = text, fg = colors.white, bg = None)
-        X = eightScreen * 3 + ((len(text) + 1)// 2)
-        root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[2]) + '/lvl', fg = colors.yellow, bg = None)
+        #text = 'Evasion: ' + str(evasion)
+        #drawCenteredOnX(cons = root, x = eightScreen * 3, y = 82, text = text, fg = colors.white, bg = None)
+        #X = eightScreen * 3 + ((len(text) + 1)// 2)
+        #root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[2]) + '/lvl', fg = colors.yellow, bg = None)
         
-        text = 'Armor: ' + str(armor)
-        drawCenteredOnX(cons = root, x = eightScreen * 4, y = 82, text = text, fg = colors.white, bg = None)
-        X = eightScreen * 4 + ((len(text) + 1)// 2)
-        root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[3]) + '/lvl', fg = colors.yellow, bg = None)
+        #text = 'Armor: ' + str(armor)
+        #drawCenteredOnX(cons = root, x = eightScreen * 4, y = 82, text = text, fg = colors.white, bg = None)
+        #X = eightScreen * 4 + ((len(text) + 1)// 2)
+        #root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[3]) + '/lvl', fg = colors.yellow, bg = None)
         
-        text = 'Max HP: ' + str(maxHP)
-        drawCenteredOnX(cons = root, x = eightScreen * 5, y = 82, text = text, fg = colors.white, bg = None)
-        X = eightScreen * 5 + ((len(text) + 1)// 2)
-        root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[4]) + '/lvl', fg = colors.yellow, bg = None)
+        #text = 'Max HP: ' + str(maxHP)
+        #drawCenteredOnX(cons = root, x = eightScreen * 5, y = 82, text = text, fg = colors.white, bg = None)
+        #X = eightScreen * 5 + ((len(text) + 1)// 2)
+        #root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[4]) + '/lvl', fg = colors.yellow, bg = None)
         
-        text = 'Max MP: ' + str(maxMP)
-        drawCenteredOnX(cons = root, x = eightScreen * 6, y = 82, text = text, fg = colors.white, bg = None)
-        X = eightScreen * 6 + ((len(text) + 1)// 2)
-        root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[5]) + '/lvl', fg = colors.yellow, bg = None)
+        #text = 'Max MP: ' + str(maxMP)
+        #drawCenteredOnX(cons = root, x = eightScreen * 6, y = 82, text = text, fg = colors.white, bg = None)
+        #X = eightScreen * 6 + ((len(text) + 1)// 2)
+        #root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[5]) + '/lvl', fg = colors.yellow, bg = None)
         
-        text = 'Critical: ' + str(critical)
-        drawCenteredOnX(cons = root, x = eightScreen * 7, y = 82, text = text, fg = colors.white, bg = None)
-        X = eightScreen * 7 + ((len(text) + 1)// 2)
-        root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[6]) + '/lvl', fg = colors.yellow, bg = None)
+        #text = 'Critical: ' + str(critical)
+        #drawCenteredOnX(cons = root, x = eightScreen * 7, y = 82, text = text, fg = colors.white, bg = None)
+        #X = eightScreen * 7 + ((len(text) + 1)// 2)
+        #root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[6]) + '/lvl', fg = colors.yellow, bg = None)
         
         # Selection
         if midIndexMin <= index <= midIndexMax:
@@ -771,7 +789,7 @@ def characterCreation():
                         actualPerSkills[index - previousListLen] += 1
             if index == maxIndex - 1:
                 if actualClasses > 0 and actualRaces > 0:
-                    createdCharacter = [power, accuracy, evasion, armor, maxHP, maxMP, critical]
+                    createdCharacter = [power, accuracy, evasion, armor, maxHP, maxMP, critical, strength, dexterity, vitality, willpower]
                     return createdCharacter, levelUpStats, actualPerSkills, skillsBonus, startingSpells, chosenRace, chosenClass, selectedTraits
             if index == maxIndex:
                 return 'cancelled', 'cancelled', 'cancelled', 'cancelled', 'cancelled', 'cancelled', 'cancelled', 'cancelled'
@@ -955,15 +973,18 @@ class GameObject:
 class Fighter: #All NPCs, enemies and the player
     def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, lootFunction = None, lootRate = 0, shootCooldown = 0, landCooldown = 0, transferDamage = None):
         self.baseMaxHP = hp
+        self.BASE_MAX_HP = hp
         self.hp = hp
         self.baseArmor = armor
         self.BASE_ARMOR = armor
         self.basePower = power
-        self.actualBasePower = power
+        self.BASE_POWER = power
         self.deathFunction = deathFunction
         self.xp = xp
         self.baseAccuracy = accuracy
+        self.BASE_ACCURACY = accuracy
         self.baseEvasion = evasion
+        self.BASE_EVASION = evasion
         self.baseCritical = critical
         self.lootFunction = lootFunction
         self.lootRate = lootRate 
@@ -990,6 +1011,7 @@ class Fighter: #All NPCs, enemies and the player
         
         self.baseMaxMP = maxMP
         self.MP = maxMP
+        self.BASE_MAX_MP = maxMP
         
         self.damageText = 'unscathed'
         
@@ -1334,7 +1356,7 @@ class ConfusedMonster:
                 message('The ' + self.owner.name + ' is no longer confused!', colors.red)
         else:
             if self.numberTurns > 0:  
-                pass
+                return
             else:
                 self.owner.AI = self.old_AI
                 message('The ' + self.owner.name + ' is no longer confused!', colors.red)
@@ -1395,8 +1417,13 @@ class FriendlyMonster:
                         monster.move(randint(-1, 1), randint(-1, 1)) #wandering
         else:
             pass #Implement here code in case the monster is friendly towards another monster
+
 class Player:
-    def __init__(self, actualPerSkills, levelUpStats, skillsBonus, race, classes, traits):
+    def __init__(self, strength, dexterity, vitality, willpower, actualPerSkills, levelUpStats, skillsBonus, race, classes, traits):
+        self.strength = strength
+        self.dexterity = dexterity
+        self.vitality = vitality
+        self.willpower = willpower
         self.actualPerSkills = actualPerSkills
         self.levelUpStats = levelUpStats
         self.skillsBonus = skillsBonus
@@ -1420,15 +1447,40 @@ class Player:
             self.owner.color = (255, 0, 0)
         elif self.hpRatio == 0:
             self.owner.color = (120, 0, 0)
+    
+    def bonusPlayerStats(self):
+        #[power, accuracy, evasion, armor, maxHP, maxMP, critical]
+        power = self.strength - 10
+        accuracy = 2 * (self.dexterity - 10)
+        evasion = self.dexterity - 10
+        maxHP = 5 * (self.vitality - 10)
+        maxMP = 5 * (self.willpower - 10)
+        return power, accuracy, evasion, maxHP, maxMP
+
+    def updatePlayerStats(self):
+        power, accuracy, evasion, maxHP, maxMP = self.bonusPlayerStats()
+        object = self.owner
+        object.Fighter.basePower = object.Fighter.BASE_POWER + power
+        object.Fighter.baseAccuracy = object.Fighter.BASE_ACCURACY + accuracy
+        object.Fighter.baseEvasion = object.Fighter.BASE_EVASION + evasion
+        
+        hpDiff = object.Fighter.baseMaxHP - object.Fighter.hp
+        mpDiff = object.Fighter.baseMaxMP - object.Fighter.MP
+        
+        object.Fighter.baseMaxHP = object.Fighter.BASE_MAX_HP + maxHP
+        object.Fighter.hp = object.Fighter.baseMaxHP - hpDiff
+        object.Fighter.baseMaxMP = object.Fighter.BASE_MAX_MP + maxMP
+        object.Fighter.MP = object.Fighter.baseMaxMP - mpDiff
 
 class Item:
-    def __init__(self, useFunction = None,  arg1 = None, arg2 = None, arg3 = None, stackable = False, amount = 0):
+    def __init__(self, useFunction = None,  arg1 = None, arg2 = None, arg3 = None, stackable = False, amount = 0, weight = 0):
         self.useFunction = useFunction
         self.arg1 = arg1
         self.arg2 = arg2
         self.arg3 = arg3
         self.stackable = stackable
         self.amount = amount
+        self.weight = weight
 
     def pickUp(self):
         if not self.stackable:
@@ -1937,6 +1989,10 @@ def checkLevelUp():
         player.Fighter.baseMaxMP += player.Player.levelUpStats[5]
         player.Fighter.MP += player.Player.levelUpStats[5]
         player.Fighter.baseCritical += player.Player.levelUpStats[6]
+        player.Player.strength += player.Player.levelUpStats[7]
+        player.Player.dexterity += player.Player.levelUpStats[8]
+        player.Player.vitality += player.Player.levelUpStats[9]
+        player.Player.willpower += player.Player.levelUpStats[10]
         
         choice = None
         while choice == None:
@@ -1963,8 +2019,13 @@ def checkLevelUp():
                     player.Fighter.baseMaxMP += player.Player.skillsBonus[choice][5]
                     player.Fighter.MP += player.Player.skillsBonus[choice][5]
                     player.Fighter.baseCritical += player.Player.skillsBonus[choice][6]
+                    player.Player.strength += player.Player.skillsBonus[choice][7]
+                    player.Player.dexterity += player.Player.skillsBonus[choice][8]
+                    player.Player.vitality += player.Player.skillsBonus[choice][9]
+                    player.Player.willpower += player.Player.skillsBonus[choice][10]
 
                     player.Player.actualPerSkills[choice] += 1
+                    
                     
                     FOV_recompute = True
                     Update()
@@ -1972,6 +2033,7 @@ def checkLevelUp():
 
                 elif player.Player.actualPerSkills[choice] >= 5:
                     choice = None
+        player.Player.updatePlayerStats()
 
 def isVisibleTile(x, y):
     global myMap
@@ -2524,6 +2586,7 @@ class Gluttony():
                             fighter.Fighter.takeDamage(10)
                             message(fighter.name + " is hit by Gluttony's vomit and suffers 10 damage!", color = colors.orange)
                 objects.remove(object)
+                FOV_recompute = True
                 break
 
         for object in objects:
@@ -2972,7 +3035,7 @@ def equipmentMenu(header):
         return equipmentList[index].Item
 
 def mainMenu():
-    global playerComponent, levelUpStats, actualPerSkills, skillsBonus, startingSpells, chosenRace, chosenClass, chosenTraits
+    global player
     choices = ['New Game', 'Continue', 'Quit']
     index = 0
     while not tdl.event.isWindowClosed():
@@ -2994,8 +3057,14 @@ def mainMenu():
             index = 0
         if key.keychar.upper() == "ENTER":
             if index == 0:
-                [playerComponent, levelUpStats, actualPerSkills, skillsBonus, startingSpells, chosenRace, chosenClass, chosenTraits] = characterCreation()
+                (playerComponent, levelUpStats, actualPerSkills, skillsBonus, startingSpells, chosenRace, chosenClass, chosenTraits) = characterCreation()
                 if playerComponent != 'cancelled':
+                    playComp = Player(playerComponent[7], playerComponent[8], playerComponent[9], playerComponent[10], actualPerSkills, levelUpStats, skillsBonus, chosenRace, chosenClass, chosenTraits)
+                    playFight = Fighter(hp = playerComponent[4], power= playerComponent[0], armor= playerComponent[3], deathFunction=playerDeath, xp=0, evasion = playerComponent[2], accuracy = playerComponent[1], maxMP= playerComponent[5], knownSpells=startingSpells, critical = playerComponent[6])
+                    player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = 'Hero', color = (0, 210, 0))
+                    player.level = 1
+                    player.Player.updatePlayerStats()
+                    
                     newGame()
                     playGame()
                 else:
@@ -3046,7 +3115,7 @@ def Update():
                                 con.draw_char(x, y, '#', fg=colors.dark_gray, bg=None)
                         elif chasm:
                             if GRAPHICS == 'modern':
-                                con.draw_char(x, y, None, fg=None, bg=colors.gray)
+                                con.draw_char(x, y, None, fg=None, bg=colors.darkest_gray)
                             elif GRAPHICS == 'classic':
                                 con.draw_char(x, y, 'X', fg=colors.gray, bg=None)
                         else:
@@ -3062,7 +3131,7 @@ def Update():
                             con.draw_char(x, y, '#', fg=colors.white, bg=None)
                     elif chasm:
                             if GRAPHICS == 'modern':
-                                con.draw_char(x, y, None, fg=None, bg=colors.dark_gray)
+                                con.draw_char(x, y, None, fg=None, bg=colors.darkest_gray)
                             elif GRAPHICS == 'classic':
                                 con.draw_char(x, y, 'X', fg=colors.dark_gray, bg=None)
                     else:
@@ -3221,10 +3290,6 @@ def saveGame():
 
 def newGame():
     global objects, inventory, gameMsgs, gameState, player, dungeonLevel
-    playFight = Fighter(hp = playerComponent[4], power= playerComponent[0], armor= playerComponent[3], deathFunction=playerDeath, xp=0, evasion = playerComponent[2], accuracy = playerComponent[1], maxMP= playerComponent[5], knownSpells=startingSpells, critical = playerComponent[6])
-    playComp = Player(actualPerSkills, levelUpStats, skillsBonus, chosenRace, chosenClass, chosenTraits)
-    player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = 'Hero', color = (0, 210, 0))
-    player.level = 1
 
     objects = [player]
     dungeonLevel = 1 
@@ -3389,7 +3454,9 @@ def playGame():
                             message(object.name.capitalize() + "is no longer enraged !", colors.amber)
                         else:
                             message('You are no longer enraged.', colors.amber)
-                        object.Fighter.basePower = object.Fighter.actualBasePower
+                        object.Fighter.basePower = object.Fighter.BASE_POWER
+                        if object.Player:
+                            object.Player.updatePlayerStats()
 
                 if object.Fighter and object.Fighter.burning and object.Fighter is not None:
                     try:
