@@ -1403,9 +1403,10 @@ class FriendlyMonster:
         monster = self.owner
         targets = []
         selectedTarget = None
+        monsterVisibleTiles = tdl.map.quick_fov(x = monster.x, y = monster.y,callback = isVisibleTile , fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
         if self.friendlyTowards == player and not self.owner.Fighter.frozen: #If the monster is friendly towards the player
             for object in objects:
-                if (object.x, object.y) in visibleTiles and object.AI and object.AI.__class__.__name__ != "FriendlyMonster" and object.Fighter and object.Fighter.hp > 0:
+                if (object.x, object.y) in monsterVisibleTiles and object.AI and object.AI.__class__.__name__ != "FriendlyMonster" and object.Fighter and object.Fighter.hp > 0:
                     targets.append(object)
             if DEBUG:
                 print(monster.name.capitalize() + " can target", end=" ")
@@ -1420,6 +1421,7 @@ class FriendlyMonster:
                     enemy = targets[enemyIndex]
                     if monster.distanceTo(enemy) < 2:
                         selectedTarget = enemy
+                        print(monster.name.capitalize() + " is targeting " + selectedTarget.name)
                     else:
                         if selectedTarget == None or monster.distanceTo(selectedTarget) > monster.distanceTo(enemy):
                             selectedTarget = enemy
@@ -1427,12 +1429,26 @@ class FriendlyMonster:
                 if monster.distanceTo(selectedTarget) < 2:
                     monster.Fighter.attack(selectedTarget)
                 else:
-                    monster.moveAstar(selectedTarget.x, selectedTarget.y)
-            elif (monster.x, monster.y) in visibleTiles and monster.distanceTo(player) >= 2:
-                monster.moveAstar(player.x, player.y)
+                    state = monster.moveAstar(selectedTarget.x, selectedTarget.y, fallback = False)
+                    if state == "fail":
+                        diagState = checkDiagonals(monster, selectedTarget)
+                        if diagState is None:
+                            monster.moveTowards(selectedTarget.x, selectedTarget.y)
             else:
                 if not monster.Fighter.frozen and monster.distanceTo(player) >= 2:
-                    monster.move(randint(-1, 1), randint(-1, 1))
+                    if (player.x, player.y) in monsterVisibleTiles:
+                        pathState = monster.moveAstar(player.x, player.y, fallback = False)
+                        diagPathState = None
+                        if pathState == "fail" or not monster.astarPath:
+                                if monster.distanceTo(player) <= 15 and not (monster.x == player.x and monster.y == player.y):
+                                    oldX, oldY = monster.x, monster.y
+                                    monster.moveTowards(player.x, player.y)
+                                    if oldX == monster.x and oldY == monster.y: #If monster didn't move after moveTowards
+                                        diagPathState = checkDiagonals(monster, player)
+                                        if diagPathState is None:
+                                            print(monster.name.capitalize() + " didn't manage to move at all")
+                    else:                    
+                        monster.move(randint(-1, 1), randint(-1, 1)) #wandering
         else:
             pass #Implement here code in case the monster is friendly towards another monster
 class Player:
