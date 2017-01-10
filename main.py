@@ -80,6 +80,10 @@ LEVEL_UP_BASE = 200 # Set to 200 once testing complete
 LEVEL_UP_FACTOR = 150
 NATURAL_REGEN = False
 
+boss_FOV_recompute = True
+BOSS_FOV_ALGO = 'BASIC'
+BOSS_SIGHT_RADIUS = 60
+
 # - Spells -
 LIGHTNING_DAMAGE = 20
 LIGHTNING_RANGE = 5
@@ -88,6 +92,7 @@ CONFUSE_RANGE = 8
 DARK_PACT_DAMAGE = 12
 FIREBALL_SPELL_BASE_DAMAGE = 6
 FIREBALL_SPELL_BASE_RADIUS = 1
+FIREBALL_SPELL_BASE_RANGE = 4
 
 RESURECTABLE_CORPSES = ["orc", "troll"]
 # - Spells -
@@ -137,6 +142,13 @@ absPicklePath = os.path.join(curDir, relPicklePath)
 
 stairCooldown = 0
 pathfinder = None
+
+def animStep(waitTime = .125):
+    global FOV_recompute
+    FOV_recompute = True
+    Update()
+    tdl.flush()
+    time.sleep(waitTime)
 
 #_____________MENU_______________
 def menu(header, options, width):
@@ -206,6 +218,7 @@ class Spell:
         if self.name == 'Fireball':
             self.arg1 = FIREBALL_SPELL_BASE_RADIUS + player.Player.actualPerSkills[4]
             self.arg2 = FIREBALL_SPELL_BASE_DAMAGE * player.Player.actualPerSkills[4]
+            self.arg3 = FIREBALL_SPELL_BASE_RANGE + player.Player.actualPerSkills[4] 
 
     def cast(self):
         self.updateSpellStats()
@@ -296,14 +309,16 @@ def castFreeze():
         message("The " + target.name + " is already frozen.")
         return 'cancelled'
     
-def castFireball(radius = 3, damage = 12):
+def castFireball(radius = 3, damage = 12, range = 4):
     message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
-    target = targetTile(maxRange = 4)
+    target = targetTile(maxRange = range)
     if target == 'cancelled':
         message('Spell casting cancelled')
         return target
     else:
         (x,y) = target
+        projectile(player.x, player.y, x, y, '*', colors.flame)
+        #TODO : Make where the projectile lands actually matter
         for obj in objects:
             if obj.distanceToCoords(x, y) <= radius and obj.Fighter:
                 if obj != player:
@@ -400,14 +415,14 @@ def castRessurect(range = 4):
             
             
 
-fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 1, arg2 = 6)
+fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 1, arg2 = 6, arg3 = 4)
 heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 10)
 darkPact = Spell(ressourceCost = DARK_PACT_DAMAGE, cooldown = 8, useFunction = castDarkRitual, name = "Dark ritual", ressource = 'HP', type = "Occult", magicLevel = 2, arg1 = 5, arg2 = DARK_PACT_DAMAGE)
 enrage = Spell(ressourceCost = 5, cooldown = 30, useFunction = castEnrage, name = 'Enrage', ressource = 'MP', type = 'Strength', magicLevel = 0, arg1 = 5)
 lightning = Spell(ressourceCost = 10, cooldown = 7, useFunction = castLightning, name = 'Lightning bolt', ressource = 'MP', type = 'Magic', magicLevel = 3)
 confuse = Spell(ressourceCost = 5, cooldown = 4, useFunction = castConfuse, name = 'Confusion', ressource = 'MP', type = 'Magic', magicLevel = 1)
 ice = Spell(ressourceCost = 9, cooldown = 5, useFunction = castFreeze, name = 'Ice bolt', ressource = 'MP', type = 'Magic', magicLevel = 2)
-ressurect = Spell(ressourceCost = 10, cooldown = 15, useFunction=castRessurect, name = "Dark ressurcetion", ressource = 'MP', type = "Occult", arg1 = 4)
+ressurect = Spell(ressourceCost = 10, cooldown = 15, useFunction=castRessurect, name = "Dark ressurection", ressource = 'MP', type = "Occult", arg1 = 4)
 #_____________SPELLS_____________
 
 #______________CHARACTER GENERATION____________
@@ -757,9 +772,9 @@ def characterCreation():
             if index == maxIndex - 1:
                 if actualClasses > 0 and actualRaces > 0:
                     createdCharacter = [power, accuracy, evasion, armor, maxHP, maxMP, critical]
-                    return createdCharacter, levelUpStats, actualPerSkills, skillsBonus, startingSpells, chosenRace, chosenClass
+                    return createdCharacter, levelUpStats, actualPerSkills, skillsBonus, startingSpells, chosenRace, chosenClass, selectedTraits
             if index == maxIndex:
-                return 'cancelled', 'cancelled', 'cancelled', 'cancelled', 'cancelled', 'cancelled', 'cancelled'
+                return 'cancelled', 'cancelled', 'cancelled', 'cancelled', 'cancelled', 'cancelled', 'cancelled', 'cancelled'
         #removing choice bonus
         if key.keychar.upper() == 'BACKSPACE':
             if midIndexMin <= index <= midIndexMax:
@@ -849,6 +864,9 @@ class GameObject:
         self.Equipment = Equipment
         if self.Equipment:
             self.Equipment.owner = self
+        self.astarPath = []
+        self.lastTargetX = None
+        self.lastTargetY = None
 
     def moveTowards(self, target_x, target_y):
         dx = target_x - self.x
@@ -888,9 +906,35 @@ class GameObject:
         global objects
         objects.remove(self)
         objects.insert(0, self)
+
+    def moveNextStepOnPath(self):
+        if self.astarPath:
+            x, y = self.astarPath.pop(0)
+            if isBlocked(x, y):
+                self.astarPath = []
+                self.lastTargetX = None
+                self.lastTargetY = None
+                if DEBUG:
+                    print(self.name.capitalize() + " : Path blocked, deleting path")
+                    return 'fail'
+            else:
+                self.x, self.y = x, y
+                if DEBUG:
+                    print(self.name.capitalize() + " : Pathing successful" + self.name + " moved to " + str(self.x) + ', ' + str(self.y))
+                return "complete"
+        else:
+            return "fail"
     
-    def moveAstar(self, destX, destY):
+    def moveAstar(self, destX, destY, fallback = True):
         global tilesinPath, pathfinder
+        #TODO : Add another path check using another pathfinder accounting enemies as blocking (so as to try to find a way around them), then if no path is found using this way (e.g tunnel), use the normal pathfinder, and if there is still path found , use moveTowards()
+        #if destX is not None and destY is not None and destX == self.lastTargetX and destY == self.lastTargetY and self.astarPath:
+            #self.moveNextStepOnPath()
+            #print(self.name.capitalize() + " : Following old path")
+        #else:
+        print(self.name.capitalize() + " : No path found, trying to create new")
+        self.lastTargetX = destX
+        self.lastTargetY = destY
         self.astarPath = pathfinder.get_path(self.x, self.y, destX, destY)
         tilesinPath.extend(self.astarPath)
         if len(self.astarPath) != 0:
@@ -899,22 +943,21 @@ class GameObject:
                 for (x,y) in self.astarPath:
                     print (str(x) + "/" + str(y) + ";", end = " ", sep = " ")
                     print()
-            (x, y) = self.astarPath[0]
-            self.x = x
-            self.y = y
-            if DEBUG:
-                print(self.name + " moved to " + str(self.x) + ', ' + str(self.y))
-            
-        else:
+            self.moveNextStepOnPath()  
+                
+        elif fallback:
             self.moveTowards(destX, destY)
             if DEBUG:
                 print(self.name + " found no Astar path")
+        else:
+            return "fail"
 
 class Fighter: #All NPCs, enemies and the player
-    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, lootFunction = None, lootRate = 0):
+    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, lootFunction = None, lootRate = 0, shootCooldown = 0, landCooldown = 0, transferDamage = None):
         self.baseMaxHP = hp
         self.hp = hp
         self.baseArmor = armor
+        self.BASE_ARMOR = armor
         self.basePower = power
         self.actualBasePower = power
         self.deathFunction = deathFunction
@@ -936,6 +979,14 @@ class Fighter: #All NPCs, enemies and the player
         
         self.healCountdown = 10
         self.MPRegenCountdown = 10
+
+        self.baseShootCooldown = shootCooldown
+        self.curShootCooldown = 0
+        self.baseLandCooldown = landCooldown
+        self.curLandCooldown = 0
+        
+        self.acidified = False
+        self.acidifiedCooldown = 0
         
         self.baseMaxMP = maxMP
         self.MP = maxMP
@@ -948,6 +999,8 @@ class Fighter: #All NPCs, enemies and the player
             self.knownSpells = []
         
         self.spellsOnCooldown = []
+        
+        self.transferDamage = transferDamage
 
     @property
     def power(self):
@@ -1020,9 +1073,15 @@ class Fighter: #All NPCs, enemies and the player
         [hit, criticalHit] = self.toHit(target)
         if hit:
             if criticalHit:
-                damage = (self.power - target.Fighter.armor) * 3
+                if self.owner.Player and self.owner.Player.traits[0]:
+                    damage = (self.power + 4 - target.Fighter.armor) * 3
+                else:
+                    damage = (self.power - target.Fighter.armor) * 3
             else:
-                damage = self.power - target.Fighter.armor
+                if self.owner.Player and self.owner.Player.traits[0]:
+                    damage = self.power + 4 - target.Fighter.armor
+                else:
+                    damage = self.power - target.Fighter.armor
             if not self.frozen:
                 if not self.owner.Player:
                     if damage > 0:
@@ -1095,6 +1154,125 @@ class BasicMonster: #Basic monsters' AI
         targets = []
         selectedTarget = None
         priorityTargetFound = False
+        monsterVisibleTiles = tdl.map.quick_fov(x = monster.x, y = monster.y,callback = isVisibleTile , fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
+        if not self.owner.Fighter.frozen and monster.distanceTo(player) <= 15:
+            print(monster.name + " is less than 15 tiles to player.")
+            for object in objects:
+                if (object.x, object.y) in monsterVisibleTiles and (object == player or (object.AI and object.AI.__class__.__name__ == "FriendlyMonster" and object.AI.friendlyTowards == player)):
+                    targets.append(object)
+            if DEBUG:
+                print(monster.name.capitalize() + " can target", end=" ")
+                if targets:
+                    for loop in range (len(targets)):
+                        print(targets[loop].name.capitalize() + ", ", sep ="", end ="")
+                else:
+                    print("absolutely nothing but nothingness.", end ="")
+                print()
+            if targets:
+                if player in targets: #Target player in priority
+                    selectedTarget = player
+                    del targets[targets.index(player)]
+                    if monster.distanceTo(player) < 2:
+                        priorityTargetFound = True
+                if not priorityTargetFound:
+                    for enemyIndex in range(len(targets)):
+                        enemy = targets[enemyIndex]
+                        if monster.distanceTo(enemy) < 2:
+                            selectedTarget = enemy
+                        else:
+                            if selectedTarget == None or monster.distanceTo(selectedTarget) > monster.distanceTo(enemy):
+                                selectedTarget = enemy
+            if selectedTarget is not None:
+                if monster.distanceTo(selectedTarget) < 2:
+                    monster.Fighter.attack(selectedTarget)
+                else:
+                    state = monster.moveAstar(selectedTarget.x, selectedTarget.y, fallback = False)
+                    if state == "fail":
+                        diagState = checkDiagonals(monster, selectedTarget)
+                        if diagState is None:
+                            monster.moveTowards(selectedTarget.x, selectedTarget.y)
+            #elif (monster.x, monster.y) in visibleTiles and monster.distanceTo(player) >= 2:
+                #monster.moveAstar(player.x, player.y)
+            else:
+                if not monster.Fighter.frozen and monster.distanceTo(player) >= 2:
+                    pathState = "complete"
+                    diagPathState = None
+                    if monster.astarPath:
+                        pathState = monster.moveNextStepOnPath()
+                    elif not monster.astarPath or pathState == "fail":
+                            if monster.distanceTo(player) <= 15 and not (monster.x == player.x and monster.y == player.y):
+                                diagPathState = checkDiagonals(monster, player)
+                            elif diagPathState is None or monster.distanceTo(player) > 15:
+                                monster.move(randint(-1, 1), randint(-1, 1)) #wandering
+                        
+                    
+
+class FastMonster:
+    def __init__(self, speed):
+        self.speed = speed
+    
+    def takeTurn(self):
+        monster = self.owner
+        for loop in range(self.speed):
+            targets = []
+            selectedTarget = None
+            priorityTargetFound = False
+            monsterVisibleTiles = tdl.map.quick_fov(x = monster.x, y = monster.y,callback = isVisibleTile , fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
+            if not self.owner.Fighter.frozen and monster.distanceTo(player) <= 15:
+                print(monster.name + " is less than 15 tiles to player.")
+                for object in objects:
+                    if (object.x, object.y) in monsterVisibleTiles and (object == player or (object.AI and object.AI.__class__.__name__ == "FriendlyMonster" and object.AI.friendlyTowards == player)):
+                        targets.append(object)
+                if DEBUG:
+                    print(monster.name.capitalize() + " can target", end=" ")
+                    if targets:
+                        for loop in range (len(targets)):
+                            print(targets[loop].name.capitalize() + ", ", sep ="", end ="")
+                    else:
+                        print("absolutely nothing but nothingness.", end ="")
+                    print()
+                if targets:
+                    if player in targets: #Target player in priority
+                        selectedTarget = player
+                        del targets[targets.index(player)]
+                        if monster.distanceTo(player) < 2:
+                            priorityTargetFound = True
+                    if not priorityTargetFound:
+                        for enemyIndex in range(len(targets)):
+                            enemy = targets[enemyIndex]
+                            if monster.distanceTo(enemy) < 2:
+                                selectedTarget = enemy
+                            else:
+                                if selectedTarget == None or monster.distanceTo(selectedTarget) > monster.distanceTo(enemy):
+                                    selectedTarget = enemy
+                if selectedTarget is not None:
+                    if monster.distanceTo(selectedTarget) < 2:
+                        monster.Fighter.attack(selectedTarget)
+                    else:
+                        state = monster.moveAstar(selectedTarget.x, selectedTarget.y, fallback = False)
+                        if state == "fail":
+                            diagState = checkDiagonals(monster, selectedTarget)
+                            if diagState is None:
+                                monster.moveTowards(selectedTarget.x, selectedTarget.y)
+                #elif (monster.x, monster.y) in visibleTiles and monster.distanceTo(player) >= 2:
+                    #monster.moveAstar(player.x, player.y)
+                else:
+                    if not monster.Fighter.frozen and monster.distanceTo(player) >= 2:
+                        pathState = "complete"
+                        diagPathState = None
+                        if monster.astarPath:
+                            pathState = monster.moveNextStepOnPath()
+                        elif not monster.astarPath or pathState == "fail":
+                                if monster.distanceTo(player) <= 15 and not (monster.x == player.x and monster.y == player.y):
+                                    diagPathState = checkDiagonals(monster, player)
+                                elif diagPathState is None or monster.distanceTo(player) > 15:
+                                    monster.move(randint(-1, 1), randint(-1, 1)) #wandering            
+class hostileStationnary:
+    def takeTurn(self):
+        monster = self.owner
+        targets = []
+        selectedTarget = None
+        priorityTargetFound = False
         if not self.owner.Fighter.frozen:
             for object in objects:
                 if (object.x, object.y) in visibleTiles and (object == player or (object.AI and object.AI.__class__.__name__ == "FriendlyMonster" and object.AI.friendlyTowards == player)):
@@ -1124,61 +1302,11 @@ class BasicMonster: #Basic monsters' AI
             if selectedTarget is not None:
                 if monster.distanceTo(selectedTarget) < 2:
                     monster.Fighter.attack(selectedTarget)
-                else:
-                    monster.moveAstar(selectedTarget.x, selectedTarget.y)
-            elif (monster.x, monster.y) in visibleTiles and monster.distanceTo(player) >= 2:
-                monster.moveAstar(player.x, player.y)
-            else:
-                if not monster.Fighter.frozen and monster.distanceTo(player) >= 2:
-                    monster.move(randint(-1, 1), randint(-1, 1)) #wandering
 
-class FastMonster:
-    def __init__(self, speed):
-        self.speed = speed
-    
+class immobile():
     def takeTurn(self):
         monster = self.owner
-        for loop in range(self.speed):
-            targets = []
-            selectedTarget = None
-            priorityTargetFound = False
-            if not self.owner.Fighter.frozen:
-                for object in objects:
-                    if (object.x, object.y) in visibleTiles and (object == player or (object.AI and object.AI.__class__.__name__ == "FriendlyMonster" and object.AI.friendlyTowards == player)):
-                        targets.append(object)
-                if DEBUG:
-                    print(monster.name.capitalize() + " can target", end=" ")
-                    if targets:
-                        for loop in range (len(targets)):
-                            print(targets[loop].name.capitalize() + ", ", sep ="", end ="")
-                    else:
-                        print("absolutely nothing but nothingness.", end ="")
-                    print()
-                if targets:
-                    if player in targets: #Target player in priority
-                        selectedTarget = player
-                        del targets[targets.index(player)]
-                        if monster.distanceTo(player) < 2:
-                            priorityTargetFound = True
-                    if not priorityTargetFound:
-                        for enemyIndex in range(len(targets)):
-                            enemy = targets[enemyIndex]
-                            if monster.distanceTo(enemy) < 2:
-                                selectedTarget = enemy
-                            else:
-                                if selectedTarget == None or monster.distanceTo(selectedTarget) > monster.distanceTo(enemy):
-                                    selectedTarget = enemy
-                if selectedTarget is not None:
-                    if monster.distanceTo(selectedTarget) < 2:
-                        monster.Fighter.attack(selectedTarget)
-                    else:
-                        monster.moveAstar(selectedTarget.x, selectedTarget.y)
-                elif (monster.x, monster.y) in visibleTiles and monster.distanceTo(player) >= 2:
-                    monster.moveAstar(player.x, player.y)
-                else:
-                    if not monster.Fighter.frozen and monster.distanceTo(player) >= 2:
-                        monster.move(randint(-1, 1), randint(-1, 1)) #wandering
-            
+        return
 
 class SplosionAI:
     def takeTurn(self):
@@ -1197,13 +1325,19 @@ class ConfusedMonster:
         self.numberTurns = numberTurns
  
     def takeTurn(self):
-        if self.numberTurns > 0:  
-            self.owner.move(randint(-1, 1), randint(-1, 1))
-            self.numberTurns -= 1
- 
+        if self.old_AI.__class__.__name__ != 'hostileStationnary' and self.old_AI.__class__.__name__ != 'immobile':
+            if self.numberTurns > 0:  
+                self.owner.move(randint(-1, 1), randint(-1, 1))
+                self.numberTurns -= 1
+            else:
+                self.owner.AI = self.old_AI
+                message('The ' + self.owner.name + ' is no longer confused!', colors.red)
         else:
-            self.owner.AI = self.old_AI
-            message('The ' + self.owner.name + ' is no longer confused!', colors.red)
+            if self.numberTurns > 0:  
+                pass
+            else:
+                self.owner.AI = self.old_AI
+                message('The ' + self.owner.name + ' is no longer confused!', colors.red)
             
 class FriendlyMonster:
     def __init__(self, friendlyTowards = player):
@@ -1213,9 +1347,10 @@ class FriendlyMonster:
         monster = self.owner
         targets = []
         selectedTarget = None
+        monsterVisibleTiles = tdl.map.quick_fov(x = monster.x, y = monster.y,callback = isVisibleTile , fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
         if self.friendlyTowards == player and not self.owner.Fighter.frozen: #If the monster is friendly towards the player
             for object in objects:
-                if (object.x, object.y) in visibleTiles and object.AI and object.AI.__class__.__name__ != "FriendlyMonster" and object.Fighter and object.Fighter.hp > 0:
+                if (object.x, object.y) in monsterVisibleTiles and object.AI and object.AI.__class__.__name__ != "FriendlyMonster" and object.Fighter and object.Fighter.hp > 0:
                     targets.append(object)
             if DEBUG:
                 print(monster.name.capitalize() + " can target", end=" ")
@@ -1230,6 +1365,7 @@ class FriendlyMonster:
                     enemy = targets[enemyIndex]
                     if monster.distanceTo(enemy) < 2:
                         selectedTarget = enemy
+                        print(monster.name.capitalize() + " is targeting " + selectedTarget.name)
                     else:
                         if selectedTarget == None or monster.distanceTo(selectedTarget) > monster.distanceTo(enemy):
                             selectedTarget = enemy
@@ -1237,21 +1373,36 @@ class FriendlyMonster:
                 if monster.distanceTo(selectedTarget) < 2:
                     monster.Fighter.attack(selectedTarget)
                 else:
-                    monster.moveAstar(selectedTarget.x, selectedTarget.y)
-            elif (monster.x, monster.y) in visibleTiles and monster.distanceTo(player) >= 2:
-                monster.moveAstar(player.x, player.y)
+                    state = monster.moveAstar(selectedTarget.x, selectedTarget.y, fallback = False)
+                    if state == "fail":
+                        diagState = checkDiagonals(monster, selectedTarget)
+                        if diagState is None:
+                            monster.moveTowards(selectedTarget.x, selectedTarget.y)
             else:
                 if not monster.Fighter.frozen and monster.distanceTo(player) >= 2:
-                    monster.move(randint(-1, 1), randint(-1, 1))
+                    if (player.x, player.y) in monsterVisibleTiles:
+                        pathState = monster.moveAstar(player.x, player.y, fallback = False)
+                        diagPathState = None
+                        if pathState == "fail" or not monster.astarPath:
+                                if monster.distanceTo(player) <= 15 and not (monster.x == player.x and monster.y == player.y):
+                                    oldX, oldY = monster.x, monster.y
+                                    monster.moveTowards(player.x, player.y)
+                                    if oldX == monster.x and oldY == monster.y: #If monster didn't move after moveTowards
+                                        diagPathState = checkDiagonals(monster, player)
+                                        if diagPathState is None:
+                                            print(monster.name.capitalize() + " didn't manage to move at all")
+                    else:                    
+                        monster.move(randint(-1, 1), randint(-1, 1)) #wandering
         else:
             pass #Implement here code in case the monster is friendly towards another monster
 class Player:
-    def __init__(self, actualPerSkills, levelUpStats, skillsBonus, race, classes):
+    def __init__(self, actualPerSkills, levelUpStats, skillsBonus, race, classes, traits):
         self.actualPerSkills = actualPerSkills
         self.levelUpStats = levelUpStats
         self.skillsBonus = skillsBonus
         self.race = race
         self.classes = classes
+        self.traits = traits
         if DEBUG:
             print('Player component initialized')
         
@@ -1310,7 +1461,7 @@ class Item:
                     break
             if not itemFound:
                 if len(inventory) >= 26:
-                   message('Your bag already feels really heavy, you cannot pick up ' + str(self.amount) + self.owner.name + 's.', colors.red)
+                    message('Your bag already feels really heavy, you cannot pick up ' + str(self.amount) + self.owner.name + 's.', colors.red)
                 else:
                     inventory.append(self.owner)
                     objects.remove(self.owner)
@@ -1357,14 +1508,17 @@ class Item:
         if self.owner.Equipment:
             self.owner.Equipment.unequip()
 
-def quitGame(message):
+def quitGame(message, backToMainMenu = False):
     global objects
     global inventory
     saveGame()
     for obj in objects:
         del obj
     inventory = []
-    raise SystemExit(str(message))
+    if backToMainMenu:
+        mainMenu()
+    else:
+        raise SystemExit(str(message))
 
 def getInput():
     global FOV_recompute
@@ -1445,6 +1599,9 @@ def getInput():
         learnSpell(ressurect)
         FOV_recompute = True
         return 'didnt-take-turn'
+    elif userInput.keychar.upper() == 'F12' and DEBUG and not tdl.event.isWindowClosed():
+        castCreateChasm()
+        FOV_recompute = True
     elif userInput.keychar == 'S' and DEBUG and not tdl.event.isWindowClosed():
         message("Force-saved level {}", colors.purple)
         saveLevel()
@@ -1594,9 +1751,12 @@ def getInput():
                     if stairCooldown == 0:
                         global stairCooldown
                         stairCooldown = 2
+                        boss = False
                         if DEBUG:
                             message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
-                        nextLevel()
+                        if dungeonLevel + 1 >= 2:
+                            boss = True
+                        nextLevel(boss)
                     else:
                         message("You're too tired to climb down the stairs right now")
                     return None
@@ -1623,6 +1783,34 @@ def getInput():
             FOV_recompute = True
             return 'didnt-take-turn'
     FOV_recompute = True
+
+def projectile(sourceX, sourceY, destX, destY, char, color):
+    line = tdl.map.bresenham(sourceX, sourceY, destX, destY)
+    proj = GameObject(0, 0, char, 'proj', color)
+    objects.append(proj)
+    for loop in range(len(line)):
+        (x, y) = line.pop(0)
+        proj.x, proj.y = x, y
+        animStep(.050)
+        if isBlocked(x, y):
+            break
+    #TODO : Have the line continue until it hits a wall
+    objects.remove(proj)
+    return (x,y)
+
+def checkDiagonals(monster, target):
+    diagonals = [(1,1), (1, -1), (-1, 1), (-1, -1)]
+    sameX = monster.x == target.x
+    sameY = monster.y == target.y
+    for i in range(len(diagonals)):
+        nx, ny = diagonals[i]
+        closerPath = ((not sameX) and monster.x + nx == target.x) or ((not sameY and monster.y + ny == target.y))
+        if closerPath and not isBlocked(monster.x + nx, monster.y + ny):
+            monster.x += nx
+            monster.y += ny
+            return "complete"
+            break
+    return None
 
 def moveOrAttack(dx, dy):
     global FOV_recompute
@@ -1652,34 +1840,48 @@ def shoot():
                         foundAmmo = False
                         if object.name == ammo:
                             message('Choose a target for your ' + weapon.name + '.', colors.cyan)
-                            target = targetMonster(weapon.Equipment.maxRange)
-                            if target is None:
+                            aimedTile = targetTile(weapon.Equipment.maxRange)
+                            if aimedTile == "cancelled":
                                 FOV_recompute = True
                                 message('Invalid target.')
                                 return 'didnt-take-turn'
                             else:
+                                (aimX, aimY) = aimedTile
+                                (targetX, targetY) = projectile(player.x, player.y, aimX, aimY, '.', colors.light_orange)
                                 FOV_recompute = True
-                                [hit, criticalHit] = player.Fighter.toHit(target)
-                                if hit:
-                                    damage = weapon.Equipment.rangedPower - target.Fighter.armor
-                                    if damage <= 0:
-                                        message('You hit ' + target.name + ' but it has no effect !')
-                                    else:
-                                        if criticalHit:
-                                            damage = damage * 3
-                                            message('You critically hit ' + target.name + ' for ' + str(damage) + ' damage !', colors.darker_green)
+                                monsterTarget = None
+                                for thing in objects:
+                                    if thing.Fighter and thing.Fighter.hp > 0 and thing.x == targetX and thing.y == targetY:
+                                        monsterTarget = thing
+                                        break
+                                if monsterTarget:
+                                    [hit, criticalHit] = player.Fighter.toHit(monsterTarget)
+                                    if hit:
+                                        if player.Player.traits[0]:
+                                            damage = weapon.Equipment.rangedPower + 4 - monsterTarget.Fighter.armor
                                         else:
-                                            message('You hit ' + target.name + ' for ' + str(damage) + ' damage !', colors.dark_green)
-                                        target.Fighter.takeDamage(damage)
+                                            damage = weapon.Equipment.rangedPower - monsterTarget.Fighter.armor
+    
+                                        if damage <= 0:
+                                            message('You hit ' + monsterTarget.name + ' but it has no effect !')
+                                        else:
+                                            if criticalHit:
+                                                damage = damage * 3
+                                                message('You critically hit ' + monsterTarget.name + ' for ' + str(damage) + ' damage !', colors.darker_green)
+                                            else:
+                                                message('You hit ' + monsterTarget.name + ' for ' + str(damage) + ' damage !', colors.dark_green)
+                                                monsterTarget.Fighter.takeDamage(damage)
+                                    else:
+                                        message('You missed ' + monsterTarget.name + '!', colors.grey)
                                 else:
-                                    message('You missed ' + target.name + '!', colors.grey)
+                                    message("Your arrow didn't hit anything", colors.grey)
                             object.Item.amount -= 1
                             foundAmmo = True
                             if object.Item.amount <= 0:
                                 inventory.remove(object)
                             break
                     if not foundAmmo:
-                        message('You have no ammuniion for your ' + weapon.name + ' !', colors.red)
+                        message('You have no ammunition for your ' + weapon.name + ' !', colors.red)
                         return 'didnt-take-turn'
                 else:
                     message('Choose a target for your ' + weapon.name + '.', colors.cyan)
@@ -1729,6 +1931,7 @@ def checkLevelUp():
         player.Fighter.baseAccuracy += player.Player.levelUpStats[1]
         player.Fighter.baseEvasion += player.Player.levelUpStats[2]
         player.Fighter.baseArmor += player.Player.levelUpStats[3]
+        player.Fighter.BASE_ARMOR += player.Player.levelUpStats[3]
         player.Fighter.baseMaxHP += player.Player.levelUpStats[4]
         player.Fighter.hp += player.Player.levelUpStats[4]
         player.Fighter.baseMaxMP += player.Player.levelUpStats[5]
@@ -1751,15 +1954,15 @@ def checkLevelUp():
                  'Accuracy (from ' + str(player.Player.actualPerSkills[10]) + ')',], LEVEL_SCREEN_WIDTH)
             if choice != None:
                 if player.Player.actualPerSkills[choice] < 5:
-                    player.Fighter.basePower += skillsBonus[choice][0]
-                    player.Fighter.baseAccuracy += skillsBonus[choice][1]
-                    player.Fighter.baseEvasion += skillsBonus[choice][2]
-                    player.Fighter.baseArmor += skillsBonus[choice][3]
-                    player.Fighter.baseMaxHP += skillsBonus[choice][4]
-                    player.Fighter.hp += skillsBonus[choice][4]
-                    player.Fighter.baseMaxMP += skillsBonus[choice][5]
-                    player.Fighter.MP += skillsBonus[choice][5]
-                    player.Fighter.baseCritical += skillsBonus[choice][6]
+                    player.Fighter.basePower += player.Player.skillsBonus[choice][0]
+                    player.Fighter.baseAccuracy += player.Player.skillsBonus[choice][1]
+                    player.Fighter.baseEvasion += player.Player.skillsBonus[choice][2]
+                    player.Fighter.baseArmor += player.Player.skillsBonus[choice][3]
+                    player.Fighter.baseMaxHP += player.Player.skillsBonus[choice][4]
+                    player.Fighter.hp += player.Player.skillsBonus[choice][4]
+                    player.Fighter.baseMaxMP += player.Player.skillsBonus[choice][5]
+                    player.Fighter.MP += player.Player.skillsBonus[choice][5]
+                    player.Fighter.baseCritical += player.Player.skillsBonus[choice][6]
 
                     player.Player.actualPerSkills[choice] += 1
                     
@@ -1776,8 +1979,8 @@ def isVisibleTile(x, y):
         return False
     elif y >= MAP_HEIGHT or y < 0:
         return False
-    elif myMap[x][y].blocked == True:
-        return False
+    #elif myMap[x][y].blocked == True:
+        #return False
     elif myMap[x][y].block_sight == True:
         return False
     else:
@@ -1798,12 +2001,11 @@ def tileDistance(x1, y1, x2, y2):
         dy = y2 - y1
         return math.sqrt(dx ** 2 + dy ** 2)
 
-def getMoveCost(destX, destY, sourceX, sourceY):
-    if isBlocked(destX, destY):
-        return None
+def getMoveCost(destX, destY):
+    if myMap[destX][destY].blocked and (player.x, player.y) != (destX, destY):
+        return 0.0
     else:
-        cost = tileDistance(destX, destY, sourceX, sourceY)
-        return int(cost)
+        return 1.0
 
 def castCreateWall():
     target = targetTile()
@@ -1816,7 +2018,18 @@ def castCreateWall():
             myMap[x][y].blocked = True
             myMap[x][y].block_sight = True
 
-def applyBurn(target, chance = 70):
+def castCreateChasm():
+    target = targetTile()
+    if target == 'cancelled':
+        return target
+    else:
+        (x,y) = target
+        if not isBlocked(x, y):
+            global myMap
+            myMap[x][y].blocked = True
+            myMap[x][y].block_sight = False
+
+def applyBurn(target, chance = 30):
     if target.Fighter and randint(0, 100) > chance and not target.Fighter.burning:
         if not target.Fighter.frozen:
             target.Fighter.burning = True
@@ -1867,16 +2080,18 @@ def createOrc(x, y, friendly = False, corpse = False):
             lootOnDeath = orcHelmet
             deathType = monsterDeath
             orcName = "orc"
+            color = colors.desaturated_green
         else:
             orcName = "orc skeleton"
             deathType = zombieDeath
             lootOnDeath = None
+            color = colors.lighter_gray
         if not friendly:
             AI_component = BasicMonster()
         else:
             AI_component = FriendlyMonster(friendlyTowards = player)
         fighterComponent = Fighter(hp=15, armor=0, power=3, xp = 35, deathFunction = deathType, evasion = 25, accuracy = 10, lootFunction = lootOnDeath, lootRate = 30)
-        monster = GameObject(x, y, char = 'o', color = colors.desaturated_green, name = orcName, blocks = True, Fighter=fighterComponent, AI = AI_component)
+        monster = GameObject(x, y, char = 'o', color = color, name = orcName, blocks = True, Fighter=fighterComponent, AI = AI_component)
         return monster
     else:
         return 'cancelled'
@@ -1884,21 +2099,23 @@ def createOrc(x, y, friendly = False, corpse = False):
 def createTroll(x, y, friendly = False, corpse = False):
     if x != player.x or y != player.y:
         if not corpse:
-            equipmentComponent = Equipment(slot = 'both hands', type = 'heavy weapon', powerBonus = 5, accuracyBonus = -20)
+            equipmentComponent = Equipment(slot = 'both hands', type = 'heavy weapon', powerBonus = 8, accuracyBonus = -20)
             trollMace = GameObject(x, y, '/', 'troll mace', colors.darker_orange, Equipment=equipmentComponent, Item=Item())
             lootOnDeath = trollMace
             deathType = monsterDeath
             monName = "troll"
+            color = colors.darker_green
         else:
             monName = "troll skeleton"
             deathType = zombieDeath
             lootOnDeath = None
+            color = colors.lighter_grey
         if not friendly:
             AI_component = BasicMonster()
         else:
             AI_component = FriendlyMonster(friendlyTowards = player)
         fighterComponent = Fighter(hp=20, armor=2, power=4, xp = 100, deathFunction = deathType, accuracy = 7, evasion = 1, lootFunction=lootOnDeath, lootRate=15)
-        monster = GameObject(x, y, char = 'T', color = colors.darker_green, name = monName, blocks = True, Fighter=fighterComponent, AI = AI_component)
+        monster = GameObject(x, y, char = 'T', color = color, name = monName, blocks = True, Fighter=fighterComponent, AI = AI_component)
         return monster
     else:
         if corpse:
@@ -1965,7 +2182,7 @@ ROOM_MIN_SIZE = 6
 MAX_ROOMS = 30
 
 class Tile:
-    def __init__(self, blocked, block_sight = None):
+    def __init__(self, blocked, block_sight = None, acid = False, acidCooldown = 5):
         self.blocked = blocked
         self.explored = False
         self.unbreakable = False
@@ -1973,7 +2190,10 @@ class Tile:
             block_sight = blocked
             self.block_sight = block_sight
         else:
-            self.block_sight = block_sight    
+            self.block_sight = block_sight
+        self.acid = acid
+        self.baseAcidCooldown = acidCooldown
+        self.curAcidCooldown = 0
 
 class Rectangle:
     def __init__(self, x, y, w, h):
@@ -2003,12 +2223,16 @@ def createHorizontalTunnel(x1, x2, y):
     for x in range(min(x1, x2), max(x1, x2) + 1):
         myMap[x][y].blocked = False
         myMap[x][y].block_sight = False
+        #myMap[x][y+1].blocked = False
+        #myMap[x][y+1].block_sight = False
             
 def createVerticalTunnel(y1, y2, x):
     global myMap
     for y in range(min(y1, y2), max(y1, y2) + 1):
         myMap[x][y].blocked = False
         myMap[x][y].block_sight = False
+        #myMap[x+1][y].blocked = False
+        #myMap[x+1][y].block_sight = False
 
 def secretRoomTest(startingX, endX, startingY, endY):
     for x in range(startingX, endX):
@@ -2142,7 +2366,200 @@ def makeMap():
     objects.append(stairs)
     stairs.sendToBack()
 
+def makeBossLevel():
+    global myMap, stairs, objects, upStairs
+    myMap = [[Tile(True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
+    rooms = []
+    numberRooms = 0
+    objects = [player]
+    
+    for y in range (MAP_HEIGHT):
+        myMap[0][y].unbreakable = True
+        myMap[MAP_WIDTH-1][y].unbreakable = True
+    for x in range(MAP_WIDTH):
+        myMap[x][0].unbreakable = True
+        myMap[x][MAP_HEIGHT-1].unbreakable = True #Borders of the map cannot be broken
+    #spawn room
+    w = randint(ROOM_MIN_SIZE, ROOM_MAX_SIZE)
+    h = randint(ROOM_MIN_SIZE, ROOM_MAX_SIZE)
+    x = randint(0, 50-w-1)
+    y = randint(0, 20-h-1)
+    newRoom = Rectangle(x, y, w, h)
+    createRoom(newRoom)
+    (new_x, new_y) = newRoom.center()
+    
+    player.x = new_x
+    player.y = new_y
+    if dungeonLevel > 1:
+        upStairs = GameObject(new_x, new_y, '<', 'stairs', colors.white, alwaysVisible = True, darkColor = colors.dark_grey)
+        objects.append(upStairs)
+        upStairs.sendToBack()
+    (previous_x, previous_y) = newRoom.center()
+    #boss room
+    w = randint(25, 40)
+    h = randint(20, 35)
+    x = randint(50, 100-w-1)
+    y = randint(20, 60-h-1)
+    bossRoom = Rectangle(x, y, w, h)
+    createRoom(bossRoom)
+    (new_x, new_y) = bossRoom.center()
+    createVerticalTunnel(previous_y, new_y, previous_x)
+    createHorizontalTunnel(previous_x, new_x, new_y)
+    
+    bossName = None
+    if dungeonLevel >= 2:
+        bossName = 'Gluttony'
+
+    placeBoss(bossName, new_x, y + 1)
+    
+    (previous_x, previous_y) = bossRoom.center()
+    #end room
+    w = randint(ROOM_MIN_SIZE, ROOM_MAX_SIZE)
+    h = randint(ROOM_MIN_SIZE, ROOM_MAX_SIZE)
+    x = randint(100, MAP_WIDTH-w-1)
+    y = randint(0, MAP_HEIGHT-h-1)
+    newRoom = Rectangle(x, y, w, h)
+    createRoom(newRoom)
+    (new_x, new_y) = newRoom.center()
+    if randint(0, 1):
+        createHorizontalTunnel(previous_x, new_x, previous_y)
+        createVerticalTunnel(previous_y, new_y, new_x)
+    else:
+        createVerticalTunnel(previous_y, new_y, previous_x)
+        createHorizontalTunnel(previous_x, new_x, new_y)
+    stairs = GameObject(new_x, new_y, '>', 'stairs', colors.white, alwaysVisible = True, darkColor = colors.dark_grey)
+    objects.append(stairs)
+    stairs.sendToBack()
+    
 #_____________ MAP CREATION __________________
+
+#_____________ BOSS FIGHT __________________
+deathX = 0
+deathY = 0
+
+def fatDeath(monster):
+    global deathX, deathY
+    monster.char = '%'
+    monster.color = colors.dark_red
+    monster.name = 'some mangled fat'
+    monster.blocks = False
+    monster.AI = None
+    monster.Fighter = None
+    deathX = monster.x
+    deathY = monster.y
+
+def createFat(x, y):
+    fatFighterComponent = Fighter(hp = 5, armor = 0, power = 1, xp = 0, deathFunction=fatDeath, accuracy= 0, evasion=1)
+    fat_AI_component = immobile()
+    fat = GameObject(x, y, char = '#', color = colors.dark_lime, name = "Gluttony's fat", blocks = True, Fighter = fatFighterComponent, AI = fat_AI_component)
+    objects.append(fat)
+
+def fatSpread(spreadRate):
+    fatList = []
+    for object in objects:
+        if object.name == "Gluttony's fat" or object.name == 'Gluttony':
+            fatList.append(object)
+    chosenFat = randint(0, len(fatList) - 1)
+    chosenSide = randint(0, 3)
+    coords = [[0, -1], [1, 0], [0, 1], [-1, 0]]
+    fatCreated = False
+    rotation = 0
+    for loop in range(spreadRate):
+        while not fatCreated:
+            fat = fatList[chosenFat]
+            x = fat.x + coords[chosenSide][0]
+            y = fat.y + coords[chosenSide][1]
+            if not isBlocked(x, y) and x != deathX and y != deathY:
+                createFat(x, y)
+                fatCreated = True
+                break
+            else:
+                chosenSide += 1
+                if chosenSide > 3:
+                    chosenSide = 0
+                rotation += 1
+                if rotation > 3:
+                    chosenFat += 1
+                    if chosenFat > len(fatList) - 1:
+                        chosenFat = 0
+                    chosenSide = randint(0, 3)
+                    rotation = 0
+
+class Gluttony():
+    def takeTurn(self):
+        boss = self.owner
+        bossVisibleTiles = tdl.map.quickFOV(boss.x, boss.y, isVisibleTile, fov = BOSS_FOV_ALGO, radius = BOSS_SIGHT_RADIUS, lightWalls= False)
+        
+        fatSpread(1)
+        
+        if not boss.Fighter.frozen:
+            if boss.distanceTo(player) < 2:
+                boss.Fighter.attack(player)
+            elif (player.x, player.y) in bossVisibleTiles:
+                if boss.Fighter.curShootCooldown <= 0:
+                    crosshair = GameObject(player.x, player.y, 'X', 'crosshair', color = colors.red, Ghost = True)
+                    objects.append(crosshair)
+                    boss.Fighter.curShootCooldown = boss.Fighter.baseShootCooldown
+                    boss.Fighter.curLandCooldown = boss.Fighter.baseLandCooldown
+                    message('Gluttony vomits huge quantities of seemingly acid liquid up in the air, in your direction! The mixture will soon land.', colors.dark_yellow)
+        else:
+            pass
+
+        for object in objects:
+            if object.name == 'crosshair' and boss.Fighter.curLandCooldown <= 0:
+                projectile(boss.x, boss.y, object.x, object.y, '*', colors.desaturated_chartreuse)
+                for x in range(MAP_WIDTH):
+                    for y in range(MAP_HEIGHT):
+                        if not isBlocked(x, y) and object.distanceToCoords(x, y) <= 2:
+                            myMap[x][y].acid = True
+                            myMap[x][y].curAcidCooldown = myMap[x][y].baseAcidCooldown
+                            for fighter in objects:
+                                if (fighter.x == x and fighter.y == y) and not (fighter.x == object.x and fighter.y == object.y):
+                                    if fighter.Fighter:
+                                        fighter.Fighter.takeDamage(2)
+                                        message(fighter.name + " is touched by the vomit  splatters and suffers 2 damage!", color = colors.orange)
+                for fighter in objects:
+                    if fighter.x == object.x and fighter.y == object.y:
+                        if fighter.Fighter:
+                            fighter.Fighter.takeDamage(10)
+                            message(fighter.name + " is hit by Gluttony's vomit and suffers 10 damage!", color = colors.orange)
+                objects.remove(object)
+                break
+
+        for object in objects:
+            if object.name == "Gluttony's fat" and object.distanceTo(player) < 2:
+                player.Fighter.takeDamage(1)
+                message('The massive chunks of flesh around you start crushing you slowly! You lose 1 hit point.', colors.dark_orange)
+                break
+
+def gluttonysDeath(monster):
+    message(monster.name.capitalize() + ' is dead! You have slain a boss and gain ' + str(monster.Fighter.xp) + ' XP!', colors.dark_sky)
+
+    monster.char = '%'
+    monster.color = colors.dark_red
+    monster.blocks = False
+    monster.AI = None
+    monster.name = 'remains of ' + monster.name
+    monster.Fighter = None
+    monster.sendToBack()
+    for object in objects:
+        if object.name == "Gluttony's fat": #or (object.AI and (object.AI.__class__.__name__ == "immobile")):
+            object.Fighter.hp = 0
+            fatDeath(object)
+
+def placeBoss(name, x, y):
+    if name == 'Gluttony':
+        fighterComponent = Fighter(hp=500, armor=1, power=6, xp = 1000, deathFunction = gluttonysDeath, accuracy = 13, evasion = 1, shootCooldown = 10, landCooldown = 4)
+        AI_component = Gluttony()
+        boss = GameObject(x, y, char = 'G', color = colors.darker_lime, name = name, blocks = True, Fighter = fighterComponent, AI = AI_component)
+        objects.append(boss)
+        
+        for x in range(50, 100):
+            for y in range(20, 60):
+                if not isBlocked(x, y) and boss.distanceToCoords(x, y) <= 3:
+                    createFat(x, y)
+                
+#_____________ BOSS FIGHT __________________
 
 #_____________ ROOM POPULATION + ITEMS GENERATION_______________
 monsterChances = {'orc': 70, 'troll': 20, 'snake': 10}
@@ -2555,7 +2972,7 @@ def equipmentMenu(header):
         return equipmentList[index].Item
 
 def mainMenu():
-    global playerComponent, levelUpStats, actualPerSkills, skillsBonus, startingSpells, chosenRace, chosenClass
+    global playerComponent, levelUpStats, actualPerSkills, skillsBonus, startingSpells, chosenRace, chosenClass, chosenTraits
     choices = ['New Game', 'Continue', 'Quit']
     index = 0
     while not tdl.event.isWindowClosed():
@@ -2577,7 +2994,7 @@ def mainMenu():
             index = 0
         if key.keychar.upper() == "ENTER":
             if index == 0:
-                [playerComponent, levelUpStats, actualPerSkills, skillsBonus, startingSpells, chosenRace, chosenClass] = characterCreation()
+                [playerComponent, levelUpStats, actualPerSkills, skillsBonus, startingSpells, chosenRace, chosenClass, chosenTraits] = characterCreation()
                 if playerComponent != 'cancelled':
                     newGame()
                     playGame()
@@ -2599,7 +3016,7 @@ def initializeFOV():
     global FOV_recompute, visibleTiles, pathfinder
     FOV_recompute = True
     visibleTiles = tdl.map.quickFOV(player.x, player.y, isVisibleTile, fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
-    pathfinder = tdl.map.AStar(MAP_WIDTH, MAP_HEIGHT, callback = getMoveCost, advanced=True)
+    pathfinder = tdl.map.AStar(MAP_WIDTH, MAP_HEIGHT, callback = getMoveCost, diagnalCost=1, advanced=False)
     con.clear()
 
 def Update():
@@ -2613,11 +3030,13 @@ def Update():
         FOV_recompute = False
         global pathfinder
         visibleTiles = tdl.map.quickFOV(player.x, player.y, isVisibleTile, fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
-        pathfinder = tdl.map.AStar(MAP_WIDTH, MAP_HEIGHT, callback = getMoveCost, advanced=True)
+        pathfinder = tdl.map.AStar(MAP_WIDTH, MAP_HEIGHT, callback = getMoveCost, diagnalCost=1, advanced=False)
         for y in range(MAP_HEIGHT):
             for x in range(MAP_WIDTH):
                 visible = (x, y) in visibleTiles
                 wall = myMap[x][y].block_sight
+                acid = myMap[x][y].acid
+                chasm = (not myMap[x][y].block_sight) and (myMap[x][y].blocked)
                 if not visible:
                     if myMap[x][y].explored:
                         if wall:
@@ -2625,6 +3044,11 @@ def Update():
                                 con.draw_char(x, y, '#', fg=color_dark_wall, bg=color_dark_ground)
                             elif GRAPHICS == 'classic':
                                 con.draw_char(x, y, '#', fg=colors.dark_gray, bg=None)
+                        elif chasm:
+                            if GRAPHICS == 'modern':
+                                con.draw_char(x, y, None, fg=None, bg=colors.gray)
+                            elif GRAPHICS == 'classic':
+                                con.draw_char(x, y, 'X', fg=colors.gray, bg=None)
                         else:
                             if GRAPHICS == 'modern':
                                 con.draw_char(x, y, None, fg=None, bg=color_dark_ground)
@@ -2636,9 +3060,17 @@ def Update():
                             con.draw_char(x, y, '#', fg=color_light_wall, bg=color_light_ground)
                         elif GRAPHICS == 'classic':
                             con.draw_char(x, y, '#', fg=colors.white, bg=None)
+                    elif chasm:
+                            if GRAPHICS == 'modern':
+                                con.draw_char(x, y, None, fg=None, bg=colors.dark_gray)
+                            elif GRAPHICS == 'classic':
+                                con.draw_char(x, y, 'X', fg=colors.dark_gray, bg=None)
                     else:
                         if GRAPHICS == 'modern':
-                            con.draw_char(x, y, None, fg=None, bg=color_light_ground)
+                            if acid:
+                                con.draw_char(x, y, None, fg=None, bg=colors.desaturated_chartreuse)
+                            else:
+                                con.draw_char(x, y, None, fg=None, bg=color_light_ground)
                         elif GRAPHICS == 'classic':
                             con.draw_char(x, y, '.', fg=colors.white, bg=None)    
                     myMap[x][y].explored = True
@@ -2790,7 +3222,7 @@ def saveGame():
 def newGame():
     global objects, inventory, gameMsgs, gameState, player, dungeonLevel
     playFight = Fighter(hp = playerComponent[4], power= playerComponent[0], armor= playerComponent[3], deathFunction=playerDeath, xp=0, evasion = playerComponent[2], accuracy = playerComponent[1], maxMP= playerComponent[5], knownSpells=startingSpells, critical = playerComponent[6])
-    playComp = Player(actualPerSkills, levelUpStats, skillsBonus, chosenRace, chosenClass)
+    playComp = Player(actualPerSkills, levelUpStats, skillsBonus, chosenRace, chosenClass, chosenTraits)
     player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = 'Hero', color = (0, 210, 0))
     player.level = 1
 
@@ -2887,7 +3319,7 @@ def loadLevel(level):
     dungeonLevel = level
     initializeFOV()
 
-def nextLevel():
+def nextLevel(boss = False):
     global dungeonLevel
     returned = "borked"
     while returned != "completed":
@@ -2907,7 +3339,10 @@ def nextLevel():
         objects = tempObjects
         player = tempPlayer
         stairs = tempStairs
-        makeMap()  #create a fresh new level!
+        if not boss:
+            makeMap()  #create a fresh new level!
+        else:
+            makeBossLevel()
         print("Created a new level")
     if hiroshimanNumber == 1 and not hiroshimanHasAppeared:
         global hiroshimanHasAppeared
@@ -2926,12 +3361,12 @@ def playGame():
         playerAction = getInput()
         FOV_recompute = True #So as to avoid the blackscreen bug no matter which key we press
         if playerAction == 'exit':
-            quitGame('Player pressed escape')
+            quitGame('Player pressed escape', True)
         if gameState == 'playing' and playerAction != 'didnt-take-turn':
             for object in objects:
                 if object.AI:
                     object.AI.takeTurn()
-                if object.Fighter and object.Fighter.frozen:
+                if object.Fighter and object.Fighter.frozen and object.Fighter is not None:
                     object.Fighter.freezeCooldown -= 1
                     if object.Fighter.freezeCooldown < 0:
                         object.Fighter.freezeCooldown = 0
@@ -2939,7 +3374,12 @@ def playGame():
                         object.Fighter.frozen = False
                         message(object.name.capitalize() + "'s ice shatters !", colors.light_violet)
                 
-                if object.Fighter and object.Fighter.enraged:
+                if object.Fighter and object.Fighter.baseShootCooldown > 0 and object.Fighter is not None:
+                    object.Fighter.curShootCooldown -= 1
+                if object.Fighter and object.Fighter.baseLandCooldown > 0 and object.Fighter is not None:
+                    object.Fighter.curLandCooldown -= 1
+
+                if object.Fighter and object.Fighter.enraged and object.Fighter is not None:
                     object.Fighter.enrageCooldown -= 1
                     if object.Fighter.enrageCooldown < 0:
                         object.Fighter.enrageCooldown = 0
@@ -2951,11 +3391,11 @@ def playGame():
                             message('You are no longer enraged.', colors.amber)
                         object.Fighter.basePower = object.Fighter.actualBasePower
 
-                if object.Fighter and object.Fighter.burning:
+                if object.Fighter and object.Fighter.burning and object.Fighter is not None:
                     try:
                         object.Fighter.burnCooldown -= 1
                         object.Fighter.takeDamage(3)
-                        message('The ' + object.name + ' keeps burning !')
+                        message('The ' + str(object.name) + ' keeps burning !')
                         if object.Fighter.burnCooldown < 0:
                             object.Fighter.burnCooldown = 0
                         if object.Fighter.burnCooldown == 0:
@@ -2965,7 +3405,8 @@ def playGame():
                         global DEBUG
                         if DEBUG:
                             message('Failed to apply burn to ' + object.name, colors.violet)
-                if object.Fighter and object.Fighter.spellsOnCooldown:
+
+                if object.Fighter and object.Fighter.spellsOnCooldown and object.Fighter is not None:
                     try:
                         for spell in object.Fighter.spellsOnCooldown:
                             spell.curCooldown -= 1
@@ -2978,7 +3419,7 @@ def playGame():
                                     message(spell.name + " is now ready.")
                     except:
                         continue
-                if object.Fighter and object.Fighter.MP < object.Fighter.maxMP:
+                if object.Fighter and object.Fighter.MP < object.Fighter.maxMP and object.Fighter is not None:
                     object.Fighter.MPRegenCountdown -= 1
                     if object.Fighter.MPRegenCountdown < 0:
                         object.Fighter.MPRegenCountdown = 0
@@ -2988,6 +3429,29 @@ def playGame():
                         else:
                             object.Fighter.MPRegenCountdown = 10
                         object.Fighter.MP += 1
+                
+                x = object.x
+                y = object.y
+                if myMap[x][y].acid and object.Fighter and object.Fighter is not None:
+                    object.Fighter.takeDamage(1)
+                    object.Fighter.acidified = True
+                    object.Fighter.acidifiedCooldown = 6
+                    curArmor = object.Fighter.armor - object.Fighter.baseArmor
+                    object.Fighter.baseArmor = -curArmor
+                
+                if object.Fighter and object.Fighter.acidified and object.Fighter is not None:
+                    object.Fighter.acidifiedCooldown -= 1
+                    if object.Fighter.acidifiedCooldown <= 0:
+                        object.Fighter.acidified = False
+                        object.Fighter.baseArmor = object.Fighter.BASE_ARMOR
+            
+            for x in range(MAP_WIDTH):
+                for y in range(MAP_HEIGHT):
+                    if myMap[x][y].acid:
+                        myMap[x][y].curAcidCooldown -= 1
+                        if myMap[x][y].curAcidCooldown <= 0:
+                            myMap[x][y].acid = False
+                        
             global stairCooldown
             if stairCooldown > 0:
                 stairCooldown -= 1
