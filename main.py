@@ -1273,9 +1273,11 @@ class FastMonster:
             targets = []
             selectedTarget = None
             priorityTargetFound = False
-            if not self.owner.Fighter.frozen and ((monster.x, monster.y) in visibleTiles):
+            monsterVisibleTiles = tdl.map.quick_fov(x = monster.x, y = monster.y,callback = isVisibleTile , fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
+            if not self.owner.Fighter.frozen and monster.distanceTo(player) <= 15:
+                print(monster.name + " is less than 15 tiles to player.")
                 for object in objects:
-                    if (object.x, object.y) in visibleTiles and (object == player or (object.AI and object.AI.__class__.__name__ == "FriendlyMonster" and object.AI.friendlyTowards == player)):
+                    if (object.x, object.y) in monsterVisibleTiles and (object == player or (object.AI and object.AI.__class__.__name__ == "FriendlyMonster" and object.AI.friendlyTowards == player)):
                         targets.append(object)
                 if DEBUG:
                     print(monster.name.capitalize() + " can target", end=" ")
@@ -1303,13 +1305,24 @@ class FastMonster:
                     if monster.distanceTo(selectedTarget) < 2:
                         monster.Fighter.attack(selectedTarget)
                     else:
-                        monster.moveAstar(selectedTarget.x, selectedTarget.y)
-                elif (monster.x, monster.y) in visibleTiles and monster.distanceTo(player) >= 2:
-                    monster.moveAstar(player.x, player.y)
+                        state = monster.moveAstar(selectedTarget.x, selectedTarget.y, fallback = False)
+                        if state == "fail":
+                            diagState = checkDiagonals(monster, selectedTarget)
+                            if diagState is None:
+                                monster.moveTowards(selectedTarget.x, selectedTarget.y)
+                #elif (monster.x, monster.y) in visibleTiles and monster.distanceTo(player) >= 2:
+                    #monster.moveAstar(player.x, player.y)
                 else:
                     if not monster.Fighter.frozen and monster.distanceTo(player) >= 2:
-                        monster.move(randint(-1, 1), randint(-1, 1)) #wandering
-            
+                        pathState = "complete"
+                        diagPathState = None
+                        if monster.astarPath:
+                            pathState = monster.moveNextStepOnPath()
+                        elif not monster.astarPath or pathState == "fail":
+                                if monster.distanceTo(player) <= 15 and not (monster.x == player.x and monster.y == player.y):
+                                    diagPathState = checkDiagonals(monster, player)
+                                elif diagPathState is None or monster.distanceTo(player) > 15:
+                                    monster.move(randint(-1, 1), randint(-1, 1)) #wandering            
 class hostileStationnary:
     def takeTurn(self):
         monster = self.owner
