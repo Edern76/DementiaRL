@@ -142,6 +142,7 @@ absPicklePath = os.path.join(curDir, relPicklePath)
 
 stairCooldown = 0
 pathfinder = None
+pathToTargetTile = []
 
 def animStep(waitTime = .125):
     global FOV_recompute
@@ -1929,7 +1930,7 @@ def shoot():
                         foundAmmo = False
                         if object.name == ammo:
                             message('Choose a target for your ' + weapon.name + '.', colors.cyan)
-                            aimedTile = targetTile(weapon.Equipment.maxRange)
+                            aimedTile = targetTile(weapon.Equipment.maxRange, showBresenham=True)
                             if aimedTile == "cancelled":
                                 FOV_recompute = True
                                 message('Invalid target.')
@@ -3194,8 +3195,16 @@ def Update():
                     myMap[x][y].explored = True
                 if gameState == 'targeting':
                     inRange = (x, y) in tilesInRange
+                    inPath = pathToTargetTile and (x,y) in pathToTargetTile
                     if inRange and not wall:
                         con.draw_char(x, y, None, fg=None, bg=colors.darker_yellow)
+                    if inPath:
+                        if (x,y) != (player.x, player.y):
+                            if not wall:
+                                con.draw_char(x, y, 'X', fg = colors.green, bg = None)
+                            else:
+                                con.draw_char(x, y, 'X', fg = colors.red, bg = None)
+                        
                 elif gameState == 'exploding':
                     exploded = (x,y) in explodingTiles
                     if exploded:
@@ -3243,11 +3252,12 @@ def GetNamesUnderLookCursor():
     names = ', '.join(names)
     return names.capitalize()
 
-def targetTile(maxRange = None):
+def targetTile(maxRange = None, showBresenham = False):
     global gameState
     global cursor
     global tilesInRange
     global FOV_recompute
+    global pathToTargetTile
     
     if maxRange == 0:
         return (player.x, player.y)
@@ -3258,6 +3268,8 @@ def targetTile(maxRange = None):
     for (rx, ry) in visibleTiles:
             if maxRange is None or player.distanceToCoords(rx,ry) <= maxRange:
                 tilesInRange.append((rx, ry))
+    
+        
     FOV_recompute= True
     Update()
     tdl.flush()
@@ -3276,7 +3288,13 @@ def targetTile(maxRange = None):
         elif key.keychar.upper() in MOVEMENT_KEYS:
             dx, dy = MOVEMENT_KEYS[key.keychar.upper()]
             if (cursor.x + dx, cursor.y + dy) in tilesInRange and (maxRange is None or player.distanceTo(cursor) <= maxRange):
+                pathToTargetTile = []
                 cursor.move(dx, dy)
+                if showBresenham:
+                    brLine = tdl.map.bresenham(player.x, player.y, cursor.x, cursor.y)
+                    for i in range(len(brLine)):
+                        pathToTargetTile.append(brLine[i])
+                    #print(pathToTargetTile)
                 Update()
                 tdl.flush()
                 for object in objects:
@@ -3290,6 +3308,8 @@ def targetTile(maxRange = None):
             gameState = 'playing'
             objects.remove(cursor)
             del cursor
+            if pathToTargetTile:
+                pathToTargetTile = []
             con.clear()
             Update()
             return (x, y)
