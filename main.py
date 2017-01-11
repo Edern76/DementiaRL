@@ -152,39 +152,71 @@ def animStep(waitTime = .125):
     time.sleep(waitTime)
 
 #_____________MENU_______________
-def menu(header, options, width):
-    if len(options) > 26: raise ValueError('Cannot have a menu with more than 26 options')
-    headerWrapped = textwrap.wrap(header, width)
-    headerHeight = len(headerWrapped)
-    if header == "":
-        headerHeight = 0
-    height = len(options) + headerHeight + 1
-    window = tdl.Console(width, height)
-    window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
+def drawMenuOptions(y, options, window, page, width, height, headerWrapped):
+    window.clear()
     for i, line in enumerate(headerWrapped):
         window.draw_str(0, 0+i, headerWrapped[i])
-
-    y = headerHeight + 1
     letterIndex = ord('a')
+    counter = 0
     for optionText in options:
-        text = '(' + chr(letterIndex) + ') ' + optionText
-        window.draw_str(0, y, text, bg=None)
-        y += 1
-        letterIndex += 1
-    
+        if counter >= page * 26 and counter < (page + 1) * 26:
+            text = '(' + chr(letterIndex) + ') ' + optionText
+            letterIndex += 1
+            window.draw_str(0, y, text, bg=None)
+            y += 1
+        counter += 1
 
     x = MID_WIDTH - int(width/2)
     y = MID_HEIGHT - int(height/2)
     root.blit(window, x, y, width, height, 0, 0)
 
     tdl.flush()
-    key = tdl.event.key_wait()
-    keyChar = key.char
-    if keyChar == '':
-        keyChar = ' '    
-    index = ord(keyChar) - ord('a')
-    if index >= 0 and index < len(options):
-        return index
+
+def menu(header, options, width):
+    page = 0
+    maxPages = len(options)//26 + 1
+    headerWrapped = textwrap.wrap(header, width)
+    headerHeight = len(headerWrapped)
+    if header == "":
+        headerHeight = 0
+    if len(options) > 26:
+        height = 26 + headerHeight + 2
+    else:
+        height = len(options) + headerHeight + 2
+    window = tdl.Console(width, height)
+    window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
+    y = headerHeight + 2
+    drawMenuOptions(y, options, window, page, width, height, headerWrapped)
+
+    choseOrQuit = False
+    while not choseOrQuit:
+        choseOrQuit = True
+        arrow = False
+        drawMenuOptions(y, options, window, page, width, height, headerWrapped)
+        key = tdl.event.key_wait()
+        keyChar = key.keychar
+        if keyChar == '':
+            keyChar = ' '
+        elif keyChar == 'RIGHT':
+            page += 1
+            choseOrQuit = False
+            message('right')
+            arrow = True
+        elif keyChar == 'LEFT':
+            page -= 1
+            choseOrQuit = False
+            message('left')
+            arrow = True
+        if page > maxPages:
+            page = 0
+        if page < 0:
+            page = maxPages
+        
+        if not arrow:
+            if keyChar in 'abcdefghijklmnopqrstuvwsyz':
+                index = ord(keyChar) - ord('a')
+                if index >= 0 and index < len(options):
+                    return index + page * 26
     return None
 
 def msgBox(text, width = 50):
@@ -1499,24 +1531,24 @@ class Item:
 
     def pickUp(self):
         if not self.stackable:
-            if len(inventory)>=26:
-                message('Your bag already feels really heavy, you cannot pick up ' + self.owner.name + '.', colors.red)
-            else:
-                inventory.append(self.owner)
-                objects.remove(self.owner)
-                message('You picked up a ' + self.owner.name + '!', colors.green)
-                equipment = self.owner.Equipment
-                if equipment:
-                    handed = equipment.slot == 'left hand' or equipment.slot == 'right hand' or equipment.slot == 'both hands'
-                    if not handed and getEquippedInSlot(equipment.slot) is None:
+            #if len(inventory)>=26:
+                #message('Your bag already feels really heavy, you cannot pick up ' + self.owner.name + '.', colors.red)
+            #else:
+            inventory.append(self.owner)
+            objects.remove(self.owner)
+            message('You picked up a ' + self.owner.name + '!', colors.green)
+            equipment = self.owner.Equipment
+            if equipment:
+                handed = equipment.slot == 'left hand' or equipment.slot == 'right hand' or equipment.slot == 'both hands'
+                if not handed and getEquippedInSlot(equipment.slot) is None:
+                    equipment.equip()
+                elif handed:
+                    if equipment.slot == 'both hands' and getEquippedInHands() is None:
                         equipment.equip()
-                    elif handed:
-                        if equipment.slot == 'both hands' and getEquippedInHands() is None:
-                            equipment.equip()
-                        elif equipment.slot == 'left hand' and getEquippedInSlot('left hand') is None and getEquippedInSlot('both hands') is None:
-                            equipment.equip()
-                        elif equipment.slot == 'right hand' and getEquippedInSlot('right hand') is None and getEquippedInSlot('both hands') is None:
-                            equipment.equip()
+                    elif equipment.slot == 'left hand' and getEquippedInSlot('left hand') is None and getEquippedInSlot('both hands') is None:
+                        equipment.equip()
+                    elif equipment.slot == 'right hand' and getEquippedInSlot('right hand') is None and getEquippedInSlot('both hands') is None:
+                        equipment.equip()
         else:
             itemFound = False
             for item in inventory:
@@ -1527,12 +1559,12 @@ class Item:
                     itemFound = True
                     break
             if not itemFound:
-                if len(inventory) >= 26:
-                    message('Your bag already feels really heavy, you cannot pick up ' + str(self.amount) + self.owner.name + 's.', colors.red)
-                else:
-                    inventory.append(self.owner)
-                    objects.remove(self.owner)
-                    message('You picked up ' + str(self.amount) + ' ' + self.owner.name + 's !', colors.green)
+                #if len(inventory) >= 26:
+                    #message('Your bag already feels really heavy, you cannot pick up ' + str(self.amount) + self.owner.name + 's.', colors.red)
+                #else:
+                inventory.append(self.owner)
+                objects.remove(self.owner)
+                message('You picked up ' + str(self.amount) + ' ' + self.owner.name + 's !', colors.green)
 
     def use(self):
         if self.owner.Equipment:
