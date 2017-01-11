@@ -3086,7 +3086,7 @@ def equipmentMenu(header):
 
 def mainMenu():
     global player
-    choices = ['New Game', 'Continue', 'Quit']
+    choices = ['New Game', 'Continue', 'About', 'Quit']
     index = 0
     while not tdl.event.isWindowClosed():
         root.clear()
@@ -3094,6 +3094,7 @@ def mainMenu():
         drawCentered(cons = root, y = 44, text = choices[0], fg = colors.white, bg = None)
         drawCentered(cons = root, y = 45, text = choices[1], fg  = colors.white, bg = None)
         drawCentered(cons = root, y = 46, text = choices[2], fg = colors.white, bg = None)
+        drawCentered(cons = root, y = 47, text = choices[3], fg = colors.white, bg = None)
         drawCentered(cons = root, y = 44 + index, text=choices[index], fg = colors.black, bg = colors.white)
         tdl.flush()
         key = tdl.event.key_wait()
@@ -3102,8 +3103,8 @@ def mainMenu():
         elif key.keychar.upper() == "UP":
             index -= 1
         if index < 0:
-            index = 2
-        if index > 2:
+            index = len(choices) - 1
+        if index > len(choices) - 1:
             index = 0
         if key.keychar.upper() == "ENTER":
             if index == 0:
@@ -3127,8 +3128,15 @@ def mainMenu():
                     continue
                 playGame()
             elif index == 2:
+                pass
+                #Credits
+            elif index == 3:
                 raise SystemExit("Chose Quit on the main menu")
         tdl.flush()
+    
+def credits():
+    centerX, centerY = MID_WIDTH, MID_HEIGHT
+    #drawCentered(cons, y, text, fg, bg)
 #_____________ GUI _______________
 
 def initializeFOV():
