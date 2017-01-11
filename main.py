@@ -60,7 +60,7 @@ MSG_HEIGHT = PANEL_HEIGHT - 1
 INVENTORY_WIDTH = 90
 
 LEVEL_SCREEN_WIDTH = 40
-CHARACTER_SCREEN_WIDTH = 30
+CHARACTER_SCREEN_WIDTH = 31
 # - GUI Constants -
 
 # - Consoles -
@@ -459,7 +459,7 @@ ressurect = Spell(ressourceCost = 10, cooldown = 15, useFunction=castRessurect, 
 
 #______________CHARACTER GENERATION____________
 def initializeCharCreation():
-    global power, accuracy, evasion, armor, maxHP, maxMP, critical, strength, dexterity, vitality, willpower, startingSpells
+    global power, accuracy, evasion, armor, maxHP, maxMP, critical, strength, dexterity, vitality, willpower, startingSpells, baseMaxLoad
     
     BASE_POWER = 0
     BASE_ACCURACY = 20
@@ -486,6 +486,8 @@ def initializeCharCreation():
     vitality = BASE_VITALITY
     willpower = BASE_WILLPOWER
     
+    baseMaxLoad = 45.0
+
     startingSpells = []
 
 def description(text):
@@ -527,6 +529,7 @@ def removeBonus(list, chosenList):
 
 def characterCreation():
     initializeCharCreation()
+    baseMaxLoad = 45.0
     
     races = ['Human', 'Minotaur', 'Insectoid', 'Lizardman', 'Ratling']
     racesDescription = ['Humans gain experience faster',
@@ -737,7 +740,7 @@ def characterCreation():
         X = eightScreen * 3 + ((len(text) + 1)// 2)
         root.draw_str(x = X, y = 84, string = ' + ' + str(levelUpStats[6]) + '/lvl', fg = colors.yellow, bg = None)
         
-        text = 'Max load: ' + str(45 + 3 * strength) + ' kg'
+        text = 'Max load: ' + str(baseMaxLoad + 3 * strength) + ' kg'
         drawCenteredOnX(cons = root, x = eightScreen * 4, y = 84, text = text, fg = colors.white, bg = None)
         X = eightScreen * 4 + ((len(text) + 1)// 2)
         root.draw_str(x = X, y = 84, string = ' + ' + str(3 * levelUpStats[7]) + '/lvl', fg = colors.yellow, bg = None)
@@ -797,6 +800,8 @@ def characterCreation():
                         applyBonus(racesBonus, index)
                         actualRaces += 1
                         chosenRace = races[index]
+                        if selectedRaces[4]:
+                            baseMaxLoad = 60.0
                 else:
                     if actualClasses < MAX_CLASSES:
                         previousListLen = len(races)
@@ -843,6 +848,8 @@ def characterCreation():
                     if actualRaces > 0:
                         previousListLen = 0
                         if selectedRaces[index - previousListLen]:
+                            if selectedRaces[4]:
+                                baseMaxLoad = 45.0
                             selectedRaces[index - previousListLen] = False
                             removeBonus(racesBonus, index)
                             actualRaces -= 1
@@ -1467,7 +1474,7 @@ class Player:
         self.dexterity = dexterity
         self.vitality = vitality
         self.willpower = willpower
-        self.baseMaxWeight = 45
+        self.baseMaxWeight = 45.0
         self.maxWeight = self.baseMaxWeight
         self.actualPerSkills = actualPerSkills
         self.levelUpStats = levelUpStats
@@ -1475,6 +1482,8 @@ class Player:
         self.race = race
         self.classes = classes
         self.traits = traits
+        self.burdened = False
+        
         if DEBUG:
             print('Player component initialized')
         
@@ -1757,7 +1766,8 @@ def getInput():
             levelUp_xp = LEVEL_UP_BASE + (player.level - 1) * LEVEL_UP_FACTOR
         menu('Character Information \n \n Level: ' + str(player.level) + '\n Experience: ' + str(player.Fighter.xp) +
                     '\n Experience to level up: ' + str(levelUp_xp) + '\n \n Maximum HP: ' + str(player.Fighter.maxHP) +
-                    '\n Attack: ' + str(player.Fighter.power) + '\n Armor: ' + str(player.Fighter.armor), [], CHARACTER_SCREEN_WIDTH)
+                    '\n Attack: ' + str(player.Fighter.power) + '\n Armor: ' + str(player.Fighter.armor) +
+                    '\n Max load: ' + format(player.Player.maxWeight, '.1f') + '\n Current load: ' + format(getAllWeights(player), '.1f'), [], CHARACTER_SCREEN_WIDTH)
         
     elif userInput.keychar == 'd' and gameState == 'playing':
         chosenItem = inventoryMenu('Press the key next to an item to drop it, or press any other key to cancel.')
@@ -1948,7 +1958,8 @@ def moveOrAttack(dx, dy):
     if target is not None:
         player.Fighter.attack(target)
     else:
-        player.move(dx, dy)
+        if not player.Player.burdened:
+            player.move(dx, dy)
 
 def shoot(): 
     weapons = getEquippedInHands()
@@ -2207,7 +2218,7 @@ def createOrc(x, y, friendly = False, corpse = False):
     if x != player.x or y != player.y:
         if not corpse:
             equipmentComponent = Equipment(slot='head', type = 'armor', armorBonus = 1)
-            orcHelmet = GameObject(x = None, y = None, char = '[', name = 'orc helmet', color = colors.brass, Equipment = equipmentComponent, Item = Item())
+            orcHelmet = GameObject(x = None, y = None, char = '[', name = 'orc helmet', color = colors.brass, Equipment = equipmentComponent, Item = Item(weight = 2.5))
             lootOnDeath = orcHelmet
             deathType = monsterDeath
             orcName = "orc"
@@ -2231,7 +2242,7 @@ def createTroll(x, y, friendly = False, corpse = False):
     if x != player.x or y != player.y:
         if not corpse:
             equipmentComponent = Equipment(slot = 'both hands', type = 'heavy weapon', powerBonus = 8, accuracyBonus = -20)
-            trollMace = GameObject(x, y, '/', 'troll mace', colors.darker_orange, Equipment=equipmentComponent, Item=Item())
+            trollMace = GameObject(x, y, '/', 'troll mace', colors.darker_orange, Equipment=equipmentComponent, Item=Item(weight = 13.0))
             lootOnDeath = trollMace
             deathType = monsterDeath
             monName = "troll"
@@ -2706,9 +2717,11 @@ def createSword(x, y):
     if sizeChoice == 'short':
         swordPow = 3
         char = '-'
+        weight = 1.5
     else:
         swordPow = 5
         char = '/'
+        weight = 3.5
     qualityChances = {'normal' : 70, 'rusty' : 20, 'sharp' : 10}
     qualityChoice = randomChoice(qualityChances)
     if qualityChoice == 'rusty':
@@ -2725,29 +2738,29 @@ def createSword(x, y):
     else:
         burningSword = False
     equipmentComponent = Equipment(slot='right hand', type = 'light weapon', powerBonus = swordPow, burning = burningSword)
-    sword = GameObject(x, y, char, name, colors.sky, Equipment = equipmentComponent, Item = Item())
+    sword = GameObject(x, y, char, name, colors.sky, Equipment = equipmentComponent, Item = Item(weight=weight))
     return sword 
 
 def createScroll(x, y):
     scrollChances = {'lightning': 12, 'confuse': 12, 'fireball': 25, 'armageddon': 10, 'ice': 25, 'none': 1}
     scrollChoice = randomChoice(scrollChances)
     if scrollChoice == 'lightning':
-        scroll = GameObject(x, y, '~', 'scroll of lightning bolt', colors.light_yellow, Item = Item(useFunction = castLightning), blocks = False)
+        scroll = GameObject(x, y, '~', 'scroll of lightning bolt', colors.light_yellow, Item = Item(useFunction = castLightning, weight = 0.3), blocks = False)
     elif scrollChoice == 'confuse':
-        scroll = GameObject(x, y, '~', 'scroll of confusion', colors.light_yellow, Item = Item(useFunction = castConfuse), blocks = False)
+        scroll = GameObject(x, y, '~', 'scroll of confusion', colors.light_yellow, Item = Item(useFunction = castConfuse, weight = 0.3), blocks = False)
     elif scrollChoice == 'fireball':
         fireballChances = {'lesser': 20, 'normal': 50, 'greater': 20}
         fireballChoice = randomChoice(fireballChances)
         if fireballChoice == 'lesser':
-            scroll = GameObject(x, y, '~', 'scroll of lesser fireball', colors.light_yellow, Item = Item(castFireball, 2, 6), blocks = False)
+            scroll = GameObject(x, y, '~', 'scroll of lesser fireball', colors.light_yellow, Item = Item(castFireball, 2, 6, weight = 0.3), blocks = False)
         elif fireballChoice == 'normal':
-            scroll = GameObject(x, y, '~', 'scroll of fireball', colors.light_yellow, Item = Item(castFireball), blocks = False)
+            scroll = GameObject(x, y, '~', 'scroll of fireball', colors.light_yellow, Item = Item(castFireball, weight = 0.3), blocks = False)
         elif fireballChoice == 'greater':
-            scroll = GameObject(x, y, '~', 'scroll of greater fireball', colors.light_yellow, Item = Item(castFireball, 4, 24), blocks = False)
+            scroll = GameObject(x, y, '~', 'scroll of greater fireball', colors.light_yellow, Item = Item(castFireball, 4, 24, weight = 0.3), blocks = False)
     elif scrollChoice == 'armageddon':
-        scroll = GameObject(x, y, '~', 'scroll of armageddon', colors.red, Item = Item(castArmageddon), blocks = False)
+        scroll = GameObject(x, y, '~', 'scroll of armageddon', colors.red, Item = Item(castArmageddon, weight = 0.3), blocks = False)
     elif scrollChoice == 'ice':
-        scroll = GameObject(x, y, '~', 'scroll of ice bolt', colors.light_cyan, Item = Item(castFreeze), blocks = False)
+        scroll = GameObject(x, y, '~', 'scroll of ice bolt', colors.light_cyan, Item = Item(castFreeze, weight = 0.3), blocks = False)
     elif scrollChoice == 'none':
         scroll = None
     return scroll
@@ -2756,17 +2769,17 @@ def createSpellbook(x, y):
     spellbookChances = {'darkPact' : 7, 'healSelf': 8, 'fireball': 30, 'lightning': 15, 'confuse': 20, 'ice': 20}
     spellbookChoice = randomChoice(spellbookChances)
     if spellbookChoice == "darkPact":
-        spellbook = GameObject(x, y, '=', 'spellbook of arcane rituals', colors.violet, Item = Item(useFunction = learnSpell, arg1 = darkPact), blocks = False)
+        spellbook = GameObject(x, y, '=', 'spellbook of arcane rituals', colors.violet, Item = Item(useFunction = learnSpell, arg1 = darkPact, weight = 1.0), blocks = False)
     elif spellbookChoice == "healSelf":
-        spellbook = GameObject(x, y, '=', 'spellbook of healing', colors.violet, Item = Item(useFunction = learnSpell, arg1 = heal), blocks = False)
+        spellbook = GameObject(x, y, '=', 'spellbook of healing', colors.violet, Item = Item(useFunction = learnSpell, arg1 = heal, weight = 1.0), blocks = False)
     elif spellbookChoice == "fireball":
-        spellbook = GameObject(x, y, '=', 'spellbook of fireball', colors.violet, Item = Item(useFunction = learnSpell, arg1 = fireball), blocks = False)
+        spellbook = GameObject(x, y, '=', 'spellbook of fireball', colors.violet, Item = Item(useFunction = learnSpell, arg1 = fireball, weight = 1.0), blocks = False)
     elif spellbookChoice == "lightning":
-        spellbook = GameObject(x, y, '=', 'spellbook of lightning bolt', colors.violet, Item = Item(useFunction = learnSpell, arg1 = lightning), blocks = False)
+        spellbook = GameObject(x, y, '=', 'spellbook of lightning bolt', colors.violet, Item = Item(useFunction = learnSpell, arg1 = lightning, weight = 1.0), blocks = False)
     elif spellbookChoice == "confuse":
-        spellbook = GameObject(x, y, '=', 'spellbook of confusion', colors.violet, Item = Item(useFunction = learnSpell, arg1 = confuse), blocks = False)
+        spellbook = GameObject(x, y, '=', 'spellbook of confusion', colors.violet, Item = Item(useFunction = learnSpell, arg1 = confuse, weight = 1.0), blocks = False)
     elif spellbookChoice == "ice":
-        spellbook = GameObject(x, y, '=', 'spellbook of ice bolt', colors.violet, Item = Item(useFunction = learnSpell, arg1 = ice), blocks = False)
+        spellbook = GameObject(x, y, '=', 'spellbook of ice bolt', colors.violet, Item = Item(useFunction = learnSpell, arg1 = ice, weight = 1.0), blocks = False)
     elif spellbookChoice == 'none':
         spellbook = None
     return spellbook
@@ -2830,9 +2843,9 @@ def placeObjects(room):
             if itemChoice == 'potion':
                 potionChoice = randomChoice(potionChances)
                 if potionChoice == 'heal':
-                    item = GameObject(x, y, '!', 'healing potion', colors.violet, Item = Item(useFunction = castHeal), blocks = False)
+                    item = GameObject(x, y, '!', 'healing potion', colors.violet, Item = Item(useFunction = castHeal, weight = 0.4), blocks = False)
                 if potionChoice == 'mana':
-                    item = GameObject(x, y, '!', 'mana regeneration potion', colors.blue, Item = Item(useFunction = castRegenMana, arg1 = 10), blocks = False)
+                    item = GameObject(x, y, '!', 'mana regeneration potion', colors.blue, Item = Item(useFunction = castRegenMana, arg1 = 10, weight = 0.4), blocks = False)
             elif itemChoice == 'scroll':
                 item = createScroll(x, y)
             elif itemChoice == 'none':
@@ -2841,7 +2854,7 @@ def placeObjects(room):
                 item = createSword(x, y)
             elif itemChoice == 'shield':
                 equipmentComponent = Equipment(slot = 'left hand', type = 'shield', armorBonus=1)
-                item = GameObject(x, y, '[', 'shield', colors.darker_orange, Equipment=equipmentComponent, Item=Item())
+                item = GameObject(x, y, '[', 'shield', colors.darker_orange, Equipment=equipmentComponent, Item=Item(weight = 3.0))
             elif itemChoice == 'spellbook':
                 item = createSpellbook(x, y)
             else:
@@ -2922,10 +2935,10 @@ class Equipment:
     def rangedPower(self):
         if self.type == 'missile weapon':
             bonus = (20 * player.Player.actualPerSkills[2]) / 100
-            return int(self.baseRangedPower * bonus + self.baseRangedPower)
+            return int(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.dexterity)
         elif self.type == 'throwing weapon':
             bonus = (20 * player.Player.actualPerSkills[3]) / 100
-            return int(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.power)
+            return int(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.strength)
         else:
             return self.baseRangedPower
 
@@ -2958,15 +2971,24 @@ def getAllEquipped(object):  #returns a list of equipped items
 
 def getAllWeights(object):
     if object == player:
-        totalWeight = 0
+        totalWeight = 0.0
         for item in inventory:
-            totalWeight += item.Item.weight
+            totalWeight = math.fsum([totalWeight, item.Item.weight])
         equippedList = getAllEquipped(player)
         for equipment in equippedList:
-            totalWeight += equipment.Item.weight
+            item = equipment.owner
+            totalWeight = math.fsum([totalWeight, item.Item.weight])
         return totalWeight
     else:
-        return 0
+        return 0.0
+
+def checkLoad():
+    load = getAllWeights(player)
+    if load > player.Player.maxWeight:
+        message("You are carrying too much objects! You are burdened and can't move anymore.", colors.yellow)
+        player.Player.burdened = True
+    if load < player.Player.maxWeight:
+        player.Player.burdened = False
 
 def lootItem(object, x, y):
     objects.append(object)
@@ -3178,6 +3200,7 @@ def Update():
     con.clear()
     tdl.flush()
     player.Player.changeColor()
+    checkLoad()
     if FOV_recompute:
         FOV_recompute = False
         global pathfinder
@@ -3407,13 +3430,13 @@ def newGame():
     gameState = 'playing'
     
     equipmentComponent = Equipment(slot='right hand', type = 'light weapon', powerBonus=2, burning = False)
-    object = GameObject(0, 0, '-', 'dagger', colors.light_sky, Equipment=equipmentComponent, Item=Item(), darkColor = colors.darker_sky)
+    object = GameObject(0, 0, '-', 'dagger', colors.light_sky, Equipment=equipmentComponent, Item=Item(weight = 0.8), darkColor = colors.darker_sky)
     inventory.append(object)
     equipmentComponent.equip()
     object.alwaysVisible = True
     if player.Player.classes == 'Rogue':
         equipmentComponent = Equipment(slot = 'both hands', type = 'missile weapon', powerBonus = 1, ranged = True, rangedPower = 7, maxRange = SIGHT_RADIUS, ammo = 'arrow')
-        object = GameObject(0, 0, ')', 'shortbow', colors.light_orange, Equipment = equipmentComponent, Item = Item(), darkColor = colors.dark_orange)
+        object = GameObject(0, 0, ')', 'shortbow', colors.light_orange, Equipment = equipmentComponent, Item = Item(weight = 1.0), darkColor = colors.dark_orange)
         inventory.append(object)
         object.alwaysVisible = True
         
