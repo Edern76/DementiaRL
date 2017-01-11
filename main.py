@@ -426,32 +426,35 @@ ressurect = Spell(ressourceCost = 10, cooldown = 15, useFunction=castRessurect, 
 #_____________SPELLS_____________
 
 #______________CHARACTER GENERATION____________
-BASE_POWER = 0
-BASE_ACCURACY = 20
-BASE_EVASION = 0
-BASE_ARMOR = 0
-BASE_MAXHP = 0
-BASE_MAXMP = 0
-BASE_CRITICAL = 5
-BASE_STRENGTH = 10
-BASE_DEXTERITY = 10
-BASE_VITALITY = 10
-BASE_WILLPOWER = 10
-
-power = BASE_POWER
-accuracy = BASE_ACCURACY
-evasion = BASE_EVASION
-armor = BASE_ARMOR
-maxHP = BASE_MAXHP
-maxMP = BASE_MAXMP
-critical = BASE_CRITICAL
-
-strength = BASE_STRENGTH
-dexterity = BASE_DEXTERITY
-vitality = BASE_VITALITY
-willpower = BASE_WILLPOWER
-
-startingSpells = []
+def initializeCharCreation():
+    global power, accuracy, evasion, armor, maxHP, maxMP, critical, strength, dexterity, vitality, willpower, startingSpells
+    
+    BASE_POWER = 0
+    BASE_ACCURACY = 20
+    BASE_EVASION = 0
+    BASE_ARMOR = 0
+    BASE_MAXHP = 0
+    BASE_MAXMP = 0
+    BASE_CRITICAL = 5
+    BASE_STRENGTH = 0
+    BASE_DEXTERITY = 0
+    BASE_VITALITY = 0
+    BASE_WILLPOWER = 0
+    
+    power = BASE_POWER
+    accuracy = BASE_ACCURACY
+    evasion = BASE_EVASION
+    armor = BASE_ARMOR
+    maxHP = BASE_MAXHP
+    maxMP = BASE_MAXMP
+    critical = BASE_CRITICAL
+    
+    strength = BASE_STRENGTH
+    dexterity = BASE_DEXTERITY
+    vitality = BASE_VITALITY
+    willpower = BASE_WILLPOWER
+    
+    startingSpells = []
 
 def description(text):
     wrappedText = textwrap.wrap(text, 25)
@@ -491,6 +494,8 @@ def removeBonus(list, chosenList):
 #Bonus template: [power, accuracy, evasion, armor, maxHP, maxMP, critical, strength, dexterity, vitality, willpower]
 
 def characterCreation():
+    initializeCharCreation()
+    
     races = ['Human', 'Minotaur', 'Insectoid', 'Lizardman', 'Ratling']
     racesDescription = ['Humans gain experience faster',
                         'Minotaurs are tougher and stronger than Humans, but less smart',
@@ -632,12 +637,13 @@ def characterCreation():
         leftX = (WIDTH // 4)
         drawCenteredOnX(cons = root, x = leftX, y = 33, text = '-- ATTRIBUTES --', fg = colors.white, bg = None)
         drawCenteredOnX(cons = root, x = leftX, y = 34, text = str(actualAttributesPoints) + '/' + str(MAX_ATTRIBUTES_POINTS), fg = colors.white, bg = None)
+        totalAttributes = [strength, dexterity, vitality, willpower]
         for choice in range(len(attributes)):
             if selectedAttributes[choice]:
                 drawCenteredOnX(cons = root, x = leftX, y = 36 + choice, text = attributes[choice], fg = colors.azure, bg = None)
             else:
                 drawCenteredOnX(cons = root, x = leftX, y = 36 + choice, text = attributes[choice], fg = colors.white, bg = None)
-            drawCenteredOnX(cons = root, x = leftX - 10, y = 36 + choice, text = str(actualPerAttributes[choice]) + '/' + str(MAX_PER_ATTRIBUTES), fg = colors.white, bg = None)
+            drawCenteredOnX(cons = root, x = leftX - 10, y = 36 + choice, text = str(10 + totalAttributes[choice]), fg = colors.white, bg = None)
 
         drawCenteredOnX(cons = root, x = leftX, y = 45, text = '-- TRAITS --', fg = colors.white, bg = None)
         drawCenteredOnX(cons = root, x = leftX, y = 46, text = str(actualTraits) + '/' + str(MAX_TRAITS), fg = colors.white, bg = None)
@@ -662,42 +668,47 @@ def characterCreation():
         drawCentered(cons = root, y = 91, text = 'Cancel', fg = colors.white, bg = None)
 
         #Displaying stats
-        #eightScreen = WIDTH//8
+        eightScreen = WIDTH//5
         
-        #text = 'Power: ' + str(power)
-        #drawCenteredOnX(cons = root, x = eightScreen * 1, y = 82, text = text, fg = colors.white, bg = None)
-        #X = eightScreen * 1 + ((len(text) + 1)// 2)
-        #root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[0]) + '/lvl', fg = colors.yellow, bg = None)
+        text = 'Power: ' + str(power + strength)
+        drawCenteredOnX(cons = root, x = eightScreen * 1, y = 82, text = text, fg = colors.white, bg = None)
+        X = eightScreen * 1 + ((len(text) + 1)// 2)
+        root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[0] + levelUpStats[7]) + '/lvl', fg = colors.yellow, bg = None)
         
-        #text = 'Accuracy: ' + str(accuracy)
-        #drawCenteredOnX(cons = root, x = eightScreen * 2, y = 82, text = text, fg = colors.white, bg = None)
-        #X = eightScreen * 2 + ((len(text) + 1)// 2)
-        #root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[1]) + '/lvl', fg = colors.yellow, bg = None)
+        text = 'Accuracy: ' + str(accuracy + 2 * dexterity)
+        drawCenteredOnX(cons = root, x = eightScreen * 2, y = 82, text = text, fg = colors.white, bg = None)
+        X = eightScreen * 2 + ((len(text) + 1)// 2)
+        root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[1] + 2 * levelUpStats[8]) + '/lvl', fg = colors.yellow, bg = None)
         
-        #text = 'Evasion: ' + str(evasion)
-        #drawCenteredOnX(cons = root, x = eightScreen * 3, y = 82, text = text, fg = colors.white, bg = None)
-        #X = eightScreen * 3 + ((len(text) + 1)// 2)
-        #root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[2]) + '/lvl', fg = colors.yellow, bg = None)
+        text = 'Evasion: ' + str(evasion + dexterity)
+        drawCenteredOnX(cons = root, x = eightScreen * 3, y = 82, text = text, fg = colors.white, bg = None)
+        X = eightScreen * 3 + ((len(text) + 1)// 2)
+        root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[2] + levelUpStats[8]) + '/lvl', fg = colors.yellow, bg = None)
         
-        #text = 'Armor: ' + str(armor)
-        #drawCenteredOnX(cons = root, x = eightScreen * 4, y = 82, text = text, fg = colors.white, bg = None)
-        #X = eightScreen * 4 + ((len(text) + 1)// 2)
-        #root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[3]) + '/lvl', fg = colors.yellow, bg = None)
+        text = 'Armor: ' + str(armor)
+        drawCenteredOnX(cons = root, x = eightScreen * 4, y = 82, text = text, fg = colors.white, bg = None)
+        X = eightScreen * 4 + ((len(text) + 1)// 2)
+        root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[3]) + '/lvl', fg = colors.yellow, bg = None)
         
-        #text = 'Max HP: ' + str(maxHP)
-        #drawCenteredOnX(cons = root, x = eightScreen * 5, y = 82, text = text, fg = colors.white, bg = None)
-        #X = eightScreen * 5 + ((len(text) + 1)// 2)
-        #root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[4]) + '/lvl', fg = colors.yellow, bg = None)
+        text = 'Max HP: ' + str(maxHP + 5 * vitality)
+        drawCenteredOnX(cons = root, x = eightScreen * 1, y = 84, text = text, fg = colors.white, bg = None)
+        X = eightScreen * 1 + ((len(text) + 1)// 2)
+        root.draw_str(x = X, y = 84, string = ' + ' + str(levelUpStats[4] + 5 * levelUpStats[9]) + '/lvl', fg = colors.yellow, bg = None)
         
-        #text = 'Max MP: ' + str(maxMP)
-        #drawCenteredOnX(cons = root, x = eightScreen * 6, y = 82, text = text, fg = colors.white, bg = None)
-        #X = eightScreen * 6 + ((len(text) + 1)// 2)
-        #root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[5]) + '/lvl', fg = colors.yellow, bg = None)
+        text = 'Max MP: ' + str(maxMP + 5 * willpower)
+        drawCenteredOnX(cons = root, x = eightScreen * 2, y = 84, text = text, fg = colors.white, bg = None)
+        X = eightScreen * 2 + ((len(text) + 1)// 2)
+        root.draw_str(x = X, y = 84, string = ' + ' + str(levelUpStats[5] + 5 * levelUpStats[10]) + '/lvl', fg = colors.yellow, bg = None)
         
-        #text = 'Critical: ' + str(critical)
-        #drawCenteredOnX(cons = root, x = eightScreen * 7, y = 82, text = text, fg = colors.white, bg = None)
-        #X = eightScreen * 7 + ((len(text) + 1)// 2)
-        #root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[6]) + '/lvl', fg = colors.yellow, bg = None)
+        text = 'Critical: ' + str(critical) + '%'
+        drawCenteredOnX(cons = root, x = eightScreen * 3, y = 84, text = text, fg = colors.white, bg = None)
+        X = eightScreen * 3 + ((len(text) + 1)// 2)
+        root.draw_str(x = X, y = 84, string = ' + ' + str(levelUpStats[6]) + '/lvl', fg = colors.yellow, bg = None)
+        
+        text = 'Max load: ' + str(45 + 3 * strength) + ' kg'
+        drawCenteredOnX(cons = root, x = eightScreen * 4, y = 84, text = text, fg = colors.white, bg = None)
+        X = eightScreen * 4 + ((len(text) + 1)// 2)
+        root.draw_str(x = X, y = 84, string = ' + ' + str(3 * levelUpStats[7]) + '/lvl', fg = colors.yellow, bg = None)
         
         # Selection
         if midIndexMin <= index <= midIndexMax:
@@ -809,7 +820,7 @@ def characterCreation():
                         if selectedClasses[index-previousListLen]:
                             selectedClasses[index - previousListLen] = False
                             removeBonus(classesBonus, index - previousListLen)
-                            levelUpStats = [0, 0, 0, 0, 0, 0, 0]
+                            levelUpStats = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
                             actualClasses -= 1
                             startingSpells = []
             if leftIndexMin <= index <= leftIndexMax:
@@ -1424,6 +1435,8 @@ class Player:
         self.dexterity = dexterity
         self.vitality = vitality
         self.willpower = willpower
+        self.baseMaxWeight = 45
+        self.maxWeight = self.baseMaxWeight
         self.actualPerSkills = actualPerSkills
         self.levelUpStats = levelUpStats
         self.skillsBonus = skillsBonus
@@ -1450,11 +1463,11 @@ class Player:
     
     def bonusPlayerStats(self):
         #[power, accuracy, evasion, armor, maxHP, maxMP, critical]
-        power = self.strength - 10
-        accuracy = 2 * (self.dexterity - 10)
-        evasion = self.dexterity - 10
-        maxHP = 5 * (self.vitality - 10)
-        maxMP = 5 * (self.willpower - 10)
+        power = self.strength
+        accuracy = 2 * self.dexterity
+        evasion = self.dexterity
+        maxHP = 5 * self.vitality
+        maxMP = 5 * self.willpower
         return power, accuracy, evasion, maxHP, maxMP
 
     def updatePlayerStats(self):
@@ -1463,6 +1476,7 @@ class Player:
         object.Fighter.basePower = object.Fighter.BASE_POWER + power
         object.Fighter.baseAccuracy = object.Fighter.BASE_ACCURACY + accuracy
         object.Fighter.baseEvasion = object.Fighter.BASE_EVASION + evasion
+        self.maxWeight = self.baseMaxWeight + 3 * power
         
         hpDiff = object.Fighter.baseMaxHP - object.Fighter.hp
         mpDiff = object.Fighter.baseMaxMP - object.Fighter.MP
@@ -2892,6 +2906,18 @@ def getAllEquipped(object):  #returns a list of equipped items
     else:
         return []
 #_____________ EQUIPEMENT ________________
+
+def getAllWeights(object):
+    if object == player:
+        totalWeight = 0
+        for item in inventory:
+            totalWeight += item.Item.weight
+        equippedList = getAllEquipped(player)
+        for equipment in equippedList:
+            totalWeight += equipment.Item.weight
+        return totalWeight
+    else:
+        return 0
 
 def lootItem(object, x, y):
     objects.append(object)
