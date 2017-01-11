@@ -316,8 +316,8 @@ def castFireball(radius = 3, damage = 12, range = 4):
         message('Spell casting cancelled')
         return target
     else:
-        (x,y) = target
-        projectile(player.x, player.y, x, y, '*', colors.flame)
+        (tx,ty) = target
+        (x,y) = projectile(player.x, player.y, tx, ty, '*', colors.flame)
         #TODO : Make where the projectile lands actually matter
         for obj in objects:
             if obj.distanceToCoords(x, y) <= radius and obj.Fighter:
@@ -1850,8 +1850,10 @@ def getInput():
             return 'didnt-take-turn'
     FOV_recompute = True
 
-def projectile(sourceX, sourceY, destX, destY, char, color):
+def projectile(sourceX, sourceY, destX, destY, char, color, continues = False):
     line = tdl.map.bresenham(sourceX, sourceY, destX, destY)
+    dx = destX - sourceX
+    dy = destY - sourceY
     proj = GameObject(0, 0, char, 'proj', color)
     objects.append(proj)
     for loop in range(len(line)):
@@ -1859,10 +1861,31 @@ def projectile(sourceX, sourceY, destX, destY, char, color):
         proj.x, proj.y = x, y
         animStep(.050)
         if isBlocked(x, y):
+            objects.remove(proj)
+            return (x,y)
             break
-    #TODO : Have the line continue until it hits a wall
-    objects.remove(proj)
-    return (x,y)
+    if not continues:
+        objects.remove(proj)
+        return (x,y)
+    else:
+        for i in range(25):
+            newX = x + dx
+            newY = y + dy
+            startX = x
+            startY = y
+            line = tdl.map.bresenham(x, y, newX, newY)
+            for r in range(len(line)):
+                (x, y) = line.pop(0)
+                proj.x, proj.y = x, y
+                animStep(.050)
+                if isBlocked(x, y):
+                    objects.remove(proj)
+                    return (x,y)
+                    break
+            dx = newX - startX
+            dy = newY - startY
+        print("Your arrow flies far away from your sight.")
+        message("Your arrow flies far away from your sight.")
 
 def checkDiagonals(monster, target):
     diagonals = [(1,1), (1, -1), (-1, 1), (-1, -1)]
@@ -1913,7 +1936,7 @@ def shoot():
                                 return 'didnt-take-turn'
                             else:
                                 (aimX, aimY) = aimedTile
-                                (targetX, targetY) = projectile(player.x, player.y, aimX, aimY, '.', colors.light_orange)
+                                (targetX, targetY) = projectile(player.x, player.y, aimX, aimY, '.', colors.light_orange, continues=True)
                                 FOV_recompute = True
                                 monsterTarget = None
                                 for thing in objects:
