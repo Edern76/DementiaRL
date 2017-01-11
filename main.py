@@ -152,10 +152,11 @@ def animStep(waitTime = .125):
     time.sleep(waitTime)
 
 #_____________MENU_______________
-def drawMenuOptions(y, options, window, page, width, height, headerWrapped):
+def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages):
     window.clear()
     for i, line in enumerate(headerWrapped):
-        window.draw_str(0, 0+i, headerWrapped[i])
+        window.draw_str(0, 0+i, headerWrapped[i], fg = colors.yellow)
+    window.draw_str(30, y - 2, str(page + 1) + '/' + str(maxPages + 1), fg = colors.yellow)
     letterIndex = ord('a')
     counter = 0
     for optionText in options:
@@ -165,7 +166,7 @@ def drawMenuOptions(y, options, window, page, width, height, headerWrapped):
             window.draw_str(0, y, text, bg=None)
             y += 1
         counter += 1
-
+        
     x = MID_WIDTH - int(width/2)
     y = MID_HEIGHT - int(height/2)
     root.blit(window, x, y, width, height, 0, 0)
@@ -174,7 +175,7 @@ def drawMenuOptions(y, options, window, page, width, height, headerWrapped):
 
 def menu(header, options, width):
     page = 0
-    maxPages = len(options)//26 + 1
+    maxPages = len(options)//26
     headerWrapped = textwrap.wrap(header, width)
     headerHeight = len(headerWrapped)
     if header == "":
@@ -186,13 +187,13 @@ def menu(header, options, width):
     window = tdl.Console(width, height)
     window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
     y = headerHeight + 2
-    drawMenuOptions(y, options, window, page, width, height, headerWrapped)
+    drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages)
 
     choseOrQuit = False
     while not choseOrQuit:
         choseOrQuit = True
         arrow = False
-        drawMenuOptions(y, options, window, page, width, height, headerWrapped)
+        drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages)
         key = tdl.event.key_wait()
         keyChar = key.keychar
         if keyChar == '':
@@ -200,12 +201,10 @@ def menu(header, options, width):
         elif keyChar == 'RIGHT':
             page += 1
             choseOrQuit = False
-            message('right')
             arrow = True
         elif keyChar == 'LEFT':
             page -= 1
             choseOrQuit = False
-            message('left')
             arrow = True
         if page > maxPages:
             page = 0
@@ -2902,14 +2901,8 @@ class Equipment:
         if not self.isEquipped: return
         self.isEquipped = False
         equipmentList.remove(self.owner)
-        if len(inventory) <= 26:
-            inventory.append(self.owner)
-            message('Unequipped ' + self.owner.name + ' from ' + self.slot + '.', colors.light_yellow)
-        else:
-            message('Not enough space in inventory to keep ' + self.owner.name + '.', colors.light_yellow)
-            self.owner.x = player.x
-            self.owner.y = player.y
-            message('Dropped ' + self.owner.name)
+        inventory.append(self.owner)
+        message('Unequipped ' + self.owner.name + ' from ' + self.slot + '.', colors.light_yellow)
 
     @property
     def powerBonus(self):
