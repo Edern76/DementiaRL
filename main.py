@@ -3338,8 +3338,9 @@ def saveGame():
     #mapFile.close()
 
 def newGame():
-    global objects, inventory, gameMsgs, gameState, player, dungeonLevel
+    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, gameMsgs
 
+    gameMsgs = []
     objects = [player]
     dungeonLevel = 1 
     makeMap()
@@ -3350,6 +3351,7 @@ def newGame():
     FOV_recompute = True
     initializeFOV()
     message('Zargothrox says : Prepare to get lost in the Realm of Madness !', colors.dark_red)
+    gameState = 'playing'
     
     equipmentComponent = Equipment(slot='right hand', type = 'light weapon', powerBonus=2, burning = False)
     object = GameObject(0, 0, '-', 'dagger', colors.light_sky, Equipment=equipmentComponent, Item=Item(), darkColor = colors.darker_sky)
