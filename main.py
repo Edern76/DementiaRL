@@ -60,7 +60,9 @@ MSG_HEIGHT = PANEL_HEIGHT - 1
 INVENTORY_WIDTH = 90
 
 LEVEL_SCREEN_WIDTH = 40
-CHARACTER_SCREEN_WIDTH = 31
+
+CHARACTER_SCREEN_WIDTH = 50
+CHARACTER_SCREEN_HEIGHT = 20
 # - GUI Constants -
 
 # - Consoles -
@@ -1118,7 +1120,11 @@ class Fighter: #All NPCs, enemies and the player
             if death is not None:
                 death(self.owner)
             if self.owner != player and (not self.owner.AI or self.owner.AI.__class__.__name__ != "FriendlyMonster"):
-                player.Fighter.xp += self.xp
+                if player.Player.race == 'Human':
+                    xp = int((self.xp * 10) / 100) + self.xp
+                else:
+                    xp = self.xp
+                player.Fighter.xp += xp
 
     def toHit(self, target):
         attack = randint(1, 100)
@@ -1761,14 +1767,37 @@ def getInput():
         FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'C':
-        if not player.Player.race == 'Human':
-            levelUp_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
-        else:
-            levelUp_xp = LEVEL_UP_BASE + (player.level - 1) * LEVEL_UP_FACTOR
-        menu('Character Information \n \n Level: ' + str(player.level) + '\n Experience: ' + str(player.Fighter.xp) +
-                    '\n Experience to level up: ' + str(levelUp_xp) + '\n \n Maximum HP: ' + str(player.Fighter.maxHP) +
-                    '\n Attack: ' + str(player.Fighter.power) + '\n Armor: ' + str(player.Fighter.armor) +
-                    '\n Max load: ' + format(player.Player.maxWeight, '.1f') + '\n Current load: ' + format(getAllWeights(player), '.1f'), [], CHARACTER_SCREEN_WIDTH)
+        levelUp_xp = LEVEL_UP_BASE + (player.level - 1) * LEVEL_UP_FACTOR
+        
+        width = CHARACTER_SCREEN_WIDTH
+        height = CHARACTER_SCREEN_HEIGHT
+        window = tdl.Console(width, height)
+        window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
+        window.clear()
+
+        while not tdl.event.isWindowClosed():
+            window.draw_str(5, 1, player.Player.race + ' ' + player.Player.classes, fg = colors.yellow)
+            window.draw_str(1, 3, 'Experience: ' + str(player.Fighter.xp) + '/' + str(levelUp_xp))
+            window.draw_str(1, 5, 'HP: ' + str(player.Fighter.hp) + '/' + str(player.Fighter.maxHP))
+            window.draw_str(20, 5, 'MP: ' + str(player.Fighter.MP) + '/' + str(player.Fighter.maxMP))
+            window.draw_str(1, 7, 'Armor: ' + str(player.Fighter.armor))
+            window.draw_str(13, 7, 'Accuracy: ' + str(player.Fighter.accuracy))
+            window.draw_str(30, 7, 'Evasion: ' + str(player.Fighter.evasion))
+            window.draw_str(1, 9, 'Strength: ' + str(player.Player.strength + 10))
+            window.draw_str(1, 11, 'Dexterity: ' + str(player.Player.dexterity + 10))
+            window.draw_str(1, 13, 'Vitality: ' + str(player.Player.vitality + 10))
+            window.draw_str(1, 15, 'Willpower: ' + str(player.Player.willpower + 10))
+
+            x = MID_WIDTH - int(width/2)
+            y = MID_HEIGHT - int(height/2)
+            root.blit(window, x, y, width, height, 0, 0)
+            tdl.flush()
+            
+            key = tdl.event.key_wait()
+            keyChar = key.keychar
+            
+            if keyChar == 'ESCAPE':
+                break
         
     elif userInput.keychar == 'd' and gameState == 'playing':
         chosenItem = inventoryMenu('Press the key next to an item to drop it, or press any other key to cancel.')
@@ -2068,10 +2097,8 @@ def shoot():
 
 def checkLevelUp():
     global FOV_recompute
-    if not player.Player.race == 'Human':
-        levelUp_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
-    else:
-        levelUp_xp = LEVEL_UP_BASE + (player.level - 1) * LEVEL_UP_FACTOR
+    
+    levelUp_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
     if player.Fighter.xp >= levelUp_xp:
         player.level += 1
         player.Fighter.xp -= levelUp_xp
