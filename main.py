@@ -1677,7 +1677,8 @@ def getInput():
         FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'F5' and DEBUG and not tdl.event.isWindowClosed(): #Don't know if tdl.event.isWindowClosed() is necessary here but added it just to be sure
-        player.Fighter.baseMaxHP += 1000
+        player.Player.vitality += 1000
+        player.Player.updatePlayerStats()
         player.Fighter.hp = player.Fighter.maxHP
         message('Healed player and increased their maximum HP value by 1000', colors.purple)
         FOV_recompute = True
@@ -1894,9 +1895,25 @@ def getInput():
 
 def projectile(sourceX, sourceY, destX, destY, char, color, continues = False):
     line = tdl.map.bresenham(sourceX, sourceY, destX, destY)
+    (firstX, firstY)= line[1]
+    inclX = firstX - sourceX
+    inclY = firstY - sourceY
+    incl = (inclX, inclY)
     dx = destX - sourceX
     dy = destY - sourceY
-    proj = GameObject(0, 0, char, 'proj', color)
+    if char == '/':
+        print("Projectile inclination : " + "(" + str(inclX) +', '+ str(inclY) +")")
+        if incl == (1, 0) or incl == (-1, 0):
+            actualChar = '-'
+        elif incl == (1, -1) or incl == (-1, 1):
+            actualChar = '/'
+        elif incl == (0, 1) or incl == (0, -1):
+            actualChar = '|'
+        elif incl == (1, 1) or incl == (-1, -1):
+            actualChar = chr(92) #92 = ASCII code for backslash (\). Putting directly the '\' character provokes parsing errors.
+    else:
+        actualChar = char
+    proj = GameObject(0, 0, actualChar, 'proj', color)
     objects.append(proj)
     for loop in range(len(line)):
         (x, y) = line.pop(0)
@@ -1979,7 +1996,7 @@ def shoot():
                                 return 'didnt-take-turn'
                             else:
                                 (aimX, aimY) = aimedTile
-                                (targetX, targetY) = projectile(player.x, player.y, aimX, aimY, '.', colors.light_orange, continues=True)
+                                (targetX, targetY) = projectile(player.x, player.y, aimX, aimY, '/', colors.light_orange, continues=True)
                                 FOV_recompute = True
                                 monsterTarget = None
                                 for thing in objects:
