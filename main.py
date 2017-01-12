@@ -1950,10 +1950,12 @@ def checkDiagonals(monster, target):
     diagonals = [(1,1), (1, -1), (-1, 1), (-1, -1)]
     sameX = monster.x == target.x
     sameY = monster.y == target.y
+    oldDistance = monster.distanceTo(target)
+    
     for i in range(len(diagonals)):
         nx, ny = diagonals[i]
         closerPath = ((not sameX) and monster.x + nx == target.x) or ((not sameY and monster.y + ny == target.y))
-        if closerPath and not isBlocked(monster.x + nx, monster.y + ny):
+        if closerPath and not isBlocked(monster.x + nx, monster.y + ny) and tileDistance(monster.x + nx, monster.y + ny, target.x, target.y) <= oldDistance:
             monster.x += nx
             monster.y += ny
             return "complete"
