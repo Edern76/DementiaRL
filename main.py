@@ -158,7 +158,7 @@ def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxP
     window.clear()
     for i, line in enumerate(headerWrapped):
         window.draw_str(0, 0+i, headerWrapped[i], fg = colors.yellow)
-    window.draw_str(30, y - 2, str(page + 1) + '/' + str(maxPages + 1), fg = colors.yellow)
+    window.draw_str(width//2 - 2, y - 2, str(page + 1) + '/' + str(maxPages + 1), fg = colors.yellow)
     letterIndex = ord('a')
     counter = 0
     for optionText in options:
@@ -1553,16 +1553,9 @@ class Item:
             message('You picked up a ' + self.owner.name + '!', colors.green)
             equipment = self.owner.Equipment
             if equipment:
-                handed = equipment.slot == 'left hand' or equipment.slot == 'right hand' or equipment.slot == 'both hands'
+                handed = equipment.slot == 'one handed' or equipment.slot == 'two handed'
                 if not handed and getEquippedInSlot(equipment.slot) is None:
                     equipment.equip()
-                elif handed:
-                    if equipment.slot == 'both hands' and getEquippedInHands() is None:
-                        equipment.equip()
-                    elif equipment.slot == 'left hand' and getEquippedInSlot('left hand') is None and getEquippedInSlot('both hands') is None:
-                        equipment.equip()
-                    elif equipment.slot == 'right hand' and getEquippedInSlot('right hand') is None and getEquippedInSlot('both hands') is None:
-                        equipment.equip()
         else:
             itemFound = False
             for item in inventory:
@@ -1767,7 +1760,7 @@ def getInput():
         FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'C':
-        levelUp_xp = LEVEL_UP_BASE + (player.level - 1) * LEVEL_UP_FACTOR
+        levelUp_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
         
         width = CHARACTER_SCREEN_WIDTH
         height = CHARACTER_SCREEN_HEIGHT
@@ -1787,6 +1780,8 @@ def getInput():
             window.draw_str(1, 11, 'Dexterity: ' + str(player.Player.dexterity + 10))
             window.draw_str(1, 13, 'Vitality: ' + str(player.Player.vitality + 10))
             window.draw_str(1, 15, 'Willpower: ' + str(player.Player.willpower + 10))
+            window.draw_str(1, 17, 'Current load: ' + str(getAllWeights(player)))
+            window.draw_str(20, 17, 'Max load: ' + str(player.Player.maxWeight))
 
             x = MID_WIDTH - int(width/2)
             y = MID_HEIGHT - int(height/2)
@@ -2287,7 +2282,7 @@ def createOrc(x, y, friendly = False, corpse = False):
 def createTroll(x, y, friendly = False, corpse = False):
     if x != player.x or y != player.y:
         if not corpse:
-            equipmentComponent = Equipment(slot = 'both hands', type = 'heavy weapon', powerBonus = 8, accuracyBonus = -20)
+            equipmentComponent = Equipment(slot = 'two handed', type = 'heavy weapon', powerBonus = 8, accuracyBonus = -20)
             trollMace = GameObject(x, y, '/', 'troll mace', colors.darker_orange, Equipment=equipmentComponent, Item=Item(weight = 13.0))
             lootOnDeath = trollMace
             deathType = monsterDeath
@@ -2783,7 +2778,7 @@ def createSword(x, y):
         burningSword = True
     else:
         burningSword = False
-    equipmentComponent = Equipment(slot='right hand', type = 'light weapon', powerBonus = swordPow, burning = burningSword)
+    equipmentComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus = swordPow, burning = burningSword)
     sword = GameObject(x, y, char, name, colors.sky, Equipment = equipmentComponent, Item = Item(weight=weight))
     return sword 
 
@@ -2899,7 +2894,7 @@ def placeObjects(room):
             elif itemChoice == 'sword':
                 item = createSword(x, y)
             elif itemChoice == 'shield':
-                equipmentComponent = Equipment(slot = 'left hand', type = 'shield', armorBonus=1)
+                equipmentComponent = Equipment(slot = 'one handed', type = 'shield', armorBonus=1)
                 item = GameObject(x, y, '[', 'shield', colors.darker_orange, Equipment=equipmentComponent, Item=Item(weight = 3.0))
             elif itemChoice == 'spellbook':
                 item = createSpellbook(x, y)
@@ -2923,6 +2918,7 @@ class Equipment:
         self.criticalBonus = criticalBonus
         self.maxMP_Bonus = maxMP_Bonus
         self.isEquipped = False
+        self.curSlot = None
         
         self.burning = burning
         self.ranged = ranged
@@ -2937,31 +2933,67 @@ class Equipment:
             self.equip()
 
     def equip(self):
-        rightEquipment = None
-        leftEquipment = None
-        oldEquipment = getEquippedInSlot(self.slot)
-        if oldEquipment is None and (self.slot == 'right hand' or self.slot == 'left hand'):
-            oldEquipment = getEquippedInSlot('both hands')
-        if self.slot == 'both hands':
-            rightEquipment = getEquippedInSlot('right hand')
-            leftEquipment = getEquippedInSlot('left hand')
-        if oldEquipment is not None:
-            oldEquipment.unequip()
-        if rightEquipment is not None:
-            rightEquipment.unequip()
-        if leftEquipment is not None:
-            leftEquipment.unequip()
+        handSlot = None
+        oldEquipment = None
+        
+        handed = self.slot == 'one handed' or self.slot == 'two handed'
+        
+        if self.slot == 'one handed':
+            handIndex = menu('What slot do you want to equip this ' + self.owner.name + ' in?', ['right hand', 'left hand'], 30)
+            if handIndex == 0:
+                handSlot = 'right hand'
+            elif handIndex == 1:
+                handSlot = 'left hand'
+        elif self.slot == 'two handed':
+            handSlot = 'both hands'
+
+        if not handed:
+            oldEquipment = getEquippedInSlot(self.slot)
+            if oldEquipment is not None:
+                oldEquipment.unequip()
+        
+        else:
+            rightEquipment = None
+            leftEquipment = None
+            bothEquipment = None
+    
+            if self.slot == 'one handed':
+                bothEquipment = getEquippedInSlot('both hands', hand = True)
+                oldEquipment = getEquippedInSlot(handSlot, hand = True)
+            if self.slot == 'two handed':
+                rightEquipment = getEquippedInSlot('right hand', hand = True)
+                leftEquipment = getEquippedInSlot('left hand', hand = True)
+
+            if bothEquipment is not None:
+                bothEquipment.unequip()
+            if rightEquipment is not None:
+                rightEquipment.unequip()
+            if leftEquipment is not None:
+                leftEquipment.unequip()
+            if oldEquipment is not None:
+                oldEquipment.unequip()
+
         inventory.remove(self.owner)
         equipmentList.append(self.owner)
         self.isEquipped = True
-        message('Equipped ' + self.owner.name + ' on ' + self.slot + '.', colors.light_green)
+        if handed:
+            self.curSlot = handSlot
+            message('Equipped ' + self.owner.name + ' on ' + self.curSlot + '.', colors.light_green)
+        else:
+            message('Equipped ' + self.owner.name + ' on ' + self.slot + '.', colors.light_green)
  
     def unequip(self):
+        handed = self.slot == 'one handed' or self.slot == 'two handed'
+
         if not self.isEquipped: return
         self.isEquipped = False
         equipmentList.remove(self.owner)
         inventory.append(self.owner)
-        message('Unequipped ' + self.owner.name + ' from ' + self.slot + '.', colors.light_yellow)
+        if handed:
+            message('Unequipped ' + self.owner.name + ' from ' + self.curSlot + '.', colors.light_yellow)
+            self.curSlot = None
+        else:
+            message('Unequipped ' + self.owner.name + ' from ' + self.slot + '.', colors.light_yellow)
 
     @property
     def powerBonus(self):
@@ -2988,20 +3020,22 @@ class Equipment:
         else:
             return self.baseRangedPower
 
-def getEquippedInSlot(slot):
-    for object in equipmentList:
-        if object.Equipment and object.Equipment.slot == slot and object.Equipment.isEquipped:
-            return object.Equipment
+def getEquippedInSlot(slot, hand = False):
+    if not hand:
+        for object in equipmentList:
+            if object.Equipment and object.Equipment.slot == slot and object.Equipment.isEquipped:
+                return object.Equipment
+    else:
+        for object in equipmentList:
+            if object.Equipment and object.Equipment.curSlot == slot and object.Equipment.isEquipped:
+                return object.Equipment
     return None
 
 def getEquippedInHands():
     inHands = []
     for object in equipmentList:
-        if object.Equipment and (object.Equipment.slot == 'right hand' or object.Equipment.slot == 'left hand' or object.Equipment.slot == 'both hands') and object.Equipment.isEquipped:
+        if object.Equipment and (object.Equipment.slot == 'one handed' or object.Equipment.slot == 'two handed') and object.Equipment.isEquipped:
             inHands.append(object)
-    if inHands == []:
-        return None
-    else:
         return inHands
 
 def getAllEquipped(object):  #returns a list of equipped items
@@ -3155,7 +3189,9 @@ def equipmentMenu(header):
                 if powBonus != 0 or hpBonus !=0 or armBonus != 0:
                     info = '['
                     if powBonus != 0:
-                        info = info + 'POWER + ' + str(powBonus) + ' + ' + str(skillPowBonus)
+                        info = info + 'POWER + ' + str(powBonus)
+                        if skillPowBonus > 0:
+                            info += ' + ' + str(skillPowBonus)
                     if hpBonus != 0:
                         if powBonus == 0:
                             info = info + 'HP + ' + str(hpBonus)
@@ -3169,7 +3205,11 @@ def equipmentMenu(header):
                     info = info + ']'
                 else:
                     info = ''
-                text = text + ' ' + info + ' (on ' + item.Equipment.slot + ')'
+                handed = item.Equipment.slot == 'one handed' or item.Equipment.slot == 'two handed'
+                if handed:
+                    text = text + ' ' + info + ' (on ' + item.Equipment.curSlot + ')'
+                else:
+                    text = text + ' ' + info + ' (on ' + item.Equipment.slot + ')'
             options.append(text)
     index = menu(header, options, INVENTORY_WIDTH)
     if index is None or len(equipmentList) == 0:
@@ -3475,13 +3515,12 @@ def newGame():
     message('Zargothrox says : Prepare to get lost in the Realm of Madness !', colors.dark_red)
     gameState = 'playing'
     
-    equipmentComponent = Equipment(slot='right hand', type = 'light weapon', powerBonus=2, burning = False)
+    equipmentComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus=2, burning = False)
     object = GameObject(0, 0, '-', 'dagger', colors.light_sky, Equipment=equipmentComponent, Item=Item(weight = 0.8), darkColor = colors.darker_sky)
     inventory.append(object)
-    equipmentComponent.equip()
     object.alwaysVisible = True
     if player.Player.classes == 'Rogue':
-        equipmentComponent = Equipment(slot = 'both hands', type = 'missile weapon', powerBonus = 1, ranged = True, rangedPower = 7, maxRange = SIGHT_RADIUS, ammo = 'arrow')
+        equipmentComponent = Equipment(slot = 'two handed', type = 'missile weapon', powerBonus = 1, ranged = True, rangedPower = 7, maxRange = SIGHT_RADIUS, ammo = 'arrow')
         object = GameObject(0, 0, ')', 'shortbow', colors.light_orange, Equipment = equipmentComponent, Item = Item(weight = 1.0), darkColor = colors.dark_orange)
         inventory.append(object)
         object.alwaysVisible = True
