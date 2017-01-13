@@ -158,7 +158,7 @@ def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxP
     window.clear()
     for i, line in enumerate(headerWrapped):
         window.draw_str(0, 0+i, headerWrapped[i], fg = colors.yellow)
-    window.draw_str(width//2 - 2, y - 2, str(page + 1) + '/' + str(maxPages + 1), fg = colors.yellow)
+    window.draw_str(10, y - 2, str(page + 1) + '/' + str(maxPages + 1), fg = colors.yellow)
     letterIndex = ord('a')
     counter = 0
     for optionText in options:
@@ -1887,7 +1887,7 @@ def getInput():
                         boss = False
                         if DEBUG:
                             message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
-                        if dungeonLevel + 1 >= 2:
+                        if dungeonLevel + 1 == 4:
                             boss = True
                         nextLevel(boss)
                     else:
@@ -2045,7 +2045,7 @@ def shoot():
                                                 message('You critically hit ' + monsterTarget.name + ' for ' + str(damage) + ' damage !', colors.darker_green)
                                             else:
                                                 message('You hit ' + monsterTarget.name + ' for ' + str(damage) + ' damage !', colors.dark_green)
-                                                monsterTarget.Fighter.takeDamage(damage)
+                                            monsterTarget.Fighter.takeDamage(damage)
                                     else:
                                         message('You missed ' + monsterTarget.name + '!', colors.grey)
                                 else:
@@ -3343,7 +3343,7 @@ def Update():
                     if inPath:
                         if (x,y) != (player.x, player.y):
                             if not wall:
-                                con.draw_char(x, y, 'X', fg = colors.green, bg = None)
+                                con.draw_char(x, y, '.', fg = colors.dark_green, bg = None)
                             else:
                                 con.draw_char(x, y, 'X', fg = colors.red, bg = None)
                         
@@ -3704,7 +3704,10 @@ def playGame():
                         object.Fighter.MPRegenCountdown = 0
                     if object.Fighter.MPRegenCountdown == 0:
                         if object == player:
-                            object.Fighter.MPRegenCountdown = 10 - player.Player.actualPerSkills[7]
+                            regen = 10 - player.Player.willpower
+                            if regen <= 0:
+                                regen = 1
+                            object.Fighter.MPRegenCountdown = regen
                         else:
                             object.Fighter.MPRegenCountdown = 10
                         object.Fighter.MP += 1
