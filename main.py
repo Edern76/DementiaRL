@@ -389,15 +389,16 @@ def castArmageddon(radius = 4, damage = 40):
     invalid = True
     while invalid:
         key = tdl.event.key_wait()
-        if key.keychar.upper() == 'N':
-            message('Good idea.', colors.dark_red)
-            FOV_recompute = True
-            Update()
-            return 'cancelled'
-        elif key.keychar.upper() == 'Y':
-            invalid = False
+        if key.keychar.upper() in ('Y', 'N', 'SHIFT'):
+            if key.keychar.upper() == 'N':
+                message('Good idea.', colors.dark_red)
+                FOV_recompute = True
+                Update()
+                return 'cancelled'
+            elif key.keychar.upper() == 'Y':
+                invalid = False
         else:
-            message('Please press a valid key (Y or N)')#Displays regardless of if a valid hcoice has been made, to be fixed
+            message('Please press a valid key (Y or N)')
             FOV_recompute = True
             Update()
             
