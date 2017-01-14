@@ -401,6 +401,7 @@ def castArmageddon(radius = 4, damage = 40):
             message('Please press a valid key (Y or N)')
             FOV_recompute = True
             Update()
+            tdl.flush()
             
     radmax = radius + 2
     global explodingTiles
