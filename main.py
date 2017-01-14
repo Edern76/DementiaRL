@@ -134,6 +134,13 @@ def findCurrentDir():
         datadir = os.path.dirname(__file__)
     return datadir
 
+def deleteSaves():
+    os.chdir(absDirPath)
+    saves = [save for save in os.listdir(absDirPath) if (save.endswith(".bak") or save.endswith(".dat") or save.endswith(".dir") or save.startswith("map"))]
+    for save in saves:
+        os.remove(save)
+        print("Deleted " + str(save))
+
 curDir = findCurrentDir()
 relDirPath = "save"
 relPath = "save\\savegame"
@@ -1713,7 +1720,7 @@ def getInput():
         FOV_recompute = True
     elif userInput.keychar == 'S' and DEBUG and not tdl.event.isWindowClosed():
         message("Force-saved level {}", colors.purple)
-        saveLevel()
+        saveLevel(dungeonLevel)
     elif userInput.keychar == 'Q' and DEBUG and not tdl.event.isWindowClosed():
         global FOV_recompute
         FOV_recompute = True
@@ -1867,7 +1874,7 @@ def getInput():
                 
         elif userInput.keychar.upper() == '<':  
             if dungeonLevel > 1:
-                saveLevel()
+                saveLevel(dungeonLevel)
                 for object in objects:    
                     if upStairs.x == player.x and upStairs.y == player.y:
                         if stairCooldown == 0:
@@ -3092,11 +3099,7 @@ def playerDeath(player):
     gameState = 'dead'
     player.char = '%'
     player.color = colors.dark_red
-    os.chdir(absDirPath)
-    saves = [save for save in os.listdir(absDirPath) if (save.endswith(".bak") or save.endswith(".dat") or save.endswith(".dir") or save.startswith("map"))]
-    for save in saves:
-        os.remove(save)
-        print("Deleted " + str(save))
+    deleteSaves()
  
 def monsterDeath(monster):
     message(monster.name.capitalize() + ' is dead! You gain ' + str(monster.Fighter.xp) + ' XP.', colors.dark_sky)
@@ -3515,6 +3518,8 @@ def saveGame():
 
 def newGame():
     global objects, inventory, gameMsgs, gameState, player, dungeonLevel, gameMsgs, equipmentList
+    
+    deleteSaves()
 
     gameMsgs = []
     objects = [player]
@@ -3616,7 +3621,7 @@ def nextLevel(boss = False):
     global dungeonLevel
     returned = "borked"
     while returned != "completed":
-        returned = saveLevel()
+        returned = saveLevel(dungeonLevel)
     message('After a rare moment of peace, you descend deeper into the heart of the dungeon...', colors.red)
     dungeonLevel += 1
     tempMap = myMap
