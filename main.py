@@ -117,6 +117,7 @@ gameMsgs = [] #List of game messages
 tilesInRange = []
 explodingTiles = []
 tilesinPath = []
+menuWindows = []
 hiroshimanNumber = 0
 FOV_recompute = True
 inventory = []
@@ -183,6 +184,7 @@ def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxP
     tdl.flush()
 
 def menu(header, options, width):
+    global menuWindows, FOV_recompute
     page = 0
     maxPages = len(options)//26
     headerWrapped = textwrap.wrap(header, width)
@@ -193,7 +195,14 @@ def menu(header, options, width):
         height = 26 + headerHeight + 2
     else:
         height = len(options) + headerHeight + 2
+    if menuWindows:
+        for mWindow in menuWindows:
+            mWindow.clear()
+        FOV_recompute = True
+        Update()
+        tdl.flush()
     window = tdl.Console(width, height)
+    menuWindows.append(window)
     window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
     y = headerHeight + 2
     drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages)
@@ -225,6 +234,8 @@ def menu(header, options, width):
                 index = ord(keyChar) - ord('a')
                 if index >= 0 and index < len(options):
                     return index + page * 26
+            elif keyChar.upper() == "ESCAPE":
+                return "cancelled"
     return None
 
 def msgBox(text, width = 50):
@@ -2951,15 +2962,39 @@ class Equipment:
     def equip(self):
         handSlot = None
         oldEquipment = None
+        global FOV_recompute
         
         handed = self.slot == 'one handed' or self.slot == 'two handed'
         
         if self.slot == 'one handed':
-            handIndex = menu('What slot do you want to equip this ' + self.owner.name + ' in?', ['right hand', 'left hand'], 30)
+            inHands = getEquippedInHands()
+            rightText = "right hand"
+            leftText = "left hand"
+            if inHands:
+                for object in inHands:
+                    if object.Equipment.slot == "one handed":
+                        if object.Equipment.curSlot == "right hand":
+                            rightText = rightText + " (" + object.name + ")"
+                        if object.Equipment.curSlot == "left hand":
+                            leftText = leftText + " (" + object.name + ")"
+                    else:
+                        rightText = rightText + " (" + object.name + ")"
+                        leftText = leftText + " (" + object.name + ")"
+            #root.clear()
+            #FOV_recompute = True
+            #Update()
+            #tdl.flush()
+            handIndex = menu('What slot do you want to equip this ' + self.owner.name + ' in?', [rightText, leftText], 60)
+            #root.clear()
+            #FOV_recompute = True
+            #Update()
+            #tdl.flush()
             if handIndex == 0:
                 handSlot = 'right hand'
             elif handIndex == 1:
                 handSlot = 'left hand'
+            elif handIndex == "cancelled":
+                return None
         elif self.slot == 'two handed':
             handSlot = 'both hands'
 
@@ -3160,7 +3195,7 @@ def inventoryMenu(header):
                 text = text + ' (' + str(item.Item.amount) + ')'
             options.append(text)
     index = menu(header, options, INVENTORY_WIDTH)
-    if index is None or len(inventory) == 0:
+    if index is None or len(inventory) == 0 or index == "cancelled":
         return None
     else:
         return inventory[index].Item
@@ -3182,7 +3217,7 @@ def spellsMenu(header):
             options = []
             borked = True
     index = menu(showableHeader, options, INVENTORY_WIDTH)
-    if index is None or len(player.Fighter.knownSpells) == 0 or borked:
+    if index is None or len(player.Fighter.knownSpells) == 0 or borked or index == "cancelled":
         global DEBUG
         if DEBUG:
             message('No spell selected in menu', colors.purple)
@@ -3229,7 +3264,7 @@ def equipmentMenu(header):
                     text = text + ' ' + info + ' (on ' + item.Equipment.slot + ')'
             options.append(text)
     index = menu(header, options, INVENTORY_WIDTH)
-    if index is None or len(equipmentList) == 0:
+    if index is None or len(equipmentList) == 0 or index == "cancelled":
         return None
     else:
         return equipmentList[index].Item
@@ -3290,8 +3325,9 @@ def credits():
 #_____________ GUI _______________
 
 def initializeFOV():
-    global FOV_recompute, visibleTiles, pathfinder
+    global FOV_recompute, visibleTiles, pathfinder, menuWindows
     FOV_recompute = True
+    menuWindows = []
     visibleTiles = tdl.map.quickFOV(player.x, player.y, isVisibleTile, fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
     pathfinder = tdl.map.AStar(MAP_WIDTH, MAP_HEIGHT, callback = getMoveCost, diagnalCost=1, advanced=False)
     con.clear()
