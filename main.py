@@ -1190,10 +1190,11 @@ class Fighter: #All NPCs, enemies and the player
                             message('You attack ' + target.name + ' for ' + str(damage) + ' hit points.', colors.dark_green)
                         target.Fighter.takeDamage(damage)
                         weapons = getEquippedInHands()
-                        for weapon in weapons:
-                            if weapon is not None:
-                                if weapon.Equipment.burning:
-                                    applyBurn(target, chance = 25)
+                        if weapons:
+                            for weapon in weapons:
+                                if weapon is not None:
+                                    if weapon.Equipment.burning:
+                                        applyBurn(target, chance = 25)
                     
                     else:
                         message('You attack ' + target.name + ' but it has no effect!', colors.grey)
@@ -1617,7 +1618,8 @@ class Item:
 def quitGame(message, backToMainMenu = False):
     global objects
     global inventory
-    saveGame()
+    if gameState != "dead":
+        saveGame()
     for obj in objects:
         del obj
     inventory = []
@@ -1870,10 +1872,12 @@ def getInput():
                     if upStairs.x == player.x and upStairs.y == player.y:
                         if stairCooldown == 0:
                             global stairCooldown, dungeonLevel
+                            saveLevel(dungeonLevel)
                             stairCooldown = 2
                             if DEBUG:
                                 message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
-                            loadLevel(dungeonLevel - 1)
+                            toLoad = dungeonLevel - 1
+                            loadLevel(toLoad, save = False)
                         else:
                             message("You're too tired to climb the stairs right now")
                         return None
@@ -2842,6 +2846,7 @@ def randomChoice(chancesDictionnary):
 
 def placeObjects(room):
     numMonsters = randint(0, MAX_ROOM_MONSTERS)
+    monster = None
     if dungeonLevel > 2 and hiroshimanNumber == 0:
         global monsterChances
         monsterChances['troll'] = 15
@@ -2849,6 +2854,7 @@ def placeObjects(room):
     for i in range(numMonsters):
         x = randint(room.x1+1, room.x2-1)
         y = randint(room.y1+1, room.y2-1)
+        
         
         if not isBlocked(x, y) and (x, y) != (player.x, player.y):
             monsterChoice = randomChoice(monsterChances)
@@ -2870,6 +2876,9 @@ def placeObjects(room):
                 fighterComponent = Fighter(hp = 5, armor = 0, power = 1, xp = 10, deathFunction = monsterDeath, accuracy = 20, evasion = 70)
                 AI_component = FastMonster(2)
                 monster = GameObject(x, y, char = 's', color = colors.light_green, name = 'snake', blocks = True, Fighter = fighterComponent, AI = AI_component)
+            
+            else:
+                monster = None
 
         if monster != 'cancelled' and monster != None:
             objects.append(monster)
@@ -3083,6 +3092,11 @@ def playerDeath(player):
     gameState = 'dead'
     player.char = '%'
     player.color = colors.dark_red
+    os.chdir(absDirPath)
+    saves = [save for save in os.listdir(absDirPath) if (save.endswith(".bak") or save.endswith(".dat") or save.endswith(".dir") or save.startswith("map"))]
+    for save in saves:
+        os.remove(save)
+        print("Deleted " + str(save))
  
 def monsterDeath(monster):
     message(monster.name.capitalize() + ' is dead! You gain ' + str(monster.Fighter.xp) + ' XP.', colors.dark_sky)
@@ -3500,7 +3514,7 @@ def saveGame():
     #mapFile.close()
 
 def newGame():
-    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, gameMsgs
+    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, gameMsgs, equipmentList
 
     gameMsgs = []
     objects = [player]
@@ -3509,6 +3523,7 @@ def newGame():
     Update()
 
     inventory = []
+    equipmentList = []
 
     FOV_recompute = True
     initializeFOV()
@@ -3550,7 +3565,7 @@ def loadGame():
     #myMap = pickle.load(mapFile)
     #mapFile.close()
 
-def saveLevel():
+def saveLevel(level = dungeonLevel):
     #if not os.path.exists(absDirPath):
         #os.makedirs(absDirPath)
     
@@ -3559,7 +3574,7 @@ def saveLevel():
         #print()
     #else:
         #file = shelve.open(absFilePath, "w")
-    mapFilePath = accessMapFile()
+    mapFilePath = accessMapFile(level)
     mapFile = shelve.open(mapFilePath, "n")
     mapFile["myMap"] = myMap
     mapFile["objects"] = objects
@@ -3573,12 +3588,13 @@ def saveLevel():
     
     return "completed"
 
-def loadLevel(level):
+def loadLevel(level, save = True):
     global objects, player, myMap, stairs, dungeonLevel
-    try:
-        saveLevel()
-    except:
-        print("Couldn't save level " + dungeonLevel)
+    if save:
+        try:
+            saveLevel(dungeonLevel)
+        except:
+            print("Couldn't save level " + dungeonLevel)
     mapFilePath = accessMapFile(level)
     xfile = shelve.open(mapFilePath, "r")
     print(xfile["yunowork"])
@@ -3608,7 +3624,7 @@ def nextLevel(boss = False):
     tempPlayer = player
     tempStairs = stairs
     try:
-        loadLevel(dungeonLevel)
+        loadLevel(dungeonLevel, save = False)
         print("Loaded existing level {}".format(dungeonLevel))
     except:
         global myMap, objects, player, stairs
