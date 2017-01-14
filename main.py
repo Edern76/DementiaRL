@@ -1731,6 +1731,9 @@ def getInput():
     elif userInput.keychar.upper() == 'F12' and DEBUG and not tdl.event.isWindowClosed():
         castCreateChasm()
         FOV_recompute = True
+    elif userInput.keychar == 'B' and DEBUG and not tdl.event.isWindowClosed():
+        castPlaceBoss()
+        FOV_recompute = True
     elif userInput.keychar == 'S' and DEBUG and not tdl.event.isWindowClosed():
         message("Force-saved level {}", colors.purple)
         saveLevel(dungeonLevel)
@@ -1911,7 +1914,7 @@ def getInput():
                         boss = False
                         if DEBUG:
                             message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
-                        if dungeonLevel + 1 == 4:
+                        if dungeonLevel + 1 >= 2:
                             boss = True
                         nextLevel(boss)
                     else:
@@ -2236,6 +2239,18 @@ def castCreateChasm():
             myMap[x][y].blocked = True
             myMap[x][y].block_sight = False
 
+def castPlaceBoss():
+    target = targetTile()
+    if target == 'cancelled':
+        return target
+    else:
+        (x, y) = target
+        if not isBlocked(x, y):
+            boss = menu('What boss ?', ['Gluttony', 'Wrath'], 50)
+            placeBoss(boss, x, y)
+        else:
+            return 'cancelled'
+
 def applyBurn(target, chance = 30):
     if target.Fighter and randint(0, 100) > chance and not target.Fighter.burning:
         if not target.Fighter.frozen:
@@ -2247,7 +2262,7 @@ def applyBurn(target, chance = 30):
             target.Fighter.freezeCooldown = 0
             message('The ' + target.name + "'s ice melts away.")
     
-def monsterArmageddon(monsterName ,monsterX, monsterY, radius = 4, damage = 40):
+def monsterArmageddon(monsterName ,monsterX, monsterY, radius = 4, damage = 40, selfHit = True):
     radmax = radius + 2
     message(monsterName.capitalize() + ' recites an arcane formula and explodes !', colors.red)
     global explodingTile
@@ -2266,7 +2281,10 @@ def monsterArmageddon(monsterName ,monsterX, monsterY, radius = 4, damage = 40):
                         if obj.Fighter and obj.x == x and obj.y == y: 
                             try:
                                 if obj != player:
-                                    message('The explosion deals {} damage to {} !'.format(damage, obj.name))
+                                    if selfHit:
+                                        message('The explosion deals {} damage to {} !'.format(damage, obj.name))
+                                    elif not (obj.x == monsterX and obj.y == monsterY):
+                                        message('The explosion deals {} damage to {} !'.format(damage, obj.name))
                                 else:
                                     message('The explosion deals {} damage to you !'.format(damage), colors.orange)        
                                 obj.Fighter.takeDamage(damage)
@@ -2615,7 +2633,7 @@ def makeBossLevel():
     
     bossName = None
     if dungeonLevel >= 2:
-        bossName = 'Gluttony'
+        bossName = 'Wrath'
 
     placeBoss(bossName, new_x, y + 1)
     
@@ -2644,6 +2662,7 @@ def makeBossLevel():
 deathX = 0
 deathY = 0
 
+#--Gluttony--
 def fatDeath(monster):
     global deathX, deathY
     monster.char = '%'
@@ -2754,6 +2773,41 @@ def gluttonysDeath(monster):
         if object.name == "Gluttony's fat": #or (object.AI and (object.AI.__class__.__name__ == "immobile")):
             object.Fighter.hp = 0
             fatDeath(object)
+#--Gluttony--
+
+#--Wrath--   WIP
+class Wrath():
+    def __init__(self):
+        self.chargeCooldown = 0
+        self.curChargeCooldown = 0
+        self.explodeCooldown = 0
+        self.flurryCooldown = 0
+        self.charging = False
+
+    def takeTurn(self):
+        boss = self.owner
+        bossVisibleTiles = tdl.map.quickFOV(boss.x, boss.y, isVisibleTile, fov = BOSS_FOV_ALGO, radius = BOSS_SIGHT_RADIUS, lightWalls= False)
+        
+        if boss.distanceTo(player) < 2 and not self.charging:
+            if self.flurryCooldown <= 0:
+                message('Wrath unleashes a volley of slashes at you!', colors.dark_amber)
+                numberHits = randint(2, 4)
+                for loop in range(numberHits):
+                    boss.Fighter.attack(player)
+                self.flurryCooldown = 21
+        elif (player.x, player.y) in bossVisibleTiles and self.chargeCooldown <= 0 and not self.charging:
+            chargePath = tdl.map.bresenham(boss.x, boss.y, player.x, player.y)
+            for y in range(MAP_HEIGHT):
+                for x in range(MAP_WIDTH):
+                    if (x, y) in chargePath:
+                        sign = GameObject(x, y, '.', 'chargePath', color = colors.red, Ghost = True)
+            self.charging = True
+            self.chargeCooldown = 16
+            self.curChargeCooldown = 2
+        else:
+            boss.moveAstar(player.x, player.y, fallback = False)
+            
+#--Wrath--
 
 def placeBoss(name, x, y):
     if name == 'Gluttony':
@@ -2766,6 +2820,12 @@ def placeBoss(name, x, y):
             for y in range(20, 60):
                 if not isBlocked(x, y) and boss.distanceToCoords(x, y) <= 3:
                     createFat(x, y)
+
+    if name == 'Wrath':
+        fighterComponent = Fighter(hp = 300, armor = 3, power = 10, xp = 1000, deathFunction = monsterDeath, accuracy = 25, evasion = 15)
+        AI_component = Wrath()
+        boss = GameObject(x, y, char = 'W', color = colors.darker_red, name = name, blocks = True, Fighter = fighterComponent, AI = AI_component)
+        objects.append(boss)
                 
 #_____________ BOSS FIGHT __________________
 
