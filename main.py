@@ -2324,7 +2324,7 @@ def createOrc(x, y, friendly = False, corpse = False):
 def createTroll(x, y, friendly = False, corpse = False):
     if x != player.x or y != player.y:
         if not corpse:
-            equipmentComponent = Equipment(slot = 'two handed', type = 'heavy weapon', powerBonus = 8, accuracyBonus = -20)
+            equipmentComponent = Equipment(slot = 'two handed', type = 'heavy weapon', powerBonus = 8, accuracyBonus = -20, meleeWeapon=True)
             trollMace = GameObject(x, y, '/', 'troll mace', colors.darker_orange, Equipment=equipmentComponent, Item=Item(weight = 13.0))
             lootOnDeath = trollMace
             deathType = monsterDeath
@@ -2862,7 +2862,7 @@ def createSword(x, y):
         burningSword = True
     else:
         burningSword = False
-    equipmentComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus = swordPow, burning = burningSword)
+    equipmentComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus = swordPow, burning = burningSword, meleeWeapon=True)
     sword = GameObject(x, y, char, name, colors.sky, Equipment = equipmentComponent, Item = Item(weight=weight))
     return sword 
 
@@ -2996,7 +2996,7 @@ def placeObjects(room):
 
 #_____________ EQUIPEMENT ________________
 class Equipment:
-    def __init__(self, slot, type, powerBonus=0, armorBonus=0, maxHP_Bonus=0, accuracyBonus=0, evasionBonus=0, criticalBonus = 0, maxMP_Bonus = 0, burning = False, ranged = False, rangedPower = 0, maxRange = 0, ammo = None):
+    def __init__(self, slot, type, powerBonus=0, armorBonus=0, maxHP_Bonus=0, accuracyBonus=0, evasionBonus=0, criticalBonus = 0, maxMP_Bonus = 0, burning = False, ranged = False, rangedPower = 0, maxRange = 0, ammo = None, meleeWeapon = False):
         self.slot = slot
         self.type = type
         self.basePowerBonus = powerBonus
@@ -3014,6 +3014,7 @@ class Equipment:
         self.baseRangedPower = rangedPower
         self.maxRange = maxRange
         self.ammo = ammo
+        self.meleeWeapon = meleeWeapon  
  
     def toggleEquip(self):
         if self.isEquipped:
@@ -3032,25 +3033,15 @@ class Equipment:
             inHands = getEquippedInHands()
             rightText = "right hand"
             leftText = "left hand"
-            if inHands:
-                for object in inHands:
-                    if object.Equipment.slot == "one handed":
-                        if object.Equipment.curSlot == "right hand":
-                            rightText = rightText + " (" + object.name + ")"
-                        if object.Equipment.curSlot == "left hand":
-                            leftText = leftText + " (" + object.name + ")"
-                    else:
-                        rightText = rightText + " (" + object.name + ")"
-                        leftText = leftText + " (" + object.name + ")"
-            #root.clear()
-            #FOV_recompute = True
-            #Update()
-            #tdl.flush()
+            for object in equipmentList:
+                if object.Equipment.curSlot == "right hand":
+                    rightText = rightText + " (" + object.name + ")"
+                if object.Equipment.curSlot == "left hand":
+                    leftText = leftText + " (" + object.name + ")"
+                if object.Equipment.curSlot == 'both hands':
+                    rightText = rightText + " (" + object.name + ")"
+                    leftText = leftText + " (" + object.name + ")"
             handIndex = menu('What slot do you want to equip this ' + self.owner.name + ' in?', [rightText, leftText], 60)
-            #root.clear()
-            #FOV_recompute = True
-            #Update()
-            #tdl.flush()
             if handIndex == 0:
                 handSlot = 'right hand'
             elif handIndex == 1:
@@ -3060,40 +3051,50 @@ class Equipment:
         elif self.slot == 'two handed':
             handSlot = 'both hands'
 
-        if not handed:
-            oldEquipment = getEquippedInSlot(self.slot)
-            if oldEquipment is not None:
-                oldEquipment.unequip()
-        
-        else:
-            rightEquipment = None
-            leftEquipment = None
-            bothEquipment = None
-    
-            if self.slot == 'one handed':
-                bothEquipment = getEquippedInSlot('both hands', hand = True)
-                oldEquipment = getEquippedInSlot(handSlot, hand = True)
-            if self.slot == 'two handed':
-                rightEquipment = getEquippedInSlot('right hand', hand = True)
-                leftEquipment = getEquippedInSlot('left hand', hand = True)
-
-            if bothEquipment is not None:
-                bothEquipment.unequip()
-            if rightEquipment is not None:
-                rightEquipment.unequip()
-            if leftEquipment is not None:
-                leftEquipment.unequip()
-            if oldEquipment is not None:
-                oldEquipment.unequip()
-
-        inventory.remove(self.owner)
-        equipmentList.append(self.owner)
-        self.isEquipped = True
+        otherEquipment = None
         if handed:
-            self.curSlot = handSlot
-            message('Equipped ' + self.owner.name + ' on ' + self.curSlot + '.', colors.light_green)
+            if self.meleeWeapon and handSlot == 'right hand':
+                otherEquipment = getEquippedInSlot('left hand', hand = True)
+            elif self.meleeWeapon and handSlot == 'left hand':
+                otherEquipment = getEquippedInSlot('right hand', hand = True)
+        if otherEquipment and otherEquipment.meleeWeapon:
+            message('You cannot wield two weapons at the same time!', colors.yellow)
+
         else:
-            message('Equipped ' + self.owner.name + ' on ' + self.slot + '.', colors.light_green)
+            if not handed:
+                oldEquipment = getEquippedInSlot(self.slot)
+                if oldEquipment is not None:
+                    oldEquipment.unequip()
+            else:
+                rightEquipment = None
+                leftEquipment = None
+                bothEquipment = None
+        
+                if self.slot == 'one handed':
+                    bothEquipment = getEquippedInSlot('both hands', hand = True)
+                    oldEquipment = getEquippedInSlot(handSlot, hand = True)
+                if self.slot == 'two handed':
+                    rightEquipment = getEquippedInSlot('right hand', hand = True)
+                    leftEquipment = getEquippedInSlot('left hand', hand = True)
+    
+                if bothEquipment is not None:
+                    bothEquipment.unequip()
+                if rightEquipment is not None:
+                    rightEquipment.unequip()
+                if leftEquipment is not None:
+                    leftEquipment.unequip()
+                if oldEquipment is not None:
+                    oldEquipment.unequip()
+    
+            inventory.remove(self.owner)
+            equipmentList.append(self.owner)
+            self.isEquipped = True
+    
+            if handed:
+                self.curSlot = handSlot
+                message('Equipped ' + self.owner.name + ' on ' + self.curSlot + '.', colors.light_green)
+            else:
+                message('Equipped ' + self.owner.name + ' on ' + self.slot + '.', colors.light_green)
  
     def unequip(self):
         handed = self.slot == 'one handed' or self.slot == 'two handed'
@@ -3633,7 +3634,7 @@ def newGame():
     message('Zargothrox says : Prepare to get lost in the Realm of Madness !', colors.dark_red)
     gameState = 'playing'
     
-    equipmentComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus=2, burning = False)
+    equipmentComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus=2, burning = False, meleeWeapon=True)
     object = GameObject(0, 0, '-', 'dagger', colors.light_sky, Equipment=equipmentComponent, Item=Item(weight = 0.8), darkColor = colors.darker_sky)
     inventory.append(object)
     object.alwaysVisible = True
