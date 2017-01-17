@@ -362,23 +362,30 @@ def castFreeze():
         return 'cancelled'
     
 def castFireball(radius = 3, damage = 12, range = 4):
+    global explodingTiles
     message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
     target = targetTile(maxRange = range)
+    #radmax = radius + 2
     if target == 'cancelled':
         message('Spell casting cancelled')
         return target
     else:
         (tx,ty) = target
-        (x,y) = projectile(player.x, player.y, tx, ty, '*', colors.flame)
+        (targetX, targetY) = projectile(player.x, player.y, tx, ty, '*', colors.flame, passesThrough=True)
         #TODO : Make where the projectile lands actually matter
         for obj in objects:
-            if obj.distanceToCoords(x, y) <= radius and obj.Fighter:
+            if obj.distanceToCoords(targetX, targetY) <= radius and obj.Fighter:
                 if obj != player:
                     message('The {} gets burned for {} damage !'.format(obj.name, damage), colors.light_blue)
                 else:
                     message('You get burned for {} damage !'.format(damage), colors.orange)
                 obj.Fighter.takeDamage(damage)
                 applyBurn(obj)
+        #for x in range(targetX - radmax, targetX + radmax):
+            #for y in range(targetY - radmax, targetY + radmax):
+                #if tileDistance(targetX, targetY, x, y) <= radius and not myMap[x][y].block_sight:
+                    #explodingTiles.append((x,y))
+        #explode()
 
 def castArmageddon(radius = 4, damage = 40):
     global FOV_recompute
@@ -1944,7 +1951,7 @@ def getInput():
             return 'didnt-take-turn'
     FOV_recompute = True
 
-def projectile(sourceX, sourceY, destX, destY, char, color, continues = False):
+def projectile(sourceX, sourceY, destX, destY, char, color, continues = False, passesThrough = False):
     line = tdl.map.bresenham(sourceX, sourceY, destX, destY)
     (firstX, firstY)= line[1]
     inclX = firstX - sourceX
@@ -1970,7 +1977,7 @@ def projectile(sourceX, sourceY, destX, destY, char, color, continues = False):
         (x, y) = line.pop(0)
         proj.x, proj.y = x, y
         animStep(.050)
-        if isBlocked(x, y):
+        if isBlocked(x, y) and not passesThrough:
             objects.remove(proj)
             return (x,y)
             break
