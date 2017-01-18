@@ -372,7 +372,7 @@ def castFireball(radius = 3, damage = 12, range = 4):
     else:
         (tx,ty) = target
         (targetX, targetY) = projectile(player.x, player.y, tx, ty, '*', colors.flame, passesThrough=True)
-        #TODO : Make where the projectile lands actually matter
+        #TODO : Make where the projectile lands actually matter (?)
         for obj in objects:
             if obj.distanceToCoords(targetX, targetY) <= radius and obj.Fighter:
                 if obj != player:
@@ -680,54 +680,54 @@ def characterCreation():
     
     while not tdl.event.isWindowClosed():
         root.clear()
-        drawCentered(cons = root, y = 6, text = '--- CHARACTER CREATION ---', fg = colors.white, bg = None)
+        drawCentered(cons = root, y = 6, text = '--- CHARACTER CREATION ---', fg = colors.darker_red, bg = None)
 
         # Race and Class
-        drawCentered(cons = root, y = 9, text = '-- RACE --', fg = colors.white, bg = None)
+        drawCentered(cons = root, y = 9, text = '-- RACE --', fg = colors.darker_red, bg = None)
         for choice in range(len(races)):
             if selectedRaces[choice]:
-                drawCentered(cons = root, y = 11 + choice, text = races[choice], fg = colors.azure, bg = None)
+                drawCentered(cons = root, y = 11 + choice, text = races[choice], fg = colors.yellow, bg = None)
             else:
                 drawCentered(cons = root, y = 11 + choice, text = races[choice], fg = colors.white, bg = None)
 
-        drawCentered(cons = root, y = 19, text = '-- CLASS --', fg = colors.white, bg = None)
+        drawCentered(cons = root, y = 19, text = '-- CLASS --', fg = colors.darker_red, bg = None)
         for choice in range(len(classes)):
             if selectedClasses[choice]:
-                drawCentered(cons = root, y = 21 + choice, text = classes[choice], fg = colors.azure, bg = None)
+                drawCentered(cons = root, y = 21 + choice, text = classes[choice], fg = colors.yellow, bg = None)
             else:
                 drawCentered(cons = root, y = 21 + choice, text = classes[choice], fg = colors.white, bg = None)
         
         # Attributes and traits
         leftX = (WIDTH // 4)
-        drawCenteredOnX(cons = root, x = leftX, y = 33, text = '-- ATTRIBUTES --', fg = colors.white, bg = None)
-        drawCenteredOnX(cons = root, x = leftX, y = 34, text = str(actualAttributesPoints) + '/' + str(MAX_ATTRIBUTES_POINTS), fg = colors.white, bg = None)
+        drawCenteredOnX(cons = root, x = leftX, y = 33, text = '-- ATTRIBUTES --', fg = colors.darker_red, bg = None)
+        drawCenteredOnX(cons = root, x = leftX, y = 34, text = str(actualAttributesPoints) + '/' + str(MAX_ATTRIBUTES_POINTS), fg = colors.dark_red, bg = None)
         totalAttributes = [strength, dexterity, vitality, willpower]
         for choice in range(len(attributes)):
             if selectedAttributes[choice]:
-                drawCenteredOnX(cons = root, x = leftX, y = 36 + choice, text = attributes[choice], fg = colors.azure, bg = None)
+                drawCenteredOnX(cons = root, x = leftX, y = 36 + choice, text = attributes[choice], fg = colors.yellow, bg = None)
             else:
                 drawCenteredOnX(cons = root, x = leftX, y = 36 + choice, text = attributes[choice], fg = colors.white, bg = None)
             drawCenteredOnX(cons = root, x = leftX - 10, y = 36 + choice, text = str(10 + totalAttributes[choice]), fg = colors.white, bg = None)
 
-        drawCenteredOnX(cons = root, x = leftX, y = 45, text = '-- TRAITS --', fg = colors.white, bg = None)
-        drawCenteredOnX(cons = root, x = leftX, y = 46, text = str(actualTraits) + '/' + str(MAX_TRAITS), fg = colors.white, bg = None)
+        drawCenteredOnX(cons = root, x = leftX, y = 45, text = '-- TRAITS --', fg = colors.darker_red, bg = None)
+        drawCenteredOnX(cons = root, x = leftX, y = 46, text = str(actualTraits) + '/' + str(MAX_TRAITS), fg = colors.dark_red, bg = None)
         for choice in range(len(traits)):
             if selectedTraits[choice]:
-                drawCenteredOnX(cons = root, x = leftX, y = 48 + choice, text = traits[choice], fg = colors.azure, bg = None)
+                drawCenteredOnX(cons = root, x = leftX, y = 48 + choice, text = traits[choice], fg = colors.yellow, bg = None)
             else:
                 drawCenteredOnX(cons = root, x = leftX, y = 48 + choice, text = traits[choice], fg = colors.white, bg = None)
         
         # Skills
         rightX = WIDTH - (WIDTH // 4)
-        drawCenteredOnX(cons = root, x = rightX, y = 33, text = '-- SKILLS --', fg = colors.white, bg = None)
-        drawCenteredOnX(cons = root, x = rightX, y = 34, text = str(actualSkills) + '/' + str(MAX_SKILLS), fg = colors.white, bg = None)
+        drawCenteredOnX(cons = root, x = rightX, y = 33, text = '-- SKILLS --', fg = colors.darker_red, bg = None)
+        drawCenteredOnX(cons = root, x = rightX, y = 34, text = str(actualSkills) + '/' + str(MAX_SKILLS), fg = colors.dark_red, bg = None)
         for choice in range(len(skills)):
             if selectedSkills[choice]:
-                drawCenteredOnX(cons = root, x = rightX, y = 36 + choice, text = skills[choice], fg = colors.azure, bg = None)
+                drawCenteredOnX(cons = root, x = rightX, y = 36 + choice, text = skills[choice], fg = colors.yellow, bg = None)
             else:
                 drawCenteredOnX(cons = root, x = rightX, y = 36 + choice, text = skills[choice], fg = colors.white, bg = None)
         
-        drawCentered(cons = root, y = 33, text = '-- DESCRIPTION --', fg = colors.white, bg = None)
+        drawCentered(cons = root, y = 33, text = '-- DESCRIPTION --', fg = colors.darker_red, bg = None)
         drawCentered(cons = root, y = 90, text = 'Start Game', fg = colors.white, bg = None)
         drawCentered(cons = root, y = 91, text = 'Cancel', fg = colors.white, bg = None)
 
@@ -2309,7 +2309,7 @@ def createOrc(x, y, friendly = False, corpse = False):
         if not corpse:
             equipmentComponent = Equipment(slot='head', type = 'armor', armorBonus = 1)
             orcHelmet = GameObject(x = None, y = None, char = '[', name = 'orc helmet', color = colors.brass, Equipment = equipmentComponent, Item = Item(weight = 2.5))
-            lootOnDeath = orcHelmet
+            lootOnDeath = [orcHelmet]
             deathType = monsterDeath
             orcName = "orc"
             color = colors.desaturated_green
@@ -2322,7 +2322,7 @@ def createOrc(x, y, friendly = False, corpse = False):
             AI_component = BasicMonster()
         else:
             AI_component = FriendlyMonster(friendlyTowards = player)
-        fighterComponent = Fighter(hp=15, armor=0, power=3, xp = 35, deathFunction = deathType, evasion = 25, accuracy = 10, lootFunction = lootOnDeath, lootRate = 30)
+        fighterComponent = Fighter(hp=15, armor=0, power=3, xp = 35, deathFunction = deathType, evasion = 25, accuracy = 10, lootFunction = lootOnDeath, lootRate = [30])
         monster = GameObject(x, y, char = 'o', color = color, name = orcName, blocks = True, Fighter=fighterComponent, AI = AI_component)
         return monster
     else:
@@ -2333,7 +2333,7 @@ def createTroll(x, y, friendly = False, corpse = False):
         if not corpse:
             equipmentComponent = Equipment(slot = 'two handed', type = 'heavy weapon', powerBonus = 8, accuracyBonus = -20, meleeWeapon=True)
             trollMace = GameObject(x, y, '/', 'troll mace', colors.darker_orange, Equipment=equipmentComponent, Item=Item(weight = 13.0))
-            lootOnDeath = trollMace
+            lootOnDeath = [trollMace]
             deathType = monsterDeath
             monName = "troll"
             color = colors.darker_green
@@ -2346,7 +2346,7 @@ def createTroll(x, y, friendly = False, corpse = False):
             AI_component = BasicMonster()
         else:
             AI_component = FriendlyMonster(friendlyTowards = player)
-        fighterComponent = Fighter(hp=20, armor=2, power=4, xp = 100, deathFunction = deathType, accuracy = 7, evasion = 1, lootFunction=lootOnDeath, lootRate=15)
+        fighterComponent = Fighter(hp=20, armor=2, power=4, xp = 100, deathFunction = deathType, accuracy = 7, evasion = 1, lootFunction=lootOnDeath, lootRate=[15])
         monster = GameObject(x, y, char = 'T', color = color, name = monName, blocks = True, Fighter=fighterComponent, AI = AI_component)
         return monster
     else:
@@ -2801,6 +2801,7 @@ class Wrath():
                 numberHits = randint(2, 4)
                 for loop in range(numberHits):
                     boss.Fighter.attack(player)
+                    print("Wrath attacked")
                 self.flurryCooldown = 21
         elif (player.x, player.y) in bossVisibleTiles and self.chargeCooldown <= 0 and not self.charging:
             chargePath = tdl.map.bresenham(boss.x, boss.y, player.x, player.y)
@@ -2808,11 +2809,13 @@ class Wrath():
                 for x in range(MAP_WIDTH):
                     if (x, y) in chargePath:
                         sign = GameObject(x, y, '.', 'chargePath', color = colors.red, Ghost = True)
+                        objects.append(sign)
             self.charging = True
             self.chargeCooldown = 16
             self.curChargeCooldown = 2
         else:
             boss.moveAstar(player.x, player.y, fallback = False)
+
             
 #--Wrath--
 
@@ -2837,7 +2840,7 @@ def placeBoss(name, x, y):
 #_____________ BOSS FIGHT __________________
 
 #_____________ ROOM POPULATION + ITEMS GENERATION_______________
-monsterChances = {'orc': 70, 'troll': 20, 'snake': 10}
+monsterChances = {'orc': 60, 'troll': 20, 'snake': 5, 'cultist': 15}
 itemChances = {'potion': 35, 'scroll': 26, 'sword': 7, 'shield': 7, 'spellbook': 25}
 potionChances = {'heal': 70, 'mana': 30}
 
@@ -2898,11 +2901,9 @@ def createScroll(x, y):
     return scroll
 
 def createSpellbook(x, y):
-    spellbookChances = {'darkPact' : 7, 'healSelf': 8, 'fireball': 30, 'lightning': 15, 'confuse': 20, 'ice': 20}
+    spellbookChances = {'healSelf': 8, 'fireball': 30, 'lightning': 13, 'confuse': 22, 'ice': 22}
     spellbookChoice = randomChoice(spellbookChances)
-    if spellbookChoice == "darkPact":
-        spellbook = GameObject(x, y, '=', 'spellbook of arcane rituals', colors.violet, Item = Item(useFunction = learnSpell, arg1 = darkPact, weight = 1.0), blocks = False)
-    elif spellbookChoice == "healSelf":
+    if spellbookChoice == "healSelf":
         spellbook = GameObject(x, y, '=', 'spellbook of healing', colors.violet, Item = Item(useFunction = learnSpell, arg1 = heal, weight = 1.0), blocks = False)
     elif spellbookChoice == "fireball":
         spellbook = GameObject(x, y, '=', 'spellbook of fireball', colors.violet, Item = Item(useFunction = learnSpell, arg1 = fireball, weight = 1.0), blocks = False)
@@ -2964,6 +2965,19 @@ def placeObjects(room):
                 AI_component = FastMonster(2)
                 monster = GameObject(x, y, char = 's', color = colors.light_green, name = 'snake', blocks = True, Fighter = fighterComponent, AI = AI_component)
             
+            elif monsterChoice == 'cultist':
+                robeEquipment = Equipment(slot = 'torso', type = 'light armor', maxHP_Bonus = 5, maxMP_Bonus = 5)
+                robe = GameObject(0, 0, '[', 'cultist robe', colors.desaturated_purple, Equipment = robeEquipment, Item=Item(weight = 1.5))
+                
+                knifeEquipment = Equipment(slot = 'one handed', type = 'light weapon', powerBonus = 3, meleeWeapon = True)
+                knife = GameObject(0, 0, '-', 'cultist knife', colors.desaturated_azure, Equipment = knifeEquipment, Item=Item(weight = 1.0))
+                
+                spellbook = GameObject(x, y, '=', 'spellbook of arcane rituals', colors.violet, Item = Item(useFunction = learnSpell, arg1 = darkPact, weight = 1.0), blocks = False)
+                
+                fighterComponent = Fighter(hp = 10, armor = 1, power = 3, xp = 30, deathFunction = monsterDeath, accuracy = 18, evasion = 30, lootFunction = [robe, knife, spellbook], lootRate = [60, 20, 7])
+                AI_component = BasicMonster()
+                monster = GameObject(x, y, char = 'c', color = colors.dark_crimson, name = 'cultist', blocks = True, Fighter = fighterComponent, AI = AI_component)
+
             else:
                 monster = None
 
@@ -3096,6 +3110,10 @@ class Equipment:
             inventory.remove(self.owner)
             equipmentList.append(self.owner)
             self.isEquipped = True
+            if self.maxHP_Bonus != 0:
+                player.Fighter.hp += self.maxHP_Bonus
+            if self.maxMP_Bonus != 0:
+                player.Fighter.MP += self.maxMP_Bonus
     
             if handed:
                 self.curSlot = handSlot
@@ -3210,9 +3228,12 @@ def monsterDeath(monster):
     message(monster.name.capitalize() + ' is dead! You gain ' + str(monster.Fighter.xp) + ' XP.', colors.dark_sky)
     
     if monster.Fighter.lootFunction is not None:
-        loot = randint(1, 100)
-        if loot <= monster.Fighter.lootRate:
-            lootItem(monster.Fighter.lootFunction, monster.x, monster.y)
+        itemIndex = 0
+        for item in monster.Fighter.lootFunction:
+            loot = randint(1, 100)
+            if loot <= monster.Fighter.lootRate[itemIndex]:
+                lootItem(item, monster.x, monster.y)
+            itemIndex += 1
 
     monster.char = '%'
     monster.color = colors.dark_red
