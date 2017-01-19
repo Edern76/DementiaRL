@@ -560,20 +560,30 @@ def characterCreation():
     initializeCharCreation()
     baseMaxLoad = 45.0
     
-    races = ['Human', 'Minotaur', 'Insectoid', 'Lizardman', 'Ratling']
-    racesDescription = ['Humans gain experience faster',
-                        'Minotaurs are tougher and stronger than Humans, but less smart',
-                        'Insectoids are stronger than human but, more importantly, are very good at arcane arts',
-                        'Lizardmen are sneaky thieves and assassins',
-                        'Ratlings are very agile but absurdly weak']
+    races = ['Human', 'Minotaur', 'Insectoid', 'Felis', 'Reptilian', 'Demon spawn', 'Rootling', 'Werewolf', 'Devourer', 'Virus ']
+    racesDescription = ['Humans are the most common race. They have no special characteristic, and are neither better or worse at anything. However, they are good learner and gain experience faster.',
+                        'Minotaurs, whose muscular bodies are topped with a taurine head, are tougher and stronger than humans, but are way less smart. They are uncontrollable and, when angered, can become a wrecking ball of muscles and thorns.',
+                        'Insectoids are a rare race of bipedal insects which are stronger than human but, more importantly, very good at arcane arts. They come in all kinds of forms, from the slende mantis to the bulky beetle.',
+                        'Felis, kinds of humanoid cats, are sneaky thieves and assassins. They usually move silently and can see in the dark.',
+                        'Reptilians are very agile but absurdly weak. Their scaled skin, however, sometimes provides them with natural camouflage, and they might use their natural venom on their daggers or arrows to make them even more deadly.',
+                        'Demon spawns, a very uncommon breed of a human and a demon, are blessed with the heritage of  their demonic parents, which will make them grow disturbing mutations as they grow older and stronger.',
+                        'Rootlings, also called treants, are rare, sentient plants. They begin their life as a simple twig, but, with time, might become gigantic oaks.',
+                        'Werewolves are a martyred and despised race. Very tough to kill, they are naturally stronger than basic humans and uncontrollably shapeshift more or less regularly. However, older werewolves are used to these transformations and can even use them to their interests.',
+                        'Devourers are the most feared creature ever described, even more dreadful than demons. These animals, half mantis, half lizard, are only born to kill and consume. Some of their breeds can even, after consuming anything - even a weapon - grow an organic replica of it.',
+                        'Virus are the physically weakest race, but do not base their success on their own bodies. Indeed, they are able to infect another race, making it their host and fully controllable by the virus. However, this take-over is very harmful for the host, who will eventually die. The virus must then find a new host to continue living.']
     racesBonus = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], #Human
                   [0, 0, 0, 0, 0, 0, 0, 5, -4, 4, -3], #Minotaur
                   [0, 0, 0, 0, 0, 0, 0, 1, -1, -2, 2], #Insectoid
-                  [0, 0, 0, 0, 0, 0, 0, 0, 2, 0, -2], #Lizardman
-                  [0, 0, 10, 0, 0, 0, 0, -4, 2, 0, 0]] #Ratling
+                  [0, 0, 0, 0, 0, 0, 0, 0, 2, 0, -2], #Felis
+                  [0, 0, 10, 0, 0, 0, 0, -4, 2, 0, 0], #Reptilian
+                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], #Demon Spawn
+                  [0, 0, 0, 0, 0, 0, 0, -4, -2, -5, -3], #Rootling
+                  [0, 0, 0, 0, 0, 0, 0, 2, 1, -2, -4], #Werewolf
+                  [0, 0, 0, 0, 0, 0, 0, 1, 0, -2, -10], #Devourer
+                  [0, 0, 0, 0, 0, 0, 0, -9, -9, -9, -9]] #Virus
     MAX_RACES = 1
     actualRaces = 0
-    selectedRaces = [False, False, False, False, False]
+    selectedRaces = [False, False, False, False, False, False, False, False, False, False]
     chosenRace = None
     
     classes = ['Knight', 'Barbarian', 'Rogue', 'Mage ', 'Necromancer']
@@ -670,35 +680,26 @@ def characterCreation():
     
     #index
     index = 0
-    midIndexMin = 0
-    midIndexMax = len(races) + len(classes) - 1
-    leftIndexMin = midIndexMax + 1
-    leftIndexMax = leftIndexMin + len(attributes) + len(traits) - 1
+    leftIndexMin = 0
+    leftIndexMax = leftIndexMin + len(attributes) + len(traits) + len(races) - 1
     rightIndexMin = leftIndexMax + 1
-    rightIndexMax = rightIndexMin + len(skills) - 1
+    rightIndexMax = rightIndexMin + len(skills) + len(classes) - 1
     maxIndex = len(races) + len(classes) + len(attributes) + len(traits) + len(skills) + 1
     
     while not tdl.event.isWindowClosed():
         root.clear()
         drawCentered(cons = root, y = 6, text = '--- CHARACTER CREATION ---', fg = colors.darker_red, bg = None)
-
-        # Race and Class
-        drawCentered(cons = root, y = 9, text = '-- RACE --', fg = colors.darker_red, bg = None)
+        
+        # Race, attributes and traits
+        leftX = (WIDTH // 4)
+        
+        drawCenteredOnX(cons = root, x = leftX, y = 9, text = '-- RACE --', fg = colors.darker_red, bg = None)
         for choice in range(len(races)):
             if selectedRaces[choice]:
-                drawCentered(cons = root, y = 11 + choice, text = races[choice], fg = colors.yellow, bg = None)
+                drawCenteredOnX(cons = root, x = leftX, y = 11 + choice, text = races[choice], fg = colors.yellow, bg = None)
             else:
-                drawCentered(cons = root, y = 11 + choice, text = races[choice], fg = colors.white, bg = None)
-
-        drawCentered(cons = root, y = 19, text = '-- CLASS --', fg = colors.darker_red, bg = None)
-        for choice in range(len(classes)):
-            if selectedClasses[choice]:
-                drawCentered(cons = root, y = 21 + choice, text = classes[choice], fg = colors.yellow, bg = None)
-            else:
-                drawCentered(cons = root, y = 21 + choice, text = classes[choice], fg = colors.white, bg = None)
+                drawCenteredOnX(cons = root, x = leftX, y = 11 + choice, text = races[choice], fg = colors.white, bg = None)
         
-        # Attributes and traits
-        leftX = (WIDTH // 4)
         drawCenteredOnX(cons = root, x = leftX, y = 33, text = '-- ATTRIBUTES --', fg = colors.darker_red, bg = None)
         drawCenteredOnX(cons = root, x = leftX, y = 34, text = str(actualAttributesPoints) + '/' + str(MAX_ATTRIBUTES_POINTS), fg = colors.dark_red, bg = None)
         totalAttributes = [strength, dexterity, vitality, willpower]
@@ -717,8 +718,16 @@ def characterCreation():
             else:
                 drawCenteredOnX(cons = root, x = leftX, y = 48 + choice, text = traits[choice], fg = colors.white, bg = None)
         
-        # Skills
+        # Classes and skills
         rightX = WIDTH - (WIDTH // 4)
+        
+        drawCenteredOnX(cons = root, x = rightX, y = 9, text = '-- CLASS --', fg = colors.darker_red, bg = None)
+        for choice in range(len(classes)):
+            if selectedClasses[choice]:
+                drawCenteredOnX(cons = root, x = rightX, y = 11 + choice, text = classes[choice], fg = colors.yellow, bg = None)
+            else:
+                drawCenteredOnX(cons = root, x = rightX, y = 11 + choice, text = classes[choice], fg = colors.white, bg = None)
+        
         drawCenteredOnX(cons = root, x = rightX, y = 33, text = '-- SKILLS --', fg = colors.darker_red, bg = None)
         drawCenteredOnX(cons = root, x = rightX, y = 34, text = str(actualSkills) + '/' + str(MAX_SKILLS), fg = colors.dark_red, bg = None)
         for choice in range(len(skills)):
@@ -775,28 +784,29 @@ def characterCreation():
         root.draw_str(x = X, y = 84, string = ' + ' + str(3 * levelUpStats[7]) + '/lvl', fg = colors.yellow, bg = None)
         
         # Selection
-        if midIndexMin <= index <= midIndexMax:
+        if leftIndexMin <= index <= leftIndexMax:
             if index + 1 <= len(races):
                 previousListLen = 0
-                drawCentered(cons = root, y = 11 + index, text = races[index - previousListLen], fg = colors.black, bg = colors.white)
+                drawCenteredOnX(cons = root, x = leftX, y = 11 + index, text = races[index - previousListLen], fg = colors.black, bg = colors.white)
                 description(racesDescription[index - previousListLen])
-            else:
+            elif index + 1 <= len(races) + len(attributes):
                 previousListLen = len(races)
-                drawCentered(cons = root, y = 16 + index, text = classes[index - previousListLen], fg = colors.black, bg = colors.white)
-                description(classesDescription[index - previousListLen])
-        if leftIndexMin <= index <= leftIndexMax:
-            if index + 1 <= len(races) + len(classes) + len(attributes):
-                previousListLen = len(races) + len(classes)
-                drawCenteredOnX(cons = root, x = leftX, y = 26 + index, text = attributes[index - previousListLen], fg = colors.black, bg = colors.white)
+                drawCenteredOnX(cons = root, x = leftX, y = 36 - previousListLen + index, text = attributes[index - previousListLen], fg = colors.black, bg = colors.white)
                 description(attributesDescription[index - previousListLen])
             else:
-                previousListLen = len(races) + len(classes) + len(attributes)
-                drawCenteredOnX(cons = root, x = leftX, y = 34 + index, text = traits[index - previousListLen], fg = colors.black, bg = colors.white)
+                previousListLen = len(races) + len(attributes)
+                drawCenteredOnX(cons = root, x = leftX, y = 48 - previousListLen + index, text = traits[index - previousListLen], fg = colors.black, bg = colors.white)
                 description(traitsDescription[index - previousListLen])
+
         if rightIndexMin <= index <= rightIndexMax:
-            previousListLen = len(races) + len(classes) + len(attributes) + len(traits)
-            drawCenteredOnX(cons = root, x = rightX, y = 12 + index, text = skills[index - previousListLen], fg = colors.black, bg = colors.white)
-            description(skillsDescription[index - previousListLen])
+            if index + 1 <= len(races) + len(attributes) + len(traits) + len(classes):
+                previousListLen = len(races) + len(attributes) + len(traits)
+                drawCenteredOnX(cons = root, x = rightX, y = 11 - previousListLen + index, text = classes[index - previousListLen], fg = colors.black, bg = colors.white)
+                description(classesDescription[index - previousListLen])
+            else:
+                previousListLen = len(races) + len(classes) + len(attributes) + len(traits)
+                drawCenteredOnX(cons = root, x = rightX, y = 36 - previousListLen + index, text = skills[index - previousListLen], fg = colors.black, bg = colors.white)
+                description(skillsDescription[index - previousListLen])
         if index == maxIndex - 1:
             drawCentered(cons = root, y = 90, text = 'Start Game', fg = colors.black, bg = colors.white)
         if index == maxIndex:
@@ -810,18 +820,19 @@ def characterCreation():
         if key.keychar.upper() == 'UP':
             index -= 1
         if key.keychar.upper() == 'RIGHT' and (leftIndexMin <= index <= leftIndexMax):
-            if rightIndexMin <= index + len(attributes) + len(traits) <= rightIndexMax:
-                index += len(attributes) + len(traits)
+            if rightIndexMin <= index + len(attributes) + len(traits) + len(races) <= rightIndexMax:
+                index += len(attributes) + len(traits) + len(races)
             else:
                 index = rightIndexMax
         if key.keychar.upper() == 'LEFT' and (rightIndexMin <= index <= rightIndexMax):
-            if leftIndexMin <= index - len(skills) <= leftIndexMax:
-                index -= len(skills)
+            if leftIndexMin <= index - (len(attributes) + len(traits) + len(races)) <= leftIndexMax:
+                index -= (len(attributes) + len(traits) + len(races))
             else:
                 index = leftIndexMax
+
         #adding choice bonus
         if key.keychar.upper() == 'ENTER':
-            if midIndexMin <= index <= midIndexMax:
+            if leftIndexMin <= index <= leftIndexMax:
                 if index + 1 <= len(races):
                     if actualRaces < MAX_RACES:
                         previousListLen = 0
@@ -831,19 +842,9 @@ def characterCreation():
                         chosenRace = races[index]
                         if selectedRaces[4]:
                             baseMaxLoad = 60.0
-                else:
-                    if actualClasses < MAX_CLASSES:
-                        previousListLen = len(races)
-                        selectedClasses[index - previousListLen] = True
-                        applyBonus(classesBonus, index - previousListLen)
-                        levelUpStats = classesLevelUp[index - previousListLen]
-                        actualClasses += 1
-                        startingSpells = classesSpells[index - previousListLen]
-                        chosenClass = classes[index - previousListLen]
-            if leftIndexMin <= index <= leftIndexMax:
-                if index + 1 <= len(races) + len(classes) + len(attributes):
+                elif index + 1 <= len(races) + len(attributes):
                     if actualAttributesPoints < MAX_ATTRIBUTES_POINTS:
-                        previousListLen = len(races) + len(classes)
+                        previousListLen = len(races)
                         if actualPerAttributes[index - previousListLen] < MAX_PER_ATTRIBUTES:
                             applyBonus(attributesBonus, index - previousListLen)
                             selectedAttributes[index - previousListLen] = True
@@ -851,19 +852,31 @@ def characterCreation():
                             actualPerAttributes[index - previousListLen] +=1
                 else:
                     if actualTraits < MAX_TRAITS:
-                        previousListLen = len(races) + len(classes) + len(attributes)
+                        previousListLen = len(races) + len(attributes)
                         if not selectedTraits[index - previousListLen]:
                             selectedTraits[index - previousListLen] = True
                             applyBonus(traitsBonus, index - previousListLen)
                             actualTraits += 1
+
             if rightIndexMin <= index <= rightIndexMax:
-                if actualSkills < MAX_SKILLS:
-                    previousListLen = len(races) + len(classes) + len(attributes) + len(traits)
-                    if actualPerSkills[index - previousListLen] < MAX_PER_SKILLS:
-                        applyBonus(skillsBonus, index - previousListLen)
-                        selectedSkills[index - previousListLen] = True
-                        actualSkills += 1
-                        actualPerSkills[index - previousListLen] += 1
+                if index + 1 <= len(races) + len(attributes) + len(traits) + len(classes):
+                    if actualClasses < MAX_CLASSES:
+                        previousListLen = len(races) + len(attributes) + len(traits)
+                        selectedClasses[index - previousListLen] = True
+                        applyBonus(classesBonus, index - previousListLen)
+                        levelUpStats = classesLevelUp[index - previousListLen]
+                        actualClasses += 1
+                        startingSpells = classesSpells[index - previousListLen]
+                        chosenClass = classes[index - previousListLen]
+                else:
+                    if actualSkills < MAX_SKILLS:
+                        previousListLen = len(races) + len(classes) + len(attributes) + len(traits)
+                        if actualPerSkills[index - previousListLen] < MAX_PER_SKILLS:
+                            applyBonus(skillsBonus, index - previousListLen)
+                            selectedSkills[index - previousListLen] = True
+                            actualSkills += 1
+                            actualPerSkills[index - previousListLen] += 1
+
             if index == maxIndex - 1:
                 if actualClasses > 0 and actualRaces > 0:
                     createdCharacter = [power, accuracy, evasion, armor, maxHP, maxMP, critical, strength, dexterity, vitality, willpower]
@@ -872,7 +885,7 @@ def characterCreation():
                 return 'cancelled', 'cancelled', 'cancelled', 'cancelled', 'cancelled', 'cancelled', 'cancelled', 'cancelled'
         #removing choice bonus
         if key.keychar.upper() == 'BACKSPACE':
-            if midIndexMin <= index <= midIndexMax:
+            if leftIndexMin <= index <= leftIndexMax:
                 if index + 1 <= len(races):
                     if actualRaces > 0:
                         previousListLen = 0
@@ -882,19 +895,9 @@ def characterCreation():
                             selectedRaces[index - previousListLen] = False
                             removeBonus(racesBonus, index)
                             actualRaces -= 1
-                else:
-                    if actualClasses > 0:
-                        previousListLen = len(races)
-                        if selectedClasses[index-previousListLen]:
-                            selectedClasses[index - previousListLen] = False
-                            removeBonus(classesBonus, index - previousListLen)
-                            levelUpStats = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-                            actualClasses -= 1
-                            startingSpells = []
-            if leftIndexMin <= index <= leftIndexMax:
-                if index + 1 <= len(races) + len(classes) + len(attributes):
+                elif index + 1 <= len(races) + len(attributes):
                     if actualAttributesPoints > 0:
-                        previousListLen = len(races) + len(classes)
+                        previousListLen = len(races)
                         if actualPerAttributes[index - previousListLen] > 0:
                             removeBonus(attributesBonus, index - previousListLen)
                             actualAttributesPoints -= 1
@@ -903,19 +906,29 @@ def characterCreation():
                                 selectedAttributes[index - previousListLen] = False
                 else:
                     if actualTraits > 0:
-                        previousListLen = len(races) + len(classes) + len(attributes)
+                        previousListLen = len(races) + len(attributes)
                         if selectedTraits[index - previousListLen]:
                             selectedTraits[index - previousListLen] = False
                             removeBonus(traitsBonus, index - previousListLen)
                             actualTraits -= 1
             if rightIndexMin <= index <= rightIndexMax:
-                if actualSkills > 0:
-                    previousListLen = len(races) + len(classes) + len(attributes) + len(traits)
-                    if actualPerSkills[index - previousListLen] > 0:
-                        removeBonus(skillsBonus, index - previousListLen)
-                        selectedSkills[index - previousListLen] = False
-                        actualSkills -= 1
-                        actualPerSkills[index - previousListLen] -= 1
+                if index + 1 <= len(races) + len(attributes) + len(traits) + len(classes):
+                    if actualClasses > 0:
+                        previousListLen = len(races) + len(attributes) + len(traits)
+                        if selectedClasses[index-previousListLen]:
+                            selectedClasses[index - previousListLen] = False
+                            removeBonus(classesBonus, index - previousListLen)
+                            levelUpStats = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                            actualClasses -= 1
+                            startingSpells = []
+                else:
+                    if actualSkills > 0:
+                        previousListLen = len(races) + len(classes) + len(attributes) + len(traits)
+                        if actualPerSkills[index - previousListLen] > 0:
+                            removeBonus(skillsBonus, index - previousListLen)
+                            selectedSkills[index - previousListLen] = False
+                            actualSkills -= 1
+                            actualPerSkills[index - previousListLen] -= 1
         if index > maxIndex:
             index = 0
         if index < 0:
