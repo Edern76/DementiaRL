@@ -585,6 +585,17 @@ def characterCreation():
     actualRaces = 0
     selectedRaces = [False, False, False, False, False, False, False, False, False, False]
     chosenRace = None
+                    #after 10: 'Fast learner', 'Rage', 'Horned', 'Chitin carapace', 'Silent walk', 'Venomous glands', 'Mimesis', 'Wild instincts'
+    selectableTraitsPerRaces = [[True, True, True, True, True, True, True, True, True, True, True, False, False, False, False, False, False, False],
+                                [True, True, True, True, True, True, True, True, True, True, False, True, True, False, False, False, False, False],
+                                [True, True, True, True, True, True, True, True, True, True, False, False, False, True, False, False, False, False],
+                                [True, True, True, True, True, True, True, True, True, True, False, False, False, False, True, False, False, False],
+                                [True, True, True, True, True, True, True, True, True, True, False, False, False, False, False, True, True, False],
+                                [True, True, True, True, True, True, True, True, True, True, False, False, False, False, False, False, False, False],
+                                [True, True, True, True, True, True, True, True, True, True, False, False, False, False, False, False, False, False],
+                                [True, True, True, True, True, True, True, True, True, True, False, False, False, False, False, False, False, True],
+                                [True, True, True, True, True, True, True, True, True, True, False, False, False, False, False, False, False, False],
+                                [True, True, True, True, True, True, True, True, True, True, False, False, False, False, False, False, False, False]]
     
     classes = ['Knight', 'Barbarian', 'Rogue', 'Mage ', 'Necromancer']
     classesDescription = ['A warrior who wears armor and yields shields',
@@ -624,7 +635,8 @@ def characterCreation():
     actualPerAttributes = [0, 0, 0, 0]
     selectedAttributes = [False, False, False, False]
     
-    traits = ['Aggressive', 'Aura', 'Evasive', 'Healthy', 'Muscular', 'Natural armor', 'Strong mind', 'Agile', 'Martial training', 'Tough']
+    traits = ['Aggressive', 'Aura', 'Evasive', 'Healthy', 'Muscular', 'Natural armor', 'Strong mind', 'Agile', 'Martial training', 'Tough',
+              'Fast learner', 'Rage', 'Horned', 'Chitin carapace', 'Silent walk', 'Venomous glands', 'Mimesis', 'Wild instincts']
     traitsDescription = ['Your anger is uncontrollable',
                          'You are surrounded by a potent aura',
                          'You are aware of how to stay out of trouble',
@@ -634,7 +646,15 @@ def characterCreation():
                          'Your mind is fast and potent',
                          'You have incredible reflexes',
                          'You are trained to master all weapons',
-                         'You can endure harm better']
+                         'You can endure harm better',
+                         'You are very smart and learn from your wins or losses very fast',
+                         'When low on health, you will lose all control',
+                         'Your horns are very large and can be used in combats',
+                         'Your natural exoskeleton is very resistant',
+                         'Your paws are very soft, allowing you to be very sneaky',
+                         'You are able to envenom your weapons',
+                         'You can mimic your environment, making it very hard to see you',
+                         'Your natural transformation is even more deadly']
     traitsBonus= [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                   [0, 0, 0, 0, 0, 20, 0, 0, 0, 0, 0],
                   [0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -644,10 +664,19 @@ def characterCreation():
                   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
                   [0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0],
                   [0, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 20, 0, 0, 0, 0, 0, 0]]
+                  [0, 0, 0, 0, 20, 0, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],]
     MAX_TRAITS = 2
     actualTraits = 0
-    selectedTraits = [False, False, False, False, False, False, False, False, False, False]
+    selectedTraits = [False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False]
+    selectableTraits = [True, True, True, True, True, True, True, True, True, True, False, False, False, False, False, False, False, False]
     
     skills = ['Light weapons', 'Heavy weapons', 'Missile weapons', 'Throwing weapons', 'Magic ', 'Armor wielding', 'Athletics', 'Concentration', 'Dodge ', 'Critical ', 'Accuracy']
     skillsDescription = ['+20% damage per skillpoints with light weapons',
@@ -715,6 +744,8 @@ def characterCreation():
         for choice in range(len(traits)):
             if selectedTraits[choice]:
                 drawCenteredOnX(cons = root, x = leftX, y = 48 + choice, text = traits[choice], fg = colors.yellow, bg = None)
+            elif not selectableTraits[choice]:
+                drawCenteredOnX(cons = root, x = leftX, y = 48 + choice, text = traits[choice], fg = colors.grey, bg = None)
             else:
                 drawCenteredOnX(cons = root, x = leftX, y = 48 + choice, text = traits[choice], fg = colors.white, bg = None)
         
@@ -795,7 +826,10 @@ def characterCreation():
                 description(attributesDescription[index - previousListLen])
             else:
                 previousListLen = len(races) + len(attributes)
-                drawCenteredOnX(cons = root, x = leftX, y = 48 - previousListLen + index, text = traits[index - previousListLen], fg = colors.black, bg = colors.white)
+                if selectableTraits[index - previousListLen]:
+                    drawCenteredOnX(cons = root, x = leftX, y = 48 - previousListLen + index, text = traits[index - previousListLen], fg = colors.black, bg = colors.white)
+                else:
+                    drawCenteredOnX(cons = root, x = leftX, y = 48 - previousListLen + index, text = traits[index - previousListLen], fg = colors.black, bg = colors.grey)
                 description(traitsDescription[index - previousListLen])
 
         if rightIndexMin <= index <= rightIndexMax:
@@ -840,6 +874,7 @@ def characterCreation():
                         applyBonus(racesBonus, index)
                         actualRaces += 1
                         chosenRace = races[index]
+                        selectableTraits = selectableTraitsPerRaces[index]
                         if selectedRaces[4]:
                             baseMaxLoad = 60.0
                 elif index + 1 <= len(races) + len(attributes):
@@ -853,7 +888,7 @@ def characterCreation():
                 else:
                     if actualTraits < MAX_TRAITS:
                         previousListLen = len(races) + len(attributes)
-                        if not selectedTraits[index - previousListLen]:
+                        if not selectedTraits[index - previousListLen] and selectableTraits[index - previousListLen]:
                             selectedTraits[index - previousListLen] = True
                             applyBonus(traitsBonus, index - previousListLen)
                             actualTraits += 1
@@ -895,6 +930,14 @@ def characterCreation():
                             selectedRaces[index - previousListLen] = False
                             removeBonus(racesBonus, index)
                             actualRaces -= 1
+                            selectableTraits = [True, True, True, True, True, True, True, True, True, True, False, False, False, False, False, False, False, False]
+                            traitIndex = 0
+                            for trait in selectedTraits:
+                                if trait and not selectableTraits[traitIndex]:
+                                    selectedTraits[traitIndex] = False
+                                    removeBonus(traitsBonus, traitIndex)
+                                    actualTraits -= 1
+                                traitIndex += 1
                 elif index + 1 <= len(races) + len(attributes):
                     if actualAttributesPoints > 0:
                         previousListLen = len(races)
