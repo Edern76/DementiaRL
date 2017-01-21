@@ -580,7 +580,7 @@ def characterCreation():
                   [0, 0, 0, 0, 0, 0, 0, -4, -2, -5, -3], #Rootling
                   [0, 0, 0, 0, 0, 0, 0, 2, 1, -2, -4], #Werewolf
                   [0, 0, 0, 0, 0, 0, 0, 1, 0, -2, -10], #Devourer
-                  [0, 0, 0, 0, 0, 0, 0, -9, -9, -9, -9]] #Virus
+                  [0, 0, 999, 0, 0, 0, 0, -9, -9, -9, -9]] #Virus
     MAX_RACES = 1
     actualRaces = 0
     selectedRaces = [False, False, False, False, False, False, False, False, False, False]
@@ -1573,6 +1573,13 @@ class Player:
         self.classes = classes
         self.traits = traits
         self.burdened = False
+        
+        if self.race == 'Werewolf':
+            self.transformCooldown = 150
+            self.transformCurCooldown = self.transformCooldown
+            self.transformed = False
+            self.transformMaxTurns = 20
+            self.transformationTime = 0
         
         if DEBUG:
             print('Player component initialized')
@@ -3915,6 +3922,30 @@ def playGame():
                         else:
                             object.Fighter.MPRegenCountdown = 10
                         object.Fighter.MP += 1
+                
+                if object.Player and object.Player.race == 'Werewolf':
+                    object.Player.transformCurCooldown -= 1
+                    if object.Player.transformationTime > 0:
+                        object.Player.transformationTime -= 1
+                    if object.Player.transformCurCooldown <= 0:
+                        message('You feel your wild instincts overwhelming you! You have turned into your wolf form!', colors.amber)
+                        object.Player.transformed = True
+                        object.Player.transformationTime = object.Player.transformMaxTurns
+                        object.Player.strength += 5
+                        object.Player.dexterity += 3
+                        object.Player.vitality += 4
+                        object.Player.willpower -= 5
+                        object.Player.transformCurCooldown = object.Player.transformCooldown    
+                        object.Player.updatePlayerStats()
+                    if object.Player.transformationTime <= 0 and object.Player.transformed:
+                        message('You are no longer in wolf form.', colors.amber)
+                        object.Player.transformed = False
+                        object.Player.transformationTime = object.Player.transformMaxTurns
+                        object.Player.strength -= 5
+                        object.Player.dexterity -= 3
+                        object.Player.vitality -= 4
+                        object.Player.willpower += 5
+                        object.Player.updatePlayerStats()
                 
                 x = object.x
                 y = object.y
