@@ -1625,7 +1625,7 @@ class Player:
         object.Fighter.MP = object.Fighter.baseMaxMP - mpDiff
 
 class Item:
-    def __init__(self, useFunction = None,  arg1 = None, arg2 = None, arg3 = None, stackable = False, amount = 0, weight = 0):
+    def __init__(self, useFunction = None,  arg1 = None, arg2 = None, arg3 = None, stackable = False, amount = 1, weight = 0):
         self.useFunction = useFunction
         self.arg1 = arg1
         self.arg2 = arg2
@@ -1674,22 +1674,51 @@ class Item:
         else:
             if self.arg1 is None:
                 if self.useFunction() != 'cancelled':
-                    inventory.remove(self.owner)
+                    if not self.stackable or self.amount == 0:
+                        inventory.remove(self.owner)
+                    else:
+                        self.amount -= 1
+                        if self.amount < 0:
+                            self.amount = 0
+                        if self.amount == 0:
+                            inventory.remove(self.owner)
+                        
                 else:
                     return 'cancelled'
             elif self.arg2 is None and self.arg1 is not None:
                 if self.useFunction(self.arg1) != 'cancelled':
-                    inventory.remove(self.owner)
+                    if not self.stackable or self.amount == 0:
+                        inventory.remove(self.owner)
+                    else:
+                        self.amount -= 1
+                        if self.amount < 0:
+                            self.amount = 0
+                        if self.amount == 0:
+                            inventory.remove(self.owner)
                 else:
                     return 'cancelled'
             elif self.arg3 is None and self.arg2 is not None:
                 if self.useFunction(self.arg1, self.arg2) != 'cancelled':
-                    inventory.remove(self.owner)
+                    if not self.stackable or self.amount == 0:
+                        inventory.remove(self.owner)
+                    else:
+                        self.amount -= 1
+                        if self.amount < 0:
+                            self.amount = 0
+                        if self.amount == 0:
+                            inventory.remove(self.owner)
                 else:
                     return 'cancelled'
             elif self.arg3 is not None:
                 if self.useFunction(self.arg1, self.arg2, self.arg3) != 'cancelled':
-                    inventory.remove(self.owner)
+                    if not self.stackable or self.amount == 0:
+                        inventory.remove(self.owner)
+                    else:
+                        self.amount -= 1
+                        if self.amount < 0:
+                            self.amount = 0
+                        if self.amount == 0:
+                            inventory.remove(self.owner)
                 else:
                     return 'cancelled'
                 
@@ -2014,7 +2043,7 @@ def getInput():
             return 'didnt-take-turn'
     FOV_recompute = True
 
-def projectile(sourceX, sourceY, destX, destY, char, color, continues = False, passesThrough = False):
+def projectile(sourceX, sourceY, destX, destY, char, color, continues = False, passesThrough = False, ghost = False):
     line = tdl.map.bresenham(sourceX, sourceY, destX, destY)
     (firstX, firstY)= line[1]
     inclX = firstX - sourceX
@@ -2040,7 +2069,7 @@ def projectile(sourceX, sourceY, destX, destY, char, color, continues = False, p
         (x, y) = line.pop(0)
         proj.x, proj.y = x, y
         animStep(.050)
-        if isBlocked(x, y) and not passesThrough:
+        if isBlocked(x, y) and (not passesThrough or myMap[x][y].blocked) and not ghost:
             objects.remove(proj)
             return (x,y)
             break
@@ -2064,8 +2093,10 @@ def projectile(sourceX, sourceY, destX, destY, char, color, continues = False, p
                     break
             dx = newX - startX
             dy = newY - startY
-        print("Your arrow flies far away from your sight.")
-        message("Your arrow flies far away from your sight.")
+        print("Projectile out of range")
+        #message("Your arrow flies far away from your sight.")
+        return (None, None)
+        
 
 def checkDiagonals(monster, target):
     diagonals = [(1,1), (1, -1), (-1, 1), (-1, -1)]
@@ -2122,36 +2153,39 @@ def shoot():
                                 (targetX, targetY) = projectile(player.x, player.y, aimX, aimY, '/', colors.light_orange, continues=True)
                                 FOV_recompute = True
                                 monsterTarget = None
-                                for thing in objects:
-                                    if thing.Fighter and thing.Fighter.hp > 0 and thing.x == targetX and thing.y == targetY:
-                                        monsterTarget = thing
-                                        break
-                                if monsterTarget:
-                                    [hit, criticalHit] = player.Fighter.toHit(monsterTarget)
-                                    if hit:
-                                        if player.Player.traits[0]:
-                                            damage = weapon.Equipment.rangedPower + 4 - monsterTarget.Fighter.armor
-                                        else:
-                                            damage = weapon.Equipment.rangedPower - monsterTarget.Fighter.armor
-    
-                                        if damage <= 0:
-                                            message('You hit ' + monsterTarget.name + ' but it has no effect !')
-                                        else:
-                                            if criticalHit:
-                                                damage = damage * 3
-                                                message('You critically hit ' + monsterTarget.name + ' for ' + str(damage) + ' damage !', colors.darker_green)
+                                if targetX is not None and targetY is not None:
+                                    for thing in objects:
+                                        if thing.Fighter and thing.Fighter.hp > 0 and thing.x == targetX and thing.y == targetY:
+                                            monsterTarget = thing
+                                            break
+                                    if monsterTarget:
+                                        [hit, criticalHit] = player.Fighter.toHit(monsterTarget)
+                                        if hit:
+                                            if player.Player.traits[0]:
+                                                damage = weapon.Equipment.rangedPower + 4 - monsterTarget.Fighter.armor
                                             else:
-                                                message('You hit ' + monsterTarget.name + ' for ' + str(damage) + ' damage !', colors.dark_green)
-                                            monsterTarget.Fighter.takeDamage(damage)
+                                                damage = weapon.Equipment.rangedPower - monsterTarget.Fighter.armor
+        
+                                            if damage <= 0:
+                                                message('You hit ' + monsterTarget.name + ' but it has no effect !')
+                                            else:
+                                                if criticalHit:
+                                                    damage = damage * 3
+                                                    message('You critically hit ' + monsterTarget.name + ' for ' + str(damage) + ' damage !', colors.darker_green)
+                                                else:
+                                                    message('You hit ' + monsterTarget.name + ' for ' + str(damage) + ' damage !', colors.dark_green)
+                                                monsterTarget.Fighter.takeDamage(damage)
+                                        else:
+                                            message('You missed ' + monsterTarget.name + '!', colors.grey)
                                     else:
-                                        message('You missed ' + monsterTarget.name + '!', colors.grey)
+                                        message("Your arrow didn't hit anything", colors.grey)
                                 else:
                                     message("Your arrow didn't hit anything", colors.grey)
-                            object.Item.amount -= 1
-                            foundAmmo = True
-                            if object.Item.amount <= 0:
-                                inventory.remove(object)
-                            break
+                                object.Item.amount -= 1
+                                foundAmmo = True
+                                if object.Item.amount <= 0:
+                                    inventory.remove(object)
+                                break
                     if not foundAmmo:
                         message('You have no ammunition for your ' + weapon.name + ' !', colors.red)
                         return 'didnt-take-turn'
@@ -2943,22 +2977,22 @@ def createScroll(x, y):
     scrollChances = {'lightning': 12, 'confuse': 12, 'fireball': 25, 'armageddon': 10, 'ice': 25, 'none': 1}
     scrollChoice = randomChoice(scrollChances)
     if scrollChoice == 'lightning':
-        scroll = GameObject(x, y, '~', 'scroll of lightning bolt', colors.light_yellow, Item = Item(useFunction = castLightning, weight = 0.3), blocks = False)
+        scroll = GameObject(x, y, '~', 'scroll of lightning bolt', colors.light_yellow, Item = Item(useFunction = castLightning, weight = 0.3, stackable = True), blocks = False)
     elif scrollChoice == 'confuse':
-        scroll = GameObject(x, y, '~', 'scroll of confusion', colors.light_yellow, Item = Item(useFunction = castConfuse, weight = 0.3), blocks = False)
+        scroll = GameObject(x, y, '~', 'scroll of confusion', colors.light_yellow, Item = Item(useFunction = castConfuse, weight = 0.3, stackable = True), blocks = False)
     elif scrollChoice == 'fireball':
         fireballChances = {'lesser': 20, 'normal': 50, 'greater': 20}
         fireballChoice = randomChoice(fireballChances)
         if fireballChoice == 'lesser':
-            scroll = GameObject(x, y, '~', 'scroll of lesser fireball', colors.light_yellow, Item = Item(castFireball, 2, 6, weight = 0.3), blocks = False)
+            scroll = GameObject(x, y, '~', 'scroll of lesser fireball', colors.light_yellow, Item = Item(castFireball, 2, 6, weight = 0.3, stackable = True), blocks = False)
         elif fireballChoice == 'normal':
-            scroll = GameObject(x, y, '~', 'scroll of fireball', colors.light_yellow, Item = Item(castFireball, weight = 0.3), blocks = False)
+            scroll = GameObject(x, y, '~', 'scroll of fireball', colors.light_yellow, Item = Item(castFireball, weight = 0.3, stackable = True), blocks = False)
         elif fireballChoice == 'greater':
-            scroll = GameObject(x, y, '~', 'scroll of greater fireball', colors.light_yellow, Item = Item(castFireball, 4, 24, weight = 0.3), blocks = False)
+            scroll = GameObject(x, y, '~', 'scroll of greater fireball', colors.light_yellow, Item = Item(castFireball, 4, 24, weight = 0.3, stackable = True), blocks = False)
     elif scrollChoice == 'armageddon':
-        scroll = GameObject(x, y, '~', 'scroll of armageddon', colors.red, Item = Item(castArmageddon, weight = 0.3), blocks = False)
+        scroll = GameObject(x, y, '~', 'scroll of armageddon', colors.red, Item = Item(castArmageddon, weight = 0.3, stackable = True), blocks = False)
     elif scrollChoice == 'ice':
-        scroll = GameObject(x, y, '~', 'scroll of ice bolt', colors.light_cyan, Item = Item(castFreeze, weight = 0.3), blocks = False)
+        scroll = GameObject(x, y, '~', 'scroll of ice bolt', colors.light_cyan, Item = Item(castFreeze, weight = 0.3, stackable = True), blocks = False)
     elif scrollChoice == 'none':
         scroll = None
     return scroll
