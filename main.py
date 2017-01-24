@@ -87,12 +87,12 @@ BOSS_FOV_ALGO = 'BASIC'
 BOSS_SIGHT_RADIUS = 60
 
 # - Spells -
-LIGHTNING_DAMAGE = 20
+LIGHTNING_DAMAGE = 40
 LIGHTNING_RANGE = 5
 CONFUSE_NUMBER_TURNS = 10
 CONFUSE_RANGE = 8
-DARK_PACT_DAMAGE = 12
-FIREBALL_SPELL_BASE_DAMAGE = 6
+DARK_PACT_DAMAGE = 24
+FIREBALL_SPELL_BASE_DAMAGE = 12
 FIREBALL_SPELL_BASE_RADIUS = 1
 FIREBALL_SPELL_BASE_RANGE = 4
 
@@ -322,7 +322,7 @@ def castDarkRitual(regen, damage):
     message('You take ' + str(damage) + ' damage from the ritual !', colors.red)
     castRegenMana(regen)
 
-def castHeal(healAmount = 5):
+def castHeal(healAmount = 10):
     if player.Fighter.hp == player.Fighter.maxHP:
         message('You are already at full health')
         return 'cancelled'
@@ -363,7 +363,7 @@ def castFreeze():
         message("The " + target.name + " is already frozen.")
         return 'cancelled'
     
-def castFireball(radius = 3, damage = 12, range = 4):
+def castFireball(radius = 3, damage = 24, range = 4):
     global explodingTiles
     message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
     target = targetTile(maxRange = range)
@@ -389,7 +389,7 @@ def castFireball(radius = 3, damage = 12, range = 4):
                     #explodingTiles.append((x,y))
         #explode()
 
-def castArmageddon(radius = 4, damage = 40):
+def castArmageddon(radius = 4, damage = 80):
     global FOV_recompute
     message('As you begin to read the scroll, the runes inscribed on it start emitting a very bright crimson light. Continue (Y/N)', colors.dark_red)
     FOV_recompute = True
@@ -478,8 +478,8 @@ def castRessurect(range = 4):
             
             
 
-fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 1, arg2 = 6, arg3 = 4)
-heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 10)
+fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 1, arg2 = 12, arg3 = 4)
+heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 20)
 darkPact = Spell(ressourceCost = DARK_PACT_DAMAGE, cooldown = 8, useFunction = castDarkRitual, name = "Dark ritual", ressource = 'HP', type = "Occult", magicLevel = 2, arg1 = 5, arg2 = DARK_PACT_DAMAGE)
 enrage = Spell(ressourceCost = 5, cooldown = 30, useFunction = castEnrage, name = 'Enrage', ressource = 'MP', type = 'Strength', magicLevel = 0, arg1 = 5)
 lightning = Spell(ressourceCost = 10, cooldown = 7, useFunction = castLightning, name = 'Lightning bolt', ressource = 'MP', type = 'Magic', magicLevel = 3)
@@ -605,16 +605,16 @@ def characterCreation():
                           'A rogue who is stealthy and backstabby (probably has a french accent)',
                           'A wizard who zaps everything',
                           'A master of the occult arts who has the ability to raise and control the dead.']
-    classesBonus = [[0, 0, 0, 1, 60, 30, 0, 0, 0, 0, 0], #Knight
-                    [0, 0, 0, 0, 80, 30, 0, 1, 0, 0, 0], #Barbarian
-                    [0, 8, 10, 0, 45, 40, 3, 0, 0, 0, 0], #Rogue
-                    [0, 0, 0, 0, 35, 50, 0, 0, 0, 0, 2], #Mage
-                    [0, 0, 0, 0, 50, 15, 0, 0, 0, 0, 0]] #Necromancer
-    classesLevelUp = [[0, 0, 0, 1, 7, 3, 0, 0, 0, 0, 0],
-                      [0, 0, 0, 0, 10, 3, 0, 1, 0, 0, 0],
-                      [0, 2, 1, 0, 5, 5, 0, 0, 0, 0, 0],
-                      [0, 0, 0, 0, 3, 7, 0, 0, 0, 0, 0],
-                      [0, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0]]
+    classesBonus = [[0, 0, 0, 1, 120, 30, 0, 0, 0, 0, 0], #Knight
+                    [0, 0, 0, 0, 160, 30, 0, 1, 0, 0, 0], #Barbarian
+                    [0, 8, 10, 0, 90, 40, 3, 0, 0, 0, 0], #Rogue
+                    [0, 0, 0, 0, 70, 50, 0, 0, 0, 0, 2], #Mage
+                    [0, 0, 0, 0, 100, 15, 0, 0, 0, 0, 0]] #Necromancer
+    classesLevelUp = [[0, 0, 0, 1, 14, 3, 0, 0, 0, 0, 0],
+                      [0, 0, 0, 0, 20, 3, 0, 1, 0, 0, 0],
+                      [0, 2, 1, 0, 10, 5, 0, 0, 0, 0, 0],
+                      [0, 0, 0, 0, 6, 7, 0, 0, 0, 0, 0],
+                      [0, 0, 0, 0, 4, 1, 0, 0, 0, 0, 0]]
     MAX_CLASSES = 1
     actualClasses = 0
     selectedClasses = [False, False, False, False, False]
@@ -666,7 +666,7 @@ def characterCreation():
                   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
                   [0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0],
                   [0, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 20, 0, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 40, 0, 0, 0, 0, 0, 0],
                   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -1238,14 +1238,14 @@ class Fighter: #All NPCs, enemies and the player
         if hit:
             if criticalHit:
                 if self.owner.Player and self.owner.Player.traits[0]:
-                    damage = (self.power + 4 - target.Fighter.armor) * 3
+                    damage = (randint(self.power, self.power + 5) + 4  - target.Fighter.armor) * 3
                 else:
-                    damage = (self.power - target.Fighter.armor) * 3
+                    damage = (randint(self.power, self.power + 5) - target.Fighter.armor) * 3
             else:
                 if self.owner.Player and self.owner.Player.traits[0]:
-                    damage = self.power + 4 - target.Fighter.armor
+                    damage = randint(self.power, self.power + 5) + 4 - target.Fighter.armor
                 else:
-                    damage = self.power - target.Fighter.armor
+                    damage = randint(self.power, self.power + 5) - target.Fighter.armor
             if not self.frozen:
                 if not self.owner.Player:
                     if damage > 0:
@@ -2185,9 +2185,9 @@ def shoot():
                                         [hit, criticalHit] = player.Fighter.toHit(monsterTarget)
                                         if hit:
                                             if player.Player.traits[0]:
-                                                damage = weapon.Equipment.rangedPower + 4 - monsterTarget.Fighter.armor
+                                                damage = randint(weapon.Equipment.rangedPower, weapon.Equipment.rangedPower + 5) + 4 - monsterTarget.Fighter.armor
                                             else:
-                                                damage = weapon.Equipment.rangedPower - monsterTarget.Fighter.armor
+                                                damage = randint(weapon.Equipment.rangedPower, weapon.Equipment.rangedPower + 5) - monsterTarget.Fighter.armor
         
                                             if damage <= 0:
                                                 message('You hit ' + monsterTarget.name + ' but it has no effect !')
@@ -2427,7 +2427,7 @@ def monsterArmageddon(monsterName ,monsterX, monsterY, radius = 4, damage = 40, 
 def createOrc(x, y, friendly = False, corpse = False):
     if x != player.x or y != player.y:
         if not corpse:
-            equipmentComponent = Equipment(slot='head', type = 'armor', armorBonus = 1)
+            equipmentComponent = Equipment(slot='head', type = 'armor', armorBonus = 2)
             orcHelmet = GameObject(x = None, y = None, char = '[', name = 'orc helmet', color = colors.brass, Equipment = equipmentComponent, Item = Item(weight = 2.5))
             lootOnDeath = [orcHelmet]
             deathType = monsterDeath
@@ -2442,7 +2442,7 @@ def createOrc(x, y, friendly = False, corpse = False):
             AI_component = BasicMonster()
         else:
             AI_component = FriendlyMonster(friendlyTowards = player)
-        fighterComponent = Fighter(hp=15, armor=0, power=3, xp = 35, deathFunction = deathType, evasion = 25, accuracy = 10, lootFunction = lootOnDeath, lootRate = [30])
+        fighterComponent = Fighter(hp=30, armor=1, power=6, xp = 35, deathFunction = deathType, evasion = 25, accuracy = 10, lootFunction = lootOnDeath, lootRate = [30])
         monster = GameObject(x, y, char = 'o', color = color, name = orcName, blocks = True, Fighter=fighterComponent, AI = AI_component)
         return monster
     else:
@@ -2451,7 +2451,7 @@ def createOrc(x, y, friendly = False, corpse = False):
 def createTroll(x, y, friendly = False, corpse = False):
     if x != player.x or y != player.y:
         if not corpse:
-            equipmentComponent = Equipment(slot = 'two handed', type = 'heavy weapon', powerBonus = 8, accuracyBonus = -20, meleeWeapon=True)
+            equipmentComponent = Equipment(slot = 'two handed', type = 'heavy weapon', powerBonus = 15, accuracyBonus = -20, meleeWeapon=True)
             trollMace = GameObject(x, y, '/', 'troll mace', colors.darker_orange, Equipment=equipmentComponent, Item=Item(weight = 13.0))
             lootOnDeath = [trollMace]
             deathType = monsterDeath
@@ -2466,7 +2466,7 @@ def createTroll(x, y, friendly = False, corpse = False):
             AI_component = BasicMonster()
         else:
             AI_component = FriendlyMonster(friendlyTowards = player)
-        fighterComponent = Fighter(hp=20, armor=2, power=4, xp = 100, deathFunction = deathType, accuracy = 7, evasion = 1, lootFunction=lootOnDeath, lootRate=[15])
+        fighterComponent = Fighter(hp=40, armor=4, power=8, xp = 100, deathFunction = deathType, accuracy = 7, evasion = 1, lootFunction=lootOnDeath, lootRate=[15])
         monster = GameObject(x, y, char = 'T', color = color, name = monName, blocks = True, Fighter=fighterComponent, AI = AI_component)
         return monster
     else:
@@ -2476,7 +2476,7 @@ def createTroll(x, y, friendly = False, corpse = False):
     
 def createHiroshiman(x, y):
     if x != player.x or y != player.y:
-        fighterComponent = Fighter(hp=150, armor=0, power=3, xp = 500, deathFunction = monsterDeath, accuracy = 0, evasion = 1)
+        fighterComponent = Fighter(hp=300, armor=0, power=6, xp = 500, deathFunction = monsterDeath, accuracy = 0, evasion = 1)
         AI_component = SplosionAI()
         monster = GameObject(x, y, char = 'H', color = colors.red, name = 'Hiroshiman', blocks = True, Fighter=fighterComponent, AI = AI_component)
         return monster
@@ -2874,7 +2874,7 @@ class Gluttony():
                 for fighter in objects:
                     if fighter.x == object.x and fighter.y == object.y:
                         if fighter.Fighter:
-                            fighter.Fighter.takeDamage(10)
+                            fighter.Fighter.takeDamage(15)
                             message(fighter.name + " is hit by Gluttony's vomit and suffers 10 damage!", color = colors.orange)
                 objects.remove(object)
                 FOV_recompute = True
@@ -2941,7 +2941,7 @@ class Wrath():
 
 def placeBoss(name, x, y):
     if name == 'Gluttony':
-        fighterComponent = Fighter(hp=500, armor=1, power=6, xp = 1000, deathFunction = gluttonysDeath, accuracy = 13, evasion = 1, shootCooldown = 10, landCooldown = 4)
+        fighterComponent = Fighter(hp=1000, armor=6, power=8, xp = 1000, deathFunction = gluttonysDeath, accuracy = 13, evasion = 1, shootCooldown = 10, landCooldown = 4)
         AI_component = Gluttony()
         boss = GameObject(x, y, char = 'G', color = colors.darker_lime, name = name, blocks = True, Fighter = fighterComponent, AI = AI_component)
         objects.append(boss)
@@ -2952,7 +2952,7 @@ def placeBoss(name, x, y):
                     createFat(x, y)
 
     if name == 'Wrath':
-        fighterComponent = Fighter(hp = 300, armor = 3, power = 10, xp = 1000, deathFunction = monsterDeath, accuracy = 25, evasion = 15)
+        fighterComponent = Fighter(hp = 600, armor = 3, power = 18, xp = 1000, deathFunction = monsterDeath, accuracy = 25, evasion = 15)
         AI_component = Wrath()
         boss = GameObject(x, y, char = 'W', color = colors.darker_red, name = name, blocks = True, Fighter = fighterComponent, AI = AI_component)
         objects.append(boss)
@@ -2970,21 +2970,21 @@ def createSword(x, y):
     sizeChoice = randomChoice(sizeChance)
     name = sizeChoice + name
     if sizeChoice == 'short':
-        swordPow = 3
+        swordPow = 6
         char = '-'
         weight = 1.5
     else:
-        swordPow = 5
+        swordPow = 10
         char = '/'
         weight = 3.5
     qualityChances = {'normal' : 70, 'rusty' : 20, 'sharp' : 10}
     qualityChoice = randomChoice(qualityChances)
     if qualityChoice == 'rusty':
         name = qualityChoice + ' ' + name
-        swordPow -= 1
+        swordPow -= 2
     elif qualityChoice == 'sharp':
         name = qualityChoice + ' ' + name
-        swordPow += 1
+        swordPow += 2
     burningChances = {'yes' : 20, 'no': 80}
     burningChoice = randomChoice(burningChances)
     if burningChoice == 'yes':
@@ -3007,11 +3007,11 @@ def createScroll(x, y):
         fireballChances = {'lesser': 20, 'normal': 50, 'greater': 20}
         fireballChoice = randomChoice(fireballChances)
         if fireballChoice == 'lesser':
-            scroll = GameObject(x, y, '~', 'scroll of lesser fireball', colors.light_yellow, Item = Item(castFireball, 2, 6, weight = 0.3, stackable = True), blocks = False, pName = 'scrolls of lesser fireball')
+            scroll = GameObject(x, y, '~', 'scroll of lesser fireball', colors.light_yellow, Item = Item(castFireball, 2, 12, weight = 0.3, stackable = True), blocks = False, pName = 'scrolls of lesser fireball')
         elif fireballChoice == 'normal':
             scroll = GameObject(x, y, '~', 'scroll of fireball', colors.light_yellow, Item = Item(castFireball, weight = 0.3, stackable = True), blocks = False, pName = 'scrolls of fireball')
         elif fireballChoice == 'greater':
-            scroll = GameObject(x, y, '~', 'scroll of greater fireball', colors.light_yellow, Item = Item(castFireball, 4, 24, weight = 0.3, stackable = True), blocks = False, pName = 'scrolls of greater fireball')
+            scroll = GameObject(x, y, '~', 'scroll of greater fireball', colors.light_yellow, Item = Item(castFireball, 4, 48, weight = 0.3, stackable = True), blocks = False, pName = 'scrolls of greater fireball')
     elif scrollChoice == 'armageddon':
         scroll = GameObject(x, y, '~', 'scroll of armageddon', colors.red, Item = Item(castArmageddon, weight = 0.3, stackable = True), blocks = False, pName = 'scrolls of armageddon')
     elif scrollChoice == 'ice':
@@ -3081,20 +3081,20 @@ def placeObjects(room):
                 monster = createTroll(x, y)
             
             elif monsterChoice == 'snake':
-                fighterComponent = Fighter(hp = 5, armor = 0, power = 1, xp = 10, deathFunction = monsterDeath, accuracy = 20, evasion = 70)
+                fighterComponent = Fighter(hp = 10, armor = 0, power = 3, xp = 10, deathFunction = monsterDeath, accuracy = 20, evasion = 70)
                 AI_component = FastMonster(2)
                 monster = GameObject(x, y, char = 's', color = colors.light_green, name = 'snake', blocks = True, Fighter = fighterComponent, AI = AI_component)
             
             elif monsterChoice == 'cultist':
-                robeEquipment = Equipment(slot = 'torso', type = 'light armor', maxHP_Bonus = 5, maxMP_Bonus = 5)
+                robeEquipment = Equipment(slot = 'torso', type = 'light armor', maxHP_Bonus = 10, maxMP_Bonus = 10)
                 robe = GameObject(0, 0, '[', 'cultist robe', colors.desaturated_purple, Equipment = robeEquipment, Item=Item(weight = 1.5))
                 
-                knifeEquipment = Equipment(slot = 'one handed', type = 'light weapon', powerBonus = 3, meleeWeapon = True)
+                knifeEquipment = Equipment(slot = 'one handed', type = 'light weapon', powerBonus = 7, meleeWeapon = True)
                 knife = GameObject(0, 0, '-', 'cultist knife', colors.desaturated_azure, Equipment = knifeEquipment, Item=Item(weight = 1.0))
                 
                 spellbook = GameObject(x, y, '=', 'spellbook of arcane rituals', colors.violet, Item = Item(useFunction = learnSpell, arg1 = darkPact, weight = 1.0), blocks = False)
                 
-                fighterComponent = Fighter(hp = 10, armor = 1, power = 3, xp = 30, deathFunction = monsterDeath, accuracy = 18, evasion = 30, lootFunction = [robe, knife, spellbook], lootRate = [60, 20, 7])
+                fighterComponent = Fighter(hp = 20, armor = 2, power = 6, xp = 30, deathFunction = monsterDeath, accuracy = 18, evasion = 30, lootFunction = [robe, knife, spellbook], lootRate = [60, 20, 7])
                 AI_component = BasicMonster()
                 monster = GameObject(x, y, char = 'c', color = colors.dark_crimson, name = 'cultist', blocks = True, Fighter = fighterComponent, AI = AI_component)
 
@@ -3124,7 +3124,7 @@ def placeObjects(room):
             elif itemChoice == 'sword':
                 item = createSword(x, y)
             elif itemChoice == 'shield':
-                equipmentComponent = Equipment(slot = 'one handed', type = 'shield', armorBonus=1)
+                equipmentComponent = Equipment(slot = 'one handed', type = 'shield', armorBonus=3)
                 item = GameObject(x, y, '[', 'shield', colors.darker_orange, Equipment=equipmentComponent, Item=Item(weight = 3.0))
             elif itemChoice == 'spellbook':
                 item = createSpellbook(x, y)
