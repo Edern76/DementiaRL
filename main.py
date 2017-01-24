@@ -1745,7 +1745,7 @@ class Item:
         self.owner.x = player.x
         self.owner.y = player.y
         if self.stackable:
-            message('You dropped ' + str(self.amount) + ' ' + self.owner.name + 's.', colors.yellow)
+            message('You dropped ' + str(self.amount) + ' ' + self.owner.pluralName + '.', colors.yellow)
         else:
             message('You dropped a ' + self.owner.name + '.', colors.yellow)
         if self.owner.Equipment:
@@ -1911,18 +1911,19 @@ def getInput():
 
         while not tdl.event.isWindowClosed():
             window.draw_str(5, 1, player.Player.race + ' ' + player.Player.classes, fg = colors.yellow)
-            window.draw_str(1, 3, 'Experience: ' + str(player.Fighter.xp) + '/' + str(levelUp_xp))
-            window.draw_str(1, 5, 'HP: ' + str(player.Fighter.hp) + '/' + str(player.Fighter.maxHP))
-            window.draw_str(20, 5, 'MP: ' + str(player.Fighter.MP) + '/' + str(player.Fighter.maxMP))
-            window.draw_str(1, 7, 'Armor: ' + str(player.Fighter.armor))
-            window.draw_str(13, 7, 'Accuracy: ' + str(player.Fighter.accuracy))
-            window.draw_str(30, 7, 'Evasion: ' + str(player.Fighter.evasion))
-            window.draw_str(1, 9, 'Strength: ' + str(player.Player.strength + 10))
-            window.draw_str(1, 11, 'Dexterity: ' + str(player.Player.dexterity + 10))
-            window.draw_str(1, 13, 'Vitality: ' + str(player.Player.vitality + 10))
-            window.draw_str(1, 15, 'Willpower: ' + str(player.Player.willpower + 10))
-            window.draw_str(1, 17, 'Current load: ' + str(getAllWeights(player)))
-            window.draw_str(20, 17, 'Max load: ' + str(player.Player.maxWeight))
+            renderBar(window, 1, 3, BAR_WIDTH, 'EXP', player.Fighter.xp, levelUp_xp, colors.desaturated_cyan, colors.dark_gray)
+            renderBar(window, 1, 5, BAR_WIDTH, 'Hunger', player.Player.hunger, BASE_HUNGER, colors.desaturated_lime, colors.dark_gray)
+            window.draw_str(1, 7, 'HP: ' + str(player.Fighter.hp) + '/' + str(player.Fighter.maxHP))
+            window.draw_str(20, 7, 'MP: ' + str(player.Fighter.MP) + '/' + str(player.Fighter.maxMP))
+            window.draw_str(1, 9, 'Armor: ' + str(player.Fighter.armor))
+            window.draw_str(13, 9, 'Accuracy: ' + str(player.Fighter.accuracy))
+            window.draw_str(30, 9, 'Evasion: ' + str(player.Fighter.evasion))
+            window.draw_str(1, 11, 'Strength: ' + str(player.Player.strength + 10))
+            window.draw_str(1, 13, 'Dexterity: ' + str(player.Player.dexterity + 10))
+            window.draw_str(1, 15, 'Vitality: ' + str(player.Player.vitality + 10))
+            window.draw_str(1, 17, 'Willpower: ' + str(player.Player.willpower + 10))
+            window.draw_str(1, 19, 'Current load: ' + str(getAllWeights(player)))
+            window.draw_str(20, 19, 'Max load: ' + str(player.Player.maxWeight))
 
             x = MID_WIDTH - int(width/2)
             y = MID_HEIGHT - int(height/2)
@@ -3376,16 +3377,16 @@ def zombieDeath(monster):
     monster.Fighter = None
 
 #_____________ GUI _______________
-def renderBar(x, y, totalWidth, name, value, maximum, barColor, backColor):
+def renderBar(cons, x, y, totalWidth, name, value, maximum, barColor, backColor):
     barWidth = int(float(value) / maximum * totalWidth) #Width of the bar is proportional to the ratio of the current value over the maximum value
-    panel.draw_rect(x, y, totalWidth, 1, None, bg = backColor)#Background of the bar
+    cons.draw_rect(x, y, totalWidth, 1, None, bg = backColor)#Background of the bar
     
     if barWidth > 0:
-        panel.draw_rect(x, y, barWidth, 1, None, bg = barColor)#The actual bar
+        cons.draw_rect(x, y, barWidth, 1, None, bg = barColor)#The actual bar
         
     text = name + ': ' + str(value) + '/' + str(maximum)
     xCentered = x + (totalWidth - len(text))//2
-    panel.draw_str(xCentered, y, text, fg = colors.white, bg=None)
+    cons.draw_str(xCentered, y, text, fg = colors.white, bg=None)
     
 def message(newMsg, color = colors.white):
     newMsgLines = textwrap.wrap(newMsg, MSG_WIDTH) #If message exceeds log width, split it into two or more lines
@@ -3637,8 +3638,8 @@ def Update():
     # Draw GUI
     #panel.draw_str(1, 3, 'Dungeon level: ' + str(dungeonLevel), colors.white)
     panel.draw_str(1, 5, 'Player level: ' + str(player.level) + ' | Floor: ' + str(dungeonLevel), colors.white)
-    renderBar(1, 1, BAR_WIDTH, 'HP', player.Fighter.hp, player.Fighter.maxHP, player.color, colors.dark_gray)
-    renderBar(1, 3, BAR_WIDTH, 'MP', player.Fighter.MP, player.Fighter.maxMP, colors.blue, colors.dark_gray)
+    renderBar(panel, 1, 1, BAR_WIDTH, 'HP', player.Fighter.hp, player.Fighter.maxHP, player.color, colors.dark_gray)
+    renderBar(panel, 1, 3, BAR_WIDTH, 'MP', player.Fighter.MP, player.Fighter.maxMP, colors.blue, colors.dark_gray)
     # Look code
     if gameState == 'looking' and lookCursor != None:
         global lookCursor
