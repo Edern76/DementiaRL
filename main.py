@@ -3096,7 +3096,7 @@ def placeObjects(room):
                 
                 fighterComponent = Fighter(hp = 20, armor = 2, power = 6, xp = 30, deathFunction = monsterDeath, accuracy = 18, evasion = 30, lootFunction = [robe, knife, spellbook], lootRate = [60, 20, 7])
                 AI_component = BasicMonster()
-                monster = GameObject(x, y, char = 'c', color = colors.dark_crimson, name = 'cultist', blocks = True, Fighter = fighterComponent, AI = AI_component)
+                monster = GameObject(x, y, char = 'c', color = colors.desaturated_purple, name = 'cultist', blocks = True, Fighter = fighterComponent, AI = AI_component)
 
             else:
                 monster = None
