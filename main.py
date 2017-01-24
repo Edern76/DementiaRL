@@ -992,7 +992,7 @@ def closestMonster(max_range):
 
 class GameObject:
     "A generic object, represented by a character"
-    def __init__(self, x, y, char, name, color = colors.white, blocks = False, Fighter = None, AI = None, Player = None, Ghost = False, Item = None, alwaysVisible = False, darkColor = None, Equipment = None):
+    def __init__(self, x, y, char, name, color = colors.white, blocks = False, Fighter = None, AI = None, Player = None, Ghost = False, Item = None, alwaysVisible = False, darkColor = None, Equipment = None, pName = None):
         self.x = x
         self.y = y
         self.char = char
@@ -1020,6 +1020,7 @@ class GameObject:
         self.astarPath = []
         self.lastTargetX = None
         self.lastTargetY = None
+        self.pluralName = pName
 
     def moveTowards(self, target_x, target_y):
         dx = target_x - self.x
@@ -1651,9 +1652,16 @@ class Item:
             itemFound = False
             for item in inventory:
                 if item.name == self.owner.name:
+                    if self.amount == 1:
+                        message('You picked up a' + ' ' + self.owner.name + ' !', colors.green)
+                    elif self.owner.pluralName is None:
+                        message('You picked up ' + str(self.amount) + ' ' + self.owner.name + 's !', colors.green)
+                    else:
+                        message('You picked up ' + str(self.amount) + ' ' + self.owner.pluralName + ' !', colors.green)
                     item.Item.amount += self.amount
                     objects.remove(self.owner)
-                    message('You picked up ' + str(self.amount) + ' ' + self.owner.name + 's !', colors.green)
+                    #if DEBUG:
+                        #print("Amount of " + self.owner.name + " equals " + str(self.amount))
                     itemFound = True
                     break
             if not itemFound:
@@ -1662,7 +1670,12 @@ class Item:
                 #else:
                 inventory.append(self.owner)
                 objects.remove(self.owner)
-                message('You picked up ' + str(self.amount) + ' ' + self.owner.name + 's !', colors.green)
+                if self.amount == 1:
+                    message('You picked up a' + ' ' + self.owner.name + ' !', colors.green)
+                elif self.owner.pluralName is None:
+                    message('You picked up ' + str(self.amount) + ' ' + self.owner.name + 's !', colors.green)
+                else:
+                    message('You picked up ' + str(self.amount) + ' ' + self.owner.pluralName + ' !', colors.green)
 
     def use(self):
         if self.owner.Equipment:
@@ -2977,22 +2990,22 @@ def createScroll(x, y):
     scrollChances = {'lightning': 12, 'confuse': 12, 'fireball': 25, 'armageddon': 10, 'ice': 25, 'none': 1}
     scrollChoice = randomChoice(scrollChances)
     if scrollChoice == 'lightning':
-        scroll = GameObject(x, y, '~', 'scroll of lightning bolt', colors.light_yellow, Item = Item(useFunction = castLightning, weight = 0.3, stackable = True), blocks = False)
+        scroll = GameObject(x, y, '~', 'scroll of lightning bolt', colors.light_yellow, Item = Item(useFunction = castLightning, weight = 0.3, stackable = True), blocks = False, pName = 'scrolls of lightning bolt')
     elif scrollChoice == 'confuse':
-        scroll = GameObject(x, y, '~', 'scroll of confusion', colors.light_yellow, Item = Item(useFunction = castConfuse, weight = 0.3, stackable = True), blocks = False)
+        scroll = GameObject(x, y, '~', 'scroll of confusion', colors.light_yellow, Item = Item(useFunction = castConfuse, weight = 0.3, stackable = True), blocks = False, pName = 'scrolls of confusion')
     elif scrollChoice == 'fireball':
         fireballChances = {'lesser': 20, 'normal': 50, 'greater': 20}
         fireballChoice = randomChoice(fireballChances)
         if fireballChoice == 'lesser':
-            scroll = GameObject(x, y, '~', 'scroll of lesser fireball', colors.light_yellow, Item = Item(castFireball, 2, 6, weight = 0.3, stackable = True), blocks = False)
+            scroll = GameObject(x, y, '~', 'scroll of lesser fireball', colors.light_yellow, Item = Item(castFireball, 2, 6, weight = 0.3, stackable = True), blocks = False, pName = 'scrolls of lesser fireball')
         elif fireballChoice == 'normal':
-            scroll = GameObject(x, y, '~', 'scroll of fireball', colors.light_yellow, Item = Item(castFireball, weight = 0.3, stackable = True), blocks = False)
+            scroll = GameObject(x, y, '~', 'scroll of fireball', colors.light_yellow, Item = Item(castFireball, weight = 0.3, stackable = True), blocks = False, pName = 'scrolls of fireball')
         elif fireballChoice == 'greater':
-            scroll = GameObject(x, y, '~', 'scroll of greater fireball', colors.light_yellow, Item = Item(castFireball, 4, 24, weight = 0.3, stackable = True), blocks = False)
+            scroll = GameObject(x, y, '~', 'scroll of greater fireball', colors.light_yellow, Item = Item(castFireball, 4, 24, weight = 0.3, stackable = True), blocks = False, pName = 'scrolls of greater fireball')
     elif scrollChoice == 'armageddon':
-        scroll = GameObject(x, y, '~', 'scroll of armageddon', colors.red, Item = Item(castArmageddon, weight = 0.3, stackable = True), blocks = False)
+        scroll = GameObject(x, y, '~', 'scroll of armageddon', colors.red, Item = Item(castArmageddon, weight = 0.3, stackable = True), blocks = False, pName = 'scrolls of armageddon')
     elif scrollChoice == 'ice':
-        scroll = GameObject(x, y, '~', 'scroll of ice bolt', colors.light_cyan, Item = Item(castFreeze, weight = 0.3, stackable = True), blocks = False)
+        scroll = GameObject(x, y, '~', 'scroll of ice bolt', colors.light_cyan, Item = Item(castFreeze, weight = 0.3, stackable = True, amount = randint(1, 3)), blocks = False, pName = 'scrolls of ice bolt')
     elif scrollChoice == 'none':
         scroll = None
     return scroll
@@ -3630,7 +3643,13 @@ def GetNamesUnderLookCursor():
         if names[loop].Fighter:
             displayName = names[loop].name + ' (' + names[loop].Fighter.damageText + ')'
         else:
-            displayName = names[loop].name
+            if names[loop].Item and names[loop].Item.stackable and names[loop].Item.amount > 1:
+                if names[loop].pluralName:
+                    displayName = str(names[loop].Item.amount) + ' ' + names[loop].pluralName
+                else:
+                    displayName = str(names[loop].Item.amount) + ' ' + names[loop].name + "s"
+            else:
+                displayName = names[loop].name
         names[loop] = displayName
     names = ', '.join(names)
     return names.capitalize()
