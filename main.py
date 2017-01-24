@@ -97,6 +97,8 @@ FIREBALL_SPELL_BASE_RADIUS = 1
 FIREBALL_SPELL_BASE_RANGE = 4
 
 RESURECTABLE_CORPSES = ["orc", "troll"]
+
+BASE_HUNGER = 300
 # - Spells -
 #_____________ CONSTANTS __________________
 
@@ -1560,7 +1562,7 @@ class FriendlyMonster:
             pass #Implement here code in case the monster is friendly towards another monster
 
 class Player:
-    def __init__(self, strength, dexterity, vitality, willpower, actualPerSkills, levelUpStats, skillsBonus, race, classes, traits):
+    def __init__(self, strength, dexterity, vitality, willpower, actualPerSkills, levelUpStats, skillsBonus, race, classes, traits, baseHunger = BASE_HUNGER):
         self.strength = strength
         self.dexterity = dexterity
         self.vitality = vitality
@@ -1574,6 +1576,8 @@ class Player:
         self.classes = classes
         self.traits = traits
         self.burdened = False
+        self.hunger = baseHunger
+        self.hungerStatus = "full"
         
         if self.race == 'Werewolf':
             self.transformCooldown = 150
@@ -4014,6 +4018,8 @@ def playGame():
                     if object.Fighter.acidifiedCooldown <= 0:
                         object.Fighter.acidified = False
                         object.Fighter.baseArmor = object.Fighter.BASE_ARMOR
+                
+                
             
             for x in range(MAP_WIDTH):
                 for y in range(MAP_HEIGHT):
@@ -4029,6 +4035,30 @@ def playGame():
                     message("You're no longer tired", colors.purple)
             if stairCooldown < 0:
                 stairCooldown = 0
+            
+            player.Player.hunger -= 1
+            if player.Player.hunger > BASE_HUNGER:
+                player.Player.hunger = BASE_HUNGER
+            if player.Player.hunger < 0:
+                player.Player.hunger = 0
+            if player.Player.hunger <= BASE_HUNGER // 10:
+                player.Player.hungerStatus = "starving"
+                player.Fighter.takeDamage(1)
+                message("You're starving !", colors.red)
+            elif player.Player.hunger <= BASE_HUNGER // 2:
+                prevStatus = player.Player.hungerStatus
+                player.Player.hungerStatus = "hungry"
+                if prevStatus == "full":
+                    message("You're starting to feel a little bit hungry.", colors.yellow)
+                elif prevStatus == "starving":
+                    message("You're no longer starving")
+            else:
+                prevStatus = player.Player.hungerStatus
+                player.Player.hungerStatus = "full"
+                if prevStatus != "full":
+                    message("You feel way less hungry")
+                
+            
             
                             
     DEBUG = False
