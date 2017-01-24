@@ -1,0 +1,8 @@
+Referring to "debuff" because this is what we currently need to implement properly, but it could work exactly the same (and even with the same class/list) for buffs.
+
+Create a new buff/debuff class with "Name" and "Color" attributes
+Create instances of these debuffs for each possible debuff.
+Create an activeDebuffs list in the player class.
+
+At each Update() call, check for every possible debuff affecting the player, then add it to the activeDebuffs list. If it was in activeDebuffs but is no longer active, remove it instead.
+Display each debuff using it's name and color. The position of the debuffs depends of the lengths of the names of the other debuffs that are before it in the activeDebuffs list.

@@ -97,6 +97,8 @@ FIREBALL_SPELL_BASE_RADIUS = 1
 FIREBALL_SPELL_BASE_RANGE = 4
 
 RESURECTABLE_CORPSES = ["orc", "troll"]
+
+BASE_HUNGER = 300
 # - Spells -
 #_____________ CONSTANTS __________________
 
@@ -570,7 +572,7 @@ def characterCreation():
                         'Rootlings, also called treants, are rare, sentient plants. They begin their life as a simple twig, but, with time, might become gigantic oaks.',
                         'Werewolves are a martyred and despised race. Very tough to kill, they are naturally stronger than basic humans and uncontrollably shapeshift more or less regularly. However, older werewolves are used to these transformations and can even use them to their interests.',
                         'Devourers are strange, dreaded creatures from another dimension. Few have arrived in ours and even fewer have been described. These animals, half mantis, half lizard, are only born to kill and consume. Some of their breeds can even, after consuming anything - even a weapon - grow an organic replica of it.',
-                        'Viruses are the physically weakest race, but do not base their success on their own bodies. Indeed, they are able to infect another race, making it their host and fully controllable by the virus. However, this take-over is very harmful for the host, who will eventually die. The virus must then find a new host to continue living.']
+                        'Viruses are the physically weakest race, but do not base their success on their own bodies. Indeed, they are able to infect another race, making it their host and fully controllable by the virus. What is more, the virus own physical attributes, instead of applying to it directly, rather modifies the host metabolism, potentially making it stronger or tougher. However, this take-over is very harmful for the host, who will eventually die. The virus must then find a new host to continue living.']
     racesBonus = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], #Human
                   [0, 0, 0, 0, 0, 0, 0, 5, -4, 4, -3], #Minotaur
                   [0, 0, 0, 0, 0, 0, 0, 1, -1, -2, 2], #Insectoid
@@ -992,7 +994,7 @@ def closestMonster(max_range):
 
 class GameObject:
     "A generic object, represented by a character"
-    def __init__(self, x, y, char, name, color = colors.white, blocks = False, Fighter = None, AI = None, Player = None, Ghost = False, Item = None, alwaysVisible = False, darkColor = None, Equipment = None):
+    def __init__(self, x, y, char, name, color = colors.white, blocks = False, Fighter = None, AI = None, Player = None, Ghost = False, Item = None, alwaysVisible = False, darkColor = None, Equipment = None, pName = None):
         self.x = x
         self.y = y
         self.char = char
@@ -1020,6 +1022,7 @@ class GameObject:
         self.astarPath = []
         self.lastTargetX = None
         self.lastTargetY = None
+        self.pluralName = pName
 
     def moveTowards(self, target_x, target_y):
         dx = target_x - self.x
@@ -1559,7 +1562,7 @@ class FriendlyMonster:
             pass #Implement here code in case the monster is friendly towards another monster
 
 class Player:
-    def __init__(self, strength, dexterity, vitality, willpower, actualPerSkills, levelUpStats, skillsBonus, race, classes, traits):
+    def __init__(self, strength, dexterity, vitality, willpower, actualPerSkills, levelUpStats, skillsBonus, race, classes, traits, baseHunger = BASE_HUNGER):
         self.strength = strength
         self.dexterity = dexterity
         self.vitality = vitality
@@ -1573,6 +1576,8 @@ class Player:
         self.classes = classes
         self.traits = traits
         self.burdened = False
+        self.hunger = baseHunger
+        self.hungerStatus = "full"
         
         if self.race == 'Werewolf':
             self.transformCooldown = 150
@@ -1625,7 +1630,7 @@ class Player:
         object.Fighter.MP = object.Fighter.baseMaxMP - mpDiff
 
 class Item:
-    def __init__(self, useFunction = None,  arg1 = None, arg2 = None, arg3 = None, stackable = False, amount = 0, weight = 0):
+    def __init__(self, useFunction = None,  arg1 = None, arg2 = None, arg3 = None, stackable = False, amount = 1, weight = 0):
         self.useFunction = useFunction
         self.arg1 = arg1
         self.arg2 = arg2
@@ -1651,9 +1656,16 @@ class Item:
             itemFound = False
             for item in inventory:
                 if item.name == self.owner.name:
+                    if self.amount == 1:
+                        message('You picked up a' + ' ' + self.owner.name + ' !', colors.green)
+                    elif self.owner.pluralName is None:
+                        message('You picked up ' + str(self.amount) + ' ' + self.owner.name + 's !', colors.green)
+                    else:
+                        message('You picked up ' + str(self.amount) + ' ' + self.owner.pluralName + ' !', colors.green)
                     item.Item.amount += self.amount
                     objects.remove(self.owner)
-                    message('You picked up ' + str(self.amount) + ' ' + self.owner.name + 's !', colors.green)
+                    #if DEBUG:
+                        #print("Amount of " + self.owner.name + " equals " + str(self.amount))
                     itemFound = True
                     break
             if not itemFound:
@@ -1662,7 +1674,12 @@ class Item:
                 #else:
                 inventory.append(self.owner)
                 objects.remove(self.owner)
-                message('You picked up ' + str(self.amount) + ' ' + self.owner.name + 's !', colors.green)
+                if self.amount == 1:
+                    message('You picked up a' + ' ' + self.owner.name + ' !', colors.green)
+                elif self.owner.pluralName is None:
+                    message('You picked up ' + str(self.amount) + ' ' + self.owner.name + 's !', colors.green)
+                else:
+                    message('You picked up ' + str(self.amount) + ' ' + self.owner.pluralName + ' !', colors.green)
 
     def use(self):
         if self.owner.Equipment:
@@ -1674,22 +1691,51 @@ class Item:
         else:
             if self.arg1 is None:
                 if self.useFunction() != 'cancelled':
-                    inventory.remove(self.owner)
+                    if not self.stackable or self.amount == 0:
+                        inventory.remove(self.owner)
+                    else:
+                        self.amount -= 1
+                        if self.amount < 0:
+                            self.amount = 0
+                        if self.amount == 0:
+                            inventory.remove(self.owner)
+                        
                 else:
                     return 'cancelled'
             elif self.arg2 is None and self.arg1 is not None:
                 if self.useFunction(self.arg1) != 'cancelled':
-                    inventory.remove(self.owner)
+                    if not self.stackable or self.amount == 0:
+                        inventory.remove(self.owner)
+                    else:
+                        self.amount -= 1
+                        if self.amount < 0:
+                            self.amount = 0
+                        if self.amount == 0:
+                            inventory.remove(self.owner)
                 else:
                     return 'cancelled'
             elif self.arg3 is None and self.arg2 is not None:
                 if self.useFunction(self.arg1, self.arg2) != 'cancelled':
-                    inventory.remove(self.owner)
+                    if not self.stackable or self.amount == 0:
+                        inventory.remove(self.owner)
+                    else:
+                        self.amount -= 1
+                        if self.amount < 0:
+                            self.amount = 0
+                        if self.amount == 0:
+                            inventory.remove(self.owner)
                 else:
                     return 'cancelled'
             elif self.arg3 is not None:
                 if self.useFunction(self.arg1, self.arg2, self.arg3) != 'cancelled':
-                    inventory.remove(self.owner)
+                    if not self.stackable or self.amount == 0:
+                        inventory.remove(self.owner)
+                    else:
+                        self.amount -= 1
+                        if self.amount < 0:
+                            self.amount = 0
+                        if self.amount == 0:
+                            inventory.remove(self.owner)
                 else:
                     return 'cancelled'
                 
@@ -2014,7 +2060,7 @@ def getInput():
             return 'didnt-take-turn'
     FOV_recompute = True
 
-def projectile(sourceX, sourceY, destX, destY, char, color, continues = False, passesThrough = False):
+def projectile(sourceX, sourceY, destX, destY, char, color, continues = False, passesThrough = False, ghost = False):
     line = tdl.map.bresenham(sourceX, sourceY, destX, destY)
     (firstX, firstY)= line[1]
     inclX = firstX - sourceX
@@ -2040,7 +2086,7 @@ def projectile(sourceX, sourceY, destX, destY, char, color, continues = False, p
         (x, y) = line.pop(0)
         proj.x, proj.y = x, y
         animStep(.050)
-        if isBlocked(x, y) and not passesThrough:
+        if isBlocked(x, y) and (not passesThrough or myMap[x][y].blocked) and not ghost:
             objects.remove(proj)
             return (x,y)
             break
@@ -2064,9 +2110,16 @@ def projectile(sourceX, sourceY, destX, destY, char, color, continues = False, p
                     break
             dx = newX - startX
             dy = newY - startY
-        print("Your arrow flies far away from your sight.")
-        message("Your arrow flies far away from your sight.")
-
+        print("Projectile out of range")
+        #message("Your arrow flies far away from your sight.")
+        return (None, None)
+        
+def satiateHunger(amount, name = None):
+    player.Player.hunger += amount
+    if player.Player.hunger > BASE_HUNGER:
+        player.Player.hunger = BASE_HUNGER
+    if name:
+        message("You eat " + name +".")
 def checkDiagonals(monster, target):
     diagonals = [(1,1), (1, -1), (-1, 1), (-1, -1)]
     sameX = monster.x == target.x
@@ -2122,36 +2175,39 @@ def shoot():
                                 (targetX, targetY) = projectile(player.x, player.y, aimX, aimY, '/', colors.light_orange, continues=True)
                                 FOV_recompute = True
                                 monsterTarget = None
-                                for thing in objects:
-                                    if thing.Fighter and thing.Fighter.hp > 0 and thing.x == targetX and thing.y == targetY:
-                                        monsterTarget = thing
-                                        break
-                                if monsterTarget:
-                                    [hit, criticalHit] = player.Fighter.toHit(monsterTarget)
-                                    if hit:
-                                        if player.Player.traits[0]:
-                                            damage = weapon.Equipment.rangedPower + 4 - monsterTarget.Fighter.armor
-                                        else:
-                                            damage = weapon.Equipment.rangedPower - monsterTarget.Fighter.armor
-    
-                                        if damage <= 0:
-                                            message('You hit ' + monsterTarget.name + ' but it has no effect !')
-                                        else:
-                                            if criticalHit:
-                                                damage = damage * 3
-                                                message('You critically hit ' + monsterTarget.name + ' for ' + str(damage) + ' damage !', colors.darker_green)
+                                if targetX is not None and targetY is not None:
+                                    for thing in objects:
+                                        if thing.Fighter and thing.Fighter.hp > 0 and thing.x == targetX and thing.y == targetY:
+                                            monsterTarget = thing
+                                            break
+                                    if monsterTarget:
+                                        [hit, criticalHit] = player.Fighter.toHit(monsterTarget)
+                                        if hit:
+                                            if player.Player.traits[0]:
+                                                damage = weapon.Equipment.rangedPower + 4 - monsterTarget.Fighter.armor
                                             else:
-                                                message('You hit ' + monsterTarget.name + ' for ' + str(damage) + ' damage !', colors.dark_green)
-                                            monsterTarget.Fighter.takeDamage(damage)
+                                                damage = weapon.Equipment.rangedPower - monsterTarget.Fighter.armor
+        
+                                            if damage <= 0:
+                                                message('You hit ' + monsterTarget.name + ' but it has no effect !')
+                                            else:
+                                                if criticalHit:
+                                                    damage = damage * 3
+                                                    message('You critically hit ' + monsterTarget.name + ' for ' + str(damage) + ' damage !', colors.darker_green)
+                                                else:
+                                                    message('You hit ' + monsterTarget.name + ' for ' + str(damage) + ' damage !', colors.dark_green)
+                                                monsterTarget.Fighter.takeDamage(damage)
+                                        else:
+                                            message('You missed ' + monsterTarget.name + '!', colors.grey)
                                     else:
-                                        message('You missed ' + monsterTarget.name + '!', colors.grey)
+                                        message("Your arrow didn't hit anything", colors.grey)
                                 else:
                                     message("Your arrow didn't hit anything", colors.grey)
-                            object.Item.amount -= 1
-                            foundAmmo = True
-                            if object.Item.amount <= 0:
-                                inventory.remove(object)
-                            break
+                                object.Item.amount -= 1
+                                foundAmmo = True
+                                if object.Item.amount <= 0:
+                                    inventory.remove(object)
+                                break
                     if not foundAmmo:
                         message('You have no ammunition for your ' + weapon.name + ' !', colors.red)
                         return 'didnt-take-turn'
@@ -2904,7 +2960,7 @@ def placeBoss(name, x, y):
 
 #_____________ ROOM POPULATION + ITEMS GENERATION_______________
 monsterChances = {'orc': 60, 'troll': 20, 'snake': 5, 'cultist': 15}
-itemChances = {'potion': 35, 'scroll': 26, 'sword': 7, 'shield': 7, 'spellbook': 25}
+itemChances = {'potion': 350, 'scroll': 260, 'sword': 70, 'shield': 70, 'spellbook': 70, 'food': 180}
 potionChances = {'heal': 70, 'mana': 30}
 
 def createSword(x, y):
@@ -2943,22 +2999,22 @@ def createScroll(x, y):
     scrollChances = {'lightning': 12, 'confuse': 12, 'fireball': 25, 'armageddon': 10, 'ice': 25, 'none': 1}
     scrollChoice = randomChoice(scrollChances)
     if scrollChoice == 'lightning':
-        scroll = GameObject(x, y, '~', 'scroll of lightning bolt', colors.light_yellow, Item = Item(useFunction = castLightning, weight = 0.3), blocks = False)
+        scroll = GameObject(x, y, '~', 'scroll of lightning bolt', colors.light_yellow, Item = Item(useFunction = castLightning, weight = 0.3, stackable = True), blocks = False, pName = 'scrolls of lightning bolt')
     elif scrollChoice == 'confuse':
-        scroll = GameObject(x, y, '~', 'scroll of confusion', colors.light_yellow, Item = Item(useFunction = castConfuse, weight = 0.3), blocks = False)
+        scroll = GameObject(x, y, '~', 'scroll of confusion', colors.light_yellow, Item = Item(useFunction = castConfuse, weight = 0.3, stackable = True), blocks = False, pName = 'scrolls of confusion')
     elif scrollChoice == 'fireball':
         fireballChances = {'lesser': 20, 'normal': 50, 'greater': 20}
         fireballChoice = randomChoice(fireballChances)
         if fireballChoice == 'lesser':
-            scroll = GameObject(x, y, '~', 'scroll of lesser fireball', colors.light_yellow, Item = Item(castFireball, 2, 6, weight = 0.3), blocks = False)
+            scroll = GameObject(x, y, '~', 'scroll of lesser fireball', colors.light_yellow, Item = Item(castFireball, 2, 6, weight = 0.3, stackable = True), blocks = False, pName = 'scrolls of lesser fireball')
         elif fireballChoice == 'normal':
-            scroll = GameObject(x, y, '~', 'scroll of fireball', colors.light_yellow, Item = Item(castFireball, weight = 0.3), blocks = False)
+            scroll = GameObject(x, y, '~', 'scroll of fireball', colors.light_yellow, Item = Item(castFireball, weight = 0.3, stackable = True), blocks = False, pName = 'scrolls of fireball')
         elif fireballChoice == 'greater':
-            scroll = GameObject(x, y, '~', 'scroll of greater fireball', colors.light_yellow, Item = Item(castFireball, 4, 24, weight = 0.3), blocks = False)
+            scroll = GameObject(x, y, '~', 'scroll of greater fireball', colors.light_yellow, Item = Item(castFireball, 4, 24, weight = 0.3, stackable = True), blocks = False, pName = 'scrolls of greater fireball')
     elif scrollChoice == 'armageddon':
-        scroll = GameObject(x, y, '~', 'scroll of armageddon', colors.red, Item = Item(castArmageddon, weight = 0.3), blocks = False)
+        scroll = GameObject(x, y, '~', 'scroll of armageddon', colors.red, Item = Item(castArmageddon, weight = 0.3, stackable = True), blocks = False, pName = 'scrolls of armageddon')
     elif scrollChoice == 'ice':
-        scroll = GameObject(x, y, '~', 'scroll of ice bolt', colors.light_cyan, Item = Item(castFreeze, weight = 0.3), blocks = False)
+        scroll = GameObject(x, y, '~', 'scroll of ice bolt', colors.light_cyan, Item = Item(castFreeze, weight = 0.3, stackable = True, amount = randint(1, 3)), blocks = False, pName = 'scrolls of ice bolt')
     elif scrollChoice == 'none':
         scroll = None
     return scroll
@@ -3057,9 +3113,9 @@ def placeObjects(room):
             if itemChoice == 'potion':
                 potionChoice = randomChoice(potionChances)
                 if potionChoice == 'heal':
-                    item = GameObject(x, y, '!', 'healing potion', colors.violet, Item = Item(useFunction = castHeal, weight = 0.4), blocks = False)
+                    item = GameObject(x, y, '!', 'healing potion', colors.violet, Item = Item(useFunction = castHeal, weight = 0.4, stackable=True), blocks = False)
                 if potionChoice == 'mana':
-                    item = GameObject(x, y, '!', 'mana regeneration potion', colors.blue, Item = Item(useFunction = castRegenMana, arg1 = 10, weight = 0.4), blocks = False)
+                    item = GameObject(x, y, '!', 'mana regeneration potion', colors.blue, Item = Item(useFunction = castRegenMana, arg1 = 10, weight = 0.4, stackable = True), blocks = False)
             elif itemChoice == 'scroll':
                 item = createScroll(x, y)
             elif itemChoice == 'none':
@@ -3071,6 +3127,8 @@ def placeObjects(room):
                 item = GameObject(x, y, '[', 'shield', colors.darker_orange, Equipment=equipmentComponent, Item=Item(weight = 3.0))
             elif itemChoice == 'spellbook':
                 item = createSpellbook(x, y)
+            elif itemChoice == "food":
+                item = GameObject(x, y, ',', "slice of bread", colors.yellow, Item = Item(useFunction=satiateHunger, arg1 = 50, arg2 = "a slice of bread", weight = 0.2, stackable=True), blocks = False, pName = "slices of bread") #50 regen might be a little overkill (or maybe not, needs playtesting). Also, ',' is the symbol that Angband uses for food, so I used it too.
             else:
                 item = None
             if item is not None:            
@@ -3596,7 +3654,13 @@ def GetNamesUnderLookCursor():
         if names[loop].Fighter:
             displayName = names[loop].name + ' (' + names[loop].Fighter.damageText + ')'
         else:
-            displayName = names[loop].name
+            if names[loop].Item and names[loop].Item.stackable and names[loop].Item.amount > 1:
+                if names[loop].pluralName:
+                    displayName = str(names[loop].Item.amount) + ' ' + names[loop].pluralName
+                else:
+                    displayName = str(names[loop].Item.amount) + ' ' + names[loop].name + "s"
+            else:
+                displayName = names[loop].name
         names[loop] = displayName
     names = ', '.join(names)
     return names.capitalize()
@@ -3961,6 +4025,8 @@ def playGame():
                     if object.Fighter.acidifiedCooldown <= 0:
                         object.Fighter.acidified = False
                         object.Fighter.baseArmor = object.Fighter.BASE_ARMOR
+                
+                
             
             for x in range(MAP_WIDTH):
                 for y in range(MAP_HEIGHT):
@@ -3976,6 +4042,30 @@ def playGame():
                     message("You're no longer tired", colors.purple)
             if stairCooldown < 0:
                 stairCooldown = 0
+            
+            player.Player.hunger -= 1
+            if player.Player.hunger > BASE_HUNGER:
+                player.Player.hunger = BASE_HUNGER
+            if player.Player.hunger < 0:
+                player.Player.hunger = 0
+            if player.Player.hunger <= BASE_HUNGER // 10:
+                player.Player.hungerStatus = "starving"
+                player.Fighter.takeDamage(1)
+                message("You're starving !", colors.red)
+            elif player.Player.hunger <= BASE_HUNGER // 2:
+                prevStatus = player.Player.hungerStatus
+                player.Player.hungerStatus = "hungry"
+                if prevStatus == "full":
+                    message("You're starting to feel a little bit hungry.", colors.yellow)
+                elif prevStatus == "starving":
+                    message("You're no longer starving")
+            else:
+                prevStatus = player.Player.hungerStatus
+                player.Player.hungerStatus = "full"
+                if prevStatus != "full":
+                    message("You feel way less hungry")
+                
+            
             
                             
     DEBUG = False
