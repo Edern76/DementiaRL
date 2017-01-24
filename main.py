@@ -2114,7 +2114,12 @@ def projectile(sourceX, sourceY, destX, destY, char, color, continues = False, p
         #message("Your arrow flies far away from your sight.")
         return (None, None)
         
-
+def satiateHunger(amount, name = None):
+    player.Player.hunger += amount
+    if player.Player.hunger > BASE_HUNGER:
+        player.Player.hunger = BASE_HUNGER
+    if name:
+        message("You eat " + name +".")
 def checkDiagonals(monster, target):
     diagonals = [(1,1), (1, -1), (-1, 1), (-1, -1)]
     sameX = monster.x == target.x
@@ -2955,7 +2960,7 @@ def placeBoss(name, x, y):
 
 #_____________ ROOM POPULATION + ITEMS GENERATION_______________
 monsterChances = {'orc': 60, 'troll': 20, 'snake': 5, 'cultist': 15}
-itemChances = {'potion': 35, 'scroll': 26, 'sword': 7, 'shield': 7, 'spellbook': 25}
+itemChances = {'potion': 350, 'scroll': 260, 'sword': 70, 'shield': 70, 'spellbook': 70, 'food': 180}
 potionChances = {'heal': 70, 'mana': 30}
 
 def createSword(x, y):
@@ -3122,6 +3127,8 @@ def placeObjects(room):
                 item = GameObject(x, y, '[', 'shield', colors.darker_orange, Equipment=equipmentComponent, Item=Item(weight = 3.0))
             elif itemChoice == 'spellbook':
                 item = createSpellbook(x, y)
+            elif itemChoice == "food":
+                item = GameObject(x, y, ',', "slice of bread", colors.yellow, Item = Item(useFunction=satiateHunger, arg1 = 50, arg2 = "a slice of bread", weight = 0.2, stackable=True), blocks = False, pName = "slices of bread") #50 regen might be a little overkill (or maybe not, needs playtesting). Also, ',' is the symbol that Angband uses for food, so I used it too.
             else:
                 item = None
             if item is not None:            
