@@ -3113,9 +3113,9 @@ def placeObjects(room):
             if itemChoice == 'potion':
                 potionChoice = randomChoice(potionChances)
                 if potionChoice == 'heal':
-                    item = GameObject(x, y, '!', 'healing potion', colors.violet, Item = Item(useFunction = castHeal, weight = 0.4), blocks = False)
+                    item = GameObject(x, y, '!', 'healing potion', colors.violet, Item = Item(useFunction = castHeal, weight = 0.4, stackable=True), blocks = False)
                 if potionChoice == 'mana':
-                    item = GameObject(x, y, '!', 'mana regeneration potion', colors.blue, Item = Item(useFunction = castRegenMana, arg1 = 10, weight = 0.4), blocks = False)
+                    item = GameObject(x, y, '!', 'mana regeneration potion', colors.blue, Item = Item(useFunction = castRegenMana, arg1 = 10, weight = 0.4, stackable = True), blocks = False)
             elif itemChoice == 'scroll':
                 item = createScroll(x, y)
             elif itemChoice == 'none':
