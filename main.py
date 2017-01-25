@@ -3,6 +3,7 @@ from tdl import *
 from random import randint
 from math import *
 from os import makedirs
+from astropy.wcs.docstrings import name
 
 # Naming conventions :
 # MY_CONSTANT
@@ -66,7 +67,7 @@ CHARACTER_SCREEN_HEIGHT = 20
 # - GUI Constants -
 
 # - Consoles -
-root = tdl.init(WIDTH, HEIGHT, 'Dementia (Temporary Name) | Prototype')
+root = tdl.init(WIDTH, HEIGHT, 'Dementia')
 con = tdl.Console(WIDTH, HEIGHT)
 panel = tdl.Console(WIDTH, PANEL_HEIGHT)
 # - Consoles
@@ -978,6 +979,28 @@ def characterCreation():
             index = 0
         if index < 0:
             index = maxIndex
+    
+def enterName(race):
+    letters = []
+    while not tdl.event.isWindowClosed():
+        text = '_'
+        name = ''
+        for letter in letters:
+            name += letter
+        text = name + '_'
+
+        root.clear()
+        drawCentered(cons =  root, y = 25, text = 'What is your name, ' + race + ' hero ?', fg = colors.white, bg = None)
+        drawCentered(cons = root, y = 30, text = text, fg = colors.white, bg = None)
+        tdl.flush()
+        
+        key = tdl.event.key_wait()
+        if key.keychar.upper()== 'ENTER':
+            return name.capitalize()
+        elif key.keychar in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ":
+            letters.append(key.keychar)
+        elif key.keychar.upper() == 'BACKSPACE':
+            letters.pop()
 #______________CHARACTER GENERATION____________
 
 def closestMonster(max_range):
@@ -1562,7 +1585,8 @@ class FriendlyMonster:
             pass #Implement here code in case the monster is friendly towards another monster
 
 class Player:
-    def __init__(self, strength, dexterity, vitality, willpower, actualPerSkills, levelUpStats, skillsBonus, race, classes, traits, baseHunger = BASE_HUNGER):
+    def __init__(self, name, strength, dexterity, vitality, willpower, actualPerSkills, levelUpStats, skillsBonus, race, classes, traits, baseHunger = BASE_HUNGER):
+        self.name = name
         self.strength = strength
         self.dexterity = dexterity
         self.vitality = vitality
@@ -3514,12 +3538,13 @@ def mainMenu():
             if index == 0:
                 (playerComponent, levelUpStats, actualPerSkills, skillsBonus, startingSpells, chosenRace, chosenClass, chosenTraits) = characterCreation()
                 if playerComponent != 'cancelled':
-                    playComp = Player(playerComponent[7], playerComponent[8], playerComponent[9], playerComponent[10], actualPerSkills, levelUpStats, skillsBonus, chosenRace, chosenClass, chosenTraits)
+                    name = enterName(chosenRace)
+                    playComp = Player(name, playerComponent[7], playerComponent[8], playerComponent[9], playerComponent[10], actualPerSkills, levelUpStats, skillsBonus, chosenRace, chosenClass, chosenTraits)
                     playFight = Fighter(hp = playerComponent[4], power= playerComponent[0], armor= playerComponent[3], deathFunction=playerDeath, xp=0, evasion = playerComponent[2], accuracy = playerComponent[1], maxMP= playerComponent[5], knownSpells=startingSpells, critical = playerComponent[6])
-                    player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = 'Hero', color = (0, 210, 0))
+                    player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = name, color = (0, 210, 0))
                     player.level = 1
                     player.Player.updatePlayerStats()
-                    
+
                     newGame()
                     playGame()
                 else:
