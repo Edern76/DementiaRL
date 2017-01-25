@@ -2138,7 +2138,6 @@ def checkDiagonals(monster, target):
     return None
 
 def moveOrAttack(dx, dy):
-    global FOV_recompute
     x = player.x + dx
     y = player.y + dy
     
@@ -2155,7 +2154,8 @@ def moveOrAttack(dx, dy):
         if not player.Player.burdened:
             player.move(dx, dy)
 
-def shoot(): 
+def shoot():
+    global FOV_recompute
     weapons = getEquippedInHands()
     if weapons is not None:
         for weapon in weapons:
