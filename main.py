@@ -2483,6 +2483,23 @@ def createHiroshiman(x, y):
     else:
         return 'cancelled'
 
+def createCultist(x,y):
+    if x != player.x or y != player.y:
+        robeEquipment = Equipment(slot = 'torso', type = 'light armor', maxHP_Bonus = 10, maxMP_Bonus = 10)
+        robe = GameObject(0, 0, '[', 'cultist robe', colors.desaturated_purple, Equipment = robeEquipment, Item=Item(weight = 1.5))
+        
+        knifeEquipment = Equipment(slot = 'one handed', type = 'light weapon', powerBonus = 7, meleeWeapon = True)
+        knife = GameObject(0, 0, '-', 'cultist knife', colors.desaturated_azure, Equipment = knifeEquipment, Item=Item(weight = 1.0))
+        
+        spellbook = GameObject(x, y, '=', 'spellbook of arcane rituals', colors.violet, Item = Item(useFunction = learnSpell, arg1 = darkPact, weight = 1.0), blocks = False)
+        
+        fighterComponent = Fighter(hp = 20, armor = 2, power = 6, xp = 30, deathFunction = monsterDeath, accuracy = 18, evasion = 30, lootFunction = [robe, knife, spellbook], lootRate = [60, 20, 7])
+        AI_component = BasicMonster()
+        monster = GameObject(x, y, char = 'c', color = colors.desaturated_purple, name = 'cultist', blocks = True, Fighter = fighterComponent, AI = AI_component)
+        return monster
+    else:
+        return 'cancelled'
+
 def castCreateOrc(friendly = False):
     target = targetTile()
     if target == 'cancelled':
@@ -3086,18 +3103,7 @@ def placeObjects(room):
                 monster = GameObject(x, y, char = 's', color = colors.light_green, name = 'snake', blocks = True, Fighter = fighterComponent, AI = AI_component)
             
             elif monsterChoice == 'cultist':
-                robeEquipment = Equipment(slot = 'torso', type = 'light armor', maxHP_Bonus = 10, maxMP_Bonus = 10)
-                robe = GameObject(0, 0, '[', 'cultist robe', colors.desaturated_purple, Equipment = robeEquipment, Item=Item(weight = 1.5))
-                
-                knifeEquipment = Equipment(slot = 'one handed', type = 'light weapon', powerBonus = 7, meleeWeapon = True)
-                knife = GameObject(0, 0, '-', 'cultist knife', colors.desaturated_azure, Equipment = knifeEquipment, Item=Item(weight = 1.0))
-                
-                spellbook = GameObject(x, y, '=', 'spellbook of arcane rituals', colors.violet, Item = Item(useFunction = learnSpell, arg1 = darkPact, weight = 1.0), blocks = False)
-                
-                fighterComponent = Fighter(hp = 20, armor = 2, power = 6, xp = 30, deathFunction = monsterDeath, accuracy = 18, evasion = 30, lootFunction = [robe, knife, spellbook], lootRate = [60, 20, 7])
-                AI_component = BasicMonster()
-                monster = GameObject(x, y, char = 'c', color = colors.desaturated_purple, name = 'cultist', blocks = True, Fighter = fighterComponent, AI = AI_component)
-
+                monster = createCultist(x, y)
             else:
                 monster = None
 
