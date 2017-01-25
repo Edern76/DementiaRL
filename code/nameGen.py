@@ -83,4 +83,3 @@ if __name__ == "__main__":
     for loop in range(10):
         print(humanLike(8))
             
-#WIP
