@@ -2500,6 +2500,15 @@ def createCultist(x,y):
     else:
         return 'cancelled'
 
+def createSnake(x, y):
+    if x!= player.x or y != player.y:
+        fighterComponent = Fighter(hp = 10, armor = 0, power = 3, xp = 10, deathFunction = monsterDeath, accuracy = 20, evasion = 70)
+        AI_component = FastMonster(2)
+        monster = GameObject(x, y, char = 's', color = colors.light_green, name = 'snake', blocks = True, Fighter = fighterComponent, AI = AI_component)
+        return monster
+    else:
+        return 'cancelled'
+
 def castCreateOrc(friendly = False):
     target = targetTile()
     if target == 'cancelled':
@@ -3098,9 +3107,7 @@ def placeObjects(room):
                 monster = createTroll(x, y)
             
             elif monsterChoice == 'snake':
-                fighterComponent = Fighter(hp = 10, armor = 0, power = 3, xp = 10, deathFunction = monsterDeath, accuracy = 20, evasion = 70)
-                AI_component = FastMonster(2)
-                monster = GameObject(x, y, char = 's', color = colors.light_green, name = 'snake', blocks = True, Fighter = fighterComponent, AI = AI_component)
+                monster = createSnake(x, y)
             
             elif monsterChoice == 'cultist':
                 monster = createCultist(x, y)
