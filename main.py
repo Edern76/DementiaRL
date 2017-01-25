@@ -1,8 +1,9 @@
-import tdl, colors, math, textwrap, time, os, shelve, sys
+import tdl, colors, math, textwrap, time, os, shelve, sys, code
 from tdl import *
 from random import randint
 from math import *
 from os import makedirs
+import code.nameGen as nameGen
 
 # Naming conventions :
 # MY_CONSTANT
@@ -2978,6 +2979,7 @@ def createSpellbook(x, y):
     elif spellbookChoice == 'none':
         spellbook = None
     return spellbook
+
 def createOrc(x, y, friendly = False, corpse = False):
     if x != player.x or y != player.y:
         if not corpse:
@@ -3054,6 +3056,26 @@ def createCultist(x,y):
     else:
         return 'cancelled'
 
+def createHighCultist(x, y):
+    if x != player.x or y != player.y:
+        robeEquipment = Equipment(slot = 'torso', type = 'light armor', maxHP_Bonus = 15, maxMP_Bonus = 20)
+        robe = GameObject(0, 0, '[', 'high cultist robe', colors.desaturated_purple, Equipment = robeEquipment, Item=Item(weight = 1.5))
+        
+        flailEquipment = Equipment(slot = 'one handed', type = 'heavy weapon', powerBonus = 14, meleeWeapon = True)
+        flail = GameObject(0, 0, '/', 'bloodsteel flail', colors.red, Equipment=flailEquipment, Item=Item(weight=5.5))
+        
+        spellbook = GameObject(x, y, '=', 'spellbook of arcane rituals', colors.violet, Item = Item(useFunction = learnSpell, arg1 = darkPact, weight = 1.0), blocks = False)
+        
+        fighterComponent = Fighter(hp = 50, armor = 2, power = 16, xp = 80, deathFunction = monsterDeath, accuracy = 25, evasion = 30, lootFunction = [robe, flail, spellbook], lootRate = [60, 20, 15])
+        AI_component = BasicMonster()
+        name = nameGen.humanLike()
+        actualName = name + ' the high cultist'
+        monster = GameObject(x, y, char = 'c', color = colors.dark_red, name = actualName, blocks = True, Fighter = fighterComponent, AI = AI_component)
+        return monster
+    else:
+        return 'cancelled'
+        
+        
 def createSnake(x, y):
     if x!= player.x or y != player.y:
         fighterComponent = Fighter(hp = 10, armor = 0, power = 3, xp = 10, deathFunction = monsterDeath, accuracy = 20, evasion = 70)
