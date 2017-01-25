@@ -2423,91 +2423,7 @@ def monsterArmageddon(monsterName ,monsterX, monsterY, radius = 4, damage = 40, 
     explode()
 
 # Add push monster spell (create an invisble projectile that pass through a monster, when the said projectile hits a wall, teleport monster to the projectile position and deal X damage to the said monster.)
-    
-def createOrc(x, y, friendly = False, corpse = False):
-    if x != player.x or y != player.y:
-        if not corpse:
-            equipmentComponent = Equipment(slot='head', type = 'armor', armorBonus = 2)
-            orcHelmet = GameObject(x = None, y = None, char = '[', name = 'orc helmet', color = colors.brass, Equipment = equipmentComponent, Item = Item(weight = 2.5))
-            lootOnDeath = [orcHelmet]
-            deathType = monsterDeath
-            orcName = "orc"
-            color = colors.desaturated_green
-        else:
-            orcName = "orc skeleton"
-            deathType = zombieDeath
-            lootOnDeath = None
-            color = colors.lighter_gray
-        if not friendly:
-            AI_component = BasicMonster()
-        else:
-            AI_component = FriendlyMonster(friendlyTowards = player)
-        fighterComponent = Fighter(hp=30, armor=1, power=6, xp = 35, deathFunction = deathType, evasion = 25, accuracy = 10, lootFunction = lootOnDeath, lootRate = [30])
-        monster = GameObject(x, y, char = 'o', color = color, name = orcName, blocks = True, Fighter=fighterComponent, AI = AI_component)
-        return monster
-    else:
-        return 'cancelled'
 
-def createTroll(x, y, friendly = False, corpse = False):
-    if x != player.x or y != player.y:
-        if not corpse:
-            equipmentComponent = Equipment(slot = 'two handed', type = 'heavy weapon', powerBonus = 15, accuracyBonus = -20, meleeWeapon=True)
-            trollMace = GameObject(x, y, '/', 'troll mace', colors.darker_orange, Equipment=equipmentComponent, Item=Item(weight = 13.0))
-            lootOnDeath = [trollMace]
-            deathType = monsterDeath
-            monName = "troll"
-            color = colors.darker_green
-        else:
-            monName = "troll skeleton"
-            deathType = zombieDeath
-            lootOnDeath = None
-            color = colors.lighter_grey
-        if not friendly:
-            AI_component = BasicMonster()
-        else:
-            AI_component = FriendlyMonster(friendlyTowards = player)
-        fighterComponent = Fighter(hp=40, armor=4, power=8, xp = 100, deathFunction = deathType, accuracy = 7, evasion = 1, lootFunction=lootOnDeath, lootRate=[15])
-        monster = GameObject(x, y, char = 'T', color = color, name = monName, blocks = True, Fighter=fighterComponent, AI = AI_component)
-        return monster
-    else:
-        if corpse:
-            message("You briefly feel something moving beneath your feet...")
-        return 'cancelled'
-    
-def createHiroshiman(x, y):
-    if x != player.x or y != player.y:
-        fighterComponent = Fighter(hp=300, armor=0, power=6, xp = 500, deathFunction = monsterDeath, accuracy = 0, evasion = 1)
-        AI_component = SplosionAI()
-        monster = GameObject(x, y, char = 'H', color = colors.red, name = 'Hiroshiman', blocks = True, Fighter=fighterComponent, AI = AI_component)
-        return monster
-    else:
-        return 'cancelled'
-
-def createCultist(x,y):
-    if x != player.x or y != player.y:
-        robeEquipment = Equipment(slot = 'torso', type = 'light armor', maxHP_Bonus = 10, maxMP_Bonus = 10)
-        robe = GameObject(0, 0, '[', 'cultist robe', colors.desaturated_purple, Equipment = robeEquipment, Item=Item(weight = 1.5))
-        
-        knifeEquipment = Equipment(slot = 'one handed', type = 'light weapon', powerBonus = 7, meleeWeapon = True)
-        knife = GameObject(0, 0, '-', 'cultist knife', colors.desaturated_azure, Equipment = knifeEquipment, Item=Item(weight = 1.0))
-        
-        spellbook = GameObject(x, y, '=', 'spellbook of arcane rituals', colors.violet, Item = Item(useFunction = learnSpell, arg1 = darkPact, weight = 1.0), blocks = False)
-        
-        fighterComponent = Fighter(hp = 20, armor = 2, power = 6, xp = 30, deathFunction = monsterDeath, accuracy = 18, evasion = 30, lootFunction = [robe, knife, spellbook], lootRate = [60, 20, 7])
-        AI_component = BasicMonster()
-        monster = GameObject(x, y, char = 'c', color = colors.desaturated_purple, name = 'cultist', blocks = True, Fighter = fighterComponent, AI = AI_component)
-        return monster
-    else:
-        return 'cancelled'
-
-def createSnake(x, y):
-    if x!= player.x or y != player.y:
-        fighterComponent = Fighter(hp = 10, armor = 0, power = 3, xp = 10, deathFunction = monsterDeath, accuracy = 20, evasion = 70)
-        AI_component = FastMonster(2)
-        monster = GameObject(x, y, char = 's', color = colors.light_green, name = 'snake', blocks = True, Fighter = fighterComponent, AI = AI_component)
-        return monster
-    else:
-        return 'cancelled'
 
 def castCreateOrc(friendly = False):
     target = targetTile()
@@ -3062,6 +2978,90 @@ def createSpellbook(x, y):
     elif spellbookChoice == 'none':
         spellbook = None
     return spellbook
+def createOrc(x, y, friendly = False, corpse = False):
+    if x != player.x or y != player.y:
+        if not corpse:
+            equipmentComponent = Equipment(slot='head', type = 'armor', armorBonus = 2)
+            orcHelmet = GameObject(x = None, y = None, char = '[', name = 'orc helmet', color = colors.brass, Equipment = equipmentComponent, Item = Item(weight = 2.5))
+            lootOnDeath = [orcHelmet]
+            deathType = monsterDeath
+            orcName = "orc"
+            color = colors.desaturated_green
+        else:
+            orcName = "orc skeleton"
+            deathType = zombieDeath
+            lootOnDeath = None
+            color = colors.lighter_gray
+        if not friendly:
+            AI_component = BasicMonster()
+        else:
+            AI_component = FriendlyMonster(friendlyTowards = player)
+        fighterComponent = Fighter(hp=30, armor=1, power=6, xp = 35, deathFunction = deathType, evasion = 25, accuracy = 10, lootFunction = lootOnDeath, lootRate = [30])
+        monster = GameObject(x, y, char = 'o', color = color, name = orcName, blocks = True, Fighter=fighterComponent, AI = AI_component)
+        return monster
+    else:
+        return 'cancelled'
+
+def createTroll(x, y, friendly = False, corpse = False):
+    if x != player.x or y != player.y:
+        if not corpse:
+            equipmentComponent = Equipment(slot = 'two handed', type = 'heavy weapon', powerBonus = 15, accuracyBonus = -20, meleeWeapon=True)
+            trollMace = GameObject(x, y, '/', 'troll mace', colors.darker_orange, Equipment=equipmentComponent, Item=Item(weight = 13.0))
+            lootOnDeath = [trollMace]
+            deathType = monsterDeath
+            monName = "troll"
+            color = colors.darker_green
+        else:
+            monName = "troll skeleton"
+            deathType = zombieDeath
+            lootOnDeath = None
+            color = colors.lighter_grey
+        if not friendly:
+            AI_component = BasicMonster()
+        else:
+            AI_component = FriendlyMonster(friendlyTowards = player)
+        fighterComponent = Fighter(hp=40, armor=4, power=8, xp = 100, deathFunction = deathType, accuracy = 7, evasion = 1, lootFunction=lootOnDeath, lootRate=[15])
+        monster = GameObject(x, y, char = 'T', color = color, name = monName, blocks = True, Fighter=fighterComponent, AI = AI_component)
+        return monster
+    else:
+        if corpse:
+            message("You briefly feel something moving beneath your feet...")
+        return 'cancelled'
+    
+def createHiroshiman(x, y):
+    if x != player.x or y != player.y:
+        fighterComponent = Fighter(hp=300, armor=0, power=6, xp = 500, deathFunction = monsterDeath, accuracy = 0, evasion = 1)
+        AI_component = SplosionAI()
+        monster = GameObject(x, y, char = 'H', color = colors.red, name = 'Hiroshiman', blocks = True, Fighter=fighterComponent, AI = AI_component)
+        return monster
+    else:
+        return 'cancelled'
+
+def createCultist(x,y):
+    if x != player.x or y != player.y:
+        robeEquipment = Equipment(slot = 'torso', type = 'light armor', maxHP_Bonus = 10, maxMP_Bonus = 10)
+        robe = GameObject(0, 0, '[', 'cultist robe', colors.desaturated_purple, Equipment = robeEquipment, Item=Item(weight = 1.5))
+        
+        knifeEquipment = Equipment(slot = 'one handed', type = 'light weapon', powerBonus = 7, meleeWeapon = True)
+        knife = GameObject(0, 0, '-', 'cultist knife', colors.desaturated_azure, Equipment = knifeEquipment, Item=Item(weight = 1.0))
+        
+        spellbook = GameObject(x, y, '=', 'spellbook of arcane rituals', colors.violet, Item = Item(useFunction = learnSpell, arg1 = darkPact, weight = 1.0), blocks = False)
+        
+        fighterComponent = Fighter(hp = 20, armor = 2, power = 6, xp = 30, deathFunction = monsterDeath, accuracy = 18, evasion = 30, lootFunction = [robe, knife, spellbook], lootRate = [60, 20, 7])
+        AI_component = BasicMonster()
+        monster = GameObject(x, y, char = 'c', color = colors.desaturated_purple, name = 'cultist', blocks = True, Fighter = fighterComponent, AI = AI_component)
+        return monster
+    else:
+        return 'cancelled'
+
+def createSnake(x, y):
+    if x!= player.x or y != player.y:
+        fighterComponent = Fighter(hp = 10, armor = 0, power = 3, xp = 10, deathFunction = monsterDeath, accuracy = 20, evasion = 70)
+        AI_component = FastMonster(2)
+        monster = GameObject(x, y, char = 's', color = colors.light_green, name = 'snake', blocks = True, Fighter = fighterComponent, AI = AI_component)
+        return monster
+    else:
+        return 'cancelled'
 
 def randomChoiceIndex(chances):
     dice = randint(1, sum(chances))
