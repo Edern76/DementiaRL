@@ -3065,7 +3065,7 @@ def createHiroshiman(x, y):
 
 def createCultist(x,y):
     if x != player.x or y != player.y:
-        robeEquipment = Equipment(slot = 'torso', type = 'light armor', maxHP_Bonus = 10, maxMP_Bonus = 10)
+        robeEquipment = Equipment(slot = 'torso', type = 'light armor', maxHP_Bonus = 5, maxMP_Bonus = 10)
         robe = GameObject(0, 0, '[', 'cultist robe', colors.desaturated_purple, Equipment = robeEquipment, Item=Item(weight = 1.5))
         
         knifeEquipment = Equipment(slot = 'one handed', type = 'light weapon', powerBonus = 7, meleeWeapon = True)
@@ -3082,15 +3082,15 @@ def createCultist(x,y):
 
 def createHighCultist(x, y):
     if x != player.x or y != player.y:
-        robeEquipment = Equipment(slot = 'torso', type = 'light armor', maxHP_Bonus = 15, maxMP_Bonus = 20)
+        robeEquipment = Equipment(slot = 'torso', type = 'light armor', maxHP_Bonus = 5, maxMP_Bonus = 25)
         robe = GameObject(0, 0, '[', 'high cultist robe', colors.desaturated_purple, Equipment = robeEquipment, Item=Item(weight = 1.5))
         
-        flailEquipment = Equipment(slot = 'one handed', type = 'heavy weapon', powerBonus = 14, meleeWeapon = True)
+        flailEquipment = Equipment(slot = 'one handed', type = 'heavy weapon', powerBonus = 13, meleeWeapon = True)
         flail = GameObject(0, 0, '/', 'bloodsteel flail', colors.red, Equipment=flailEquipment, Item=Item(weight=5.5))
         
         spellbook = GameObject(x, y, '=', 'spellbook of arcane rituals', colors.violet, Item = Item(useFunction = learnSpell, arg1 = darkPact, weight = 1.0), blocks = False)
         
-        fighterComponent = Fighter(hp = 50, armor = 2, power = 16, xp = 80, deathFunction = monsterDeath, accuracy = 25, evasion = 30, lootFunction = [robe, flail, spellbook], lootRate = [60, 20, 15])
+        fighterComponent = Fighter(hp = 40, armor = 2, power = 13, xp = 80, deathFunction = monsterDeath, accuracy = 20, evasion = 30, lootFunction = [robe, flail, spellbook], lootRate = [60, 20, 15])
         AI_component = BasicMonster()
         name = nameGen.humanLike()
         actualName = name + ' the high cultist'
@@ -3129,9 +3129,12 @@ def placeObjects(room):
     numMonsters = randint(0, MAX_ROOM_MONSTERS)
     monster = None
     if dungeonLevel > 2 and hiroshimanNumber == 0:
-        global monsterChances
         monsterChances['troll'] -= 50
         monsterChances['hiroshiman'] = 50
+    if not highCultistHasAppeared:
+        monsterChances['troll'] -= 50
+        monsterChances['highCultist'] = 50
+    
     for i in range(numMonsters):
         x = randint(room.x1+1, room.x2-1)
         y = randint(room.y1+1, room.y2-1)
@@ -3158,6 +3161,25 @@ def placeObjects(room):
             
             elif monsterChoice == 'cultist':
                 monster = createCultist(x, y)
+            elif monsterChoice == 'highCultist':
+                global highCultistHasAppeared
+                monster = createHighCultist(x, y)
+                diagonals = [(x+1, y+1), (x-1, y-1), (x-1, y+1), (x+1, y-1)]
+                minionNumber = 0
+                for loop in range(len(diagonals)):
+                    if minionNumber >= MAX_HIGH_CULTIST_MINIONS:
+                        break
+                    else:
+                        (minionX, minionY) = diagonals[loop]
+                        if not isBlocked(minionX, minionY):
+                            newMinion = createCultist(minionX, minionY)
+                            objects.append(newMinion)
+                            minionNumber += 1
+                            print("Created minion")
+                if minionNumber == 0:
+                    print("Couldn't create any minion")
+                highCultistHasAppeared = True
+                            
             else:
                 monster = None
 
@@ -3865,6 +3887,11 @@ def newGame():
         itemComponent = Item(stackable = True, amount = 30)
         object = GameObject(0, 0, '^', 'arrow', colors.light_orange, Item = itemComponent)
         inventory.append(object)
+    
+    if highCultistHasAppeared: #It's the exact contrary of the last statement yet it does the exact same thing (aside from the fact that we can have several high cultists)
+        global highCultistHasAppeared
+        message('You feel like somebody really wants you dead...', colors.dark_red)
+        highCultistHasAppeared = False #Make so more high cultists can spawn at lower levels (still only one by floor though)
 
 def loadGame():
     global objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipmentList, stairs, upStairs, hiroshimanNumber
@@ -3956,7 +3983,7 @@ def nextLevel(boss = False):
         player = tempPlayer
         stairs = tempStairs
         if not boss:
-            makeMap()  #create a fresh new level!
+            makeMap()
         else:
             makeBossLevel()
         print("Created a new level")
@@ -3964,6 +3991,10 @@ def nextLevel(boss = False):
         global hiroshimanHasAppeared
         message('You suddenly feel uneasy.', colors.dark_red)
         hiroshimanHasAppeared = True
+    if highCultistHasAppeared: #It's the exact contrary of the last statement yet it does the exact same thing (aside from the fact that we can have several high cultists)
+        global highCultistHasAppeared
+        message('You feel like somebody really wants you dead...', colors.dark_red)
+        highCultistHasAppeared = False #Make so more high cultists can spawn at lower levels (still only one by floor though)
     initializeFOV()
 
 def playGame():
