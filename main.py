@@ -82,7 +82,7 @@ MAX_ROOM_ITEMS = 3
 GRAPHICS = 'modern'
 LEVEL_UP_BASE = 200 # Set to 200 once testing complete
 LEVEL_UP_FACTOR = 150
-NATURAL_REGEN = False
+NATURAL_REGEN = True
 
 boss_FOV_recompute = True
 BOSS_FOV_ALGO = 'BASIC'
@@ -1164,7 +1164,7 @@ class Fighter: #All NPCs, enemies and the player
         self.enraged = False
         self.enrageCooldown = 0
         
-        self.healCountdown = 10
+        self.healCountdown = 25
         self.MPRegenCountdown = 10
 
         self.baseShootCooldown = shootCooldown
@@ -1905,16 +1905,7 @@ def getInput():
                         return 'didnt-take-turn'
                     else:
                         keypress = False
-    elif userInput.keychar.upper() == "W" or userInput.keychar.upper() == 'KP5':
-        if NATURAL_REGEN:
-            if not player.Fighter.burning and not player.Fighter.frozen and  player.Fighter.hp != player.Fighter.maxHP:
-                player.Fighter.healCountdown -= 1
-                if player.Fighter.healCountdown < 0:
-                    player.Fighter.healCountdown = 0
-                if player.Fighter.healCountdown == 0:
-                    player.Fighter.heal(1)
-                    player.Fighter.healCountdown= 10
-                 
+    elif userInput.keychar.upper() == "W" or userInput.keychar.upper() == 'KP5':                 
         FOV_recompute = True
         return None 
     elif userInput.keychar == 'A' and gameState == 'playing' and DEBUG and not tdl.event.isWindowClosed():
@@ -3202,7 +3193,7 @@ def placeObjects(room, first = False):
             if itemChoice == 'potion':
                 potionChoice = randomChoice(potionChances)
                 if potionChoice == 'heal':
-                    item = GameObject(x, y, '!', 'healing potion', colors.violet, Item = Item(useFunction = castHeal, weight = 0.4, stackable=True), blocks = False)
+                    item = GameObject(x, y, '!', 'healing potion', colors.violet, Item = Item(useFunction = castHeal, weight = 0.4, stackable=True, amount = randint(1, 2)), blocks = False)
                 if potionChoice == 'mana':
                     item = GameObject(x, y, '!', 'mana regeneration potion', colors.blue, Item = Item(useFunction = castRegenMana, arg1 = 10, weight = 0.4, stackable = True), blocks = False)
             elif itemChoice == 'scroll':
@@ -3217,7 +3208,7 @@ def placeObjects(room, first = False):
             elif itemChoice == 'spellbook':
                 item = createSpellbook(x, y)
             elif itemChoice == "food":
-                item = GameObject(x, y, ',', "slice of bread", colors.yellow, Item = Item(useFunction=satiateHunger, arg1 = 50, arg2 = "a slice of bread", weight = 0.2, stackable=True), blocks = False, pName = "slices of bread") #50 regen might be a little overkill (or maybe not, needs playtesting). Also, ',' is the symbol that Angband uses for food, so I used it too.
+                item = GameObject(x, y, ',', "slice of bread", colors.yellow, Item = Item(useFunction=satiateHunger, arg1 = 50, arg2 = "a slice of bread", weight = 0.2, stackable=True, amount = randint(1, 5)), blocks = False, pName = "slices of bread") #50 regen might be a little overkill (or maybe not, needs playtesting). Also, ',' is the symbol that Angband uses for food, so I used it too.
             else:
                 item = None
             if item is not None:            
@@ -4087,7 +4078,22 @@ def playGame():
                         else:
                             object.Fighter.MPRegenCountdown = 10
                         object.Fighter.MP += 1
-                
+
+                if object.Player is not None:
+                    if NATURAL_REGEN:
+                        monsterInSight = False
+                        for monster in objects:
+                            if monster.Fighter and not monster == player and (monster.x, monster.y) in visibleTiles:
+                                monsterInSight = True
+                                break
+                        if not player.Fighter.burning and not player.Fighter.frozen and  player.Fighter.hp != player.Fighter.maxHP and not monsterInSight:
+                            player.Fighter.healCountdown -= 1
+                            if player.Fighter.healCountdown < 0:
+                                player.Fighter.healCountdown = 0
+                            if player.Fighter.healCountdown == 0:
+                                player.Fighter.heal(1)
+                                player.Fighter.healCountdown= 25 - player.Player.vitality
+
                 if object.Player and object.Player.race == 'Werewolf':
                     object.Player.transformCurCooldown -= 1
                     if object.Player.transformationTime > 0:
