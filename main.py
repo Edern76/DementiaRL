@@ -3,7 +3,8 @@ from tdl import *
 from random import randint
 from math import *
 from os import makedirs
-import code.nameGen as nameGen
+from constants import MAX_HIGH_CULTIST_MINIONS
+import nameGen
 
 # Naming conventions :
 # MY_CONSTANT
@@ -3822,6 +3823,7 @@ def saveGame():
     file["equipmentList"] = equipmentList
     file["gameMsgs"] = gameMsgs
     file["gameState"] = gameState
+    file["hiroshimanNumber"] = hiroshimanNumber
     if dungeonLevel > 1:
         file["upStairsIndex"] = objects.index(upStairs)
     file.close()
@@ -3864,7 +3866,7 @@ def newGame():
         inventory.append(object)
 
 def loadGame():
-    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipmentList, stairs, upStairs
+    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipmentList, stairs, upStairs, hiroshimanNumber
     
     
     #myMap = [[Tile(True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)]
@@ -3878,6 +3880,7 @@ def loadGame():
     equipmentList = file["equipmentList"]
     gameMsgs = file["gameMsgs"]
     gameState = file["gameState"]
+    hiroshimanNumber = file["hiroshimanNumber"]
     if dungeonLevel > 1:
         upStairs = objects[file["upStairsIndex"]]
     #mapFile = open(absPicklePath, "rb")
