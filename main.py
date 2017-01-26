@@ -1,4 +1,5 @@
 import tdl, colors, math, textwrap, time, os, shelve, sys, code
+import simpleaudio as sa
 from tdl import *
 from random import randint
 from math import *
@@ -3577,8 +3578,14 @@ def mainMenu():
         key = tdl.event.key_wait()
         if key.keychar.upper() == "DOWN":
             index += 1
+            wave_obj = sa.WaveObject.from_wave_file("select.wav")
+            play_obj = wave_obj.play()
+            play_obj.wait_done()
         elif key.keychar.upper() == "UP":
             index -= 1
+            wave_obj = sa.WaveObject.from_wave_file("select.wav")
+            play_obj = wave_obj.play()
+            play_obj.wait_done()
         if index < 0:
             index = len(choices) - 1
         if index > len(choices) - 1:
