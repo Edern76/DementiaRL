@@ -129,6 +129,7 @@ equipmentList = []
 stairs = None
 upStairs = None
 hiroshimanHasAppeared = False
+highCultistHasAppeared = False
 player = None
 dungeonLevel = 1
 
@@ -2927,7 +2928,6 @@ def placeBoss(name, x, y):
 #_____________ BOSS FIGHT __________________
 
 #_____________ ROOM POPULATION + ITEMS GENERATION_______________
-monsterChances = {'orc': 60, 'troll': 20, 'snake': 5, 'cultist': 15}
 itemChances = {'potion': 350, 'scroll': 260, 'sword': 70, 'shield': 70, 'spellbook': 70, 'food': 180}
 potionChances = {'heal': 70, 'mana': 30}
 
@@ -3125,12 +3125,13 @@ def randomChoice(chancesDictionnary):
     return strings[randomChoiceIndex(chances)]
 
 def placeObjects(room):
+    monsterChances = {'orc': 600, 'troll': 200, 'snake': 50, 'cultist': 150}
     numMonsters = randint(0, MAX_ROOM_MONSTERS)
     monster = None
     if dungeonLevel > 2 and hiroshimanNumber == 0:
         global monsterChances
-        monsterChances['troll'] = 15
-        monsterChances['hiroshiman'] = 5
+        monsterChances['troll'] -= 50
+        monsterChances['hiroshiman'] = 50
     for i in range(numMonsters):
         x = randint(room.x1+1, room.x2-1)
         y = randint(room.y1+1, room.y2-1)
