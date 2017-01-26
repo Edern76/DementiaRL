@@ -2678,7 +2678,10 @@ def makeMap():
                 else:
                     createVerticalTunnel(previous_y, new_y, previous_x)
                     createHorizontalTunnel(previous_x, new_x, new_y)
-            placeObjects(newRoom)
+            if r == 0:
+                placeObjects(newRoom, first = True)
+            else:
+                placeObjects(newRoom)
             rooms.append(newRoom)
             numberRooms += 1
     secretRoom()
@@ -3124,14 +3127,14 @@ def randomChoice(chancesDictionnary):
     strings = list(chancesDictionnary.keys())
     return strings[randomChoiceIndex(chances)]
 
-def placeObjects(room):
+def placeObjects(room, first = False):
     monsterChances = {'orc': 600, 'troll': 200, 'snake': 50, 'cultist': 150}
     numMonsters = randint(0, MAX_ROOM_MONSTERS)
     monster = None
     if dungeonLevel > 2 and hiroshimanNumber == 0:
         monsterChances['troll'] -= 50
         monsterChances['hiroshiman'] = 50
-    if not highCultistHasAppeared:
+    if not highCultistHasAppeared and not first:
         monsterChances['troll'] -= 50
         monsterChances['highCultist'] = 50
     
