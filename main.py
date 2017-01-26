@@ -993,11 +993,14 @@ def enterName(race):
 
         root.clear()
         drawCentered(cons =  root, y = 25, text = 'What is your name, ' + race + ' hero ?', fg = colors.white, bg = None)
+        drawCentered(cons = root, y = 26, text = 'Enter to confirm, leave blank for random name', fg = colors.gray, bg = None)
         drawCentered(cons = root, y = 30, text = text, fg = colors.white, bg = None)
         tdl.flush()
         
         key = tdl.event.key_wait()
         if key.keychar.upper()== 'ENTER':
+            if name == '':
+                name = nameGen.humanLike(randint(5,8))
             return name.capitalize()
         elif key.keychar in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ":
             letters.append(key.keychar)
@@ -3131,7 +3134,7 @@ def placeObjects(room, first = False):
     monsterChances = {'orc': 600, 'troll': 200, 'snake': 50, 'cultist': 150}
     numMonsters = randint(0, MAX_ROOM_MONSTERS)
     monster = None
-    if dungeonLevel > 2 and hiroshimanNumber == 0:
+    if dungeonLevel > 2 and hiroshimanNumber == 0 and not first:
         monsterChances['troll'] -= 50
         monsterChances['hiroshiman'] = 50
     if not highCultistHasAppeared and not first:
