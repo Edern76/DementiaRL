@@ -127,6 +127,7 @@ hiroshimanNumber = 0
 FOV_recompute = True
 inventory = []
 equipmentList = []
+activeSounds = []
 stairs = None
 upStairs = None
 hiroshimanHasAppeared = False
@@ -152,9 +153,13 @@ curDir = findCurrentDir()
 relDirPath = "save"
 relPath = "save\\savegame"
 relPicklePath = "save\\equipment"
+relAssetPath = "assets"
+relSoundPath = "assets\\sound"
 absDirPath = os.path.join(curDir, relDirPath)
 absFilePath = os.path.join(curDir, relPath)
 absPicklePath = os.path.join(curDir, relPicklePath)
+absAssetPath = os.path.join(curDir, relAssetPath)
+absSoundPath = os.path.join(curDir, relSoundPath)
 
 stairCooldown = 0
 pathfinder = None
@@ -166,6 +171,14 @@ def animStep(waitTime = .125):
     Update()
     tdl.flush()
     time.sleep(waitTime)
+    
+def playWavSound(sound, forceStop = False):
+    if forceStop:
+        sa.stop_all()
+    soundPath = os.path.join(absSoundPath, sound)
+    waveObj = sa.WaveObject.from_wave_file(soundPath)
+    waveObj.play()
+
 
 #_____________MENU_______________
 def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages):
@@ -857,18 +870,28 @@ def characterCreation():
         key = tdl.event.key_wait()
         if key.keychar.upper() == 'DOWN':
             index += 1
+            playWavSound('select.wav', True)
         if key.keychar.upper() == 'UP':
             index -= 1
+            playWavSound('select.wav', True)
         if key.keychar.upper() == 'RIGHT' and (leftIndexMin <= index <= leftIndexMax):
-            if rightIndexMin <= index + len(attributes) + len(traits) + len(races) <= rightIndexMax:
-                index += len(attributes) + len(traits) + len(races)
+            if (leftIndexMin <= index <= leftIndexMax):
+                if rightIndexMin <= index + len(attributes) + len(traits) + len(races) <= rightIndexMax:
+                    index += len(attributes) + len(traits) + len(races)
+                else:
+                    index = rightIndexMax
+                playWavSound('select.wav', True)
             else:
-                index = rightIndexMax
-        if key.keychar.upper() == 'LEFT' and (rightIndexMin <= index <= rightIndexMax):
-            if leftIndexMin <= index - (len(attributes) + len(traits) + len(races)) <= leftIndexMax:
-                index -= (len(attributes) + len(traits) + len(races))
+                playWavSound('error.wav', True)
+        if key.keychar.upper() == 'LEFT':
+            if (rightIndexMin <= index <= rightIndexMax):
+                if leftIndexMin <= index - (len(attributes) + len(traits) + len(races)) <= leftIndexMax:
+                    index -= (len(attributes) + len(traits) + len(races))
+                else:
+                    index = leftIndexMax
+                playWavSound('select.wav', True)
             else:
-                index = leftIndexMax
+                playWavSound('error.wav', True)
 
         #adding choice bonus
         if key.keychar.upper() == 'ENTER':
@@ -3578,14 +3601,10 @@ def mainMenu():
         key = tdl.event.key_wait()
         if key.keychar.upper() == "DOWN":
             index += 1
-            wave_obj = sa.WaveObject.from_wave_file("select.wav")
-            play_obj = wave_obj.play()
-            #play_obj.wait_done()
+            playWavSound('select.wav', True)
         elif key.keychar.upper() == "UP":
             index -= 1
-            wave_obj = sa.WaveObject.from_wave_file("select.wav")
-            play_obj = wave_obj.play()
-            #play_obj.wait_done()
+            playWavSound('select.wav', True)
         if index < 0:
             index = len(choices) - 1
         if index > len(choices) - 1:
