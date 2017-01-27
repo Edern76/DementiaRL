@@ -1,7 +1,7 @@
 import tdl, colors, math, textwrap, time, os, shelve, sys, code
 import simpleaudio as sa
 from tdl import *
-from random import randint
+from random import randint, choice
 from math import *
 from os import makedirs
 from constants import MAX_HIGH_CULTIST_MINIONS
@@ -101,7 +101,7 @@ FIREBALL_SPELL_BASE_RANGE = 4
 
 RESURECTABLE_CORPSES = ["orc", "troll"]
 
-BASE_HUNGER = 300
+BASE_HUNGER = 500
 # - Spells -
 #_____________ CONSTANTS __________________
 
@@ -1654,6 +1654,9 @@ class Player:
             self.inHost = False
             self.timeOutsideLeft = 50
         
+        if self.race == 'Demon spawn':
+            self.possibleMutations = ['extra limb']
+        
         if DEBUG:
             print('Player component initialized')
         
@@ -1903,8 +1906,7 @@ def getInput():
         message('Healed player and increased their maximum HP value by 1000', colors.purple)
         FOV_recompute = True
     elif userInput.keychar.upper() == "F6" and DEBUG and not tdl.event.isWindowClosed():
-        player.Fighter.frozen = True
-        player.Fighter.freezeCooldown = 3
+        player.Fighter.xp += 1000
         FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'F7' and DEBUG and not tdl.event.isWindowClosed():
@@ -2105,7 +2107,7 @@ def getInput():
                         boss = False
                         if DEBUG:
                             message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
-                        if dungeonLevel + 1 >= 2:
+                        if dungeonLevel + 1 == 4:
                             boss = True
                         nextLevel(boss)
                     else:
@@ -2348,6 +2350,49 @@ def checkLevelUp():
         player.Player.dexterity += player.Player.levelUpStats[8]
         player.Player.vitality += player.Player.levelUpStats[9]
         player.Player.willpower += player.Player.levelUpStats[10]
+        
+        if player.Player.race == 'Demon spawn':
+            #if player.level != 1 or player.level != 4:
+            if True:
+                mutation = randint(1, 4)
+                if mutation == 1:
+                    player.Player.strength += 1
+                    mutationName = 'strength'
+                elif mutation == 2:
+                    player.Player.dexterity += 1
+                    mutationName = 'dexterity'
+                elif mutation == 1:
+                    player.Player.vitality += 1
+                    mutationName = 'vitality'
+                else:
+                    player.Player.willpower += 1
+                    mutationName = 'willpower'
+                message('You feel a strange power flowing through your body...You have gained ' + mutationName + '!', colors.yellow)
+            else:
+                mutation = choice(player.Player.possibleMutations)
+                player.Player.remove(mutation)
+                    
+        
+        if player.Player.race == 'Rootling':  #NERF HAMMER PROBABLY COMING
+            player.Fighter.basePower += randint(0, 3)
+            player.Fighter.baseAccuracy += randint(0, 15)
+            player.Fighter.baseEvasion += randint(-5, 0)
+            armorBonus = randint(0, 2)
+            player.Fighter.baseArmor += armorBonus
+            player.Fighter.BASE_ARMOR += armorBonus
+            hpBonus = randint(0, 20)
+            player.Fighter.baseMaxHP += hpBonus
+            player.Fighter.hp += hpBonus
+            mpBonus = randint(0, 15)
+            player.Fighter.baseMaxMP += mpBonus
+            player.Fighter.MP += mpBonus
+            player.Fighter.baseCritical += randint(0, 1)
+            player.Player.strength += randint(0, 1)
+            player.Player.dexterity += randint(0, 1)
+            player.Player.vitality += randint(0, 1)
+            player.Player.willpower += randint(0, 1)
+            
+            message('You feel your wooden corpse thickening!', colors.celadon)
         
         choice = None
         while choice == None:
@@ -2785,7 +2830,7 @@ def makeBossLevel():
     
     bossName = None
     if dungeonLevel >= 2:
-        bossName = 'Wrath'
+        bossName = 'Gluttony'
 
     placeBoss(bossName, new_x, y + 1)
     
