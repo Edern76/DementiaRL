@@ -1648,7 +1648,7 @@ class Player:
             self.transformMaxTurns = 20
             self.transformationTime = 0
         
-        if self.race == 'Virus':
+        if self.race == 'Virus ':
             self.HOST_DEATH = 1500
             self.hostDeath = 0
             self.inHost = False
@@ -1709,6 +1709,8 @@ class Player:
         player.x, player.y = target.x, target.y
         message('You take control of ' + target.name + '!', colors.darker_han)
         objects.remove(target)
+        self.inHost = True
+        self.hostDeath = self.HOST_DEATH
 
 class Item:
     def __init__(self, useFunction = None,  arg1 = None, arg2 = None, arg3 = None, stackable = False, amount = 1, weight = 0):
@@ -2221,7 +2223,7 @@ def moveOrAttack(dx, dy):
                 break #Since we found the target, there's no point in continuing to search for it
     
     if target is not None:
-        if player.Player.race == 'Virus':
+        if player.Player.race == 'Virus ':
             if player.Player.inHost:
                 player.Fighter.attack(target)
             else:
