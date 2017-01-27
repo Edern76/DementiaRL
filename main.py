@@ -178,6 +178,7 @@ def playWavSound(sound, forceStop = False):
     soundPath = os.path.join(absSoundPath, sound)
     waveObj = sa.WaveObject.from_wave_file(soundPath)
     waveObj.play()
+    #TO-DO : Add an ear-rape prevention system, such as allowing sounds to be played every X milliseconds.
 
 
 #_____________MENU_______________
@@ -1013,11 +1014,14 @@ def enterName(race):
         name = ''
         for letter in letters:
             name += letter
-        text = name + '_'
+        if len(name) < 16:
+            text = name + '_'
+        else:
+            text = name
 
         root.clear()
         drawCentered(cons =  root, y = 25, text = 'What is your name, ' + race + ' hero ?', fg = colors.white, bg = None)
-        drawCentered(cons = root, y = 26, text = 'Enter to confirm, leave blank for random name', fg = colors.gray, bg = None)
+        drawCentered(cons = root, y = 26, text = 'Enter to confirm, leave blank for random name. 16 characters maximum', fg = colors.gray, bg = None)
         drawCentered(cons = root, y = 30, text = text, fg = colors.white, bg = None)
         tdl.flush()
         
@@ -1027,7 +1031,10 @@ def enterName(race):
                 name = nameGen.humanLike(randint(5,8))
             return name.capitalize()
         elif key.keychar in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ":
-            letters.append(key.keychar)
+            if len(name) < 16:
+                letters.append(key.keychar)
+            else:
+                playWavSound('error.wav', forceStop = True)
         elif key.keychar.upper() == 'BACKSPACE':
             letters.pop()
 #______________CHARACTER GENERATION____________
