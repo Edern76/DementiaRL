@@ -1,8 +1,11 @@
-import tdl, colors, math, textwrap, time, os, shelve, sys
+import tdl, colors, math, textwrap, time, os, shelve, sys, code
+import simpleaudio as sa
 from tdl import *
 from random import randint
 from math import *
 from os import makedirs
+from constants import MAX_HIGH_CULTIST_MINIONS
+import nameGen
 
 # Naming conventions :
 # MY_CONSTANT
@@ -66,7 +69,7 @@ CHARACTER_SCREEN_HEIGHT = 20
 # - GUI Constants -
 
 # - Consoles -
-root = tdl.init(WIDTH, HEIGHT, 'Dementia (Temporary Name) | Prototype')
+root = tdl.init(WIDTH, HEIGHT, 'Dementia')
 con = tdl.Console(WIDTH, HEIGHT)
 panel = tdl.Console(WIDTH, PANEL_HEIGHT)
 # - Consoles
@@ -80,7 +83,7 @@ MAX_ROOM_ITEMS = 3
 GRAPHICS = 'modern'
 LEVEL_UP_BASE = 200 # Set to 200 once testing complete
 LEVEL_UP_FACTOR = 150
-NATURAL_REGEN = False
+NATURAL_REGEN = True
 
 boss_FOV_recompute = True
 BOSS_FOV_ALGO = 'BASIC'
@@ -124,9 +127,11 @@ hiroshimanNumber = 0
 FOV_recompute = True
 inventory = []
 equipmentList = []
+activeSounds = []
 stairs = None
 upStairs = None
 hiroshimanHasAppeared = False
+highCultistHasAppeared = False
 player = None
 dungeonLevel = 1
 
@@ -148,9 +153,13 @@ curDir = findCurrentDir()
 relDirPath = "save"
 relPath = "save\\savegame"
 relPicklePath = "save\\equipment"
+relAssetPath = "assets"
+relSoundPath = "assets\\sound"
 absDirPath = os.path.join(curDir, relDirPath)
 absFilePath = os.path.join(curDir, relPath)
 absPicklePath = os.path.join(curDir, relPicklePath)
+absAssetPath = os.path.join(curDir, relAssetPath)
+absSoundPath = os.path.join(curDir, relSoundPath)
 
 stairCooldown = 0
 pathfinder = None
@@ -162,6 +171,15 @@ def animStep(waitTime = .125):
     Update()
     tdl.flush()
     time.sleep(waitTime)
+    
+def playWavSound(sound, forceStop = False):
+    if forceStop:
+        sa.stop_all()
+    soundPath = os.path.join(absSoundPath, sound)
+    waveObj = sa.WaveObject.from_wave_file(soundPath)
+    waveObj.play()
+    #TO-DO : Add an ear-rape prevention system, such as allowing sounds to be played every X milliseconds.
+
 
 #_____________MENU_______________
 def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages):
@@ -853,18 +871,28 @@ def characterCreation():
         key = tdl.event.key_wait()
         if key.keychar.upper() == 'DOWN':
             index += 1
+            playWavSound('select.wav', True)
         if key.keychar.upper() == 'UP':
             index -= 1
+            playWavSound('select.wav', True)
         if key.keychar.upper() == 'RIGHT' and (leftIndexMin <= index <= leftIndexMax):
-            if rightIndexMin <= index + len(attributes) + len(traits) + len(races) <= rightIndexMax:
-                index += len(attributes) + len(traits) + len(races)
+            if (leftIndexMin <= index <= leftIndexMax):
+                if rightIndexMin <= index + len(attributes) + len(traits) + len(races) <= rightIndexMax:
+                    index += len(attributes) + len(traits) + len(races)
+                else:
+                    index = rightIndexMax
+                playWavSound('select.wav', True)
             else:
-                index = rightIndexMax
-        if key.keychar.upper() == 'LEFT' and (rightIndexMin <= index <= rightIndexMax):
-            if leftIndexMin <= index - (len(attributes) + len(traits) + len(races)) <= leftIndexMax:
-                index -= (len(attributes) + len(traits) + len(races))
+                playWavSound('error.wav', True)
+        if key.keychar.upper() == 'LEFT':
+            if (rightIndexMin <= index <= rightIndexMax):
+                if leftIndexMin <= index - (len(attributes) + len(traits) + len(races)) <= leftIndexMax:
+                    index -= (len(attributes) + len(traits) + len(races))
+                else:
+                    index = leftIndexMax
+                playWavSound('select.wav', True)
             else:
-                index = leftIndexMax
+                playWavSound('error.wav', True)
 
         #adding choice bonus
         if key.keychar.upper() == 'ENTER':
@@ -978,6 +1006,37 @@ def characterCreation():
             index = 0
         if index < 0:
             index = maxIndex
+    
+def enterName(race):
+    letters = []
+    while not tdl.event.isWindowClosed():
+        text = '_'
+        name = ''
+        for letter in letters:
+            name += letter
+        if len(name) < 16:
+            text = name + '_'
+        else:
+            text = name
+
+        root.clear()
+        drawCentered(cons =  root, y = 25, text = 'What is your name, ' + race + ' hero ?', fg = colors.white, bg = None)
+        drawCentered(cons = root, y = 26, text = 'Enter to confirm, leave blank for random name. 16 characters maximum', fg = colors.gray, bg = None)
+        drawCentered(cons = root, y = 30, text = text, fg = colors.white, bg = None)
+        tdl.flush()
+        
+        key = tdl.event.key_wait()
+        if key.keychar.upper()== 'ENTER':
+            if name == '':
+                name = nameGen.humanLike(randint(5,8))
+            return name.capitalize()
+        elif key.keychar in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ":
+            if len(name) < 16:
+                letters.append(key.keychar)
+            else:
+                playWavSound('error.wav', forceStop = True)
+        elif key.keychar.upper() == 'BACKSPACE':
+            letters.pop()
 #______________CHARACTER GENERATION____________
 
 def closestMonster(max_range):
@@ -1136,7 +1195,7 @@ class Fighter: #All NPCs, enemies and the player
         self.enraged = False
         self.enrageCooldown = 0
         
-        self.healCountdown = 10
+        self.healCountdown = 25
         self.MPRegenCountdown = 10
 
         self.baseShootCooldown = shootCooldown
@@ -1562,7 +1621,8 @@ class FriendlyMonster:
             pass #Implement here code in case the monster is friendly towards another monster
 
 class Player:
-    def __init__(self, strength, dexterity, vitality, willpower, actualPerSkills, levelUpStats, skillsBonus, race, classes, traits, baseHunger = BASE_HUNGER):
+    def __init__(self, name, strength, dexterity, vitality, willpower, actualPerSkills, levelUpStats, skillsBonus, race, classes, traits, baseHunger = BASE_HUNGER):
+        self.name = name
         self.strength = strength
         self.dexterity = dexterity
         self.vitality = vitality
@@ -1876,16 +1936,7 @@ def getInput():
                         return 'didnt-take-turn'
                     else:
                         keypress = False
-    elif userInput.keychar.upper() == "W" or userInput.keychar.upper() == 'KP5':
-        if NATURAL_REGEN:
-            if not player.Fighter.burning and not player.Fighter.frozen and  player.Fighter.hp != player.Fighter.maxHP:
-                player.Fighter.healCountdown -= 1
-                if player.Fighter.healCountdown < 0:
-                    player.Fighter.healCountdown = 0
-                if player.Fighter.healCountdown == 0:
-                    player.Fighter.heal(1)
-                    player.Fighter.healCountdown= 10
-                 
+    elif userInput.keychar.upper() == "W" or userInput.keychar.upper() == 'KP5':                 
         FOV_recompute = True
         return None 
     elif userInput.keychar == 'A' and gameState == 'playing' and DEBUG and not tdl.event.isWindowClosed():
@@ -2652,7 +2703,10 @@ def makeMap():
                 else:
                     createVerticalTunnel(previous_y, new_y, previous_x)
                     createHorizontalTunnel(previous_x, new_x, new_y)
-            placeObjects(newRoom)
+            if r == 0:
+                placeObjects(newRoom, first = True)
+            else:
+                placeObjects(newRoom)
             rooms.append(newRoom)
             numberRooms += 1
     secretRoom()
@@ -2902,7 +2956,6 @@ def placeBoss(name, x, y):
 #_____________ BOSS FIGHT __________________
 
 #_____________ ROOM POPULATION + ITEMS GENERATION_______________
-monsterChances = {'orc': 60, 'troll': 20, 'snake': 5, 'cultist': 15}
 itemChances = {'potion': 350, 'scroll': 260, 'sword': 70, 'shield': 70, 'spellbook': 70, 'food': 180}
 potionChances = {'heal': 70, 'mana': 30}
 
@@ -2978,6 +3031,7 @@ def createSpellbook(x, y):
     elif spellbookChoice == 'none':
         spellbook = None
     return spellbook
+
 def createOrc(x, y, friendly = False, corpse = False):
     if x != player.x or y != player.y:
         if not corpse:
@@ -3039,7 +3093,7 @@ def createHiroshiman(x, y):
 
 def createCultist(x,y):
     if x != player.x or y != player.y:
-        robeEquipment = Equipment(slot = 'torso', type = 'light armor', maxHP_Bonus = 10, maxMP_Bonus = 10)
+        robeEquipment = Equipment(slot = 'torso', type = 'light armor', maxHP_Bonus = 5, maxMP_Bonus = 10)
         robe = GameObject(0, 0, '[', 'cultist robe', colors.desaturated_purple, Equipment = robeEquipment, Item=Item(weight = 1.5))
         
         knifeEquipment = Equipment(slot = 'one handed', type = 'light weapon', powerBonus = 7, meleeWeapon = True)
@@ -3054,6 +3108,26 @@ def createCultist(x,y):
     else:
         return 'cancelled'
 
+def createHighCultist(x, y):
+    if x != player.x or y != player.y:
+        robeEquipment = Equipment(slot = 'torso', type = 'light armor', maxHP_Bonus = 5, maxMP_Bonus = 25)
+        robe = GameObject(0, 0, '[', 'high cultist robe', colors.desaturated_purple, Equipment = robeEquipment, Item=Item(weight = 1.5))
+        
+        flailEquipment = Equipment(slot = 'one handed', type = 'heavy weapon', powerBonus = 13, meleeWeapon = True)
+        flail = GameObject(0, 0, '/', 'bloodsteel flail', colors.red, Equipment=flailEquipment, Item=Item(weight=5.5))
+        
+        spellbook = GameObject(x, y, '=', 'spellbook of arcane rituals', colors.violet, Item = Item(useFunction = learnSpell, arg1 = darkPact, weight = 1.0), blocks = False)
+        
+        fighterComponent = Fighter(hp = 40, armor = 2, power = 13, xp = 80, deathFunction = monsterDeath, accuracy = 20, evasion = 30, lootFunction = [robe, flail, spellbook], lootRate = [60, 20, 15])
+        AI_component = BasicMonster()
+        name = nameGen.humanLike()
+        actualName = name + ' the high cultist'
+        monster = GameObject(x, y, char = 'c', color = colors.dark_red, name = actualName, blocks = True, Fighter = fighterComponent, AI = AI_component)
+        return monster
+    else:
+        return 'cancelled'
+        
+        
 def createSnake(x, y):
     if x!= player.x or y != player.y:
         fighterComponent = Fighter(hp = 10, armor = 0, power = 3, xp = 10, deathFunction = monsterDeath, accuracy = 20, evasion = 70)
@@ -3078,13 +3152,17 @@ def randomChoice(chancesDictionnary):
     strings = list(chancesDictionnary.keys())
     return strings[randomChoiceIndex(chances)]
 
-def placeObjects(room):
+def placeObjects(room, first = False):
+    monsterChances = {'orc': 600, 'troll': 200, 'snake': 50, 'cultist': 150}
     numMonsters = randint(0, MAX_ROOM_MONSTERS)
     monster = None
-    if dungeonLevel > 2 and hiroshimanNumber == 0:
-        global monsterChances
-        monsterChances['troll'] = 15
-        monsterChances['hiroshiman'] = 5
+    if dungeonLevel > 2 and hiroshimanNumber == 0 and not first:
+        monsterChances['troll'] -= 50
+        monsterChances['hiroshiman'] = 50
+    if not highCultistHasAppeared and not first:
+        monsterChances['troll'] -= 50
+        monsterChances['highCultist'] = 50
+    
     for i in range(numMonsters):
         x = randint(room.x1+1, room.x2-1)
         y = randint(room.y1+1, room.y2-1)
@@ -3111,6 +3189,25 @@ def placeObjects(room):
             
             elif monsterChoice == 'cultist':
                 monster = createCultist(x, y)
+            elif monsterChoice == 'highCultist':
+                global highCultistHasAppeared
+                monster = createHighCultist(x, y)
+                diagonals = [(x+1, y+1), (x-1, y-1), (x-1, y+1), (x+1, y-1)]
+                minionNumber = 0
+                for loop in range(len(diagonals)):
+                    if minionNumber >= MAX_HIGH_CULTIST_MINIONS:
+                        break
+                    else:
+                        (minionX, minionY) = diagonals[loop]
+                        if not isBlocked(minionX, minionY):
+                            newMinion = createCultist(minionX, minionY)
+                            objects.append(newMinion)
+                            minionNumber += 1
+                            print("Created minion")
+                if minionNumber == 0:
+                    print("Couldn't create any minion")
+                highCultistHasAppeared = True
+                            
             else:
                 monster = None
 
@@ -3127,7 +3224,7 @@ def placeObjects(room):
             if itemChoice == 'potion':
                 potionChoice = randomChoice(potionChances)
                 if potionChoice == 'heal':
-                    item = GameObject(x, y, '!', 'healing potion', colors.violet, Item = Item(useFunction = castHeal, weight = 0.4, stackable=True), blocks = False)
+                    item = GameObject(x, y, '!', 'healing potion', colors.violet, Item = Item(useFunction = castHeal, weight = 0.4, stackable=True, amount = randint(1, 2)), blocks = False)
                 if potionChoice == 'mana':
                     item = GameObject(x, y, '!', 'mana regeneration potion', colors.blue, Item = Item(useFunction = castRegenMana, arg1 = 10, weight = 0.4, stackable = True), blocks = False)
             elif itemChoice == 'scroll':
@@ -3142,7 +3239,7 @@ def placeObjects(room):
             elif itemChoice == 'spellbook':
                 item = createSpellbook(x, y)
             elif itemChoice == "food":
-                item = GameObject(x, y, ',', "slice of bread", colors.yellow, Item = Item(useFunction=satiateHunger, arg1 = 50, arg2 = "a slice of bread", weight = 0.2, stackable=True), blocks = False, pName = "slices of bread") #50 regen might be a little overkill (or maybe not, needs playtesting). Also, ',' is the symbol that Angband uses for food, so I used it too.
+                item = GameObject(x, y, ',', "slice of bread", colors.yellow, Item = Item(useFunction=satiateHunger, arg1 = 50, arg2 = "a slice of bread", weight = 0.2, stackable=True, amount = randint(1, 5)), blocks = False, pName = "slices of bread") #50 regen might be a little overkill (or maybe not, needs playtesting). Also, ',' is the symbol that Angband uses for food, so I used it too.
             else:
                 item = None
             if item is not None:            
@@ -3511,8 +3608,10 @@ def mainMenu():
         key = tdl.event.key_wait()
         if key.keychar.upper() == "DOWN":
             index += 1
+            playWavSound('select.wav', True)
         elif key.keychar.upper() == "UP":
             index -= 1
+            playWavSound('select.wav', True)
         if index < 0:
             index = len(choices) - 1
         if index > len(choices) - 1:
@@ -3521,12 +3620,13 @@ def mainMenu():
             if index == 0:
                 (playerComponent, levelUpStats, actualPerSkills, skillsBonus, startingSpells, chosenRace, chosenClass, chosenTraits) = characterCreation()
                 if playerComponent != 'cancelled':
-                    playComp = Player(playerComponent[7], playerComponent[8], playerComponent[9], playerComponent[10], actualPerSkills, levelUpStats, skillsBonus, chosenRace, chosenClass, chosenTraits)
+                    name = enterName(chosenRace)
+                    playComp = Player(name, playerComponent[7], playerComponent[8], playerComponent[9], playerComponent[10], actualPerSkills, levelUpStats, skillsBonus, chosenRace, chosenClass, chosenTraits)
                     playFight = Fighter(hp = playerComponent[4], power= playerComponent[0], armor= playerComponent[3], deathFunction=playerDeath, xp=0, evasion = playerComponent[2], accuracy = playerComponent[1], maxMP= playerComponent[5], knownSpells=startingSpells, critical = playerComponent[6])
-                    player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = 'Hero', color = (0, 210, 0))
+                    player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = name, color = (0, 210, 0))
                     player.level = 1
                     player.Player.updatePlayerStats()
-                    
+
                     newGame()
                     playGame()
                 else:
@@ -3776,6 +3876,7 @@ def saveGame():
     file["equipmentList"] = equipmentList
     file["gameMsgs"] = gameMsgs
     file["gameState"] = gameState
+    file["hiroshimanNumber"] = hiroshimanNumber
     if dungeonLevel > 1:
         file["upStairsIndex"] = objects.index(upStairs)
     file.close()
@@ -3816,9 +3917,14 @@ def newGame():
         itemComponent = Item(stackable = True, amount = 30)
         object = GameObject(0, 0, '^', 'arrow', colors.light_orange, Item = itemComponent)
         inventory.append(object)
+    
+    if highCultistHasAppeared: #It's the exact contrary of the last statement yet it does the exact same thing (aside from the fact that we can have several high cultists)
+        global highCultistHasAppeared
+        message('You feel like somebody really wants you dead...', colors.dark_red)
+        highCultistHasAppeared = False #Make so more high cultists can spawn at lower levels (still only one by floor though)
 
 def loadGame():
-    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipmentList, stairs, upStairs
+    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipmentList, stairs, upStairs, hiroshimanNumber
     
     
     #myMap = [[Tile(True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)]
@@ -3832,6 +3938,7 @@ def loadGame():
     equipmentList = file["equipmentList"]
     gameMsgs = file["gameMsgs"]
     gameState = file["gameState"]
+    hiroshimanNumber = file["hiroshimanNumber"]
     if dungeonLevel > 1:
         upStairs = objects[file["upStairsIndex"]]
     #mapFile = open(absPicklePath, "rb")
@@ -3906,7 +4013,7 @@ def nextLevel(boss = False):
         player = tempPlayer
         stairs = tempStairs
         if not boss:
-            makeMap()  #create a fresh new level!
+            makeMap()
         else:
             makeBossLevel()
         print("Created a new level")
@@ -3914,6 +4021,10 @@ def nextLevel(boss = False):
         global hiroshimanHasAppeared
         message('You suddenly feel uneasy.', colors.dark_red)
         hiroshimanHasAppeared = True
+    if highCultistHasAppeared: #It's the exact contrary of the last statement yet it does the exact same thing (aside from the fact that we can have several high cultists)
+        global highCultistHasAppeared
+        message('You feel like somebody really wants you dead...', colors.dark_red)
+        highCultistHasAppeared = False #Make so more high cultists can spawn at lower levels (still only one by floor though)
     initializeFOV()
 
 def playGame():
@@ -4000,7 +4111,22 @@ def playGame():
                         else:
                             object.Fighter.MPRegenCountdown = 10
                         object.Fighter.MP += 1
-                
+
+                if object.Player is not None:
+                    if NATURAL_REGEN:
+                        monsterInSight = False
+                        for monster in objects:
+                            if monster.Fighter and not monster == player and (monster.x, monster.y) in visibleTiles:
+                                monsterInSight = True
+                                break
+                        if not player.Fighter.burning and not player.Fighter.frozen and  player.Fighter.hp != player.Fighter.maxHP and not monsterInSight:
+                            player.Fighter.healCountdown -= 1
+                            if player.Fighter.healCountdown < 0:
+                                player.Fighter.healCountdown = 0
+                            if player.Fighter.healCountdown == 0:
+                                player.Fighter.heal(1)
+                                player.Fighter.healCountdown= 25 - player.Player.vitality
+
                 if object.Player and object.Player.race == 'Werewolf':
                     object.Player.transformCurCooldown -= 1
                     if object.Player.transformationTime > 0:
