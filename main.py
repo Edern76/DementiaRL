@@ -3580,12 +3580,12 @@ def mainMenu():
             index += 1
             wave_obj = sa.WaveObject.from_wave_file("select.wav")
             play_obj = wave_obj.play()
-            play_obj.wait_done()
+            #play_obj.wait_done()
         elif key.keychar.upper() == "UP":
             index -= 1
             wave_obj = sa.WaveObject.from_wave_file("select.wav")
             play_obj = wave_obj.play()
-            play_obj.wait_done()
+            #play_obj.wait_done()
         if index < 0:
             index = len(choices) - 1
         if index > len(choices) - 1:
