@@ -1655,7 +1655,9 @@ class Player:
             self.timeOutsideLeft = 50
         
         if self.race == 'Demon spawn':
-            self.possibleMutations = ['extra limb']
+            self.possibleMutations = {'extra limb': 100}
+            self.mutationsGotten = []
+            self.mutationLevel = [2]
         
         if DEBUG:
             print('Player component initialized')
@@ -1703,7 +1705,7 @@ class Player:
     def takeControl(self, target):
         player.Fighter.hp = target.Fighter.hp
         player.Fighter.armor = target.Fighter.armor
-        player.Fighter.power = target.Fighter.armor
+        player.Fighter.power = target.Fighter.power
         player.Fighter.accuracy = target.Fighter.accuracy
         player.Fighter.evasion = target.Fighter.evasion
         player.Fighter.maxMP = target.Fighter.maxMP
@@ -2352,8 +2354,12 @@ def checkLevelUp():
         player.Player.willpower += player.Player.levelUpStats[10]
         
         if player.Player.race == 'Demon spawn':
-            #if player.level != 1 or player.level != 4:
-            if True:
+            if player.Player.possibleMutations and player.level in player.Player.mutationLevel:
+                mutation = randomChoice(player.Player.possibleMutations)
+                del player.Player.possibleMutations[mutation]
+                player.Player.mutationsGotten.append(mutation)
+                message('You feel strange... You feel like you now have a ' + mutation +'.', colors.yellow)
+            else:
                 mutation = randint(1, 4)
                 if mutation == 1:
                     player.Player.strength += 1
@@ -2368,10 +2374,6 @@ def checkLevelUp():
                     player.Player.willpower += 1
                     mutationName = 'willpower'
                 message('You feel a strange power flowing through your body...You have gained ' + mutationName + '!', colors.yellow)
-            else:
-                mutation = choice(player.Player.possibleMutations)
-                player.Player.remove(mutation)
-                    
         
         if player.Player.race == 'Rootling':  #NERF HAMMER PROBABLY COMING
             player.Fighter.basePower += randint(0, 3)
@@ -3360,6 +3362,11 @@ class Equipment:
             inHands = getEquippedInHands()
             rightText = "right hand"
             leftText = "left hand"
+            extra = False
+            if player.Player.race == 'Demon spawn':
+                if 'extra limb' in player.Player.mutationsGotten:
+                    extraText = "extra arm"
+                    extra = True
             for object in equipmentList:
                 if object.Equipment.curSlot == "right hand":
                     rightText = rightText + " (" + object.name + ")"
@@ -3368,11 +3375,19 @@ class Equipment:
                 if object.Equipment.curSlot == 'both hands':
                     rightText = rightText + " (" + object.name + ")"
                     leftText = leftText + " (" + object.name + ")"
-            handIndex = menu('What slot do you want to equip this ' + self.owner.name + ' in?', [rightText, leftText], 60)
+                if extra and object.Equipment.curSlot == 'extra arm':
+                    extraText = extraText + ' (' + object.name + ')'
+            if extra:
+                handList = [rightText, leftText, extraText]
+            else:
+                handList = [rightText, leftText]
+            handIndex = menu('What slot do you want to equip this ' + self.owner.name + ' in?', handList, 60)
             if handIndex == 0:
                 handSlot = 'right hand'
             elif handIndex == 1:
                 handSlot = 'left hand'
+            elif extra and handIndex == 2:
+                handSlot = 'extra arm'
             elif handIndex == "cancelled":
                 return None
         elif self.slot == 'two handed':
