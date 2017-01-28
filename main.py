@@ -2339,14 +2339,19 @@ def checkLevelUp():
         
         #applying Class specific stat boosts
         player.Fighter.basePower += player.Player.levelUpStats[0]
+        player.Fighter.BASE_POWER += player.Player.levelUpStats[0]
         player.Fighter.baseAccuracy += player.Player.levelUpStats[1]
+        player.Fighter.BASE_ACCURACY += player.Player.levelUpStats[1]
         player.Fighter.baseEvasion += player.Player.levelUpStats[2]
+        player.Fighter.BASE_EVASION += player.Player.levelUpStats[2]
         player.Fighter.baseArmor += player.Player.levelUpStats[3]
         player.Fighter.BASE_ARMOR += player.Player.levelUpStats[3]
         player.Fighter.baseMaxHP += player.Player.levelUpStats[4]
         player.Fighter.hp += player.Player.levelUpStats[4]
+        player.Fighter.BASE_MAX_HP += player.Player.levelUpStats[4]
         player.Fighter.baseMaxMP += player.Player.levelUpStats[5]
         player.Fighter.MP += player.Player.levelUpStats[5]
+        player.Fighter.BASE_MAX_MP += player.Player.levelUpStats[5]
         player.Fighter.baseCritical += player.Player.levelUpStats[6]
         player.Player.strength += player.Player.levelUpStats[7]
         player.Player.dexterity += player.Player.levelUpStats[8]
@@ -2375,25 +2380,27 @@ def checkLevelUp():
                     mutationName = 'willpower'
                 message('You feel a strange power flowing through your body...You have gained ' + mutationName + '!', colors.yellow)
         
-        if player.Player.race == 'Rootling':  #NERF HAMMER PROBABLY COMING
-            player.Fighter.basePower += randint(0, 3)
-            player.Fighter.baseAccuracy += randint(0, 15)
-            player.Fighter.baseEvasion += randint(-5, 0)
-            armorBonus = randint(0, 2)
-            player.Fighter.baseArmor += armorBonus
-            player.Fighter.BASE_ARMOR += armorBonus
-            hpBonus = randint(0, 20)
-            player.Fighter.baseMaxHP += hpBonus
-            player.Fighter.hp += hpBonus
-            mpBonus = randint(0, 15)
-            player.Fighter.baseMaxMP += mpBonus
-            player.Fighter.MP += mpBonus
-            player.Fighter.baseCritical += randint(0, 1)
-            player.Player.strength += randint(0, 1)
-            player.Player.dexterity += randint(0, 1)
-            player.Player.vitality += randint(0, 1)
-            player.Player.willpower += randint(0, 1)
-            
+        if player.Player.race == 'Rootling':
+            choice = None
+            while choice == None:
+                choice = menu('You are now able to grow one part of your wooden body:', ['Trunk', 'Branches', 'Leaves'], LEVEL_SCREEN_WIDTH)
+                if choice == 0:
+                    armorBonus = randint(1, 3)
+                    player.Fighter.BASE_ARMOR += armorBonus
+                    player.Fighter.baseArmor += armorBonus
+                    hpBonus = randint(5, 15)
+                    player.Fighter.BASE_MAX_HP += hpBonus
+                    player.Fighter.baseMaxHP += hpBonus
+                    player.Fighter.hp += hpBonus
+                elif choice == 1:
+                    player.Player.dexterity += randint(1, 2)
+                    player.Player.strength += randint(1, 2)
+                elif choice == 2:
+                    player.Player.willpower += randint(1, 2)
+                    mpBonus = randint(0, 10)
+                    player.Fighter.BASE_MAX_MP += mpBonus
+                    player.Fighter.baseMaxMP += mpBonus
+                    player.Fighter.MP += mpBonus
             message('You feel your wooden corpse thickening!', colors.celadon)
         
         choice = None
@@ -2413,13 +2420,19 @@ def checkLevelUp():
             if choice != None:
                 if player.Player.actualPerSkills[choice] < 5:
                     player.Fighter.basePower += player.Player.skillsBonus[choice][0]
+                    player.Fighter.BASE_POWER += player.Player.skillsBonus[choice][0]
                     player.Fighter.baseAccuracy += player.Player.skillsBonus[choice][1]
+                    player.Fighter.BASE_ACCURACY += player.Player.skillsBonus[choice][1]
                     player.Fighter.baseEvasion += player.Player.skillsBonus[choice][2]
+                    player.Fighter.BASE_EVASION += player.Player.skillsBonus[choice][2]
                     player.Fighter.baseArmor += player.Player.skillsBonus[choice][3]
+                    player.Fighter.BASE_ARMOR += player.Player.skillsBonus[choice][3]
                     player.Fighter.baseMaxHP += player.Player.skillsBonus[choice][4]
                     player.Fighter.hp += player.Player.skillsBonus[choice][4]
+                    player.Fighter.BASE_MAX_HP += player.Player.skillsBonus[choice][4]
                     player.Fighter.baseMaxMP += player.Player.skillsBonus[choice][5]
                     player.Fighter.MP += player.Player.skillsBonus[choice][5]
+                    player.Fighter.BASE_MAX_MP += player.Player.skillsBonus[choice][5]
                     player.Fighter.baseCritical += player.Player.skillsBonus[choice][6]
                     player.Player.strength += player.Player.skillsBonus[choice][7]
                     player.Player.dexterity += player.Player.skillsBonus[choice][8]
