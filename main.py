@@ -597,7 +597,7 @@ def characterCreation():
                   [0, 0, 0, 0, 0, 0, 0, 0, 2, 0, -2], #Felis
                   [0, 0, 10, 0, 0, 0, 0, -4, 2, 0, 0], #Reptilian
                   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], #Demon Spawn
-                  [0, 0, 0, 0, 0, 0, 0, -4, -2, -5, -3], #Rootling
+                  [0, 0, 0, 0, 0, 0, 0, -3, -2, -4, -3], #Rootling
                   [0, 0, 0, 0, 0, 0, 0, 2, 1, -2, -4], #Werewolf
                   [0, 0, 0, 0, 0, 0, 0, 1, 0, -2, -10], #Devourer
                   [0, 0, 999, 0, 0, 0, 0, -9, -9, -9, -9]] #Virus
@@ -1297,7 +1297,7 @@ class Fighter: #All NPCs, enemies and the player
     def attack(self, target):
         [hit, criticalHit] = self.toHit(target)
         if hit:
-            if criticalHit:
+            if criticalHit: 
                 if self.owner.Player and self.owner.Player.traits[0]:
                     damage = (randint(self.power, self.power + 5) + 4  - target.Fighter.armor) * 3
                 else:
@@ -2516,8 +2516,9 @@ def castPlaceBoss():
     else:
         (x, y) = target
         if not isBlocked(x, y):
-            boss = menu('What boss ?', ['Gluttony', 'Wrath'], 50)
-            placeBoss(boss, x, y)
+            bossList = ['Gluttony', 'Wrath']
+            boss = menu('What boss ?', bossList, 50)
+            placeBoss(bossList[boss], x, y)
         else:
             return 'cancelled'
 
@@ -2928,6 +2929,7 @@ def fatSpread(spreadRate):
 
 class Gluttony():
     def takeTurn(self):
+        global FOV_recompute
         boss = self.owner
         bossVisibleTiles = tdl.map.quickFOV(boss.x, boss.y, isVisibleTile, fov = BOSS_FOV_ALGO, radius = BOSS_SIGHT_RADIUS, lightWalls= False)
         
@@ -2948,7 +2950,7 @@ class Gluttony():
 
         for object in objects:
             if object.name == 'crosshair' and boss.Fighter.curLandCooldown <= 0:
-                projectile(boss.x, boss.y, object.x, object.y, '*', colors.desaturated_chartreuse)
+                projectile(boss.x, boss.y, object.x, object.y, '*', colors.desaturated_chartreuse, passesThrough=True, ghost=True)
                 for x in range(MAP_WIDTH):
                     for y in range(MAP_HEIGHT):
                         if not isBlocked(x, y) and object.distanceToCoords(x, y) <= 2:
@@ -3404,7 +3406,7 @@ class Equipment:
                 handSlot = 'left hand'
             elif extra and handIndex == 2:
                 handSlot = 'extra arm'
-            elif handIndex == "cancelled":
+            else:
                 return None
         elif self.slot == 'two handed':
             handSlot = 'both hands'
@@ -4027,7 +4029,7 @@ def newGame():
     message('Zargothrox says : Prepare to get lost in the Realm of Madness !', colors.dark_red)
     gameState = 'playing'
     
-    equipmentComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus=2, burning = False, meleeWeapon=True)
+    equipmentComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus=3, burning = False, meleeWeapon=True)
     object = GameObject(0, 0, '-', 'dagger', colors.light_sky, Equipment=equipmentComponent, Item=Item(weight = 0.8), darkColor = colors.darker_sky)
     inventory.append(object)
     object.alwaysVisible = True
