@@ -1640,6 +1640,7 @@ class Player:
         self.burdened = False
         self.hunger = baseHunger
         self.hungerStatus = "full"
+        self.dualWield = False
         
         if self.race == 'Werewolf':
             self.transformCooldown = 150
@@ -2440,15 +2441,17 @@ def checkLevelUp():
                     player.Player.willpower += player.Player.skillsBonus[choice][10]
 
                     player.Player.actualPerSkills[choice] += 1
-                    
-                    
                     FOV_recompute = True
                     Update()
                     break
 
                 elif player.Player.actualPerSkills[choice] >= 5:
                     choice = None
+
         player.Player.updatePlayerStats()
+        if player.Player.actualPerSkills[0] >= 4 and not player.Player.dualWield:
+            message('You are now proficient enough with light weapons to wield two at the same time!', colors.yellow)
+            player.Player.dualWield = True
 
 def isVisibleTile(x, y):
     global myMap
@@ -3406,16 +3409,34 @@ class Equipment:
         elif self.slot == 'two handed':
             handSlot = 'both hands'
 
-        otherEquipment = None
+        rightEquipment = None
+        leftEquipment = None
+        extraEquipment = None
         if handed:
             if self.meleeWeapon and handSlot == 'right hand':
-                otherEquipment = getEquippedInSlot('left hand', hand = True)
+                leftEquipment = getEquippedInSlot('left hand', hand = True)
+                extraEquipment = getEquippedInSlot('extra arm', hand = True)
             elif self.meleeWeapon and handSlot == 'left hand':
-                otherEquipment = getEquippedInSlot('right hand', hand = True)
-        if otherEquipment and otherEquipment.meleeWeapon:
-            message('You cannot wield two weapons at the same time!', colors.yellow)
+                rightEquipment = getEquippedInSlot('right hand', hand = True)
+                extraEquipment = getEquippedInSlot('extra arm', hand = True)
+            elif extra and self.meleeWeapon and handSlot == 'extra arm':
+                leftEquipment = getEquippedInSlot('left hand', hand = True)
+                rightEquipment = getEquippedInSlot('right hand', hand = True)
+        rightIsWeapon = rightEquipment and rightEquipment.meleeWeapon
+        leftIsWeapon = leftEquipment and leftEquipment.meleeWeapon
+        extraIsWeapon = extraEquipment and extraEquipment.meleeWeapon
 
-        else:
+        possible = True
+        if rightIsWeapon or leftIsWeapon or extraIsWeapon:
+            if not player.Player.dualWield:
+                message('You cannot wield two weapons at the same time!', colors.yellow)
+                possible = False
+            else:
+                if self.type == 'light weapon':
+                    if rightIsWeapon and not rightEquipment.type == 'light weapon' or leftIsWeapon and not leftEquipment.type == 'light weapon' or rightIsWeapon and not rightEquipment.type == 'light weapon':
+                        message('You can only wield several light weapons.', colors.yellow)
+                        possible = False
+        if possible:
             if not handed:
                 oldEquipment = getEquippedInSlot(self.slot)
                 if oldEquipment is not None:
