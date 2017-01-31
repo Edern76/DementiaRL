@@ -180,13 +180,13 @@ def playWavSound(sound, forceStop = False):
     waveObj.play()
     #TO-DO : Add an ear-rape prevention system, such as allowing sounds to be played every X milliseconds.
 
-
 #_____________MENU_______________
-def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages):
+def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp):
     window.clear()
     for i, line in enumerate(headerWrapped):
         window.draw_str(0, 0+i, headerWrapped[i], fg = colors.yellow)
-    window.draw_str(10, y - 2, str(page + 1) + '/' + str(maxPages + 1), fg = colors.yellow)
+    if pagesDisp:
+        window.draw_str(10, y - 2, str(page + 1) + '/' + str(maxPages + 1), fg = colors.yellow)
     letterIndex = ord('a')
     counter = 0
     for optionText in options:
@@ -203,7 +203,7 @@ def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxP
 
     tdl.flush()
 
-def menu(header, options, width):
+def menu(header, options, width, pagesDisp = True):
     global menuWindows, FOV_recompute
     page = 0
     maxPages = len(options)//26
@@ -225,13 +225,13 @@ def menu(header, options, width):
     menuWindows.append(window)
     window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
     y = headerHeight + 2
-    drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages)
+    drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp)
 
     choseOrQuit = False
     while not choseOrQuit:
         choseOrQuit = True
         arrow = False
-        drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages)
+        drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp)
         key = tdl.event.key_wait()
         keyChar = key.keychar
         if keyChar == '':
@@ -259,7 +259,7 @@ def menu(header, options, width):
     return None
 
 def msgBox(text, width = 50):
-    menu(text, [], width)
+    menu(text, [], width, pagesDisp=False)
 
 def drawCentered (cons = con , y = 1, text = "Lorem Ipsum", fg = None, bg = None):
     xCentered = (WIDTH - len(text))//2
@@ -493,8 +493,6 @@ def castRessurect(range = 4):
                 monster = createTroll(x, y, friendly = True, corpse = True)
             if monster is not None:
                 objects.append(monster)
-            
-            
 
 fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 1, arg2 = 12, arg3 = 4)
 heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 20)
@@ -1299,14 +1297,14 @@ class Fighter: #All NPCs, enemies and the player
         if hit:
             if criticalHit: 
                 if self.owner.Player and self.owner.Player.traits[0]:
-                    damage = (randint(self.power, self.power + 5) + 4  - target.Fighter.armor) * 3
+                    damage = (randint(self.power - 2, self.power + 2) + 4  - target.Fighter.armor) * 3
                 else:
-                    damage = (randint(self.power, self.power + 5) - target.Fighter.armor) * 3
+                    damage = (randint(self.power - 2, self.power + 2) - target.Fighter.armor) * 3
             else:
                 if self.owner.Player and self.owner.Player.traits[0]:
-                    damage = randint(self.power, self.power + 5) + 4 - target.Fighter.armor
+                    damage = randint(self.power - 2, self.power + 2) + 4 - target.Fighter.armor
                 else:
-                    damage = randint(self.power, self.power + 5) - target.Fighter.armor
+                    damage = randint(self.power - 2, self.power + 2) - target.Fighter.armor
             if not self.frozen:
                 if not self.owner.Player:
                     if damage > 0:
@@ -1430,8 +1428,6 @@ class BasicMonster: #Basic monsters' AI
                                 diagPathState = checkDiagonals(monster, player)
                             elif diagPathState is None or monster.distanceTo(player) > 15:
                                 monster.move(randint(-1, 1), randint(-1, 1)) #wandering
-                        
-                    
 
 class FastMonster:
     def __init__(self, speed):
@@ -1719,7 +1715,7 @@ class Player:
         self.hostDeath = self.HOST_DEATH
 
 class Item:
-    def __init__(self, useFunction = None,  arg1 = None, arg2 = None, arg3 = None, stackable = False, amount = 1, weight = 0):
+    def __init__(self, useFunction = None,  arg1 = None, arg2 = None, arg3 = None, stackable = False, amount = 1, weight = 0, description = 'Placeholder'):
         self.useFunction = useFunction
         self.arg1 = arg1
         self.arg2 = arg2
@@ -1727,6 +1723,7 @@ class Item:
         self.stackable = stackable
         self.amount = amount
         self.weight = weight
+        self.description = description
 
     def pickUp(self):
         if not self.stackable:
@@ -1839,6 +1836,11 @@ class Item:
             message('You dropped a ' + self.owner.name + '.', colors.yellow)
         if self.owner.Equipment:
             self.owner.Equipment.unequip()
+    
+    def display(self):
+        item = self.owner
+        width = 30
+        height = 30
 
 def quitGame(message, backToMainMenu = False):
     global objects
@@ -2119,6 +2121,7 @@ def getInput():
         elif userInput.keychar.upper() == 'I':
             chosenItem = inventoryMenu('Press the key next to an item to use it, or any other to cancel.\n')
             if chosenItem is not None:
+                usage = menu(chosenItem.owner.name.capitalize() + ': ' + chosenItem.description, options = ['Use'], width = 30, pagesDisp = False)
                 using = chosenItem.use()
                 if using == 'cancelled':
                     FOV_recompute = True
@@ -2270,9 +2273,9 @@ def shoot():
                                         [hit, criticalHit] = player.Fighter.toHit(monsterTarget)
                                         if hit:
                                             if player.Player.traits[0]:
-                                                damage = randint(weapon.Equipment.rangedPower, weapon.Equipment.rangedPower + 5) + 4 - monsterTarget.Fighter.armor
+                                                damage = randint(weapon.Equipment.rangedPower - 2, weapon.Equipment.rangedPower + 2) + 4 - monsterTarget.Fighter.armor
                                             else:
-                                                damage = randint(weapon.Equipment.rangedPower, weapon.Equipment.rangedPower + 5) - monsterTarget.Fighter.armor
+                                                damage = randint(weapon.Equipment.rangedPower - 2, weapon.Equipment.rangedPower + 2) - monsterTarget.Fighter.armor
         
                                             if damage <= 0:
                                                 message('You hit ' + monsterTarget.name + ' but it has no effect !')
@@ -3975,7 +3978,6 @@ def targetMonster(maxRange = None):
         for obj in objects:
             if obj.x == x and obj.y == y and obj.Fighter and obj != player:
                 return obj
-               
 
 #______ INITIALIZATION AND MAIN LOOP________
 def accessMapFile(level = dungeonLevel):
@@ -4290,9 +4292,7 @@ def playGame():
                     if object.Fighter.acidifiedCooldown <= 0:
                         object.Fighter.acidified = False
                         object.Fighter.baseArmor = object.Fighter.BASE_ARMOR
-                
-                
-            
+
             for x in range(MAP_WIDTH):
                 for y in range(MAP_HEIGHT):
                     if myMap[x][y].acid:
