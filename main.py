@@ -203,10 +203,12 @@ def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxP
 
     tdl.flush()
 
-def menu(header, options, width, pagesDisp = True):
+def menu(header, options, width):
     global menuWindows, FOV_recompute
     page = 0
     maxPages = len(options)//26
+    if maxPages <= 1:
+        pagesDisp = False
     headerWrapped = textwrap.wrap(header, width)
     headerHeight = len(headerWrapped)
     if header == "":
@@ -259,7 +261,7 @@ def menu(header, options, width, pagesDisp = True):
     return None
 
 def msgBox(text, width = 50):
-    menu(text, [], width, pagesDisp=False)
+    menu(text, [], width)
 
 def drawCentered (cons = con , y = 1, text = "Lorem Ipsum", fg = None, bg = None):
     xCentered = (WIDTH - len(text))//2
@@ -1837,10 +1839,57 @@ class Item:
         if self.owner.Equipment:
             self.owner.Equipment.unequip()
     
-    def display(self):
-        item = self.owner
+    def display(self, options):
+        global menuWindows, FOV_recompute
         width = 30
-        height = 30
+        descriptionWrapped = textwrap.wrap(self.description, width)
+        descriptionHeight = len(descriptionWrapped)
+        if descriptionWrapped == '':
+            descriptionHeight = 0
+        height = descriptionHeight + len(options) + 3
+        if menuWindows:
+            for mWindow in menuWindows:
+                mWindow.clear()
+                FOV_recompute = True
+                Update()
+                tdl.flush()
+        window = tdl.Console(width, height)
+        window.clear()
+        
+        choseOrQuit = False
+        while not choseOrQuit:
+            choseOrQuit = True
+
+            window.draw_str(0, 0, self.owner.name.capitalize() + ':', fg = colors.yellow, bg = None)
+            for i, line in enumerate(descriptionWrapped):
+                window.draw_str(0, 2+i, descriptionWrapped[i], fg = colors.white)
+            
+            y = descriptionHeight + 3
+            letterIndex = ord('a')
+            counter = 0
+            for optionText in options:
+                text = '(' + chr(letterIndex) + ') ' + optionText
+                letterIndex += 1
+                window.draw_str(0, y, text, bg=None)
+                y += 1
+                counter += 1
+                
+            x = MID_WIDTH - int(width/2)
+            y = MID_HEIGHT - int(height/2)
+            root.blit(window, x, y, width, height, 0, 0)
+        
+            tdl.flush()
+            
+            key = tdl.event.key_wait()
+            keyChar = key.keychar
+            if keyChar in 'abcdefghijklmnopqrstuvwsyz':
+                index = ord(keyChar) - ord('a')
+                if index >= 0 and index < len(options):
+                    return index
+            elif keyChar.upper() == "ESCAPE":
+                return "cancelled"
+        return None
+
 
 def quitGame(message, backToMainMenu = False):
     global objects
@@ -2121,7 +2170,7 @@ def getInput():
         elif userInput.keychar.upper() == 'I':
             chosenItem = inventoryMenu('Press the key next to an item to use it, or any other to cancel.\n')
             if chosenItem is not None:
-                usage = menu(chosenItem.owner.name.capitalize() + ': ' + chosenItem.description, options = ['Use'], width = 30, pagesDisp = False)
+                chosenItem.display(["Use"])
                 using = chosenItem.use()
                 if using == 'cancelled':
                     FOV_recompute = True
