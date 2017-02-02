@@ -6,6 +6,8 @@ from math import *
 from os import makedirs
 from constants import MAX_HIGH_CULTIST_MINIONS
 import nameGen
+import xpLoaderRemasterized
+import gzip
 
 # Naming conventions :
 # MY_CONSTANT
@@ -1846,7 +1848,7 @@ class Item:
         descriptionHeight = len(descriptionWrapped)
         if descriptionWrapped == '':
             descriptionHeight = 0
-        height = descriptionHeight + len(options) + 3
+        height = descriptionHeight + len(options) + 4
         if menuWindows:
             for mWindow in menuWindows:
                 mWindow.clear()
@@ -2170,10 +2172,16 @@ def getInput():
         elif userInput.keychar.upper() == 'I':
             chosenItem = inventoryMenu('Press the key next to an item to use it, or any other to cancel.\n')
             if chosenItem is not None:
-                chosenItem.display(["Use"])
-                using = chosenItem.use()
-                if using == 'cancelled':
-                    FOV_recompute = True
+                usage = chosenItem.display(['Use', 'Drop', 'Back'])
+                if usage == 0:
+                    using = chosenItem.use()
+                    if using == 'cancelled':
+                        FOV_recompute = True
+                        return 'didnt-take-turn'
+                elif usage == 1:
+                    chosenItem.drop()
+                    return None
+                elif usage == 2:
                     return 'didnt-take-turn'
             else:
                 return 'didnt-take-turn'
