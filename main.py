@@ -6,8 +6,7 @@ from math import *
 from os import makedirs
 from constants import MAX_HIGH_CULTIST_MINIONS
 import nameGen
-import xpLoaderRemasterized
-import gzip
+import itemsPics
 
 # Naming conventions :
 # MY_CONSTANT
@@ -1843,12 +1842,12 @@ class Item:
     
     def display(self, options):
         global menuWindows, FOV_recompute
-        width = 30
+        width = 50
         descriptionWrapped = textwrap.wrap(self.description, width)
         descriptionHeight = len(descriptionWrapped)
         if descriptionWrapped == '':
             descriptionHeight = 0
-        height = descriptionHeight + len(options) + 4
+        height = descriptionHeight + len(options) + 6
         if menuWindows:
             for mWindow in menuWindows:
                 mWindow.clear()
@@ -1865,6 +1864,12 @@ class Item:
             window.draw_str(0, 0, self.owner.name.capitalize() + ':', fg = colors.yellow, bg = None)
             for i, line in enumerate(descriptionWrapped):
                 window.draw_str(0, 2+i, descriptionWrapped[i], fg = colors.white)
+            
+            for line in itemsPics.trollMacePic:
+                x = 20
+                for char in line:
+                    window.draw_char(x, 5, char[0], char[1], char[2])
+                    x += 1
             
             y = descriptionHeight + 3
             letterIndex = ord('a')

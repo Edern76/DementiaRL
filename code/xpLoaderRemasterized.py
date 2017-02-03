@@ -1,4 +1,4 @@
-import tdl, colors, math, textwrap, time, os, shelve, sys, code
+import tdl
 from tdl import *
 
 ##################################
