@@ -1865,11 +1865,13 @@ class Item:
             for i, line in enumerate(descriptionWrapped):
                 window.draw_str(0, 2+i, descriptionWrapped[i], fg = colors.white)
             
+            y = 5
             for line in itemsPics.trollMacePic:
                 x = 20
                 for char in line:
-                    window.draw_char(x, 5, char[0], char[1], char[2])
+                    window.draw_char(x, y, char[0], char[1], char[2])
                     x += 1
+                y += 1
             
             y = descriptionHeight + 3
             letterIndex = ord('a')
