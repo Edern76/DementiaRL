@@ -1718,7 +1718,7 @@ class Player:
         self.hostDeath = self.HOST_DEATH
 
 class Item:
-    def __init__(self, useFunction = None,  arg1 = None, arg2 = None, arg3 = None, stackable = False, amount = 1, weight = 0, description = 'Placeholder'):
+    def __init__(self, useFunction = None,  arg1 = None, arg2 = None, arg3 = None, stackable = False, amount = 1, weight = 0, description = 'Placeholder', pic = itemsPics.trollMacePic):
         self.useFunction = useFunction
         self.arg1 = arg1
         self.arg2 = arg2
@@ -1727,6 +1727,7 @@ class Item:
         self.amount = amount
         self.weight = weight
         self.description = description
+        self.pic = pic
 
     def pickUp(self):
         if not self.stackable:
@@ -1840,14 +1841,45 @@ class Item:
         if self.owner.Equipment:
             self.owner.Equipment.unequip()
     
+    def fullDescription(self, width):
+        equipmentComp = self.owner.Equipment
+        fullDesc = []
+        equipmentStats = []
+        fullDesc.extend(textwrap.wrap(self.description, width))
+        if equipmentComp is not None:
+            if equipmentComp.slot is not None:
+                equipmentStats.append(equipmentComp.slot.capitalize())
+            if equipmentComp.type is not None:
+                equipmentStats.append(equipmentComp.type.capitalize())
+            if equipmentComp.powerBonus != 0:
+                equipmentStats.append('Power Bonus: ' + str(equipmentComp.powerBonus))
+            if equipmentComp.armorBonus != 0:
+                equipmentStats.append('Armor Bonus: ' + str(equipmentComp.armorBonus))
+            if equipmentComp.maxHP_Bonus != 0:
+                equipmentStats.append('HP Bonus: ' + str(equipmentComp.maxHP_Bonus))
+            if equipmentComp.maxMP_Bonus != 0:
+                equipmentStats.append('MP Bonus: ' + str(equipmentComp.maxMP_Bonus))
+            if equipmentComp.accuracyBonus != 0:
+                equipmentStats.append('Accuracy Bonus: ' + str(equipmentComp.accuracyBonus))
+            if equipmentComp.evasionBonus != 0:
+                equipmentStats.append('Evasion Bonus: ' + str(equipmentComp.evasionBonus))
+            if equipmentComp.criticalBonus != 0:
+                equipmentStats.append('Critical Bonus: ' + str(equipmentComp.criticalBonus))
+            if equipmentComp.ranged:
+                equipmentStats.append('Ranged damage: ' + str(equipmentComp.rangedPower))
+        weightText = 'Weight: ' + str(self.weight)
+        fullDesc.append(weightText)
+        fullDesc.extend(equipmentStats)
+        return fullDesc
+    
     def display(self, options):
         global menuWindows, FOV_recompute
-        width = 50
-        descriptionWrapped = textwrap.wrap(self.description, width)
-        descriptionHeight = len(descriptionWrapped)
-        if descriptionWrapped == '':
+        width = len(itemsPics.trollMacePic[0]) + 16
+        desc = self.fullDescription(width)
+        descriptionHeight = len(desc)
+        if desc == '':
             descriptionHeight = 0
-        height = descriptionHeight + len(options) + 6
+        height = descriptionHeight + len(options) + 6 + len(self.pic)
         if menuWindows:
             for mWindow in menuWindows:
                 mWindow.clear()
@@ -1860,20 +1892,20 @@ class Item:
         choseOrQuit = False
         while not choseOrQuit:
             choseOrQuit = True
-
-            window.draw_str(0, 0, self.owner.name.capitalize() + ':', fg = colors.yellow, bg = None)
-            for i, line in enumerate(descriptionWrapped):
-                window.draw_str(0, 2+i, descriptionWrapped[i], fg = colors.white)
             
-            y = 5
-            for line in itemsPics.trollMacePic:
-                x = 20
+            y = 3
+            for line in self.pic:
+                x = 2
                 for char in line:
                     window.draw_char(x, y, char[0], char[1], char[2])
                     x += 1
                 y += 1
             
-            y = descriptionHeight + 3
+            window.draw_str(0, 0, self.owner.name.capitalize() + ':', fg = colors.yellow, bg = None)
+            for i, line in enumerate(desc):
+                window.draw_str(0, len(itemsPics.trollMacePic) + 4 +i, desc[i], fg = colors.white)
+
+            y = descriptionHeight + len(self.pic) + 5
             letterIndex = ord('a')
             counter = 0
             for optionText in options:
@@ -2193,11 +2225,19 @@ def getInput():
             else:
                 return 'didnt-take-turn'
         elif userInput.keychar.upper() == 'E':
-            chosenItem = equipmentMenu('Press the key next to an equipment to unequip it')
+            chosenItem = equipmentMenu('This is the equipment you are currently wielding.')
             if chosenItem is not None:
-                using = chosenItem.use()
-                if using == 'cancelled':
-                    FOV_recompute = True
+                usage = chosenItem.display(['Unequip', 'Drop', 'Back'])
+                if usage == 0:
+                    using = chosenItem.use()
+                    if using == 'cancelled':
+                        FOV_recompute = True
+                        return 'didnt-take-turn'
+                elif usage == 1:
+                    chosenItem.owner.Equipment.unequip()
+                    chosenItem.drop()
+                    return None
+                elif usage == 2:
                     return 'didnt-take-turn'
             else:
                 FOV_recompute = True
@@ -3437,6 +3477,7 @@ class Equipment:
             self.equip()
 
     def equip(self):
+        extra = False
         handSlot = None
         oldEquipment = None
         global FOV_recompute
@@ -3749,34 +3790,34 @@ def equipmentMenu(header):
         for item in equipmentList:
             text = item.name
             if item.Equipment and item.Equipment.isEquipped:
-                powBonus = item.Equipment.basePowerBonus
-                skillPowBonus = item.Equipment.powerBonus - powBonus
-                hpBonus = item.Equipment.maxHP_Bonus
-                armBonus = item.Equipment.armorBonus
-                if powBonus != 0 or hpBonus !=0 or armBonus != 0:
-                    info = '['
-                    if powBonus != 0:
-                        info = info + 'POWER + ' + str(powBonus)
-                        if skillPowBonus > 0:
-                            info += ' + ' + str(skillPowBonus)
-                    if hpBonus != 0:
-                        if powBonus == 0:
-                            info = info + 'HP + ' + str(hpBonus)
-                        else:
-                            info = info + ' HP + ' + str(hpBonus)
-                    if armBonus != 0:
-                        if powBonus == 0 and hpBonus == 0:
-                            info = info + 'ARMOR + ' + str(armBonus)
-                        else:
-                            info = info + ' ARMOR + ' + str(armBonus)
-                    info = info + ']'
-                else:
-                    info = ''
+                #powBonus = item.Equipment.basePowerBonus
+                #skillPowBonus = item.Equipment.powerBonus - powBonus
+                #hpBonus = item.Equipment.maxHP_Bonus
+                #armBonus = item.Equipment.armorBonus
+                #if powBonus != 0 or hpBonus !=0 or armBonus != 0:
+                #    info = '['
+                #    if powBonus != 0:
+                #        info = info + 'POWER + ' + str(powBonus)
+                #        if skillPowBonus > 0:
+                #            info += ' + ' + str(skillPowBonus)
+                #    if hpBonus != 0:
+                #        if powBonus == 0:
+                #            info = info + 'HP + ' + str(hpBonus)
+                #        else:
+                #            info = info + ' HP + ' + str(hpBonus)
+                #    if armBonus != 0:
+                #        if powBonus == 0 and hpBonus == 0:
+                #            info = info + 'ARMOR + ' + str(armBonus)
+                #        else:
+                #            info = info + ' ARMOR + ' + str(armBonus)
+                #    info = info + ']'
+                #else:
+                #    info = ''
                 handed = item.Equipment.slot == 'one handed' or item.Equipment.slot == 'two handed'
                 if handed:
-                    text = text + ' ' + info + ' (on ' + item.Equipment.curSlot + ')'
+                    text = text + ' (on ' + item.Equipment.curSlot + ')'
                 else:
-                    text = text + ' ' + info + ' (on ' + item.Equipment.slot + ')'
+                    text = text + ' (on ' + item.Equipment.slot + ')'
             options.append(text)
     index = menu(header, options, INVENTORY_WIDTH)
     if index is None or len(equipmentList) == 0 or index == "cancelled":
