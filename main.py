@@ -1874,7 +1874,7 @@ class Item:
     
     def display(self, options):
         global menuWindows, FOV_recompute
-        width = len(itemsPics.trollMacePic[0]) + 16
+        width = len(self.pic[0]) + 16
         desc = self.fullDescription(width)
         descriptionHeight = len(desc)
         if desc == '':
@@ -1903,7 +1903,7 @@ class Item:
             
             window.draw_str(0, 0, self.owner.name.capitalize() + ':', fg = colors.yellow, bg = None)
             for i, line in enumerate(desc):
-                window.draw_str(0, len(itemsPics.trollMacePic) + 4 +i, desc[i], fg = colors.white)
+                window.draw_str(0, len(self.pic) + 4 +i, desc[i], fg = colors.white)
 
             y = descriptionHeight + len(self.pic) + 5
             letterIndex = ord('a')
@@ -3261,7 +3261,7 @@ def createTroll(x, y, friendly = False, corpse = False):
     if x != player.x or y != player.y:
         if not corpse:
             equipmentComponent = Equipment(slot = 'two handed', type = 'heavy weapon', powerBonus = 15, accuracyBonus = -20, meleeWeapon=True)
-            trollMace = GameObject(x, y, '/', 'troll mace', colors.darker_orange, Equipment=equipmentComponent, Item=Item(weight = 13.0))
+            trollMace = GameObject(x, y, '/', 'troll mace', colors.darker_orange, Equipment=equipmentComponent, Item=Item(weight = 13.0, pic = itemsPics.trollMacePic))
             lootOnDeath = [trollMace]
             deathType = monsterDeath
             monName = "troll"
@@ -3315,11 +3315,11 @@ def createHighCultist(x, y):
         robe = GameObject(0, 0, '[', 'high cultist robe', colors.desaturated_purple, Equipment = robeEquipment, Item=Item(weight = 1.5))
         
         flailEquipment = Equipment(slot = 'one handed', type = 'heavy weapon', powerBonus = 13, meleeWeapon = True)
-        flail = GameObject(0, 0, '/', 'bloodsteel flail', colors.red, Equipment=flailEquipment, Item=Item(weight=5.5))
+        flail = GameObject(0, 0, '/', 'bloodsteel flail', colors.red, Equipment=flailEquipment, Item=Item(weight=5.5, pic = itemsPics.bloodsteelFlail))
         
         spellbook = GameObject(x, y, '=', 'spellbook of arcane rituals', colors.violet, Item = Item(useFunction = learnSpell, arg1 = darkPact, weight = 1.0), blocks = False)
         
-        fighterComponent = Fighter(hp = 40, armor = 2, power = 13, xp = 80, deathFunction = monsterDeath, accuracy = 20, evasion = 30, lootFunction = [robe, flail, spellbook], lootRate = [60, 20, 15])
+        fighterComponent = Fighter(hp = 40, armor = 2, power = 13, xp = 80, deathFunction = monsterDeath, accuracy = 20, evasion = 30, lootFunction = [robe, flail, spellbook], lootRate = [60, 25, 15])
         AI_component = BasicMonster()
         name = nameGen.humanLike()
         actualName = name + ' the high cultist'
