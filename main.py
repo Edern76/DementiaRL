@@ -1,4 +1,4 @@
-import tdl, colors, math, textwrap, time, os, shelve, sys, code
+import tdl, colors, math, textwrap, time, os, shelve, sys, code, gzip
 import simpleaudio as sa
 from tdl import *
 from random import randint, choice
@@ -7,6 +7,7 @@ from os import makedirs
 from constants import MAX_HIGH_CULTIST_MINIONS
 import nameGen
 import itemsPics
+import xpLoaderRemasterized as xpL
 
 # Naming conventions :
 # MY_CONSTANT
@@ -1876,12 +1877,21 @@ class Item:
     
     def display(self, options):
         global menuWindows, FOV_recompute
-        width = len(self.pic[0]) + 16
+        asciiFile = os.path.join(absAsciiPath, self.pic)
+        xpRawString = gzip.open(asciiFile, "r").read()
+        convertedString = xpRawString
+        attributes = xpL.load_xp_string(convertedString)
+        picWidth = int(attributes["width"])
+        picHeight = int(attributes["height"])
+        print("Pic Height = ", picHeight)
+        lData = attributes["layer_data"]
+        
+        width = picWidth + 16
         desc = self.fullDescription(width)
         descriptionHeight = len(desc)
         if desc == '':
             descriptionHeight = 0
-        height = descriptionHeight + len(options) + 6 + len(self.pic)
+        height = descriptionHeight + len(options) + 6 + int(picHeight) + 1
         if menuWindows:
             for mWindow in menuWindows:
                 mWindow.clear()
@@ -1895,19 +1905,24 @@ class Item:
         while not choseOrQuit:
             choseOrQuit = True
             
-            y = 3
-            for line in self.pic:
-                x = 2
-                for char in line:
-                    window.draw_char(x, y, char[0], char[1], char[2])
-                    x += 1
-                y += 1
+            startY = 3
+            startX = 2
+            layerInd = int(0)
+            for layerInd in range(len(lData)):
+                xpL.load_layer_to_console(window, lData[layerInd], startY, startX)
+            #for line in self.pic:
+                #x = 2
+                #for char in line:
+                    #window.draw_char(x, y, char[0], char[1], char[2])
+                    #x += 1
+                #y += 1
+            
             
             window.draw_str(0, 0, self.owner.name.capitalize() + ':', fg = colors.yellow, bg = None)
-            for i, line in enumerate(desc):
-                window.draw_str(0, len(self.pic) + 4 +i, desc[i], fg = colors.white)
+            #for i, line in enumerate(desc):
+                #window.draw_str(0, len(self.pic) + 4 +i, desc[i], fg = colors.white)
 
-            y = descriptionHeight + len(self.pic) + 5
+            y = descriptionHeight + picHeight + 5
             letterIndex = ord('a')
             counter = 0
             for optionText in options:
@@ -4139,7 +4154,7 @@ def newGame():
     gameState = 'playing'
     
     equipmentComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus=3, burning = False, meleeWeapon=True)
-    object = GameObject(0, 0, '-', 'dagger', colors.light_sky, Equipment=equipmentComponent, Item=Item(weight = 0.8), darkColor = colors.darker_sky)
+    object = GameObject(0, 0, '-', 'dagger', colors.light_sky, Equipment=equipmentComponent, Item=Item(weight = 0.8, pic= itemsPics.placeholderPic), darkColor = colors.darker_sky)
     inventory.append(object)
     object.alwaysVisible = True
     if player.Player.classes == 'Rogue':
