@@ -156,11 +156,13 @@ relPath = "save\\savegame"
 relPicklePath = "save\\equipment"
 relAssetPath = "assets"
 relSoundPath = "assets\\sound"
+relAsciiPath = "assets\\ascii"
 absDirPath = os.path.join(curDir, relDirPath)
 absFilePath = os.path.join(curDir, relPath)
 absPicklePath = os.path.join(curDir, relPicklePath)
 absAssetPath = os.path.join(curDir, relAssetPath)
 absSoundPath = os.path.join(curDir, relSoundPath)
+absAsciiPath = os.path.join(curDir, relAsciiPath)
 
 stairCooldown = 0
 pathfinder = None
