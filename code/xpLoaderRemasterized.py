@@ -1,4 +1,4 @@
-import tdl
+import tdl, base64
 from tdl import *
 
 ##################################
@@ -31,7 +31,7 @@ layer_cell_bytes = layer_keycode_bytes + layer_fore_rgb_bytes + layer_back_rgb_b
 
 
 ##################################
-# REXPaint color key for transparent background colors. Not directly used here, but you should reference this when calling libtcod's console_set_key_color on offscreen consoles.
+# REXPaint color key for transparent background colors.
 ##################################
 
 transparent_cell_back_r = 255
@@ -39,7 +39,7 @@ transparent_cell_back_g = 0
 transparent_cell_back_b = 255
 
 ####################################################################
-# START LIBTCOD SPECIFIC CODE
+# START LIBTCOD/TDL SPECIFIC CODE
 
 ##################################
 # Used primarily internally to parse the data, feel free to reference them externally if it's useful. 
@@ -64,12 +64,9 @@ poskey_color_lightblue = (0, 128, 255)
 poskey_color_purple = (128, 0, 255)
 poskey_color_white = (255, 255, 255)
 
-##################################
-# please note - this function writes the contents of transparent cells to the provided console. 
-# If you're building an offscreen console and want to use the default (or some other) color for transparency, please call libtcod's console.set_key_color(color)
-##################################
 
-def load_layer_to_console(console, xp_file_layer):
+
+def load_layer_to_console(console, xp_file_layer, sx = 0, sy = 0):
     if not xp_file_layer['width'] or not xp_file_layer['height']:
         raise AttributeError('Attempted to call load_layer_to_console on data that didn\'t have a width or height key, check your data')
 
@@ -78,7 +75,8 @@ def load_layer_to_console(console, xp_file_layer):
             cell_data = xp_file_layer['cells'][x][y]
             fore_color = (cell_data['fore_r'], cell_data['fore_g'], cell_data['fore_b'])
             back_color = (cell_data['back_r'], cell_data['back_g'], cell_data['back_b'])
-            console.draw_char(x, y, cell_data['keycode'], fore_color, back_color)
+            if back_color != (transparent_cell_back_r, transparent_cell_back_g, transparent_cell_back_b): #If we don't perform that check we get a fully pink rectangle, that we cannot fix otherwise since TDL doesn't support set_key_color
+                console.draw_char(sx + x, sy + y, cell_data['keycode'], fore_color, back_color)
 
 def get_position_key_xy(xp_file_layer, poskey_color):
     for x in range(xp_file_layer['width']):
@@ -118,9 +116,12 @@ def load_xp_string(file_string, reverse_endian=True):
         version = version[::-1]
         layer_count = layer_count[::-1]
 
-    # hex-encodes the numbers then converts them to an int
-    version = int(version.encode('hex'), 16)
-    layer_count = int(layer_count.encode('hex'), 16)
+    #hex-encodes the numbers then converts them to an int
+    #version = int(version.encode('hex'), 16)
+    #layer_count = int(layer_count.encode('hex'), 16)
+    
+    version = int(base64.b16encode(version), 16)
+    layer_count = int(base64.b16encode(layer_count), 16)
 
     layers = []
 
@@ -137,8 +138,11 @@ def load_xp_string(file_string, reverse_endian=True):
             this_layer_width = this_layer_width[::-1]
             this_layer_height = this_layer_height[::-1]
 
-        this_layer_width = int(this_layer_width.encode('hex'), 16)
-        this_layer_height = int(this_layer_height.encode('hex'), 16)
+        #this_layer_width = int(this_layer_width.encode('hex'), 16)
+        #this_layer_height = int(this_layer_height.encode('hex'), 16)
+        
+        this_layer_width = int(base64.b16encode(this_layer_width), 16)
+        this_layer_height = int(base64.b16encode(this_layer_height), 16)
 
         current_largest_width = max(current_largest_width, this_layer_width)
         current_largest_height = max(current_largest_height, this_layer_height)
@@ -175,8 +179,11 @@ def parse_layer(layer_string, reverse_endian=True):
         width = width[::-1]
         height = height[::-1]
 
-    width = int(width.encode('hex'), 16)
-    height = int(height.encode('hex'), 16)
+    #width = int(width.encode('hex'), 16)
+    #height = int(height.encode('hex'), 16)
+    
+    width = int(base64.b16encode(width), 16)
+    height = int(base64.b16encode(height), 16)
 
     cells = []
     for x in range(width):
@@ -206,21 +213,28 @@ def parse_individual_cell(cell_string, reverse_endian=True):
     keycode = cell_string[offset:offset + layer_keycode_bytes]
     if reverse_endian:
         keycode = keycode[::-1]
-    keycode = int(keycode.encode('hex'), 16)
+    #keycode = int(keycode.encode('hex'), 16)
+    keycode = int(base64.b16encode(keycode), 16)
     offset += layer_keycode_bytes
 
-    fore_r = int(cell_string[offset:offset+1].encode('hex'), 16)
+    #fore_r = int(cell_string[offset:offset+1].encode('hex'), 16)
+    fore_r = int(base64.b16encode(cell_string[offset:offset+1]), 16)
     offset += 1
-    fore_g = int(cell_string[offset:offset+1].encode('hex'), 16)
+    #fore_g = int(cell_string[offset:offset+1].encode('hex'), 16)
+    fore_g = int(base64.b16encode(cell_string[offset:offset+1]), 16)
     offset += 1
-    fore_b = int(cell_string[offset:offset+1].encode('hex'), 16)
+    #fore_b = int(cell_string[offset:offset+1].encode('hex'), 16)
+    fore_b = int(base64.b16encode(cell_string[offset:offset+1]), 16)
     offset += 1
 
-    back_r = int(cell_string[offset:offset+1].encode('hex'), 16)
+    #back_r = int(cell_string[offset:offset+1].encode('hex'), 16)
+    back_r = int(base64.b16encode(cell_string[offset:offset+1]), 16)
     offset += 1
-    back_g = int(cell_string[offset:offset+1].encode('hex'), 16)
+    #back_g = int(cell_string[offset:offset+1].encode('hex'), 16)
+    back_g = int(base64.b16encode(cell_string[offset:offset+1]), 16)
     offset += 1
-    back_b = int(cell_string[offset:offset+1].encode('hex'), 16)
+    #back_b = int(cell_string[offset:offset+1].encode('hex'), 16)
+    back_b = int(base64.b16encode(cell_string[offset:offset+1]), 16)
     offset += 1
 
     return {
