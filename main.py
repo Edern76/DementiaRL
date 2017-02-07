@@ -6,7 +6,6 @@ from math import *
 from os import makedirs
 from constants import MAX_HIGH_CULTIST_MINIONS
 import nameGen
-import itemsPics
 import xpLoaderRemasterized as xpL
 
 # Naming conventions :
@@ -1721,7 +1720,7 @@ class Player:
         self.hostDeath = self.HOST_DEATH
 
 class Item:
-    def __init__(self, useFunction = None,  arg1 = None, arg2 = None, arg3 = None, stackable = False, amount = 1, weight = 0, description = 'Placeholder', pic = itemsPics.trollMacePic):
+    def __init__(self, useFunction = None,  arg1 = None, arg2 = None, arg3 = None, stackable = False, amount = 1, weight = 0, description = 'Placeholder', pic = 'trollMace.xp'):
         self.useFunction = useFunction
         self.arg1 = arg1
         self.arg2 = arg2
@@ -1919,8 +1918,8 @@ class Item:
             
             
             window.draw_str(0, 0, self.owner.name.capitalize() + ':', fg = colors.yellow, bg = None)
-            #for i, line in enumerate(desc):
-                #window.draw_str(0, len(self.pic) + 4 +i, desc[i], fg = colors.white)
+            for i, line in enumerate(desc):
+                window.draw_str(0, int(picHeight) + 4 +i, desc[i], fg = colors.white)
 
             y = descriptionHeight + picHeight + 5
             letterIndex = ord('a')
@@ -3179,6 +3178,7 @@ potionChances = {'heal': 70, 'mana': 30}
 
 def createSword(x, y):
     name = 'sword'
+    pic = 'trollMace.xp'
     sizeChance = {'short' : 40, 'long' : 60}
     sizeChoice = randomChoice(sizeChance)
     name = sizeChoice + name
@@ -3190,11 +3190,13 @@ def createSword(x, y):
         swordPow = 10
         char = '/'
         weight = 3.5
+        pic = 'longSword.xp'
     qualityChances = {'normal' : 70, 'rusty' : 20, 'sharp' : 10}
     qualityChoice = randomChoice(qualityChances)
     if qualityChoice == 'rusty':
         name = qualityChoice + ' ' + name
         swordPow -= 2
+        pic = 'rustysword.xp'
     elif qualityChoice == 'sharp':
         name = qualityChoice + ' ' + name
         swordPow += 2
@@ -3206,7 +3208,7 @@ def createSword(x, y):
     else:
         burningSword = False
     equipmentComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus = swordPow, burning = burningSword, meleeWeapon=True)
-    sword = GameObject(x, y, char, name, colors.sky, Equipment = equipmentComponent, Item = Item(weight=weight))
+    sword = GameObject(x, y, char, name, colors.sky, Equipment = equipmentComponent, Item = Item(weight=weight, pic = pic))
     return sword 
 
 def createScroll(x, y):
@@ -3278,7 +3280,7 @@ def createTroll(x, y, friendly = False, corpse = False):
     if x != player.x or y != player.y:
         if not corpse:
             equipmentComponent = Equipment(slot = 'two handed', type = 'heavy weapon', powerBonus = 15, accuracyBonus = -20, meleeWeapon=True)
-            trollMace = GameObject(x, y, '/', 'troll mace', colors.darker_orange, Equipment=equipmentComponent, Item=Item(weight = 13.0, pic = itemsPics.trollMacePic))
+            trollMace = GameObject(x, y, '/', 'troll mace', colors.darker_orange, Equipment=equipmentComponent, Item=Item(weight = 13.0, pic = 'trollMace.xp'))
             lootOnDeath = [trollMace]
             deathType = monsterDeath
             monName = "troll"
@@ -3332,7 +3334,7 @@ def createHighCultist(x, y):
         robe = GameObject(0, 0, '[', 'high cultist robe', colors.desaturated_purple, Equipment = robeEquipment, Item=Item(weight = 1.5))
         
         flailEquipment = Equipment(slot = 'one handed', type = 'heavy weapon', powerBonus = 13, meleeWeapon = True)
-        flail = GameObject(0, 0, '/', 'bloodsteel flail', colors.red, Equipment=flailEquipment, Item=Item(weight=5.5, pic = itemsPics.bloodsteelFlail))
+        flail = GameObject(0, 0, '/', 'bloodsteel flail', colors.red, Equipment=flailEquipment, Item=Item(weight=5.5, pic = 'bloodsteelFlail.xp'))
         
         spellbook = GameObject(x, y, '=', 'spellbook of arcane rituals', colors.violet, Item = Item(useFunction = learnSpell, arg1 = darkPact, weight = 1.0), blocks = False)
         
@@ -4154,12 +4156,12 @@ def newGame():
     gameState = 'playing'
     
     equipmentComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus=3, burning = False, meleeWeapon=True)
-    object = GameObject(0, 0, '-', 'dagger', colors.light_sky, Equipment=equipmentComponent, Item=Item(weight = 0.8, pic= itemsPics.placeholderPic), darkColor = colors.darker_sky)
+    object = GameObject(0, 0, '-', 'dagger', colors.light_sky, Equipment=equipmentComponent, Item=Item(weight = 0.8, pic = 'dagger.xp'), darkColor = colors.darker_sky)
     inventory.append(object)
     object.alwaysVisible = True
     if player.Player.classes == 'Rogue':
         equipmentComponent = Equipment(slot = 'two handed', type = 'missile weapon', powerBonus = 1, ranged = True, rangedPower = 7, maxRange = SIGHT_RADIUS, ammo = 'arrow')
-        object = GameObject(0, 0, ')', 'shortbow', colors.light_orange, Equipment = equipmentComponent, Item = Item(weight = 1.0), darkColor = colors.dark_orange)
+        object = GameObject(0, 0, ')', 'shortbow', colors.light_orange, Equipment = equipmentComponent, Item = Item(weight = 1.0, pic = 'bow.xp'), darkColor = colors.dark_orange)
         inventory.append(object)
         object.alwaysVisible = True
         
