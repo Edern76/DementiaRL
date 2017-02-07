@@ -178,9 +178,6 @@ def parse_layer(layer_string, reverse_endian=True):
     if reverse_endian:
         width = width[::-1]
         height = height[::-1]
-
-    #width = int(width.encode('hex'), 16)
-    #height = int(height.encode('hex'), 16)
     
     width = int(base64.b16encode(width), 16)
     height = int(base64.b16encode(height), 16)
@@ -213,27 +210,20 @@ def parse_individual_cell(cell_string, reverse_endian=True):
     keycode = cell_string[offset:offset + layer_keycode_bytes]
     if reverse_endian:
         keycode = keycode[::-1]
-    #keycode = int(keycode.encode('hex'), 16)
     keycode = int(base64.b16encode(keycode), 16)
     offset += layer_keycode_bytes
 
-    #fore_r = int(cell_string[offset:offset+1].encode('hex'), 16)
     fore_r = int(base64.b16encode(cell_string[offset:offset+1]), 16)
     offset += 1
-    #fore_g = int(cell_string[offset:offset+1].encode('hex'), 16)
     fore_g = int(base64.b16encode(cell_string[offset:offset+1]), 16)
     offset += 1
-    #fore_b = int(cell_string[offset:offset+1].encode('hex'), 16)
     fore_b = int(base64.b16encode(cell_string[offset:offset+1]), 16)
     offset += 1
 
-    #back_r = int(cell_string[offset:offset+1].encode('hex'), 16)
     back_r = int(base64.b16encode(cell_string[offset:offset+1]), 16)
     offset += 1
-    #back_g = int(cell_string[offset:offset+1].encode('hex'), 16)
     back_g = int(base64.b16encode(cell_string[offset:offset+1]), 16)
     offset += 1
-    #back_b = int(cell_string[offset:offset+1].encode('hex'), 16)
     back_b = int(base64.b16encode(cell_string[offset:offset+1]), 16)
     offset += 1
 
