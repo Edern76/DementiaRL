@@ -1,5 +1,16 @@
-import tdl, base64
+import base64
 from tdl import *
+
+##################################
+# XpLoaderPy3
+
+# This is a version of Sean 'RCIX' Hagar's XPLoader modificated by Erwan 'MalanTai' Castioni and Gawein 'Edern' Le Goff in order to run on Python 3 with TDL (though it should work with libtcodpy too if you modify the "from tdl import *" statement and the console.draw_char one), along with a few minor changes that we needed for our personal project (the ability to ignore transparent characters and to print from a certain point on the target console, rather than from (0,0))
+# XPLoader allows you to process images made with REXPaint and to display them in a libtcod/TDL console. These images must be in the .xp format.
+# This version of XPLoader is licensed under the same license as the original : the MIT license. See the LICENSE file for more information.
+
+# Also, thanks a lot to RCIX for making this very useful tool (which saved us a lot of time), and to Kyzrati (GridSageGames) for making REXPaint !"
+##################################
+
 
 ##################################
 # In-memory XP format is as follows:
@@ -66,7 +77,11 @@ poskey_color_white = (255, 255, 255)
 
 
 
-def load_layer_to_console(console, xp_file_layer, sx = 0, sy = 0):
+def load_layer_to_console(console, xp_file_layer, offsetX = 0, offsetY = 0, drawTransparent = False):
+    # Displays a single layer on the console, therefore xp_file_layer mustn't be your .xp file's path, but instead a dictionnary corresponding to a layer's data.
+    # In order to extract the layer from a .xp file, just call load_xp_string on your unzipped (use gzip) .xp file. All of this file's layers' data will be in the returned dictionnary, under the 'layer_data' key.
+    # If you want to display mutliple layers, just call this function for each layer in 'layer_data'.
+    
     if not xp_file_layer['width'] or not xp_file_layer['height']:
         raise AttributeError('Attempted to call load_layer_to_console on data that didn\'t have a width or height key, check your data')
 
@@ -75,8 +90,8 @@ def load_layer_to_console(console, xp_file_layer, sx = 0, sy = 0):
             cell_data = xp_file_layer['cells'][x][y]
             fore_color = (cell_data['fore_r'], cell_data['fore_g'], cell_data['fore_b'])
             back_color = (cell_data['back_r'], cell_data['back_g'], cell_data['back_b'])
-            if back_color != (transparent_cell_back_r, transparent_cell_back_g, transparent_cell_back_b): #If we don't perform that check we get a fully pink rectangle, that we cannot fix otherwise since TDL doesn't support set_key_color
-                console.draw_char(sx + x, sy + y, cell_data['keycode'], fore_color, back_color)
+            if back_color != (transparent_cell_back_r, transparent_cell_back_g, transparent_cell_back_b) or drawTransparent: #If we don't perform that check we get a fully pink rectangle, that we cannot fix otherwise since TDL doesn't support set_key_color
+                console.draw_char(offsetX + x, offsetY + y, cell_data['keycode'], fore_color, back_color) #Replace with 'console_put_char_ex(console, offsetX + x, offsetY + y, cell_data['keycode'], fore_color, back_color)' without quotation marks if using libtcod.
 
 def get_position_key_xy(xp_file_layer, poskey_color):
     for x in range(xp_file_layer['width']):
