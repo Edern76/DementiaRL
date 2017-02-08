@@ -89,6 +89,7 @@ NATURAL_REGEN = True
 boss_FOV_recompute = True
 BOSS_FOV_ALGO = 'BASIC'
 BOSS_SIGHT_RADIUS = 60
+#bossDungeonsAppeared = {'gluttony': False}
 
 # - Spells -
 LIGHTNING_DAMAGE = 40
@@ -100,7 +101,7 @@ FIREBALL_SPELL_BASE_DAMAGE = 12
 FIREBALL_SPELL_BASE_RADIUS = 1
 FIREBALL_SPELL_BASE_RANGE = 4
 
-RESURECTABLE_CORPSES = ["orc", "troll"]
+RESURECTABLE_CORPSES = ["darksoul", "troll"]
 
 BASE_HUNGER = 500
 # - Spells -
@@ -134,7 +135,7 @@ upStairs = None
 hiroshimanHasAppeared = False
 highCultistHasAppeared = False
 player = None
-dungeonLevel = 1
+mainDungeonLevel = 1
 
 def findCurrentDir():
     if getattr(sys, 'frozen', False):
@@ -492,8 +493,8 @@ def castRessurect(range = 4):
             global objects
             monster = None
             objects.remove(ressurectable)
-            if corpseType == "orc":
-                monster = createOrc(x, y, friendly = True, corpse = True)
+            if corpseType == "darksoul":
+                monster = createDarksoul(x, y, friendly = True, corpse = True)
             elif corpseType == "troll":
                 monster = createTroll(x, y, friendly = True, corpse = True)
             if monster is not None:
@@ -2007,7 +2008,7 @@ def getInput():
             quitGame('Whatever you did, it went horribly wrong (DEBUG took an unexpected value)')    
         FOV_recompute= True
     elif userInput.keychar.upper() == 'F4' and DEBUG and not tdl.event.isWindowClosed(): #For some reason, Bad Things (tm) happen if you don't perform a tdl.event.isWindowClosed() check here. Yeah, don't ask why.
-        castCreateOrc()
+        castCreateDarksoul()
         FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'F5' and DEBUG and not tdl.event.isWindowClosed(): #Don't know if tdl.event.isWindowClosed() is necessary here but added it just to be sure
@@ -2033,7 +2034,7 @@ def getInput():
         FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'F10' and DEBUG and not tdl.event.isWindowClosed(): #For some reason, Bad Things (tm) happen if you don't perform a tdl.event.isWindowClosed() check here. Yeah, don't ask why.
-        castCreateOrc(friendly = True)
+        castCreateDarksoul(friendly = True)
         FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'F11' and DEBUG and not tdl.event.isWindowClosed(): #For some reason, Bad Things (tm) happen if you don't perform a tdl.event.isWindowClosed() check here. Yeah, don't ask why.
@@ -2048,7 +2049,7 @@ def getInput():
         FOV_recompute = True
     elif userInput.keychar == 'S' and DEBUG and not tdl.event.isWindowClosed():
         message("Force-saved level {}", colors.purple)
-        saveLevel(dungeonLevel)
+        saveLevel(mainDungeonLevel)
     elif userInput.keychar == 'Q' and DEBUG and not tdl.event.isWindowClosed():
         global FOV_recompute
         FOV_recompute = True
@@ -2193,17 +2194,17 @@ def getInput():
                     break
                 
         elif userInput.keychar.upper() == '<':  
-            if dungeonLevel > 1:
-                saveLevel(dungeonLevel)
+            if mainDungeonLevel > 1:
+                saveLevel(mainDungeonLevel)
                 for object in objects:    
                     if upStairs.x == player.x and upStairs.y == player.y:
                         if stairCooldown == 0:
-                            global stairCooldown, dungeonLevel
-                            saveLevel(dungeonLevel)
+                            global stairCooldown, mainDungeonLevel
+                            saveLevel(mainDungeonLevel)
                             stairCooldown = 2
                             if DEBUG:
                                 message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
-                            toLoad = dungeonLevel - 1
+                            toLoad = mainDungeonLevel - 1
                             loadLevel(toLoad, save = False)
                         else:
                             message("You're too tired to climb the stairs right now")
@@ -2218,7 +2219,7 @@ def getInput():
                         boss = False
                         if DEBUG:
                             message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
-                        if dungeonLevel + 1 == 4:
+                        if mainDungeonLevel + 1 == 4:
                             boss = True
                         nextLevel(boss)
                     else:
@@ -2692,13 +2693,13 @@ def monsterArmageddon(monsterName ,monsterX, monsterY, radius = 4, damage = 40, 
 # Add push monster spell (create an invisble projectile that pass through a monster, when the said projectile hits a wall, teleport monster to the projectile position and deal X damage to the said monster.)
 
 
-def castCreateOrc(friendly = False):
+def castCreateDarksoul(friendly = False):
     target = targetTile()
     if target == 'cancelled':
         return 'cancelled'
     else:
         (x,y) = target
-        monster = createOrc(x, y, friendly = friendly)
+        monster = createDarksoul(x, y, friendly = friendly)
         objects.append(monster)
 
 def castCreateHiroshiman():
@@ -2876,7 +2877,7 @@ def secretRoom():
         print("created secret room at x ", entryX, " y ", entryY, " in quarter ", quarter)
 
 def makeMap():
-    global myMap, stairs, objects, upStairs
+    global myMap, stairs, objects, upStairs #, bossDungeonsAppeared
     myMap = [[Tile(True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
     rooms = []
     numberRooms = 0
@@ -2907,7 +2908,7 @@ def makeMap():
             if numberRooms == 0:
                 player.x = new_x
                 player.y = new_y
-                if dungeonLevel > 1:
+                if mainDungeonLevel > 1:
                     upStairs = GameObject(new_x, new_y, '<', 'stairs', colors.white, alwaysVisible = True, darkColor = colors.dark_grey)
                     objects.append(upStairs)
                     upStairs.sendToBack()
@@ -2929,6 +2930,24 @@ def makeMap():
     stairs = GameObject(new_x, new_y, '>', 'stairs', colors.white, alwaysVisible = True, darkColor = colors.dark_grey)
     objects.append(stairs)
     stairs.sendToBack()
+    #if mainDungeonLevel >= 5 and not bossDungeonsAppeared['gluttony']:
+    #    createdStairs = False
+    #    while not createdStairs:
+    #        randRoom = randint(0, len(rooms) - 1)
+    #        room = rooms[randRoom]
+    #        (x, y) = room.center()
+    #        wrongCentre = False
+    #        for object in objects:
+    #            if object.x == x and object.y == y:
+    #                wrongCentre = True
+    #                break
+    #        if not wrongCentre:
+    #            gluttonyStairs = GameObject(new_x, new_y, '>', 'stairs to Gluttony', colors.desaturated_chartreuse, alwaysVisible = True, darkColor = colors.darker_chartreuse)
+    #            objects.append(gluttonyStairs)
+    #            gluttonyStairs.sendToBack()
+    #            bossDungeonsAppeared['gluttony'] = True
+    #            createdStairs = True
+    #            print('created gluttonys stairs at ' + str(x) + ', ' + str(y))
 
 def makeBossLevel():
     global myMap, stairs, objects, upStairs
@@ -2954,7 +2973,7 @@ def makeBossLevel():
     
     player.x = new_x
     player.y = new_y
-    if dungeonLevel > 1:
+    if mainDungeonLevel > 1:
         upStairs = GameObject(new_x, new_y, '<', 'stairs', colors.white, alwaysVisible = True, darkColor = colors.dark_grey)
         objects.append(upStairs)
         upStairs.sendToBack()
@@ -2971,7 +2990,7 @@ def makeBossLevel():
     createHorizontalTunnel(previous_x, new_x, new_y)
     
     bossName = None
-    if dungeonLevel >= 2:
+    if mainDungeonLevel >= 2:
         bossName = 'Gluttony'
 
     placeBoss(bossName, new_x, y + 1)
@@ -3252,17 +3271,17 @@ def createSpellbook(x, y):
         spellbook = None
     return spellbook
 
-def createOrc(x, y, friendly = False, corpse = False):
+def createDarksoul(x, y, friendly = False, corpse = False):
     if x != player.x or y != player.y:
         if not corpse:
             equipmentComponent = Equipment(slot='head', type = 'armor', armorBonus = 2)
-            orcHelmet = GameObject(x = None, y = None, char = '[', name = 'orc helmet', color = colors.brass, Equipment = equipmentComponent, Item = Item(weight = 2.5))
-            lootOnDeath = [orcHelmet]
+            darksoulHelmet = GameObject(x = None, y = None, char = '[', name = 'darksoul helmet', color = colors.silver, Equipment = equipmentComponent, Item = Item(weight = 2.5))
+            lootOnDeath = [darksoulHelmet]
             deathType = monsterDeath
-            orcName = "orc"
-            color = colors.desaturated_green
+            darksoulName = "darksoul"
+            color = colors.dark_grey
         else:
-            orcName = "orc skeleton"
+            darksoulName = "darksoul skeleton"
             deathType = zombieDeath
             lootOnDeath = None
             color = colors.lighter_gray
@@ -3271,7 +3290,7 @@ def createOrc(x, y, friendly = False, corpse = False):
         else:
             AI_component = FriendlyMonster(friendlyTowards = player)
         fighterComponent = Fighter(hp=30, armor=1, power=6, xp = 35, deathFunction = deathType, evasion = 25, accuracy = 10, lootFunction = lootOnDeath, lootRate = [30])
-        monster = GameObject(x, y, char = 'o', color = color, name = orcName, blocks = True, Fighter=fighterComponent, AI = AI_component)
+        monster = GameObject(x, y, char = 'd', color = color, name = darksoulName, blocks = True, Fighter=fighterComponent, AI = AI_component)
         return monster
     else:
         return 'cancelled'
@@ -3373,10 +3392,10 @@ def randomChoice(chancesDictionnary):
     return strings[randomChoiceIndex(chances)]
 
 def placeObjects(room, first = False):
-    monsterChances = {'orc': 600, 'troll': 200, 'snake': 50, 'cultist': 150}
+    monsterChances = {'darksoul': 600, 'troll': 200, 'snake': 50, 'cultist': 150}
     numMonsters = randint(0, MAX_ROOM_MONSTERS)
     monster = None
-    if dungeonLevel > 2 and hiroshimanNumber == 0 and not first:
+    if mainDungeonLevel > 2 and hiroshimanNumber == 0 and not first:
         monsterChances['troll'] -= 50
         monsterChances['hiroshiman'] = 50
     if not highCultistHasAppeared and not first:
@@ -3390,10 +3409,10 @@ def placeObjects(room, first = False):
         
         if not isBlocked(x, y) and (x, y) != (player.x, player.y):
             monsterChoice = randomChoice(monsterChances)
-            if monsterChoice == 'orc':
-                monster = createOrc(x, y)
+            if monsterChoice == 'darksoul':
+                monster = createDarksoul(x, y)
 
-            elif monsterChoice == 'hiroshiman' and hiroshimanNumber == 0 and dungeonLevel > 2:
+            elif monsterChoice == 'hiroshiman' and hiroshimanNumber == 0 and mainDungeonLevel > 2:
                 global hiroshimanNumber
                 global monsterChances
                 monster = createHiroshiman(x, y)
@@ -4001,8 +4020,8 @@ def Update():
         panel.draw_str(MSG_X, msgY, line, bg=None, fg = color)
         msgY += 1
     # Draw GUI
-    #panel.draw_str(1, 3, 'Dungeon level: ' + str(dungeonLevel), colors.white)
-    panel.draw_str(1, 5, 'Player level: ' + str(player.level) + ' | Floor: ' + str(dungeonLevel), colors.white)
+    #panel.draw_str(1, 3, 'Dungeon level: ' + str(mainDungeonLevel), colors.white)
+    panel.draw_str(1, 5, 'Player level: ' + str(player.level) + ' | Floor: ' + str(mainDungeonLevel), colors.white)
     renderBar(panel, 1, 1, BAR_WIDTH, 'HP', player.Fighter.hp, player.Fighter.maxHP, player.color, colors.dark_gray)
     renderBar(panel, 1, 3, BAR_WIDTH, 'MP', player.Fighter.MP, player.Fighter.maxMP, colors.blue, colors.dark_gray)
     # Look code
@@ -4104,7 +4123,7 @@ def targetMonster(maxRange = None):
                 return obj
 
 #______ INITIALIZATION AND MAIN LOOP________
-def accessMapFile(level = dungeonLevel):
+def accessMapFile(level = mainDungeonLevel):
     mapName = "map{}".format(level)
     print(mapName)
     mapFile = os.path.join(absDirPath, mapName)
@@ -4117,10 +4136,10 @@ def saveGame():
         os.makedirs(absDirPath)
     
     file = shelve.open(absFilePath, "n")
-    file["dungeonLevel"] = dungeonLevel
-    file["myMap_level{}".format(dungeonLevel)] = myMap
-    print("Saved myMap_level{}".format(dungeonLevel))
-    file["objects_level{}".format(dungeonLevel)] = objects
+    file["mainDungeonLevel"] = mainDungeonLevel
+    file["myMap_level{}".format(mainDungeonLevel)] = myMap
+    print("Saved myMap_level{}".format(mainDungeonLevel))
+    file["objects_level{}".format(mainDungeonLevel)] = objects
     file["playerIndex"] = objects.index(player)
     file["stairsIndex"] = objects.index(stairs)
     file["inventory"] = inventory
@@ -4128,7 +4147,7 @@ def saveGame():
     file["gameMsgs"] = gameMsgs
     file["gameState"] = gameState
     file["hiroshimanNumber"] = hiroshimanNumber
-    if dungeonLevel > 1:
+    if mainDungeonLevel > 1:
         file["upStairsIndex"] = objects.index(upStairs)
     file.close()
     
@@ -4137,13 +4156,13 @@ def saveGame():
     #mapFile.close()
 
 def newGame():
-    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, gameMsgs, equipmentList
+    global objects, inventory, gameMsgs, gameState, player, mainDungeonLevel, gameMsgs, equipmentList
     
     deleteSaves()
 
     gameMsgs = []
     objects = [player]
-    dungeonLevel = 1 
+    mainDungeonLevel = 1 
     makeMap()
     Update()
 
@@ -4175,14 +4194,14 @@ def newGame():
         highCultistHasAppeared = False #Make so more high cultists can spawn at lower levels (still only one by floor though)
 
 def loadGame():
-    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipmentList, stairs, upStairs, hiroshimanNumber
+    global objects, inventory, gameMsgs, gameState, player, mainDungeonLevel, myMap, equipmentList, stairs, upStairs, hiroshimanNumber
     
     
     #myMap = [[Tile(True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)]
     file = shelve.open(absFilePath, "r")
-    dungeonLevel = file["dungeonLevel"]
-    myMap = file["myMap_level{}".format(dungeonLevel)]
-    objects = file["objects_level{}".format(dungeonLevel)]
+    mainDungeonLevel = file["mainDungeonLevel"]
+    myMap = file["myMap_level{}".format(mainDungeonLevel)]
+    objects = file["objects_level{}".format(mainDungeonLevel)]
     player = objects[file["playerIndex"]]
     stairs = objects[file["stairsIndex"]]
     inventory = file["inventory"]
@@ -4190,13 +4209,13 @@ def loadGame():
     gameMsgs = file["gameMsgs"]
     gameState = file["gameState"]
     hiroshimanNumber = file["hiroshimanNumber"]
-    if dungeonLevel > 1:
+    if mainDungeonLevel > 1:
         upStairs = objects[file["upStairsIndex"]]
     #mapFile = open(absPicklePath, "rb")
     #myMap = pickle.load(mapFile)
     #mapFile.close()
 
-def saveLevel(level = dungeonLevel):
+def saveLevel(level = mainDungeonLevel):
     #if not os.path.exists(absDirPath):
         #os.makedirs(absDirPath)
     
@@ -4211,7 +4230,7 @@ def saveLevel(level = dungeonLevel):
     mapFile["objects"] = objects
     mapFile["playerIndex"] = objects.index(player)
     mapFile["stairsIndex"] = objects.index(stairs)
-    if dungeonLevel > 1:
+    if mainDungeonLevel > 1:
         mapFile["upStairsIndex"] = objects.index(upStairs)
     mapFile["yunowork"] = "SCREW THIS"
     print("Saved level at " + mapFilePath)
@@ -4220,12 +4239,12 @@ def saveLevel(level = dungeonLevel):
     return "completed"
 
 def loadLevel(level, save = True):
-    global objects, player, myMap, stairs, dungeonLevel
+    global objects, player, myMap, stairs, mainDungeonLevel
     if save:
         try:
-            saveLevel(dungeonLevel)
+            saveLevel(mainDungeonLevel)
         except:
-            print("Couldn't save level " + dungeonLevel)
+            print("Couldn't save level " + mainDungeonLevel)
     mapFilePath = accessMapFile(level)
     xfile = shelve.open(mapFilePath, "r")
     print(xfile["yunowork"])
@@ -4240,23 +4259,23 @@ def loadLevel(level, save = True):
     message("You climb the stairs")
     print("Loaded level " + str(level))
     xfile.close()
-    dungeonLevel = level
+    mainDungeonLevel = level
     initializeFOV()
 
 def nextLevel(boss = False):
-    global dungeonLevel
+    global mainDungeonLevel
     returned = "borked"
     while returned != "completed":
-        returned = saveLevel(dungeonLevel)
+        returned = saveLevel(mainDungeonLevel)
     message('After a rare moment of peace, you descend deeper into the heart of the dungeon...', colors.red)
-    dungeonLevel += 1
+    mainDungeonLevel += 1
     tempMap = myMap
     tempObjects = objects
     tempPlayer = player
     tempStairs = stairs
     try:
-        loadLevel(dungeonLevel, save = False)
-        print("Loaded existing level {}".format(dungeonLevel))
+        loadLevel(mainDungeonLevel, save = False)
+        print("Loaded existing level {}".format(mainDungeonLevel))
     except:
         global myMap, objects, player, stairs
         myMap = tempMap
@@ -4453,10 +4472,7 @@ def playGame():
                 player.Player.hungerStatus = "full"
                 if prevStatus != "full":
                     message("You feel way less hungry")
-                
-            
-            
-                            
+
     DEBUG = False
     quitGame('Window has been closed')
     
