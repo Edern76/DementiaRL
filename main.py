@@ -6,7 +6,7 @@ from math import *
 from os import makedirs
 from constants import MAX_HIGH_CULTIST_MINIONS
 import nameGen
-import xpLoaderRemasterized as xpL
+import xpLoaderPy3 as xpL
 
 # Naming conventions :
 # MY_CONSTANT
