@@ -2063,7 +2063,7 @@ def getInput():
         for x in range(MAP_WIDTH):
             for y in range(MAP_HEIGHT):
                 try:
-                    if not myMap[x][y].block_sight:
+                    if not myMap[x][y].block_sight: #DO NOT REMOVE THIS CHECK. Unless you'd like to see what would happen if the game was running on an actual toaster.
                         myMap[x][y].explored = True
                 except:
                     pass
