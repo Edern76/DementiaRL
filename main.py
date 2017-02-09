@@ -7,6 +7,8 @@ from os import makedirs
 from constants import MAX_HIGH_CULTIST_MINIONS
 import nameGen
 import xpLoaderPy3 as xpL
+import dunbranches as dBr
+from dunbranches import gluttonyDungeon
 
 # Naming conventions :
 # MY_CONSTANT
@@ -134,10 +136,12 @@ equipmentList = []
 activeSounds = []
 stairs = None
 upStairs = None
+gluttonyStairs = None
 hiroshimanHasAppeared = False
 highCultistHasAppeared = False
 player = None
-mainDungeonLevel = 1
+currentBranch = dBr.mainDungeon
+dungeonLevel = 1
 
 def findCurrentDir():
     if getattr(sys, 'frozen', False):
@@ -2056,14 +2060,20 @@ def getInput():
         FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'F12' and DEBUG and not tdl.event.isWindowClosed():
-        castCreateChasm()
+        for x in range(MAP_WIDTH):
+            for y in range(MAP_HEIGHT):
+                try:
+                    if not myMap[x][y].block_sight:
+                        myMap[x][y].explored = True
+                except:
+                    pass
         FOV_recompute = True
     elif userInput.keychar == 'B' and DEBUG and not tdl.event.isWindowClosed():
         castPlaceBoss()
         FOV_recompute = True
     elif userInput.keychar == 'S' and DEBUG and not tdl.event.isWindowClosed():
         message("Force-saved level {}", colors.purple)
-        saveLevel(mainDungeonLevel)
+        saveLevel(dungeonLevel)
     elif userInput.keychar == 'Q' and DEBUG and not tdl.event.isWindowClosed():
         global FOV_recompute
         FOV_recompute = True
@@ -2208,17 +2218,17 @@ def getInput():
                     break
                 
         elif userInput.keychar.upper() == '<':  
-            if mainDungeonLevel > 1:
-                saveLevel(mainDungeonLevel)
+            if dungeonLevel > 1:
+                saveLevel(dungeonLevel)
                 for object in objects:    
                     if upStairs.x == player.x and upStairs.y == player.y:
                         if stairCooldown == 0:
-                            global stairCooldown, mainDungeonLevel
-                            saveLevel(mainDungeonLevel)
+                            global stairCooldown, dungeonLevel
+                            saveLevel(dungeonLevel)
                             stairCooldown = 2
                             if DEBUG:
                                 message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
-                            toLoad = mainDungeonLevel - 1
+                            toLoad = dungeonLevel - 1
                             loadLevel(toLoad, save = False)
                         else:
                             message("You're too tired to climb the stairs right now")
@@ -2233,9 +2243,17 @@ def getInput():
                         boss = False
                         if DEBUG:
                             message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
-                        if mainDungeonLevel + 1 == 4:
-                            boss = True
                         nextLevel(boss)
+                    else:
+                        message("You're too tired to climb down the stairs right now")
+                elif object == gluttonyStairs and object.x == player.x and object.y == player.y:
+                    if stairCooldown == 0:
+                        global stairCooldown
+                        stairCooldown = 2
+                        boss = False
+                        if DEBUG:
+                            message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
+                        nextLevel(boss, changeBranch = dBr.gluttonyDungeon)
                     else:
                         message("You're too tired to climb down the stairs right now")
                     return None
@@ -2978,8 +2996,8 @@ def makeMap():
             if numberRooms == 0:
                 player.x = new_x
                 player.y = new_y
-                if mainDungeonLevel > 1:
-                    upStairs = GameObject(new_x, new_y, '<', 'stairs', colors.white, alwaysVisible = True, darkColor = colors.dark_grey)
+                if dungeonLevel > 1:
+                    upStairs = GameObject(new_x, new_y, '<', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor)
                     objects.append(upStairs)
                     upStairs.sendToBack()
             else:
@@ -2997,27 +3015,31 @@ def makeMap():
             rooms.append(newRoom)
             numberRooms += 1
     secretRoom()
-    stairs = GameObject(new_x, new_y, '>', 'stairs', colors.white, alwaysVisible = True, darkColor = colors.dark_grey)
+    stairs = GameObject(new_x, new_y, '>', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor)
     objects.append(stairs)
     stairs.sendToBack()
-    if mainDungeonLevel >= 1 and not bossDungeonsAppeared['gluttony']:
-        createdStairs = False
-        while not createdStairs:
-            randRoom = randint(0, len(rooms) - 1)
-            room = rooms[randRoom]
-            (x, y) = room.center()
-            wrongCentre = False
-            for object in objects:
-                if object.x == x and object.y == y:
-                    wrongCentre = True
-                    break
-            if not wrongCentre:
-                gluttonyStairs = GameObject(x, y, '>', 'stairs to Gluttony', colors.desaturated_chartreuse, alwaysVisible = True, darkColor = colors.darker_chartreuse)
-                objects.append(gluttonyStairs)
-                gluttonyStairs.sendToBack()
-                bossDungeonsAppeared['gluttony'] = True
-                createdStairs = True
-                print('created gluttonys stairs at ' + str(x) + ', ' + str(y))
+    
+    for (branch, level) in currentBranch.branchesTo:
+        if branch == dBr.gluttonyDungeon:
+            if dungeonLevel == level and not bossDungeonsAppeared['gluttony']:
+                createdStairs = False
+                while not createdStairs:
+                    randRoom = randint(0, len(rooms) - 1)
+                    room = rooms[randRoom]
+                    (x, y) = room.center()
+                    wrongCentre = False
+                    for object in objects:
+                        if object.x == x and object.y == y:
+                            wrongCentre = True
+                            break
+                    if not wrongCentre:
+                        global gluttonyStairs
+                        gluttonyStairs = GameObject(x, y, '>', 'stairs to Gluttony', branch.lightStairsColor, alwaysVisible = True, darkColor = branch.darkStairsColor)
+                        objects.append(gluttonyStairs)
+                        gluttonyStairs.sendToBack()
+                        bossDungeonsAppeared['gluttony'] = True
+                        createdStairs = True
+                        print('created gluttonys stairs at ' + str(x) + ', ' + str(y))
 
 def makeBossLevel():
     global myMap, stairs, objects, upStairs
@@ -3041,7 +3063,7 @@ def makeBossLevel():
     
     player.x = new_x
     player.y = new_y
-    if mainDungeonLevel > 1:
+    if dungeonLevel > 1:
         upStairs = GameObject(new_x, new_y, '<', 'stairs', colors.white, alwaysVisible = True, darkColor = colors.dark_grey)
         objects.append(upStairs)
         upStairs.sendToBack()
@@ -3058,7 +3080,7 @@ def makeBossLevel():
     createHorizontalTunnel(previous_x, new_x, new_y)
     
     bossName = None
-    if mainDungeonLevel >= 2:
+    if dungeonLevel >= 2:
         bossName = 'Gluttony'
 
     placeBoss(bossName, new_x, y + 1)
@@ -3463,7 +3485,7 @@ def placeObjects(room, first = False):
     monsterChances = {'darksoul': 600, 'troll': 200, 'snake': 50, 'cultist': 150}
     numMonsters = randint(0, MAX_ROOM_MONSTERS)
     monster = None
-    if mainDungeonLevel > 2 and hiroshimanNumber == 0 and not first:
+    if dungeonLevel > 2 and hiroshimanNumber == 0 and not first:
         monsterChances['troll'] -= 50
         monsterChances['hiroshiman'] = 50
     if not highCultistHasAppeared and not first:
@@ -3480,7 +3502,7 @@ def placeObjects(room, first = False):
             if monsterChoice == 'darksoul':
                 monster = createDarksoul(x, y)
 
-            elif monsterChoice == 'hiroshiman' and hiroshimanNumber == 0 and mainDungeonLevel > 2:
+            elif monsterChoice == 'hiroshiman' and hiroshimanNumber == 0 and dungeonLevel > 2:
                 global hiroshimanNumber
                 global monsterChances
                 monster = createHiroshiman(x, y)
@@ -3995,6 +4017,7 @@ def initializeFOV():
     menuWindows = []
     visibleTiles = tdl.map.quickFOV(player.x, player.y, isVisibleTile, fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
     pathfinder = tdl.map.AStar(MAP_WIDTH, MAP_HEIGHT, callback = getMoveCost, diagnalCost=1, advanced=False)
+    print("shortName = ", currentBranch.shortName)
     con.clear()
 
 def Update():
@@ -4055,8 +4078,8 @@ def Update():
         panel.draw_str(MSG_X, msgY, line, bg=None, fg = color)
         msgY += 1
     # Draw GUI
-    #panel.draw_str(1, 3, 'Dungeon level: ' + str(mainDungeonLevel), colors.white)
-    panel.draw_str(1, 5, 'Player level: ' + str(player.level) + ' | Floor: ' + str(mainDungeonLevel), colors.white)
+    #panel.draw_str(1, 3, 'Dungeon level: ' + str(dungeonLevel), colors.white)
+    panel.draw_str(1, 5, 'Player level: ' + str(player.level) + ' | Floor: ' + str(dungeonLevel), colors.white)
     renderBar(panel, 1, 1, BAR_WIDTH, 'HP', player.Fighter.hp, player.Fighter.maxHP, player.color, colors.dark_gray)
     renderBar(panel, 1, 3, BAR_WIDTH, 'MP', player.Fighter.MP, player.Fighter.maxMP, colors.blue, colors.dark_gray)
     # Look code
@@ -4158,8 +4181,8 @@ def targetMonster(maxRange = None):
                 return obj
 
 #______ INITIALIZATION AND MAIN LOOP________
-def accessMapFile(level = mainDungeonLevel):
-    mapName = "map{}".format(level)
+def accessMapFile(level = dungeonLevel, branchToDisplay = currentBranch.shortName):
+    mapName = branchToDisplay + str(level)
     print(mapName)
     mapFile = os.path.join(absDirPath, mapName)
     return mapFile
@@ -4171,10 +4194,11 @@ def saveGame():
         os.makedirs(absDirPath)
     
     file = shelve.open(absFilePath, "n")
-    file["mainDungeonLevel"] = mainDungeonLevel
-    file["myMap_level{}".format(mainDungeonLevel)] = myMap
-    print("Saved myMap_level{}".format(mainDungeonLevel))
-    file["objects_level{}".format(mainDungeonLevel)] = objects
+    file["dungeonLevel"] = dungeonLevel
+    file["currentBranch"] = currentBranch
+    file["myMap_level{}".format(dungeonLevel)] = myMap
+    print("Saved myMap_level{}".format(dungeonLevel))
+    file["objects_level{}".format(dungeonLevel)] = objects
     file["playerIndex"] = objects.index(player)
     file["stairsIndex"] = objects.index(stairs)
     file["inventory"] = inventory
@@ -4182,8 +4206,15 @@ def saveGame():
     file["gameMsgs"] = gameMsgs
     file["gameState"] = gameState
     file["hiroshimanNumber"] = hiroshimanNumber
-    if mainDungeonLevel > 1:
+    if dungeonLevel > 1:
         file["upStairsIndex"] = objects.index(upStairs)
+    gluttBrLevel = dBr.gluttonyDungeon.origDepth
+    if dungeonLevel == gluttBrLevel and currentBranch == dBr.mainDungeon:
+        try:
+            file["gluttStairsIndex"] = objects.index(gluttonyStairs)
+        except:
+            print("Couldn't save Gluttony stairs")
+            pass
     file.close()
     
     #mapFile = open(absPicklePath, 'wb')
@@ -4191,13 +4222,14 @@ def saveGame():
     #mapFile.close()
 
 def newGame():
-    global objects, inventory, gameMsgs, gameState, player, mainDungeonLevel, gameMsgs, equipmentList
+    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, gameMsgs, equipmentList, currentBranch, bossDungeonsAppeared
     
     deleteSaves()
-
+    bossDungeonsAppeared = {'gluttony': False}
     gameMsgs = []
     objects = [player]
-    mainDungeonLevel = 1 
+    currentBranch = dBr.mainDungeon
+    dungeonLevel = 1 
     makeMap()
     Update()
 
@@ -4229,14 +4261,15 @@ def newGame():
         highCultistHasAppeared = False #Make so more high cultists can spawn at lower levels (still only one by floor though)
 
 def loadGame():
-    global objects, inventory, gameMsgs, gameState, player, mainDungeonLevel, myMap, equipmentList, stairs, upStairs, hiroshimanNumber
+    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipmentList, stairs, upStairs, hiroshimanNumber, currentBranch, gluttonyStairs
     
     
     #myMap = [[Tile(True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)]
     file = shelve.open(absFilePath, "r")
-    mainDungeonLevel = file["mainDungeonLevel"]
-    myMap = file["myMap_level{}".format(mainDungeonLevel)]
-    objects = file["objects_level{}".format(mainDungeonLevel)]
+    dungeonLevel = file["dungeonLevel"]
+    currentBranch = file["currentBranch"]
+    myMap = file["myMap_level{}".format(dungeonLevel)]
+    objects = file["objects_level{}".format(dungeonLevel)]
     player = objects[file["playerIndex"]]
     stairs = objects[file["stairsIndex"]]
     inventory = file["inventory"]
@@ -4244,13 +4277,16 @@ def loadGame():
     gameMsgs = file["gameMsgs"]
     gameState = file["gameState"]
     hiroshimanNumber = file["hiroshimanNumber"]
-    if mainDungeonLevel > 1:
+    if dungeonLevel > 1:
         upStairs = objects[file["upStairsIndex"]]
+    gluttBrLevel = dBr.gluttonyDungeon.origDepth
+    if dungeonLevel == gluttBrLevel and currentBranch == dBr.mainDungeon:
+        gluttonyStairs = objects[file["gluttStairsIndex"]]
     #mapFile = open(absPicklePath, "rb")
     #myMap = pickle.load(mapFile)
     #mapFile.close()
 
-def saveLevel(level = mainDungeonLevel):
+def saveLevel(level = dungeonLevel):
     #if not os.path.exists(absDirPath):
         #os.makedirs(absDirPath)
     
@@ -4265,22 +4301,28 @@ def saveLevel(level = mainDungeonLevel):
     mapFile["objects"] = objects
     mapFile["playerIndex"] = objects.index(player)
     mapFile["stairsIndex"] = objects.index(stairs)
-    if mainDungeonLevel > 1:
+    if dungeonLevel > 1:
         mapFile["upStairsIndex"] = objects.index(upStairs)
+    gluttBrLevel = dBr.gluttonyDungeon.origDepth
+    if dungeonLevel == gluttBrLevel and currentBranch == dBr.mainDungeon:
+        try:
+            mapFile["gluttStairsIndex"] = objects.index(gluttonyStairs)
+        except:
+            print("Couldn't save Gluttony Dungeon")
     mapFile["yunowork"] = "SCREW THIS"
     print("Saved level at " + mapFilePath)
     mapFile.close()
     
     return "completed"
 
-def loadLevel(level, save = True):
-    global objects, player, myMap, stairs, mainDungeonLevel
+def loadLevel(level, save = True, branch = currentBranch):
+    global objects, player, myMap, stairs, dungeonLevel, gluttonyStairs
     if save:
         try:
-            saveLevel(mainDungeonLevel)
+            saveLevel(dungeonLevel)
         except:
-            print("Couldn't save level " + mainDungeonLevel)
-    mapFilePath = accessMapFile(level)
+            print("Couldn't save level " + dungeonLevel)
+    mapFilePath = accessMapFile(level, branch.shortName)
     xfile = shelve.open(mapFilePath, "r")
     print(xfile["yunowork"])
     myMap = xfile["myMap"]
@@ -4290,27 +4332,38 @@ def loadLevel(level, save = True):
     if level > 1:
         global upStairs
         upStairs = objects[xfile["upStairsIndex"]]
-    
+    gluttBrLevel = dBr.gluttonyDungeon.origDepth
+    if dungeonLevel == gluttBrLevel and branch == dBr.gluttonyDungeon:
+        gluttonyStairs = objects[xfile["gluttStairsIndex"]]
     message("You climb the stairs")
     print("Loaded level " + str(level))
     xfile.close()
-    mainDungeonLevel = level
+    dungeonLevel = level
     initializeFOV()
 
-def nextLevel(boss = False):
-    global mainDungeonLevel
+def nextLevel(boss = False, changeBranch = None):
+    global dungeonLevel, currentBranch
     returned = "borked"
+    changeToCurrent = False
     while returned != "completed":
-        returned = saveLevel(mainDungeonLevel)
-    message('After a rare moment of peace, you descend deeper into the heart of the dungeon...', colors.red)
-    mainDungeonLevel += 1
+        returned = saveLevel(dungeonLevel)
+    if changeBranch is None:
+        message('After a rare moment of peace, you descend deeper into the heart of the dungeon...', colors.red)
+        dungeonLevel += 1
+        changeToCurrent = True
+    else:
+        message('You enter ' + changeBranch.name)
+        dungeonLevel = 1
+        currentBranch = changeBranch
+    if changeToCurrent:
+        changeBranch = currentBranch
     tempMap = myMap
     tempObjects = objects
     tempPlayer = player
     tempStairs = stairs
     try:
-        loadLevel(mainDungeonLevel, save = False)
-        print("Loaded existing level {}".format(mainDungeonLevel))
+        loadLevel(dungeonLevel, save = False, branch= changeBranch)
+        print("Loaded existing level {}".format(dungeonLevel))
     except:
         global myMap, objects, player, stairs
         myMap = tempMap
