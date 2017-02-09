@@ -89,7 +89,7 @@ NATURAL_REGEN = True
 boss_FOV_recompute = True
 BOSS_FOV_ALGO = 'BASIC'
 BOSS_SIGHT_RADIUS = 60
-#bossDungeonsAppeared = {'gluttony': False}
+bossDungeonsAppeared = {'gluttony': False}
 
 # - Spells -
 LIGHTNING_DAMAGE = 40
@@ -2877,7 +2877,7 @@ def secretRoom():
         print("created secret room at x ", entryX, " y ", entryY, " in quarter ", quarter)
 
 def makeMap():
-    global myMap, stairs, objects, upStairs #, bossDungeonsAppeared
+    global myMap, stairs, objects, upStairs, bossDungeonsAppeared
     myMap = [[Tile(True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
     rooms = []
     numberRooms = 0
@@ -2930,24 +2930,24 @@ def makeMap():
     stairs = GameObject(new_x, new_y, '>', 'stairs', colors.white, alwaysVisible = True, darkColor = colors.dark_grey)
     objects.append(stairs)
     stairs.sendToBack()
-    #if mainDungeonLevel >= 5 and not bossDungeonsAppeared['gluttony']:
-    #    createdStairs = False
-    #    while not createdStairs:
-    #        randRoom = randint(0, len(rooms) - 1)
-    #        room = rooms[randRoom]
-    #        (x, y) = room.center()
-    #        wrongCentre = False
-    #        for object in objects:
-    #            if object.x == x and object.y == y:
-    #                wrongCentre = True
-    #                break
-    #        if not wrongCentre:
-    #            gluttonyStairs = GameObject(new_x, new_y, '>', 'stairs to Gluttony', colors.desaturated_chartreuse, alwaysVisible = True, darkColor = colors.darker_chartreuse)
-    #            objects.append(gluttonyStairs)
-    #            gluttonyStairs.sendToBack()
-    #            bossDungeonsAppeared['gluttony'] = True
-    #            createdStairs = True
-    #            print('created gluttonys stairs at ' + str(x) + ', ' + str(y))
+    if mainDungeonLevel >= 1 and not bossDungeonsAppeared['gluttony']:
+        createdStairs = False
+        while not createdStairs:
+            randRoom = randint(0, len(rooms) - 1)
+            room = rooms[randRoom]
+            (x, y) = room.center()
+            wrongCentre = False
+            for object in objects:
+                if object.x == x and object.y == y:
+                    wrongCentre = True
+                    break
+            if not wrongCentre:
+                gluttonyStairs = GameObject(x, y, '>', 'stairs to Gluttony', colors.desaturated_chartreuse, alwaysVisible = True, darkColor = colors.darker_chartreuse)
+                objects.append(gluttonyStairs)
+                gluttonyStairs.sendToBack()
+                bossDungeonsAppeared['gluttony'] = True
+                createdStairs = True
+                print('created gluttonys stairs at ' + str(x) + ', ' + str(y))
 
 def makeBossLevel():
     global myMap, stairs, objects, upStairs
