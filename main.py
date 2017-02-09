@@ -111,7 +111,9 @@ myMap = None
 color_dark_wall = colors.darkest_grey
 color_light_wall = colors.darker_grey
 color_dark_ground = colors.darkest_sepia
+color_dark_gravel = (29, 23, 14)
 color_light_ground = colors.darker_sepia
+color_light_gravel = (60, 48, 30)
 
 gameState = 'playing'
 playerAction = None
@@ -2744,10 +2746,16 @@ ROOM_MIN_SIZE = 6
 MAX_ROOMS = 30
 
 class Tile:
-    def __init__(self, blocked, block_sight = None, acid = False, acidCooldown = 5):
+    def __init__(self, blocked, block_sight = None, acid = False, acidCooldown = 5, character = None, fg = None, bg = None, dark_fg = None, dark_bg = None, wall = False):
         self.blocked = blocked
         self.explored = False
         self.unbreakable = False
+        self.character = character
+        self.fg = fg
+        self.bg = bg
+        self.dark_fg = dark_fg
+        self.dark_bg = dark_bg
+        self.wall = wall
         if block_sight is None:
             block_sight = blocked
             self.block_sight = block_sight
@@ -2756,6 +2764,12 @@ class Tile:
         self.acid = acid
         self.baseAcidCooldown = acidCooldown
         self.curAcidCooldown = 0
+        if wall:
+            self.character = '#'
+            self.fg = color_light_wall
+            self.bg = color_light_ground
+            self.dark_fg = color_dark_wall
+            self.dark_bg = color_dark_ground
 
 class Rectangle:
     def __init__(self, x, y, w, h):
@@ -2777,24 +2791,53 @@ def createRoom(room):
     global myMap
     for x in range(room.x1 + 1, room.x2):
         for y in range(room.y1 + 1, room.y2):
+            gravelChoice = randint(1, 3)
             myMap[x][y].blocked = False
             myMap[x][y].block_sight = False
+            if gravelChoice == 0:
+                myMap[x][y].character = None
+            elif gravelChoice == 1:
+                myMap[x][y].character = chr(176)
+            else:
+                myMap[x][y].character = chr(177)
+            myMap[x][y].fg = color_light_gravel
+            myMap[x][y].bg = color_light_ground
+            myMap[x][y].dark_fg = color_dark_gravel
+            myMap[x][y].dark_bg = color_dark_ground
             
 def createHorizontalTunnel(x1, x2, y):
     global myMap
     for x in range(min(x1, x2), max(x1, x2) + 1):
+        gravelChoice = randint(1, 3)
         myMap[x][y].blocked = False
         myMap[x][y].block_sight = False
-        #myMap[x][y+1].blocked = False
-        #myMap[x][y+1].block_sight = False
+        if gravelChoice == 0:
+            myMap[x][y].character = None
+        elif gravelChoice == 1:
+            myMap[x][y].character = chr(176)
+        else:
+            myMap[x][y].character = chr(177)
+        myMap[x][y].fg = color_light_gravel
+        myMap[x][y].bg = color_light_ground
+        myMap[x][y].dark_fg = color_dark_gravel
+        myMap[x][y].dark_bg = color_dark_ground
             
 def createVerticalTunnel(y1, y2, x):
     global myMap
     for y in range(min(y1, y2), max(y1, y2) + 1):
+        gravelChoice = randint(1, 3)
         myMap[x][y].blocked = False
         myMap[x][y].block_sight = False
-        #myMap[x+1][y].blocked = False
-        #myMap[x+1][y].block_sight = False
+        if gravelChoice == 0:
+            myMap[x][y].character = None
+        elif gravelChoice == 1:
+            myMap[x][y].character = chr(176)
+        else:
+            myMap[x][y].character = chr(177)
+        myMap[x][y].fg = color_light_gravel
+        myMap[x][y].bg = color_light_ground
+        myMap[x][y].dark_fg = color_dark_gravel
+        myMap[x][y].dark_bg = color_dark_ground
 
 def secretRoomTest(startingX, endX, startingY, endY):
     for x in range(startingX, endX):
@@ -2874,11 +2917,22 @@ def secretRoom():
         createRoom(secretRoom)
         myMap[entryX][entryY].blocked = False
         myMap[entryX][entryY].block_sight = True
+        gravelChoice = randint(1, 3)
+        if gravelChoice == 0:
+            myMap[entryX][entryY].character = None
+        elif gravelChoice == 1:
+            myMap[entryX][entryY].character = chr(176)
+        else:
+            myMap[entryX][entryY].character = chr(177)
+        myMap[entryX][entryY].fg = color_light_gravel
+        myMap[entryX][entryY].bg = color_light_ground
+        myMap[entryX][entryY].dark_fg = color_dark_gravel
+        myMap[entryX][entryY].dark_bg = color_dark_ground
         print("created secret room at x ", entryX, " y ", entryY, " in quarter ", quarter)
 
 def makeMap():
     global myMap, stairs, objects, upStairs, bossDungeonsAppeared
-    myMap = [[Tile(True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
+    myMap = [[Tile(True, wall = True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
     rooms = []
     numberRooms = 0
     objects = [player]
@@ -2951,9 +3005,7 @@ def makeMap():
 
 def makeBossLevel():
     global myMap, stairs, objects, upStairs
-    myMap = [[Tile(True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
-    rooms = []
-    numberRooms = 0
+    myMap = [[Tile(True, wall = True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
     objects = [player]
     
     for y in range (MAP_HEIGHT):
