@@ -111,9 +111,9 @@ myMap = None
 color_dark_wall = colors.darkest_grey
 color_light_wall = colors.darker_grey
 color_dark_ground = colors.darkest_sepia
-color_dark_gravel = (29, 23, 14)
+color_dark_gravel = (27, 20, 0)
 color_light_ground = colors.darker_sepia
-color_light_gravel = (60, 48, 30)
+color_light_gravel = (50, 37, 0)
 
 gameState = 'playing'
 playerAction = None
@@ -445,8 +445,20 @@ def castArmageddon(radius = 4, damage = 80):
         for y in range (player.y - radmax, player.y + radmax):
             try: #Execute code below try if no error is encountered
                 if tileDistance(player.x, player.y, x, y) <= radius and not myMap[x][y].unbreakable:
+                    gravelChoice = randint(0, 5)
                     myMap[x][y].blocked = False
                     myMap[x][y].block_sight = False
+                    if gravelChoice == 0:
+                        myMap[x][y].character = chr(177)
+                    elif gravelChoice == 1:
+                        myMap[x][y].character = chr(176)
+                    else:
+                        myMap[x][y].character = None
+                    myMap[x][y].fg = color_light_gravel
+                    myMap[x][y].bg = color_light_ground
+                    myMap[x][y].dark_fg = color_dark_gravel
+                    myMap[x][y].dark_bg = color_dark_ground
+                    myMap[x][y].wall = False
                     if x in range (1, MAP_WIDTH-1) and y in range (1,MAP_HEIGHT - 1):
                         explodingTiles.append((x,y))
                     for obj in objects:
@@ -2764,7 +2776,7 @@ class Tile:
         self.acid = acid
         self.baseAcidCooldown = acidCooldown
         self.curAcidCooldown = 0
-        if wall:
+        if self.wall:
             self.character = '#'
             self.fg = color_light_wall
             self.bg = color_light_ground
@@ -2791,53 +2803,56 @@ def createRoom(room):
     global myMap
     for x in range(room.x1 + 1, room.x2):
         for y in range(room.y1 + 1, room.y2):
-            gravelChoice = randint(1, 3)
+            gravelChoice = randint(0, 5)
             myMap[x][y].blocked = False
             myMap[x][y].block_sight = False
             if gravelChoice == 0:
-                myMap[x][y].character = None
+                myMap[x][y].character = chr(177)
             elif gravelChoice == 1:
                 myMap[x][y].character = chr(176)
             else:
-                myMap[x][y].character = chr(177)
+                myMap[x][y].character = None
             myMap[x][y].fg = color_light_gravel
             myMap[x][y].bg = color_light_ground
             myMap[x][y].dark_fg = color_dark_gravel
             myMap[x][y].dark_bg = color_dark_ground
+            myMap[x][y].wall = False
             
 def createHorizontalTunnel(x1, x2, y):
     global myMap
     for x in range(min(x1, x2), max(x1, x2) + 1):
-        gravelChoice = randint(1, 3)
+        gravelChoice = randint(0, 5)
         myMap[x][y].blocked = False
         myMap[x][y].block_sight = False
         if gravelChoice == 0:
-            myMap[x][y].character = None
+            myMap[x][y].character = chr(177)
         elif gravelChoice == 1:
             myMap[x][y].character = chr(176)
         else:
-            myMap[x][y].character = chr(177)
+            myMap[x][y].character = None
         myMap[x][y].fg = color_light_gravel
         myMap[x][y].bg = color_light_ground
         myMap[x][y].dark_fg = color_dark_gravel
         myMap[x][y].dark_bg = color_dark_ground
+        myMap[x][y].wall = False
             
 def createVerticalTunnel(y1, y2, x):
     global myMap
     for y in range(min(y1, y2), max(y1, y2) + 1):
-        gravelChoice = randint(1, 3)
+        gravelChoice = randint(0, 5)
         myMap[x][y].blocked = False
         myMap[x][y].block_sight = False
         if gravelChoice == 0:
-            myMap[x][y].character = None
+            myMap[x][y].character = chr(177)
         elif gravelChoice == 1:
             myMap[x][y].character = chr(176)
         else:
-            myMap[x][y].character = chr(177)
+            myMap[x][y].character = None
         myMap[x][y].fg = color_light_gravel
         myMap[x][y].bg = color_light_ground
         myMap[x][y].dark_fg = color_dark_gravel
         myMap[x][y].dark_bg = color_dark_ground
+        myMap[x][y].wall = False
 
 def secretRoomTest(startingX, endX, startingY, endY):
     for x in range(startingX, endX):
@@ -2917,17 +2932,18 @@ def secretRoom():
         createRoom(secretRoom)
         myMap[entryX][entryY].blocked = False
         myMap[entryX][entryY].block_sight = True
-        gravelChoice = randint(1, 3)
+        gravelChoice = randint(0, 5)
         if gravelChoice == 0:
-            myMap[entryX][entryY].character = None
+            myMap[entryX][entryY].character = chr(177)
         elif gravelChoice == 1:
             myMap[entryX][entryY].character = chr(176)
         else:
-            myMap[entryX][entryY].character = chr(177)
+            myMap[entryX][entryY].character = None
         myMap[entryX][entryY].fg = color_light_gravel
         myMap[entryX][entryY].bg = color_light_ground
         myMap[entryX][entryY].dark_fg = color_dark_gravel
         myMap[entryX][entryY].dark_bg = color_dark_ground
+        myMap[x][y].wall = False
         print("created secret room at x ", entryX, " y ", entryY, " in quarter ", quarter)
 
 def makeMap():
@@ -3997,54 +4013,21 @@ def Update():
         for y in range(MAP_HEIGHT):
             for x in range(MAP_WIDTH):
                 visible = (x, y) in visibleTiles
-                wall = myMap[x][y].block_sight
-                acid = myMap[x][y].acid
-                chasm = (not myMap[x][y].block_sight) and (myMap[x][y].blocked)
+                tile = myMap[x][y]
                 if not visible:
-                    if myMap[x][y].explored:
-                        if wall:
-                            if GRAPHICS == 'modern':
-                                con.draw_char(x, y, '#', fg=color_dark_wall, bg=color_dark_ground)
-                            elif GRAPHICS == 'classic':
-                                con.draw_char(x, y, '#', fg=colors.dark_gray, bg=None)
-                        elif chasm:
-                            if GRAPHICS == 'modern':
-                                con.draw_char(x, y, None, fg=None, bg=colors.darkest_gray)
-                            elif GRAPHICS == 'classic':
-                                con.draw_char(x, y, 'X', fg=colors.gray, bg=None)
-                        else:
-                            if GRAPHICS == 'modern':
-                                con.draw_char(x, y, None, fg=None, bg=color_dark_ground)
-                            elif GRAPHICS == 'classic':
-                                con.draw_char(x, y, '.', fg=colors.dark_gray, bg=None)    
+                    if tile.explored:
+                        con.draw_char(x, y, tile.character, tile.dark_fg, tile.dark_bg)
                 else:
-                    if wall:
-                        if GRAPHICS == 'modern':
-                            con.draw_char(x, y, '#', fg=color_light_wall, bg=color_light_ground)
-                        elif GRAPHICS == 'classic':
-                            con.draw_char(x, y, '#', fg=colors.white, bg=None)
-                    elif chasm:
-                            if GRAPHICS == 'modern':
-                                con.draw_char(x, y, None, fg=None, bg=colors.darkest_gray)
-                            elif GRAPHICS == 'classic':
-                                con.draw_char(x, y, 'X', fg=colors.dark_gray, bg=None)
-                    else:
-                        if GRAPHICS == 'modern':
-                            if acid:
-                                con.draw_char(x, y, None, fg=None, bg=colors.desaturated_chartreuse)
-                            else:
-                                con.draw_char(x, y, None, fg=None, bg=color_light_ground)
-                        elif GRAPHICS == 'classic':
-                            con.draw_char(x, y, '.', fg=colors.white, bg=None)    
-                    myMap[x][y].explored = True
+                    con.draw_char(x, y, tile.character, tile.fg, tile.bg)
+                    tile.explored = True
                 if gameState == 'targeting':
                     inRange = (x, y) in tilesInRange
                     inPath = pathToTargetTile and (x,y) in pathToTargetTile
-                    if inRange and not wall:
+                    if inRange and not tile.wall:
                         con.draw_char(x, y, None, fg=None, bg=colors.darker_yellow)
                     if inPath:
                         if (x,y) != (player.x, player.y):
-                            if not wall:
+                            if not tile.wall:
                                 con.draw_char(x, y, '.', fg = colors.dark_green, bg = None)
                             else:
                                 con.draw_char(x, y, 'X', fg = colors.red, bg = None)
