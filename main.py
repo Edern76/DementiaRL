@@ -134,13 +134,16 @@ FOV_recompute = True
 inventory = []
 equipmentList = []
 activeSounds = []
+########
+# These need to be globals because otherwise Python will flip out when we try to look for some kind of stairs in the object lists.
 stairs = None
 upStairs = None
 gluttonyStairs = None
+########
 hiroshimanHasAppeared = False
 highCultistHasAppeared = False
 player = None
-currentBranch = dBr.mainDungeon
+currentBranch = dBr.mainDungeon #Setting this to None causes errors. It doesn't matter tough, since this gets updated on loading or starting a game.
 dungeonLevel = 1
 
 def findCurrentDir():
@@ -3282,8 +3285,6 @@ def placeBoss(name, x, y):
 #_____________ BOSS FIGHT __________________
 
 #_____________ ROOM POPULATION + ITEMS GENERATION_______________
-itemChances = {'potion': 350, 'scroll': 260, 'sword': 70, 'shield': 70, 'spellbook': 70, 'food': 180}
-potionChances = {'heal': 70, 'mana': 30}
 
 def createSword(x, y):
     name = 'sword'
@@ -3321,7 +3322,7 @@ def createSword(x, y):
     return sword 
 
 def createScroll(x, y):
-    scrollChances = {'lightning': 12, 'confuse': 12, 'fireball': 25, 'armageddon': 10, 'ice': 25, 'none': 1}
+    scrollChances = currentBranch.scrollChances
     scrollChoice = randomChoice(scrollChances)
     if scrollChoice == 'lightning':
         scroll = GameObject(x, y, '~', 'scroll of lightning bolt', colors.light_yellow, Item = Item(useFunction = castLightning, weight = 0.3, stackable = True), blocks = False, pName = 'scrolls of lightning bolt')
@@ -3345,7 +3346,7 @@ def createScroll(x, y):
     return scroll
 
 def createSpellbook(x, y):
-    spellbookChances = {'healSelf': 8, 'fireball': 30, 'lightning': 13, 'confuse': 22, 'ice': 22}
+    spellbookChances = currentBranch.spellbookChances
     spellbookChoice = randomChoice(spellbookChances)
     if spellbookChoice == "healSelf":
         spellbook = GameObject(x, y, '=', 'spellbook of healing', colors.violet, Item = Item(useFunction = learnSpell, arg1 = heal, weight = 1.0), blocks = False)
@@ -3478,18 +3479,35 @@ def randomChoiceIndex(chances):
 
 def randomChoice(chancesDictionnary):
     chances = chancesDictionnary.values()
+    print(chances)
+    for value in chances:
+        if value < 0:
+            print(value)
+            print(chancesDictionnary.keys())
+            print(chancesDictionnary)
+            raise ValueError("Negative value in dict")
     strings = list(chancesDictionnary.keys())
     return strings[randomChoiceIndex(chances)]
 
 def placeObjects(room, first = False):
-    monsterChances = {'darksoul': 600, 'troll': 200, 'snake': 50, 'cultist': 150}
+    monsterChances = currentBranch.monsterChances
+    itemChances = currentBranch.itemChances
+    potionChances = currentBranch.potionChances
     numMonsters = randint(0, MAX_ROOM_MONSTERS)
     monster = None
-    if dungeonLevel > 2 and hiroshimanNumber == 0 and not first:
-        monsterChances['troll'] -= 50
+    if 'troll' in monsterChances.keys():
+        previousTrollChances = monsterChances['troll']
+    if 'hiroshiman' in monsterChances.keys():
+        previousHiroChances = monsterChances['hiroshiman']
+    if 'highCultist' in monsterChances.keys():
+        previousHighCultistChances = monsterChances['highCultist']
+    if dungeonLevel > 2 and hiroshimanNumber == 0 and not first and 'hiroshiman' in monsterChances.keys():
+        if 'troll' in monsterChances.keys():
+            monsterChances['troll'] -= 50
         monsterChances['hiroshiman'] = 50
-    if not highCultistHasAppeared and not first:
-        monsterChances['troll'] -= 50
+    if not highCultistHasAppeared and not first and 'highCultist' in monsterChances.keys():
+        if 'troll' in monsterChances.keys():
+            monsterChances['troll'] -= 50
         monsterChances['highCultist'] = 50
     
     for i in range(numMonsters):
@@ -3542,7 +3560,7 @@ def placeObjects(room, first = False):
 
         if monster != 'cancelled' and monster != None:
             objects.append(monster)
-    
+
     num_items = randint(0, MAX_ROOM_ITEMS)
     for i in range(num_items):
         x = randint(room.x1+1, room.x2-1)
@@ -3574,6 +3592,13 @@ def placeObjects(room, first = False):
             if item is not None:            
                 objects.append(item)
                 item.sendToBack()
+            
+            if 'troll' in monsterChances.keys():
+                monsterChances['troll'] = previousTrollChances
+            if 'hiroshiman' in monsterChances.keys():
+                monsterChances['hiroshiman'] = previousHiroChances
+            if 'highCultist' in monsterChances.keys():
+                monsterChances['highCultist'] = previousHighCultistChances 
 #_____________ ROOM POPULATION + ITEMS GENERATION_______________
 
 #_____________ EQUIPEMENT ________________
