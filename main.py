@@ -316,33 +316,56 @@ class Spell:
             FOV_recompute = True
             message(caster.name.capitalize() + ' does not have enough MP to cast ' + self.name +'.')
             return 'cancelled'
-        
-        FOV_recompute = True
-        caster.Fighter.knownSpells.remove(self)
-        self.curCooldown = self.maxCooldown
-        caster.Fighter.spellsOnCooldown.append(self)
-        if self.ressource == 'MP':
-            caster.Fighter.MP -= self.ressourceCost
-        elif self.ressource == 'HP':
-            caster.Fighter.takeDamage(self.ressourceCost)
 
         if self.arg1 is None:
             if self.useFunction(caster, target) != 'cancelled':
+                FOV_recompute = True
+                caster.Fighter.knownSpells.remove(self)
+                self.curCooldown = self.maxCooldown
+                caster.Fighter.spellsOnCooldown.append(self)
+                if self.ressource == 'MP':
+                    caster.Fighter.MP -= self.ressourceCost
+                elif self.ressource == 'HP':
+                    caster.Fighter.takeDamage(self.ressourceCost)
                 return 'used'
             else:
                 return 'cancelled'
         elif self.arg2 is None and self.arg1 is not None:
             if self.useFunction(self.arg1, caster, target) != 'cancelled':
+                FOV_recompute = True
+                caster.Fighter.knownSpells.remove(self)
+                self.curCooldown = self.maxCooldown
+                caster.Fighter.spellsOnCooldown.append(self)
+                if self.ressource == 'MP':
+                    caster.Fighter.MP -= self.ressourceCost
+                elif self.ressource == 'HP':
+                    caster.Fighter.takeDamage(self.ressourceCost)
                 return 'used'
             else:
                 return 'cancelled'
         elif self.arg3 is None and self.arg2 is not None:
             if self.useFunction(self.arg1, self.arg2, caster, target) != 'cancelled':
+                FOV_recompute = True
+                caster.Fighter.knownSpells.remove(self)
+                self.curCooldown = self.maxCooldown
+                caster.Fighter.spellsOnCooldown.append(self)
+                if self.ressource == 'MP':
+                    caster.Fighter.MP -= self.ressourceCost
+                elif self.ressource == 'HP':
+                    caster.Fighter.takeDamage(self.ressourceCost)
                 return 'used'
             else:
                 return 'cancelled'
         elif self.arg3 is not None:
             if self.useFunction(self.arg1, self.arg2, self.arg3, caster, target) != 'cancelled':
+                FOV_recompute = True
+                caster.Fighter.knownSpells.remove(self)
+                self.curCooldown = self.maxCooldown
+                caster.Fighter.spellsOnCooldown.append(self)
+                if self.ressource == 'MP':
+                    caster.Fighter.MP -= self.ressourceCost
+                elif self.ressource == 'HP':
+                    caster.Fighter.takeDamage(self.ressourceCost)
                 return 'used'
             else:
                 return 'cancelled'
@@ -355,7 +378,9 @@ def learnSpell(spell):
         message("You already know this spell")
         return "cancelled"
 
-def castRegenMana(regenAmount, caster = player, target = None):
+def castRegenMana(regenAmount, caster = None, target = None):
+    if caster is None:
+        caster = player
     if caster.Fighter.MP != caster.Fighter.maxMP:
         caster.Fighter.MP += regenAmount
         regened = regenAmount
@@ -372,7 +397,9 @@ def castDarkRitual(regen, damage, caster = player, target = None):
     message(caster.name.capitalize() + ' takes ' + str(damage) + ' damage from the ritual !', colors.red)
     castRegenMana(regen, caster)
 
-def castHeal(healAmount = 10, caster = player, target = None):
+def castHeal(healAmount = 10, caster = None, target = None):
+    if caster is None:
+        caster = player
     if caster.Fighter.hp == caster.Fighter.maxHP:
         message(caster.name.capitalize() + ' is already at full health')
         return 'cancelled'
@@ -391,7 +418,7 @@ def castLightning(caster = player, monsterTarget = player):
     message('A lightning bolt strikes the ' + target.name + ' with a heavy thunder ! It is shocked and suffers ' + str(LIGHTNING_DAMAGE) + ' shock damage.', colors.light_blue)
     target.Fighter.takeDamage(LIGHTNING_DAMAGE)
 
-def castConfuse():
+def castConfuse(caster = player, monsterTarget = None):
     message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
     target = targetMonster(maxRange = CONFUSE_RANGE)
     if target is None:
@@ -402,7 +429,7 @@ def castConfuse():
     target.AI.owner = target
     message('The ' + target.name + ' starts wandering around as he seems to lose all bound with reality.', colors.light_violet)
 
-def castFreeze():
+def castFreeze(caster = player, monsterTarget = None):
     message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
     target = targetMonster(maxRange = None)
     if target is None:
@@ -456,7 +483,7 @@ def castFireball(radius = 3, damage = 24, range = 4, caster = player, monsterTar
                     #explodingTiles.append((x,y))
         #explode()
 
-def castArmageddon(radius = 4, damage = 80):
+def castArmageddon(radius = 4, damage = 80, caster = player, monsterTarget = None):
     global FOV_recompute
     message('As you begin to read the scroll, the runes inscribed on it start emitting a very bright crimson light. Continue (Y/N)', colors.dark_red)
     FOV_recompute = True
@@ -517,13 +544,13 @@ def castArmageddon(radius = 4, damage = 80):
     #Display explosion eye-candy, this could get it's own function
     explode()
 
-def castEnrage(enrageTurns):
+def castEnrage(enrageTurns, caster = player, monsterTarget = None):
     player.Fighter.enraged = True
     player.Fighter.enrageCooldown = enrageTurns + 1
     player.Fighter.basePower += 10
     message('You are now enraged !', colors.dark_amber)
 
-def castRessurect(range = 4):
+def castRessurect(range = 4, caster = player, monsterTarget = None):
     target = targetTile(range)
     if target == "cancelled":
         message("Spell casting cancelled")
@@ -3172,7 +3199,7 @@ def makeMap():
                         print('created gluttonys stairs at ' + str(x) + ', ' + str(y))
 
 def makeBossLevel():
-    global myMap, objects, upStairs, rooms
+    global myMap, objects, upStairs, rooms, numberRooms
     myMap = [[Tile(True, wall = True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
     objects = [player]
     rooms = []
@@ -3240,7 +3267,7 @@ def makeBossLevel():
     numberRooms += 1
 
 def createEndRooms():
-    global rooms, stairs, myMap, objects
+    global rooms, stairs, myMap, objects, numberRooms
     for r in range(4): #final rooms
         w = randint(ROOM_MIN_SIZE, ROOM_MAX_SIZE)
         h = randint(ROOM_MIN_SIZE, ROOM_MAX_SIZE)
@@ -3263,6 +3290,7 @@ def createEndRooms():
                 createVerticalTunnel(previous_y, new_y, previous_x)
                 createHorizontalTunnel(previous_x, new_x, new_y)
             rooms.append(newRoom)
+            numberRooms += 1
     stairs = GameObject(new_x, new_y, '>', 'stairs', colors.white, alwaysVisible = True, darkColor = colors.dark_grey)
     objects.append(stairs)
     stairs.sendToBack()
