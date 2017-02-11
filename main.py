@@ -307,25 +307,42 @@ class Spell:
             self.arg2 = FIREBALL_SPELL_BASE_DAMAGE * player.Player.actualPerSkills[4]
             self.arg3 = FIREBALL_SPELL_BASE_RANGE + player.Player.actualPerSkills[4] 
 
-    def cast(self):
-        self.updateSpellStats()
+    def cast(self, caster = player, target = player):
+        global FOV_recompute
+
+        if caster == player:
+            self.updateSpellStats()
+        if self.ressource == 'MP' and caster.Fighter.MP < self.ressourceCost:
+            FOV_recompute = True
+            message(caster.name.capitalize() + ' does not have enough MP to cast ' + self.name +'.')
+            return 'cancelled'
+        
+        FOV_recompute = True
+        caster.Fighter.knownSpells.remove(self)
+        self.curCooldown = self.maxCooldown
+        caster.Fighter.spellsOnCooldown.append(self)
+        if self.ressource == 'MP':
+            caster.Fighter.MP -= self.ressourceCost
+        elif self.ressource == 'HP':
+            caster.Fighter.takeDamage(self.ressourceCost)
+
         if self.arg1 is None:
-            if self.useFunction() != 'cancelled':
+            if self.useFunction(caster, target) != 'cancelled':
                 return 'used'
             else:
                 return 'cancelled'
         elif self.arg2 is None and self.arg1 is not None:
-            if self.useFunction(self.arg1) != 'cancelled':
+            if self.useFunction(self.arg1, caster, target) != 'cancelled':
                 return 'used'
             else:
                 return 'cancelled'
         elif self.arg3 is None and self.arg2 is not None:
-            if self.useFunction(self.arg1, self.arg2) != 'cancelled':
+            if self.useFunction(self.arg1, self.arg2, caster, target) != 'cancelled':
                 return 'used'
             else:
                 return 'cancelled'
         elif self.arg3 is not None:
-            if self.useFunction(self.arg1, self.arg2, self.arg3) != 'cancelled':
+            if self.useFunction(self.arg1, self.arg2, self.arg3, caster, target) != 'cancelled':
                 return 'used'
             else:
                 return 'cancelled'
@@ -338,35 +355,38 @@ def learnSpell(spell):
         message("You already know this spell")
         return "cancelled"
 
-def castRegenMana(regenAmount):
-    if player.Fighter.MP != player.Fighter.maxMP:
-        player.Fighter.MP += regenAmount
+def castRegenMana(regenAmount, caster = player, target = None):
+    if caster.Fighter.MP != caster.Fighter.maxMP:
+        caster.Fighter.MP += regenAmount
         regened = regenAmount
-        if player.Fighter.MP > player.Fighter.maxMP:
-            overflow = player.Fighter.maxMP - player.Fighter.MP
+        if caster.Fighter.MP > caster.Fighter.maxMP:
+            overflow = caster.Fighter.maxMP - caster.Fighter.MP
             regened = regenAmount + overflow
-            player.Fighter.MP = player.Fighter.maxMP
-        message("You recovered " + str(regened) + " MP.", colors.green)
+            caster.Fighter.MP = caster.Fighter.maxMP
+        message(caster.name.capitalize() + " recovered " + str(regened) + " MP.", colors.green)
     else:
-        message("Your MP are already maxed out")
+        message(caster.name.capitalize() + "'s MP are already maxed out")
         return "cancelled"
 
-def castDarkRitual(regen, damage):
-    message('You take ' + str(damage) + ' damage from the ritual !', colors.red)
-    castRegenMana(regen)
+def castDarkRitual(regen, damage, caster = player, target = None):
+    message(caster.name.capitalize() + ' takes ' + str(damage) + ' damage from the ritual !', colors.red)
+    castRegenMana(regen, caster)
 
-def castHeal(healAmount = 10):
-    if player.Fighter.hp == player.Fighter.maxHP:
-        message('You are already at full health')
+def castHeal(healAmount = 10, caster = player, target = None):
+    if caster.Fighter.hp == caster.Fighter.maxHP:
+        message(caster.name.capitalize() + ' is already at full health')
         return 'cancelled'
     else:
-        message('You are healed for {} HP !'.format(healAmount), colors.light_green)
-        player.Fighter.heal(healAmount)
+        message(caster.name.capitalize() + ' is healed for {} HP !'.format(healAmount), colors.light_green)
+        caster.Fighter.heal(healAmount)
 
-def castLightning():
-    target = closestMonster(LIGHTNING_RANGE)
+def castLightning(caster = player, monsterTarget = player):
+    if caster == player:
+        target = closestMonster(LIGHTNING_RANGE)
+    elif caster.distanceTo(monsterTarget) <= LIGHTNING_RANGE:
+        target = monsterTarget
     if target is None:
-        message('Your magic fizzles: there is no enemy near enough to strike', colors.red)
+        message(caster.name.capitalize() + "'s magic fizzles: there is no enemy near enough to strike", colors.red)
         return 'cancelled'
     message('A lightning bolt strikes the ' + target.name + ' with a heavy thunder ! It is shocked and suffers ' + str(LIGHTNING_DAMAGE) + ' shock damage.', colors.light_blue)
     target.Fighter.takeDamage(LIGHTNING_DAMAGE)
@@ -396,17 +416,31 @@ def castFreeze():
         message("The " + target.name + " is already frozen.")
         return 'cancelled'
     
-def castFireball(radius = 3, damage = 24, range = 4):
+def castFireball(radius = 3, damage = 24, range = 4, caster = player, monsterTarget = player):
     global explodingTiles
-    message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
-    target = targetTile(maxRange = range)
+    if caster == player:
+        message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
+        target = targetTile(maxRange = range)
+    else:
+        if caster.distanceTo(monsterTarget) <= range:
+            target = (monsterTarget.x, monsterTarget.y)
+        else:
+            line = tdl.map.bresenham(caster.x, caster.y, monsterTarget.x, monsterTarget.y)
+            counter = 0
+            for tile in line:
+                (tx, ty) = line[counter]
+                if tileDistance(caster.x, caster.y, tx, ty) > range:
+                    target = (tx, ty)
+                    break
+                else:
+                    counter += 1
     #radmax = radius + 2
     if target == 'cancelled':
         message('Spell casting cancelled')
         return target
     else:
         (tx,ty) = target
-        (targetX, targetY) = projectile(player.x, player.y, tx, ty, '*', colors.flame, passesThrough=True)
+        (targetX, targetY) = projectile(caster.x, caster.y, tx, ty, '*', colors.flame, passesThrough=True)
         #TODO : Make where the projectile lands actually matter (?)
         for obj in objects:
             if obj.distanceToCoords(targetX, targetY) <= radius and obj.Fighter:
@@ -1515,7 +1549,8 @@ class FastMonster:
                                 if monster.distanceTo(player) <= 15 and not (monster.x == player.x and monster.y == player.y):
                                     diagPathState = checkDiagonals(monster, player)
                                 elif diagPathState is None or monster.distanceTo(player) > 15:
-                                    monster.move(randint(-1, 1), randint(-1, 1)) #wandering            
+                                    monster.move(randint(-1, 1), randint(-1, 1)) #wandering
+
 class hostileStationnary:
     def takeTurn(self):
         monster = self.owner
@@ -1644,6 +1679,88 @@ class FriendlyMonster:
                         monster.move(randint(-1, 1), randint(-1, 1)) #wandering
         else:
             pass #Implement here code in case the monster is friendly towards another monster
+    
+class Spellcaster():
+    def takeTurn(self):
+        global FOV_recompute
+        monster = self.owner
+        monsterVisibleTiles = tdl.map.quick_fov(x = monster.x, y = monster.y,callback = isVisibleTile , fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
+        
+        targets = []
+        selectedTarget = None
+        priorityTargetFound = False
+        if not self.owner.Fighter.frozen and monster.distanceTo(player) <= 15:
+            print(monster.name + " is less than 15 tiles to player.")
+            for object in objects:
+                if (object.x, object.y) in monsterVisibleTiles and (object == player or (object.AI and object.AI.__class__.__name__ == "FriendlyMonster" and object.AI.friendlyTowards == player)):
+                    targets.append(object)
+            if DEBUG:
+                print(monster.name.capitalize() + " can target", end=" ")
+                if targets:
+                    for loop in range (len(targets)):
+                        print(targets[loop].name.capitalize() + ", ", sep ="", end ="")
+                else:
+                    print("absolutely nothing but nothingness.", end ="")
+                print()
+            if targets:
+                if player in targets: #Target player in priority
+                    selectedTarget = player
+                    del targets[targets.index(player)]
+                    if monster.distanceTo(player) < 2:
+                        priorityTargetFound = True
+                if not priorityTargetFound:
+                    for enemyIndex in range(len(targets)):
+                        enemy = targets[enemyIndex]
+                        if monster.distanceTo(enemy) < 2:
+                            selectedTarget = enemy
+                        else:
+                            if selectedTarget == None or monster.distanceTo(selectedTarget) > monster.distanceTo(enemy):
+                                selectedTarget = enemy
+            if selectedTarget is not None:
+                choseSpell = True
+                if len(monster.Fighter.knownSpells) > 0:
+                    randSpell = randint(0, len(monster.Fighter.knownSpells) - 1)
+                    firstSpell = randSpell
+                    action = None
+                    while action is None:
+                        chosenSpell = monster.Fighter.knownSpells[randSpell]
+                        action = chosenSpell.cast(monster, selectedTarget)
+                        if action == 'cancelled':
+                            action = None
+                            randSpell += 1
+                            if randSpell == firstSpell:
+                                choseSpell = False
+                                break
+                            if randSpell >= len(monster.Fighter.knownSpells):
+                                randSpell = 0
+                        else:
+                            break
+                else:
+                    choseSpell = False
+                
+                if not choseSpell:
+                    if monster.distanceTo(selectedTarget) < 2:
+                        monster.Fighter.attack(selectedTarget)
+                    else:
+                        state = monster.moveAstar(selectedTarget.x, selectedTarget.y, fallback = False)
+                        if state == "fail":
+                            diagState = checkDiagonals(monster, selectedTarget)
+                            if diagState is None:
+                                monster.moveTowards(selectedTarget.x, selectedTarget.y)
+            #elif (monster.x, monster.y) in visibleTiles and monster.distanceTo(player) >= 2:
+                #monster.moveAstar(player.x, player.y)
+            else:
+                if not monster.Fighter.frozen and monster.distanceTo(player) >= 2:
+                    pathState = "complete"
+                    diagPathState = None
+                    if monster.astarPath:
+                        pathState = monster.moveNextStepOnPath()
+                    elif not monster.astarPath or pathState == "fail":
+                            if monster.distanceTo(player) <= 15 and not (monster.x == player.x and monster.y == player.y):
+                                diagPathState = checkDiagonals(monster, player)
+                            elif diagPathState is None or monster.distanceTo(player) > 15:
+                                monster.move(randint(-1, 1), randint(-1, 1)) #wandering
+            FOV_recompute = True
 
 class Player:
     def __init__(self, name, strength, dexterity, vitality, willpower, actualPerSkills, levelUpStats, skillsBonus, race, classes, traits, baseHunger = BASE_HUNGER):
@@ -2168,25 +2285,12 @@ def getInput():
                 message('Your arcane knowledge is not high enough to cast ' + chosenSpell.name + '.')
                 return 'didnt-take-turn'
             else:
-                if chosenSpell.ressource == 'MP' and player.Fighter.MP < chosenSpell.ressourceCost:
+                action = chosenSpell.cast()
+                if action == 'cancelled':
                     FOV_recompute = True
-                    message('Not enough MP to cast ' + chosenSpell.name +'.')
                     return 'didnt-take-turn'
                 else:
-                    action = chosenSpell.cast()
-                    if action == 'cancelled':
-                        FOV_recompute = True
-                        return 'didnt-take-turn'
-                    else:
-                        FOV_recompute = True
-                        player.Fighter.knownSpells.remove(chosenSpell)
-                        chosenSpell.curCooldown = chosenSpell.maxCooldown
-                        player.Fighter.spellsOnCooldown.append(chosenSpell)
-                        if chosenSpell.ressource == 'MP':
-                            player.Fighter.MP -= chosenSpell.ressourceCost
-                        elif chosenSpell.ressource == 'HP':
-                            player.Fighter.takeDamage(chosenSpell.ressourceCost)
-                        return
+                    return
     elif userInput.keychar.upper() == 'X':
         shooting = shoot()
         if shooting == 'didnt-take-turn':
@@ -2675,7 +2779,7 @@ def castPlaceBoss():
     else:
         (x, y) = target
         if not isBlocked(x, y):
-            bossList = ['Gluttony', 'Wrath']
+            bossList = ['Gluttony', 'Wrath', 'High Inquisitor']
             boss = menu('What boss ?', bossList, 50)
             placeBoss(bossList[boss], x, y)
         else:
@@ -2953,6 +3057,7 @@ def secretRoom():
         createRoom(secretRoom)
         myMap[entryX][entryY].blocked = False
         myMap[entryX][entryY].block_sight = True
+        myMap[entryX][entryY].wall = True
         gravelChoice = randint(0, 5)
         if gravelChoice == 0:
             myMap[entryX][entryY].character = chr(177)
@@ -3084,7 +3189,7 @@ def makeBossLevel():
     
     bossName = None
     if dungeonLevel >= 2:
-        bossName = 'Gluttony'
+        bossName = 'High Inquisitor'
 
     placeBoss(bossName, new_x, y + 1)
     
@@ -3260,9 +3365,89 @@ class Wrath():
             self.curChargeCooldown = 2
         else:
             boss.moveAstar(player.x, player.y, fallback = False)
-
-            
 #--Wrath--
+
+#-- High Inquisitor --
+class HighInquisitor:
+    def takeTurn(self):
+        global FOV_recompute
+        monster = self.owner
+        monsterVisibleTiles = tdl.map.quick_fov(x = monster.x, y = monster.y,callback = isVisibleTile , fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
+        
+        targets = []
+        selectedTarget = None
+        priorityTargetFound = False
+        if not self.owner.Fighter.frozen and monster.distanceTo(player) <= 15:
+            print(monster.name + " is less than 15 tiles to player.")
+            for object in objects:
+                if (object.x, object.y) in monsterVisibleTiles and (object == player or (object.AI and object.AI.__class__.__name__ == "FriendlyMonster" and object.AI.friendlyTowards == player)):
+                    targets.append(object)
+            if DEBUG:
+                print(monster.name.capitalize() + " can target", end=" ")
+                if targets:
+                    for loop in range (len(targets)):
+                        print(targets[loop].name.capitalize() + ", ", sep ="", end ="")
+                else:
+                    print("absolutely nothing but nothingness.", end ="")
+                print()
+            if targets:
+                if player in targets: #Target player in priority
+                    selectedTarget = player
+                    del targets[targets.index(player)]
+                    if monster.distanceTo(player) < 2:
+                        priorityTargetFound = True
+                if not priorityTargetFound:
+                    for enemyIndex in range(len(targets)):
+                        enemy = targets[enemyIndex]
+                        if monster.distanceTo(enemy) < 2:
+                            selectedTarget = enemy
+                        else:
+                            if selectedTarget == None or monster.distanceTo(selectedTarget) > monster.distanceTo(enemy):
+                                selectedTarget = enemy
+            if selectedTarget is not None:
+                choseSpell = True
+                if len(monster.Fighter.knownSpells) > 0:
+                    randSpell = randint(0, len(monster.Fighter.knownSpells) - 1)
+                    firstSpell = randSpell
+                    action = None
+                    while action is None:
+                        chosenSpell = monster.Fighter.knownSpells[randSpell]
+                        action = chosenSpell.cast(monster, selectedTarget)
+                        if action == 'cancelled':
+                            action = None
+                            randSpell += 1
+                            if randSpell == firstSpell:
+                                choseSpell = False
+                                break
+                            if randSpell >= len(monster.Fighter.knownSpells):
+                                randSpell = 0
+                else:
+                    choseSpell = False
+                
+                if not choseSpell:
+                    if monster.distanceTo(selectedTarget) < 2:
+                        monster.Fighter.attack(selectedTarget)
+                    else:
+                        state = monster.moveAstar(selectedTarget.x, selectedTarget.y, fallback = False)
+                        if state == "fail":
+                            diagState = checkDiagonals(monster, selectedTarget)
+                            if diagState is None:
+                                monster.moveTowards(selectedTarget.x, selectedTarget.y)
+            #elif (monster.x, monster.y) in visibleTiles and monster.distanceTo(player) >= 2:
+                #monster.moveAstar(player.x, player.y)
+            else:
+                if not monster.Fighter.frozen and monster.distanceTo(player) >= 2:
+                    pathState = "complete"
+                    diagPathState = None
+                    if monster.astarPath:
+                        pathState = monster.moveNextStepOnPath()
+                    elif not monster.astarPath or pathState == "fail":
+                            if monster.distanceTo(player) <= 15 and not (monster.x == player.x and monster.y == player.y):
+                                diagPathState = checkDiagonals(monster, player)
+                            elif diagPathState is None or monster.distanceTo(player) > 15:
+                                monster.move(randint(-1, 1), randint(-1, 1)) #wandering
+        FOV_recompute = True
+#-- High Inquisitor --
 
 def placeBoss(name, x, y):
     if name == 'Gluttony':
@@ -3280,6 +3465,13 @@ def placeBoss(name, x, y):
         fighterComponent = Fighter(hp = 600, armor = 3, power = 18, xp = 1000, deathFunction = monsterDeath, accuracy = 25, evasion = 15)
         AI_component = Wrath()
         boss = GameObject(x, y, char = 'W', color = colors.darker_red, name = name, blocks = True, Fighter = fighterComponent, AI = AI_component)
+        objects.append(boss)
+    
+    if name == 'High Inquisitor':
+        inquisitorFireball = Spell(ressourceCost = 10, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 2, arg2 = 20, arg3 = 6)
+        fighterComponent = Fighter(hp = 300, armor = 2, power = 5, xp = 1000, deathFunction = monsterDeath, accuracy = 75, evasion = 25, maxMP = 50, knownSpells=[inquisitorFireball])
+        AI_component = HighInquisitor()
+        boss = GameObject(x, y, char = 'I', color = colors.darker_magenta, name = name, blocks = True, Fighter = fighterComponent, AI = AI_component)
         objects.append(boss)
                 
 #_____________ BOSS FIGHT __________________
