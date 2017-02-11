@@ -1559,10 +1559,12 @@ class Fleeing:
         bestY = 0
         for x in range(MAP_WIDTH):
             for y in range(MAP_HEIGHT):
-                if (x, y) in monsterVisibleTiles and monster.distanceTo(x, y) > monster.distanceTo(bestX, bestY):
+                if (x, y) in monsterVisibleTiles and monster.distanceToCoords(x, y) > monster.distanceToCoords(bestX, bestY):
                     bestX = x
                     bestY = y
-        monster.moveAstar(bestX, bestY, fallback = False)
+        state = monster.moveAstar(bestX, bestY, fallback = False)
+        if state == "fail":
+            monster.moveTowards(bestX, bestY)
 
 class hostileStationnary:
     def takeTurn(self):
@@ -2361,6 +2363,8 @@ def getInput():
                         global stairCooldown
                         stairCooldown = 2
                         boss = False
+                        if dungeonLevel >= 2:
+                            boss = True
                         if DEBUG:
                             message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
                         nextLevel(boss)
@@ -3168,9 +3172,11 @@ def makeMap():
                         print('created gluttonys stairs at ' + str(x) + ', ' + str(y))
 
 def makeBossLevel():
-    global myMap, stairs, objects, upStairs
+    global myMap, objects, upStairs, rooms
     myMap = [[Tile(True, wall = True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
     objects = [player]
+    rooms = []
+    numberRooms = 0
     
     for y in range (MAP_HEIGHT):
         myMap[0][y].unbreakable = True
@@ -3178,22 +3184,40 @@ def makeBossLevel():
     for x in range(MAP_WIDTH):
         myMap[x][0].unbreakable = True
         myMap[x][MAP_HEIGHT-1].unbreakable = True #Borders of the map cannot be broken
-    #spawn room
-    w = randint(ROOM_MIN_SIZE, ROOM_MAX_SIZE)
-    h = randint(ROOM_MIN_SIZE, ROOM_MAX_SIZE)
-    x = randint(0, 50-w-1)
-    y = randint(0, 20-h-1)
-    newRoom = Rectangle(x, y, w, h)
-    createRoom(newRoom)
-    (new_x, new_y) = newRoom.center()
-    
-    player.x = new_x
-    player.y = new_y
-    if dungeonLevel > 1:
-        upStairs = GameObject(new_x, new_y, '<', 'stairs', colors.white, alwaysVisible = True, darkColor = colors.dark_grey)
-        objects.append(upStairs)
-        upStairs.sendToBack()
-    (previous_x, previous_y) = newRoom.center()
+ 
+    for r in range(5): #first rooms
+        w = randint(ROOM_MIN_SIZE, ROOM_MAX_SIZE)
+        h = randint(ROOM_MIN_SIZE, ROOM_MAX_SIZE)
+        x = randint(0, 50-w-1)
+        y = randint(0, 20-h-1)
+        newRoom = Rectangle(x, y, w, h)
+        intersection = False
+        for otherRoom in rooms:
+            if newRoom.intersect(otherRoom):
+                intersection = True
+                break
+        if not intersection:
+            createRoom(newRoom)
+            (new_x, new_y) = newRoom.center()
+ 
+            if numberRooms == 0:
+                player.x = new_x
+                player.y = new_y
+                if dungeonLevel > 1:
+                    upStairs = GameObject(new_x, new_y, '<', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor)
+                    objects.append(upStairs)
+                    upStairs.sendToBack()
+            else:
+                (previous_x, previous_y) = rooms[numberRooms-1].center()
+                if randint(0, 1):
+                    createHorizontalTunnel(previous_x, new_x, previous_y)
+                    createVerticalTunnel(previous_y, new_y, new_x)
+                else:
+                    createVerticalTunnel(previous_y, new_y, previous_x)
+                    createHorizontalTunnel(previous_x, new_x, new_y)
+            rooms.append(newRoom)
+            numberRooms += 1
+
     #boss room
     w = randint(25, 40)
     h = randint(20, 35)
@@ -3212,20 +3236,33 @@ def makeBossLevel():
     placeBoss(bossName, new_x, y + 1)
     
     (previous_x, previous_y) = bossRoom.center()
-    #end room
-    w = randint(ROOM_MIN_SIZE, ROOM_MAX_SIZE)
-    h = randint(ROOM_MIN_SIZE, ROOM_MAX_SIZE)
-    x = randint(100, MAP_WIDTH-w-1)
-    y = randint(0, MAP_HEIGHT-h-1)
-    newRoom = Rectangle(x, y, w, h)
-    createRoom(newRoom)
-    (new_x, new_y) = newRoom.center()
-    if randint(0, 1):
-        createHorizontalTunnel(previous_x, new_x, previous_y)
-        createVerticalTunnel(previous_y, new_y, new_x)
-    else:
-        createVerticalTunnel(previous_y, new_y, previous_x)
-        createHorizontalTunnel(previous_x, new_x, new_y)
+    rooms.append(bossRoom)
+    numberRooms += 1
+
+def createEndRooms():
+    global rooms, stairs, myMap, objects
+    for r in range(4): #final rooms
+        w = randint(ROOM_MIN_SIZE, ROOM_MAX_SIZE)
+        h = randint(ROOM_MIN_SIZE, ROOM_MAX_SIZE)
+        x = randint(100, MAP_WIDTH-w-1)
+        y = randint(0, MAP_HEIGHT-h-1)
+        newRoom = Rectangle(x, y, w, h)
+        intersection = False
+        for otherRoom in rooms:
+            if newRoom.intersect(otherRoom):
+                intersection = True
+                break
+        if not intersection:
+            createRoom(newRoom)
+            (new_x, new_y) = newRoom.center()
+            (previous_x, previous_y) = rooms[numberRooms-1].center()
+            if randint(0, 1):
+                createHorizontalTunnel(previous_x, new_x, previous_y)
+                createVerticalTunnel(previous_y, new_y, new_x)
+            else:
+                createVerticalTunnel(previous_y, new_y, previous_x)
+                createHorizontalTunnel(previous_x, new_x, new_y)
+            rooms.append(newRoom)
     stairs = GameObject(new_x, new_y, '>', 'stairs', colors.white, alwaysVisible = True, darkColor = colors.dark_grey)
     objects.append(stairs)
     stairs.sendToBack()
@@ -3235,6 +3272,26 @@ def makeBossLevel():
 #_____________ BOSS FIGHT __________________
 deathX = 0
 deathY = 0
+
+def basicBossDeath(monster):
+    message(monster.name.capitalize() + ' is dead! You gain ' + str(monster.Fighter.xp) + ' XP.', colors.dark_sky)
+    
+    if monster.Fighter.lootFunction is not None:
+        itemIndex = 0
+        for item in monster.Fighter.lootFunction:
+            loot = randint(1, 100)
+            if loot <= monster.Fighter.lootRate[itemIndex]:
+                lootItem(item, monster.x, monster.y)
+            itemIndex += 1
+
+    monster.char = '%'
+    monster.color = colors.dark_red
+    monster.blocks = False
+    monster.AI = None
+    monster.name = 'remains of ' + monster.name
+    monster.Fighter = None
+    monster.sendToBack()
+    createEndRooms()
 
 #--Gluttony--
 def fatDeath(monster):
@@ -3348,6 +3405,7 @@ def gluttonysDeath(monster):
         if object.name == "Gluttony's fat": #or (object.AI and (object.AI.__class__.__name__ == "immobile")):
             object.Fighter.hp = 0
             fatDeath(object)
+    createEndRooms()
 #--Gluttony--
 
 #--Wrath--   WIP
@@ -3489,14 +3547,14 @@ def placeBoss(name, x, y):
                     createFat(x, y)
 
     if name == 'Wrath':
-        fighterComponent = Fighter(hp = 600, armor = 3, power = 18, xp = 1000, deathFunction = monsterDeath, accuracy = 25, evasion = 15)
+        fighterComponent = Fighter(hp = 600, armor = 3, power = 18, xp = 1000, deathFunction = basicBossDeath, accuracy = 25, evasion = 15)
         AI_component = Wrath()
         boss = GameObject(x, y, char = 'W', color = colors.darker_red, name = name, blocks = True, Fighter = fighterComponent, AI = AI_component)
         objects.append(boss)
     
     if name == 'High Inquisitor':
         inquisitorFireball = Spell(ressourceCost = 0, cooldown = 4, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 0, arg2 = 20, arg3 = 6)
-        fighterComponent = Fighter(hp = 300, armor = 2, power = 5, xp = 1000, deathFunction = monsterDeath, accuracy = 75, evasion = 25, maxMP = 50, knownSpells=[inquisitorFireball])
+        fighterComponent = Fighter(hp = 300, armor = 2, power = 5, xp = 1000, deathFunction = basicBossDeath, accuracy = 75, evasion = 25, maxMP = 50, knownSpells=[inquisitorFireball])
         AI_component = HighInquisitor()
         boss = GameObject(x, y, char = 'I', color = colors.darker_magenta, name = name, blocks = True, Fighter = fighterComponent, AI = AI_component)
         objects.append(boss)
