@@ -1551,6 +1551,19 @@ class FastMonster:
                                 elif diagPathState is None or monster.distanceTo(player) > 15:
                                     monster.move(randint(-1, 1), randint(-1, 1)) #wandering
 
+class Fleeing:
+    def takeTurn(self):
+        monster = self.owner
+        monsterVisibleTiles = tdl.map.quick_fov(x = monster.x, y = monster.y,callback = isVisibleTile , fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
+        bestX = 0
+        bestY = 0
+        for x in range(MAP_WIDTH):
+            for y in range(MAP_HEIGHT):
+                if (x, y) in monsterVisibleTiles and monster.distanceTo(x, y) > monster.distanceTo(bestX, bestY):
+                    bestX = x
+                    bestY = y
+        monster.moveAstar(bestX, bestY, fallback = False)
+
 class hostileStationnary:
     def takeTurn(self):
         monster = self.owner
@@ -2285,7 +2298,7 @@ def getInput():
                 message('Your arcane knowledge is not high enough to cast ' + chosenSpell.name + '.')
                 return 'didnt-take-turn'
             else:
-                action = chosenSpell.cast()
+                action = chosenSpell.cast(caster = player)
                 if action == 'cancelled':
                     FOV_recompute = True
                     return 'didnt-take-turn'
@@ -2463,6 +2476,7 @@ def satiateHunger(amount, name = None):
         player.Player.hunger = BASE_HUNGER
     if name:
         message("You eat " + name +".")
+
 def checkDiagonals(monster, target):
     diagonals = [(1,1), (1, -1), (-1, 1), (-1, -1)]
     sameX = monster.x == target.x
@@ -3057,7 +3071,11 @@ def secretRoom():
         createRoom(secretRoom)
         myMap[entryX][entryY].blocked = False
         myMap[entryX][entryY].block_sight = True
-        myMap[entryX][entryY].wall = True
+        myMap[entryX][entryY].char = '#'
+        myMap[entryX][entryY].fg = color_light_wall
+        myMap[entryX][entryY].bg = color_light_ground
+        myMap[entryX][entryY].dark_fg = color_dark_wall
+        myMap[entryX][entryY].dark_bg = color_dark_ground
         gravelChoice = randint(0, 5)
         if gravelChoice == 0:
             myMap[entryX][entryY].character = chr(177)
@@ -3428,11 +3446,20 @@ class HighInquisitor:
                     if monster.distanceTo(selectedTarget) < 2:
                         monster.Fighter.attack(selectedTarget)
                     else:
-                        state = monster.moveAstar(selectedTarget.x, selectedTarget.y, fallback = False)
+                        monsterVisibleTiles = tdl.map.quick_fov(x = monster.x, y = monster.y,callback = isVisibleTile , fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
+                        bestX = 0
+                        bestY = 0
+                        for x in range(MAP_WIDTH):
+                            for y in range(MAP_HEIGHT):
+                                if (x, y) in monsterVisibleTiles and monster.distanceToCoords(x, y) > monster.distanceToCoords(bestX, bestY):
+                                    bestX = x
+                                    bestY = y
+                        state = monster.moveAstar(bestX, bestY, fallback = False)
                         if state == "fail":
-                            diagState = checkDiagonals(monster, selectedTarget)
-                            if diagState is None:
-                                monster.moveTowards(selectedTarget.x, selectedTarget.y)
+                            monster.moveTowards(bestX, bestY)
+                            #diagState = checkDiagonals(monster, selectedTarget)
+                            #if diagState is None:
+                            #    monster.moveTowards(selectedTarget.x, selectedTarget.y)
             #elif (monster.x, monster.y) in visibleTiles and monster.distanceTo(player) >= 2:
                 #monster.moveAstar(player.x, player.y)
             else:
@@ -3468,7 +3495,7 @@ def placeBoss(name, x, y):
         objects.append(boss)
     
     if name == 'High Inquisitor':
-        inquisitorFireball = Spell(ressourceCost = 10, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 2, arg2 = 20, arg3 = 6)
+        inquisitorFireball = Spell(ressourceCost = 0, cooldown = 4, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 0, arg2 = 20, arg3 = 6)
         fighterComponent = Fighter(hp = 300, armor = 2, power = 5, xp = 1000, deathFunction = monsterDeath, accuracy = 75, evasion = 25, maxMP = 50, knownSpells=[inquisitorFireball])
         AI_component = HighInquisitor()
         boss = GameObject(x, y, char = 'I', color = colors.darker_magenta, name = name, blocks = True, Fighter = fighterComponent, AI = AI_component)
