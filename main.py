@@ -1586,7 +1586,7 @@ class Fleeing:
         bestY = 0
         for x in range(MAP_WIDTH):
             for y in range(MAP_HEIGHT):
-                if (x, y) in monsterVisibleTiles and monster.distanceToCoords(x, y) > monster.distanceToCoords(bestX, bestY):
+                if (x, y) in monsterVisibleTiles and monster.distanceToCoords(x, y) > monster.distanceToCoords(bestX, bestY) and not isBlocked(x, y):
                     bestX = x
                     bestY = y
         state = monster.moveAstar(bestX, bestY, fallback = False)
@@ -3102,7 +3102,7 @@ def secretRoom():
         createRoom(secretRoom)
         myMap[entryX][entryY].blocked = False
         myMap[entryX][entryY].block_sight = True
-        myMap[entryX][entryY].char = '#'
+        myMap[entryX][entryY].character = '#'
         myMap[entryX][entryY].fg = color_light_wall
         myMap[entryX][entryY].bg = color_light_ground
         myMap[entryX][entryY].dark_fg = color_dark_wall
@@ -3537,11 +3537,12 @@ class HighInquisitor:
                         bestY = 0
                         for x in range(MAP_WIDTH):
                             for y in range(MAP_HEIGHT):
-                                if (x, y) in monsterVisibleTiles and monster.distanceToCoords(x, y) > monster.distanceToCoords(bestX, bestY):
+                                if (x, y) in monsterVisibleTiles and monster.distanceToCoords(x, y) > monster.distanceToCoords(bestX, bestY) and not isBlocked(x, y):
                                     bestX = x
                                     bestY = y
                         state = monster.moveAstar(bestX, bestY, fallback = False)
                         if state == "fail":
+                            print("astar failed")
                             monster.moveTowards(bestX, bestY)
                             #diagState = checkDiagonals(monster, selectedTarget)
                             #if diagState is None:
