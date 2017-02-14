@@ -2409,39 +2409,45 @@ def getInput():
                         message("You're too tired to climb down the stairs right now")
                     return None
         elif userInput.keychar.upper() == 'I':
-            chosenItem = inventoryMenu('Press the key next to an item to use it, or any other to cancel.\n')
-            if chosenItem is not None:
-                usage = chosenItem.display(['Use', 'Drop', 'Back'])
-                if usage == 0:
-                    using = chosenItem.use()
-                    if using == 'cancelled':
-                        FOV_recompute = True
-                        return 'didnt-take-turn'
-                elif usage == 1:
-                    chosenItem.drop()
-                    return None
-                elif usage == 2:
+            choseOrQuit = False
+            while not choseOrQuit:
+                chosenItem = inventoryMenu('Press the key next to an item to use it, or any other to cancel.\n')
+                if chosenItem is not None:
+                    choseOrQuit = True
+                    usage = chosenItem.display(['Use', 'Drop', 'Back'])
+                    if usage == 0:
+                        using = chosenItem.use()
+                        if using == 'cancelled':
+                            FOV_recompute = True
+                            return 'didnt-take-turn'
+                    elif usage == 1:
+                        chosenItem.drop()
+                        return None
+                    elif usage == 2:
+                        choseOrQuit = False
+                else:
                     return 'didnt-take-turn'
-            else:
-                return 'didnt-take-turn'
         elif userInput.keychar.upper() == 'E':
-            chosenItem = equipmentMenu('This is the equipment you are currently wielding.')
-            if chosenItem is not None:
-                usage = chosenItem.display(['Unequip', 'Drop', 'Back'])
-                if usage == 0:
-                    using = chosenItem.use()
-                    if using == 'cancelled':
-                        FOV_recompute = True
-                        return 'didnt-take-turn'
-                elif usage == 1:
-                    chosenItem.owner.Equipment.unequip()
-                    chosenItem.drop()
-                    return None
-                elif usage == 2:
+            choseOrQuit = False
+            while not choseOrQuit:
+                choseOrQuit = True
+                chosenItem = equipmentMenu('This is the equipment you are currently wielding.')
+                if chosenItem is not None:
+                    usage = chosenItem.display(['Unequip', 'Drop', 'Back'])
+                    if usage == 0:
+                        using = chosenItem.use()
+                        if using == 'cancelled':
+                            FOV_recompute = True
+                            return 'didnt-take-turn'
+                    elif usage == 1:
+                        chosenItem.owner.Equipment.unequip()
+                        chosenItem.drop()
+                        return None
+                    elif usage == 2:
+                        choseOrQuit = False
+                else:
+                    FOV_recompute = True
                     return 'didnt-take-turn'
-            else:
-                FOV_recompute = True
-                return 'didnt-take-turn'
         else:
             FOV_recompute = True
             return 'didnt-take-turn'
