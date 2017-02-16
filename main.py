@@ -1459,6 +1459,12 @@ class Fighter: #All NPCs, enemies and the player
             self.damageText = 'near death'
         elif self.hpRatio == 0:
             self.damageText = None
+    
+    def acidify(self, cooldown = 6):
+        self.acidified = True
+        self.acidifiedCooldown = cooldown
+        curArmor = self.armor - self.baseArmor
+        self.baseArmor = -curArmor
 
 class BasicMonster: #Basic monsters' AI
     def takeTurn(self):
@@ -1828,7 +1834,7 @@ class Player:
             self.transformCooldown = 150
             self.transformCurCooldown = self.transformCooldown
             self.transformed = False
-            self.transformMaxTurns = 20
+            self.transformMaxTurns = 30
             self.transformationTime = 0
         
         if self.race == 'Virus ':
@@ -2954,9 +2960,13 @@ class Tile:
         self.curAcidCooldown = 0
         if self.wall:
             self.character = '#'
+            self.FG = color_light_wall
             self.fg = color_light_wall
+            self.BG = color_light_ground
             self.bg = color_light_ground
+            self.DARK_FG = color_dark_wall
             self.dark_fg = color_dark_wall
+            self.DARK_BG = color_dark_ground
             self.dark_bg = color_dark_ground
 
 class Rectangle:
@@ -3409,12 +3419,14 @@ class Gluttony():
                                 if (fighter.x == x and fighter.y == y) and not (fighter.x == object.x and fighter.y == object.y):
                                     if fighter.Fighter:
                                         fighter.Fighter.takeDamage(2)
+                                        fighter.Fighter.acidify()
                                         message(fighter.name + " is touched by the vomit  splatters and suffers 2 damage!", color = colors.orange)
                 for fighter in objects:
                     if fighter.x == object.x and fighter.y == object.y:
                         if fighter.Fighter:
                             fighter.Fighter.takeDamage(15)
-                            message(fighter.name + " is hit by Gluttony's vomit and suffers 10 damage!", color = colors.orange)
+                            fighter.Fighter.acidify()
+                            message(fighter.name + " is hit by Gluttony's vomit and suffers 15 damage!", color = colors.orange)
                 objects.remove(object)
                 FOV_recompute = True
                 break
@@ -4814,7 +4826,7 @@ def playGame():
                             if monster.Fighter and not monster == player and (monster.x, monster.y) in visibleTiles:
                                 monsterInSight = True
                                 break
-                        if not player.Fighter.burning and not player.Fighter.frozen and  player.Fighter.hp != player.Fighter.maxHP and not monsterInSight:
+                        if not player.Fighter.burning and not player.Fighter.frozen and  player.Fighter.hp != player.Fighter.maxHP and not monsterInSight and not player.Player.hungerStatus == 'starving':
                             player.Fighter.healCountdown -= 1
                             if player.Fighter.healCountdown < 0:
                                 player.Fighter.healCountdown = 0
@@ -4850,10 +4862,7 @@ def playGame():
                 y = object.y
                 if myMap[x][y].acid and object.Fighter and object.Fighter is not None:
                     object.Fighter.takeDamage(1)
-                    object.Fighter.acidified = True
-                    object.Fighter.acidifiedCooldown = 6
-                    curArmor = object.Fighter.armor - object.Fighter.baseArmor
-                    object.Fighter.baseArmor = -curArmor
+                    object.Fighter.acidify()
                 
                 if object.Fighter and object.Fighter.acidified and object.Fighter is not None:
                     object.Fighter.acidifiedCooldown -= 1
@@ -4864,10 +4873,11 @@ def playGame():
             for x in range(MAP_WIDTH):
                 for y in range(MAP_HEIGHT):
                     if myMap[x][y].acid:
+                        myMap[x][y].bg = colors.desaturated_lime
                         myMap[x][y].curAcidCooldown -= 1
                         if myMap[x][y].curAcidCooldown <= 0:
                             myMap[x][y].acid = False
-                        
+                            myMap[x][y].bg =  myMap[x][y].BG
             global stairCooldown
             if stairCooldown > 0:
                 stairCooldown -= 1
@@ -4883,8 +4893,10 @@ def playGame():
                 player.Player.hunger = 0
             if player.Player.hunger <= BASE_HUNGER // 10:
                 player.Player.hungerStatus = "starving"
-                player.Fighter.takeDamage(1)
-                message("You're starving !", colors.red)
+                starveDamage = randint(0, 2)
+                if starveDamage == 0:
+                    player.Fighter.takeDamage(1)
+                    message("You're starving !", colors.red)
             elif player.Player.hunger <= BASE_HUNGER // 2:
                 prevStatus = player.Player.hungerStatus
                 player.Player.hungerStatus = "hungry"
