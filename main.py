@@ -4398,19 +4398,31 @@ def zombieDeath(monster):
     monster.name = None
     monster.Fighter = None
 
+def convertBuffsToNames(fighter):
+    names = []
+    for buff in fighter.buffList:
+        names.append(buff.name)
+    return names
+
 class Buff: #also (and mainly) used for debuffs
-    def __init__(self, name, cooldown):
+    def __init__(self, name, color, curCooldown = 20, applyFunction = None, continuousFunction = None, removeFunction = None):
         self.name = name
-        self.cooldown = cooldown
-        self.curCooldown = cooldown
+        self.color = color
+        self.curCooldown = curCooldown
+        self.applyFunction = applyFunction
+        self.continuousFunction = continuousFunction
+        self.removeFunction = removeFunction
         self.applied = True
     
-    def passCooldown(self):
+    def passTurn(self):
         self.curCooldown -= 1
         if self.curCooldown <= 0:
             self.applied = False
-
-
+            if self.removeFunction is not None:
+                self.removeFunction()
+        else:
+            if self.continuousFunction is not None:
+                self.continuousFunction()
 
 #_____________ GUI _______________
 def renderBar(cons, x, y, totalWidth, name, value, maximum, barColor, backColor):
@@ -5092,6 +5104,13 @@ def playGame():
                     if object.Fighter.acidifiedCooldown <= 0:
                         object.Fighter.acidified = False
                         object.Fighter.baseArmor = object.Fighter.BASE_ARMOR
+                
+                if object.Fighter and object.Fighter is not None:
+                    for buff in object.Fighter.buffList:
+                        buff.passTurn()
+                        if buff.applied == False:
+                            buff.removeFunction()
+                            object.Fighter.buffList.remove(buff)
 
             for x in range(MAP_WIDTH):
                 for y in range(MAP_HEIGHT):
