@@ -60,8 +60,11 @@ PANEL_HEIGHT = 10
 PANEL_Y = HEIGHT - PANEL_HEIGHT
 
 MSG_X = BAR_WIDTH + 10
-MSG_WIDTH = WIDTH - BAR_WIDTH - 10
+MSG_WIDTH = WIDTH - BAR_WIDTH - 10 - 40
 MSG_HEIGHT = PANEL_HEIGHT - 1
+
+BUFF_WIDTH = 30
+BUFF_X = WIDTH - 35
 
 INVENTORY_WIDTH = 90
 
@@ -287,6 +290,80 @@ def drawCenteredOnX(cons = con, x = 1, y = 1, text = "Lorem Ipsum", fg = None, b
     cons.draw_str(centeredOnX, y, text, fg, bg)
 #_____________MENU_______________
 
+#_________ BUFFS ___________
+def convertBuffsToNames(fighter):
+    names = []
+    for buff in fighter.buffList:
+        names.append(buff.name)
+    return names
+
+def modifyFighterStats(fighter = None, pow = 0, acc = 0, evas = 0, arm = 0, hp = 0, mp = 0, crit = 0, ap = 0, str = 0, dex = 0, vit = 0, will = 0):
+    if fighter.owner == player:
+        player.Player.strength += str
+        player.Player.dexterity += dex
+        player.Player.vitality += vit
+        player.Player.willpower += will
+        player.Player.updatePlayerStats()
+    fighter.basePower += pow
+    fighter.baseAccuracy += acc
+    fighter.baseEvasion += evas
+    fighter.baseArmor += arm
+    fighter.baseMaxHP += hp
+    fighter.hp += hp
+    fighter.baseMaxMP += mp
+    fighter.MP += mp
+    fighter.baseCritical += crit
+    fighter.baseArmorPenetration += ap
+
+def setFighterStatsBack(fighter = None):
+    fighter.basePower = fighter.BASE_POWER
+    fighter.baseAccuracy = fighter.BASE_ACCURACY
+    fighter.baseEvasion = fighter.BASE_EVASION
+    fighter.baseArmor = fighter.BASE_ARMOR
+    fighter.hp -= fighter.baseMaxHP - fighter.BASE_MAX_HP
+    fighter.baseMaxHP = fighter.BASE_MAX_HP
+    fighter.MP -= fighter.baseMaxMP - fighter.BASE_MAX_MP
+    fighter.baseMaxMP = fighter.BASE_MAX_MP
+    fighter.baseCritical = fighter.BASE_CRITICAL
+    fighter.baseArmorPenetration = fighter.BASE_ARMOR_PENETRATION
+    if fighter.owner == player:
+        player.Player.strength = player.Player.BASE_STRENGTH
+        player.Player.dexterity = player.Player.BASE_DEXTERITY
+        player.Player.vitality = player.Player.BASE_VITALITY
+        player.Player.willpower = player.Player.BASE_WILLPOWER
+        player.Player.updatePlayerStats()
+
+class Buff: #also (and mainly) used for debuffs
+    def __init__(self, name, color, owner = None, cooldown = 20, applyFunction = None, continuousFunction = None, removeFunction = None):
+        self.name = name
+        self.color = color
+        self.curCooldown = cooldown
+        self.applyFunction = applyFunction
+        self.continuousFunction = continuousFunction
+        self.removeFunction = removeFunction
+        self.owner = owner
+    
+    def applyBuff(self):
+        message(self.owner.name.capitalize() + ' is now ' + self.name + '!', self.color)
+        if self.applyFunction is not None:
+            self.applyFunction()
+        self.owner.Fighter.buffList.append(self)
+    
+    def removeBuff(self):
+        if self.removeFunction is not None:
+            self.removeFunction()
+        self.owner.Fighter.buffList.remove(self)
+        message(self.owner.name.capitalize() + ' is no longer ' + self.name + '.', self.color)
+    
+    def passTurn(self):
+        self.curCooldown -= 1
+        if self.curCooldown <= 0:
+            self.removeBuff()
+        else:
+            if self.continuousFunction is not None:
+                self.continuousFunction()
+#_________ BUFFS ___________
+
 #_____________SPELLS_____________
 class Spell:
     "Class used by all active abilites (not just spells)"
@@ -434,13 +511,12 @@ def castConfuse(caster = player, monsterTarget = None):
 def castFreeze(caster = player, monsterTarget = None):
     message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
     target = targetMonster(maxRange = None)
+    frozen = Buff('frozen', colors.light_violet, owner = target, cooldown = 4)
     if target is None:
         message('Invalid target.', colors.red)
         return 'cancelled'
-    if not target.Fighter.frozen:
-        target.Fighter.frozen = True
-        target.Fighter.freezeCooldown = 4 #Actually 3 turns since this begins ticking down the turn the spell is cast
-        message("The " + target.name + " is frozen !", colors.light_violet)
+    if not 'frozen' in convertBuffsToNames(target.Fighter):
+        frozen.applyBuff()
     else:
         message("The " + target.name + " is already frozen.")
         return 'cancelled'
@@ -547,10 +623,8 @@ def castArmageddon(radius = 4, damage = 80, caster = player, monsterTarget = Non
     explode()
 
 def castEnrage(enrageTurns, caster = player, monsterTarget = None):
-    player.Fighter.enraged = True
-    player.Fighter.enrageCooldown = enrageTurns + 1
-    player.Fighter.basePower += 10
-    message('You are now enraged !', colors.dark_amber)
+    enraged = Buff('enraged', colors.dark_red, owner = caster, cooldown = enrageTurns, applyFunction = lambda: modifyFighterStats(caster.Fighter, pow = 10), removeFunction = lambda: setFighterStatsBack(caster.Fighter))
+    enraged.applyBuff()
 
 def castRessurect(range = 4, caster = player, monsterTarget = None):
     target = targetTile(range)
@@ -587,7 +661,7 @@ def castRessurect(range = 4, caster = player, monsterTarget = None):
 fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 1, arg2 = 12, arg3 = 4)
 heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 20)
 darkPact = Spell(ressourceCost = DARK_PACT_DAMAGE, cooldown = 8, useFunction = castDarkRitual, name = "Dark ritual", ressource = 'HP', type = "Occult", magicLevel = 2, arg1 = 5, arg2 = DARK_PACT_DAMAGE)
-enrage = Spell(ressourceCost = 5, cooldown = 30, useFunction = castEnrage, name = 'Enrage', ressource = 'MP', type = 'Strength', magicLevel = 0, arg1 = 5)
+enrage = Spell(ressourceCost = 5, cooldown = 30, useFunction = castEnrage, name = 'Enrage', ressource = 'MP', type = 'Strength', magicLevel = 0, arg1 = 10)
 lightning = Spell(ressourceCost = 10, cooldown = 7, useFunction = castLightning, name = 'Lightning bolt', ressource = 'MP', type = 'Magic', magicLevel = 3)
 confuse = Spell(ressourceCost = 5, cooldown = 4, useFunction = castConfuse, name = 'Confusion', ressource = 'MP', type = 'Magic', magicLevel = 1)
 ice = Spell(ressourceCost = 9, cooldown = 5, useFunction = castFreeze, name = 'Ice bolt', ressource = 'MP', type = 'Magic', magicLevel = 2)
@@ -666,7 +740,7 @@ def removeBonus(list, chosenList):
     willpower -= list[chosenList][10]
     ap -= list[chosenList][11]
 
-#Bonus template: [power, accuracy, evasion, armor, maxHP, maxMP, critical, strength, dexterity, vitality, willpower]
+#Bonus template: [power, accuracy, evasion, armor, maxHP, maxMP, critical, strength, dexterity, vitality, willpower, armor penetration]
 
 def characterCreation():
     initializeCharCreation()
@@ -1186,7 +1260,7 @@ class GameObject:
         self.move(dx, dy)
 
     def move(self, dx, dy):
-        if self.Fighter and self.Fighter.frozen:
+        if self.Fighter and 'frozen' in convertBuffsToNames(self.Fighter):
             pass
         elif not isBlocked(self.x + dx, self.y + dy) or self.ghost:
             self.x += dx
@@ -1277,6 +1351,7 @@ class Fighter: #All NPCs, enemies and the player
         self.baseEvasion = evasion
         self.BASE_EVASION = evasion
         self.baseCritical = critical
+        self.BASE_CRITICAL = critical
         self.baseArmorPenetration = armorPenetration
         self.BASE_ARMOR_PENETRATION = armorPenetration
         self.lootFunction = lootFunction
@@ -1284,15 +1359,9 @@ class Fighter: #All NPCs, enemies and the player
         
         self.buffList = []
 
-        self.frozen = False
-        self.freezeCooldown = 0
-        
         self.burning = False
         self.burnCooldown = 0
-        
-        self.enraged = False
-        self.enrageCooldown = 0
-        
+
         self.healCountdown = 25
         self.MPRegenCountdown = 10
 
@@ -1413,7 +1482,7 @@ class Fighter: #All NPCs, enemies and the player
                     damage = randint(self.power - 2, self.power + 2) + 4 - penetratedArmor
                 else:
                     damage = randint(self.power - 2, self.power + 2) - penetratedArmor
-            if not self.frozen:
+            if not 'frozen' in convertBuffsToNames(self):
                 if not self.owner.Player:
                     if damage > 0:
                         if target == player:
@@ -1503,7 +1572,7 @@ class BasicMonster: #Basic monsters' AI
         selectedTarget = None
         priorityTargetFound = False
         monsterVisibleTiles = tdl.map.quick_fov(x = monster.x, y = monster.y,callback = isVisibleTile , fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
-        if not self.owner.Fighter.frozen and monster.distanceTo(player) <= 15:
+        if not 'frozen' in convertBuffsToNames(self.owner.Fighter) and monster.distanceTo(player) <= 15:
             print(monster.name + " is less than 15 tiles to player.")
             for object in objects:
                 if (object.x, object.y) in monsterVisibleTiles and (object == player or (object.AI and object.AI.__class__.__name__ == "FriendlyMonster" and object.AI.friendlyTowards == player)):
@@ -1542,7 +1611,7 @@ class BasicMonster: #Basic monsters' AI
             #elif (monster.x, monster.y) in visibleTiles and monster.distanceTo(player) >= 2:
                 #monster.moveAstar(player.x, player.y)
             else:
-                if not monster.Fighter.frozen and monster.distanceTo(player) >= 2:
+                if not 'frozen' in convertBuffsToNames(monster.Fighter) and monster.distanceTo(player) >= 2:
                     pathState = "complete"
                     diagPathState = None
                     if monster.astarPath:
@@ -1564,7 +1633,7 @@ class FastMonster:
             selectedTarget = None
             priorityTargetFound = False
             monsterVisibleTiles = tdl.map.quick_fov(x = monster.x, y = monster.y,callback = isVisibleTile , fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
-            if not self.owner.Fighter.frozen and monster.distanceTo(player) <= 15:
+            if not 'frozen' in convertBuffsToNames(self.owner.Fighter) and monster.distanceTo(player) <= 15:
                 print(monster.name + " is less than 15 tiles to player.")
                 for object in objects:
                     if (object.x, object.y) in monsterVisibleTiles and (object == player or (object.AI and object.AI.__class__.__name__ == "FriendlyMonster" and object.AI.friendlyTowards == player)):
@@ -1603,7 +1672,7 @@ class FastMonster:
                 #elif (monster.x, monster.y) in visibleTiles and monster.distanceTo(player) >= 2:
                     #monster.moveAstar(player.x, player.y)
                 else:
-                    if not monster.Fighter.frozen and monster.distanceTo(player) >= 2:
+                    if not 'frozen' in convertBuffsToNames(monster.Fighter) and monster.distanceTo(player) >= 2:
                         pathState = "complete"
                         diagPathState = None
                         if monster.astarPath:
@@ -1635,7 +1704,7 @@ class hostileStationnary:
         targets = []
         selectedTarget = None
         priorityTargetFound = False
-        if not self.owner.Fighter.frozen:
+        if not 'frozen' in convertBuffsToNames(self.owner.Fighter):
             for object in objects:
                 if (object.x, object.y) in visibleTiles and (object == player or (object.AI and object.AI.__class__.__name__ == "FriendlyMonster" and object.AI.friendlyTowards == player)):
                     targets.append(object)
@@ -1676,7 +1745,7 @@ class SplosionAI:
         if (monster.x, monster.y) in visibleTiles: #chasing the player
             if monster.distanceTo(player) >= 3:
                 monster.moveTowards(player.x, player.y)
-            elif player.Fighter.hp > 0 and not monster.Fighter.frozen:
+            elif player.Fighter.hp > 0 and not 'frozen' in convertBuffsToNames(monster.Fighter):
                 monsterArmageddon(monster.name, monster.x, monster.y)
         else:
             monster.move(randint(-1, 1), randint(-1, 1))
@@ -1710,7 +1779,7 @@ class FriendlyMonster:
         targets = []
         selectedTarget = None
         monsterVisibleTiles = tdl.map.quick_fov(x = monster.x, y = monster.y,callback = isVisibleTile , fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
-        if self.friendlyTowards == player and not self.owner.Fighter.frozen: #If the monster is friendly towards the player
+        if self.friendlyTowards == player and not 'frozen' in convertBuffsToNames(self.owner.Fighter): #If the monster is friendly towards the player
             for object in objects:
                 if (object.x, object.y) in monsterVisibleTiles and object.AI and object.AI.__class__.__name__ != "FriendlyMonster" and object.Fighter and object.Fighter.hp > 0:
                     targets.append(object)
@@ -1741,7 +1810,7 @@ class FriendlyMonster:
                         if diagState is None:
                             monster.moveTowards(selectedTarget.x, selectedTarget.y)
             else:
-                if not monster.Fighter.frozen and monster.distanceTo(player) >= 2:
+                if not 'frozen' in convertBuffsToNames(monster.Fighter) and monster.distanceTo(player) >= 2:
                     if (player.x, player.y) in monsterVisibleTiles:
                         pathState = monster.moveAstar(player.x, player.y, fallback = False)
                         diagPathState = None
@@ -1767,7 +1836,7 @@ class Spellcaster():
         targets = []
         selectedTarget = None
         priorityTargetFound = False
-        if not self.owner.Fighter.frozen and monster.distanceTo(player) <= 15:
+        if not 'frozen' in convertBuffsToNames(self.owner.Fighter) and monster.distanceTo(player) <= 15:
             print(monster.name + " is less than 15 tiles to player.")
             for object in objects:
                 if (object.x, object.y) in monsterVisibleTiles and (object == player or (object.AI and object.AI.__class__.__name__ == "FriendlyMonster" and object.AI.friendlyTowards == player)):
@@ -1828,7 +1897,7 @@ class Spellcaster():
             #elif (monster.x, monster.y) in visibleTiles and monster.distanceTo(player) >= 2:
                 #monster.moveAstar(player.x, player.y)
             else:
-                if not monster.Fighter.frozen and monster.distanceTo(player) >= 2:
+                if not 'frozen' in convertBuffsToNames(monster.Fighter) and monster.distanceTo(player) >= 2:
                     pathState = "complete"
                     diagPathState = None
                     if monster.astarPath:
@@ -1844,9 +1913,13 @@ class Player:
     def __init__(self, name, strength, dexterity, vitality, willpower, actualPerSkills, levelUpStats, skillsBonus, race, classes, traits, baseHunger = BASE_HUNGER):
         self.name = name
         self.strength = strength
+        self.BASE_STRENGTH = strength
         self.dexterity = dexterity
+        self.BASE_DEXTERITY = dexterity
         self.vitality = vitality
+        self.BASE_VITALITY = vitality
         self.willpower = willpower
+        self.BASE_WILLPOWER = willpower
         self.baseMaxWeight = 45.0
         self.maxWeight = self.baseMaxWeight
         self.actualPerSkills = actualPerSkills
@@ -2235,6 +2308,7 @@ def getInput():
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'F5' and DEBUG and not tdl.event.isWindowClosed(): #Don't know if tdl.event.isWindowClosed() is necessary here but added it just to be sure
         player.Player.vitality += 1000
+        player.Player.BASE_VITALITY += 1000
         player.Player.updatePlayerStats()
         player.Fighter.hp = player.Fighter.maxHP
         message('Healed player and increased their maximum HP value by 1000', colors.purple)
@@ -2886,14 +2960,15 @@ def castPlaceBoss():
 
 def applyBurn(target, chance = 30):
     if target.Fighter and randint(0, 100) > chance and not target.Fighter.burning:
-        if not target.Fighter.frozen:
+        if not 'frozen' in convertBuffsToNames(target.Fighter):
             target.Fighter.burning = True
             target.Fighter.burnCooldown = 4
             message('The ' + target.name + ' is set afire') 
         else:
-            target.Fighter.frozen = False
-            target.Fighter.freezeCooldown = 0
-            message('The ' + target.name + "'s ice melts away.")
+            for buff in target.Fighter.buffList:
+                if buff.name == 'frozen':
+                    buff.removeBuff()
+                    message('The ' + target.name + "'s ice melts away.")
     
 def monsterArmageddon(monsterName ,monsterX, monsterY, radius = 4, damage = 40, selfHit = True):
     radmax = radius + 2
@@ -3440,7 +3515,7 @@ class Gluttony():
         
         fatSpread(1)
         
-        if not boss.Fighter.frozen:
+        if not 'frozen' in convertBuffsToNames(boss.Fighter):
             if boss.distanceTo(player) < 2:
                 boss.Fighter.attack(player)
             elif (player.x, player.y) in bossVisibleTiles:
@@ -3545,7 +3620,7 @@ class HighInquisitor:
         targets = []
         selectedTarget = None
         priorityTargetFound = False
-        if not self.owner.Fighter.frozen and monster.distanceTo(player) <= 15:
+        if not 'frozen' in convertBuffsToNames(self.owner.Fighter) and monster.distanceTo(player) <= 15:
             print(monster.name + " is less than 15 tiles to player.")
             for object in objects:
                 if (object.x, object.y) in monsterVisibleTiles and (object == player or (object.AI and object.AI.__class__.__name__ == "FriendlyMonster" and object.AI.friendlyTowards == player)):
@@ -3614,7 +3689,7 @@ class HighInquisitor:
             #elif (monster.x, monster.y) in visibleTiles and monster.distanceTo(player) >= 2:
                 #monster.moveAstar(player.x, player.y)
             else:
-                if not monster.Fighter.frozen and monster.distanceTo(player) >= 2:
+                if not 'frozen' in convertBuffsToNames(monster.Fighter) and monster.distanceTo(player) >= 2:
                     pathState = "complete"
                     diagPathState = None
                     if monster.astarPath:
@@ -4398,32 +4473,6 @@ def zombieDeath(monster):
     monster.name = None
     monster.Fighter = None
 
-def convertBuffsToNames(fighter):
-    names = []
-    for buff in fighter.buffList:
-        names.append(buff.name)
-    return names
-
-class Buff: #also (and mainly) used for debuffs
-    def __init__(self, name, color, curCooldown = 20, applyFunction = None, continuousFunction = None, removeFunction = None):
-        self.name = name
-        self.color = color
-        self.curCooldown = curCooldown
-        self.applyFunction = applyFunction
-        self.continuousFunction = continuousFunction
-        self.removeFunction = removeFunction
-        self.applied = True
-    
-    def passTurn(self):
-        self.curCooldown -= 1
-        if self.curCooldown <= 0:
-            self.applied = False
-            if self.removeFunction is not None:
-                self.removeFunction()
-        else:
-            if self.continuousFunction is not None:
-                self.continuousFunction()
-
 #_____________ GUI _______________
 def renderBar(cons, x, y, totalWidth, name, value, maximum, barColor, backColor):
     barWidth = int(float(value) / maximum * totalWidth) #Width of the bar is proportional to the ratio of the current value over the maximum value
@@ -4659,6 +4708,12 @@ def Update():
     panel.draw_str(1, 5, 'Player level: ' + str(player.level) + ' | Floor: ' + str(dungeonLevel), colors.white)
     renderBar(panel, 1, 1, BAR_WIDTH, 'HP', player.Fighter.hp, player.Fighter.maxHP, player.color, colors.dark_gray)
     renderBar(panel, 1, 3, BAR_WIDTH, 'MP', player.Fighter.MP, player.Fighter.maxMP, colors.blue, colors.dark_gray)
+    
+    panel.draw_str(BUFF_X, 1, 'Buffs:', colors.white)
+    buffY = 2
+    for buff in player.Fighter.buffList:
+        panel.draw_str(BUFF_X, buffY, buff.name.capitalize(), buff.color)
+        buffY += 1
     # Look code
     if gameState == 'looking' and lookCursor != None:
         global lookCursor
@@ -4985,32 +5040,11 @@ def playGame():
             for object in objects:
                 if object.AI:
                     object.AI.takeTurn()
-                if object.Fighter and object.Fighter.frozen and object.Fighter is not None:
-                    object.Fighter.freezeCooldown -= 1
-                    if object.Fighter.freezeCooldown < 0:
-                        object.Fighter.freezeCooldown = 0
-                    if object.Fighter.freezeCooldown == 0:
-                        object.Fighter.frozen = False
-                        message(object.name.capitalize() + "'s ice shatters !", colors.light_violet)
                 
                 if object.Fighter and object.Fighter.baseShootCooldown > 0 and object.Fighter is not None:
                     object.Fighter.curShootCooldown -= 1
                 if object.Fighter and object.Fighter.baseLandCooldown > 0 and object.Fighter is not None:
                     object.Fighter.curLandCooldown -= 1
-
-                if object.Fighter and object.Fighter.enraged and object.Fighter is not None:
-                    object.Fighter.enrageCooldown -= 1
-                    if object.Fighter.enrageCooldown < 0:
-                        object.Fighter.enrageCooldown = 0
-                    if object.Fighter.enrageCooldown == 0:
-                        object.Fighter.enraged = False
-                        if object != player:
-                            message(object.name.capitalize() + "is no longer enraged !", colors.amber)
-                        else:
-                            message('You are no longer enraged.', colors.amber)
-                        object.Fighter.basePower = object.Fighter.BASE_POWER
-                        if object.Player:
-                            object.Player.updatePlayerStats()
 
                 if object.Fighter and object.Fighter.burning and object.Fighter is not None:
                     try:
@@ -5061,7 +5095,7 @@ def playGame():
                             if monster.Fighter and not monster == player and (monster.x, monster.y) in visibleTiles:
                                 monsterInSight = True
                                 break
-                        if not player.Fighter.burning and not player.Fighter.frozen and  player.Fighter.hp != player.Fighter.maxHP and not monsterInSight and not player.Player.hungerStatus == 'starving':
+                        if not player.Fighter.burning and not 'frozen' in convertBuffsToNames(player.Fighter) and  player.Fighter.hp != player.Fighter.maxHP and not monsterInSight and not player.Player.hungerStatus == 'starving':
                             player.Fighter.healCountdown -= 1
                             if player.Fighter.healCountdown < 0:
                                 player.Fighter.healCountdown = 0
@@ -5108,9 +5142,6 @@ def playGame():
                 if object.Fighter and object.Fighter is not None:
                     for buff in object.Fighter.buffList:
                         buff.passTurn()
-                        if buff.applied == False:
-                            buff.removeFunction()
-                            object.Fighter.buffList.remove(buff)
 
             for x in range(MAP_WIDTH):
                 for y in range(MAP_HEIGHT):
