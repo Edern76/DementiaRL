@@ -333,6 +333,12 @@ def setFighterStatsBack(fighter = None):
         player.Player.willpower = player.Player.BASE_WILLPOWER
         player.Player.updatePlayerStats()
 
+def randomDamage(fighter = None, chance = 33, minDamage = 1, maxDamage = 1):
+    dice = randint(1, 100)
+    if dice <= chance:
+        damage = randint(minDamage, maxDamage)
+        fighter.takeDamage(damage)
+
 class Buff: #also (and mainly) used for debuffs
     def __init__(self, name, color, owner = None, cooldown = 20, applyFunction = None, continuousFunction = None, removeFunction = None):
         self.name = name
@@ -1358,10 +1364,7 @@ class Fighter: #All NPCs, enemies and the player
         self.lootRate = lootRate 
         
         self.buffList = []
-
-        self.burning = False
-        self.burnCooldown = 0
-
+        
         self.healCountdown = 25
         self.MPRegenCountdown = 10
 
@@ -2959,11 +2962,10 @@ def castPlaceBoss():
             return 'cancelled'
 
 def applyBurn(target, chance = 30):
-    if target.Fighter and randint(0, 100) > chance and not target.Fighter.burning:
+    burning = Buff('burning', colors.flame, owner = target, cooldown=4, continuousFunction=lambda: randomDamage(target.Fighter, chance = 100, minDamage=1, maxDamage=3))
+    if target.Fighter and randint(0, 100) > chance and not 'burning' in convertBuffsToNames(target.Fighter):
         if not 'frozen' in convertBuffsToNames(target.Fighter):
-            target.Fighter.burning = True
-            target.Fighter.burnCooldown = 4
-            message('The ' + target.name + ' is set afire') 
+            target.Fighter.buffList.append(burning)
         else:
             for buff in target.Fighter.buffList:
                 if buff.name == 'frozen':
@@ -5058,20 +5060,20 @@ def playGame():
                 if object.Fighter and object.Fighter.baseLandCooldown > 0 and object.Fighter is not None:
                     object.Fighter.curLandCooldown -= 1
 
-                if object.Fighter and object.Fighter.burning and object.Fighter is not None:
-                    try:
-                        object.Fighter.burnCooldown -= 1
-                        object.Fighter.takeDamage(3)
-                        message('The ' + str(object.name) + ' keeps burning !')
-                        if object.Fighter.burnCooldown < 0:
-                            object.Fighter.burnCooldown = 0
-                        if object.Fighter.burnCooldown == 0:
-                            object.Fighter.burning = False
-                            message(object.name.capitalize() + "'s flames die down", colors.darker_orange)
-                    except AttributeError:
-                        global DEBUG
-                        if DEBUG:
-                            message('Failed to apply burn to ' + object.name, colors.violet)
+                #if object.Fighter and object.Fighter.burning and object.Fighter is not None:
+                #    try:
+                #        object.Fighter.burnCooldown -= 1
+                #        object.Fighter.takeDamage(3)
+                #        message('The ' + str(object.name) + ' keeps burning !')
+                #        if object.Fighter.burnCooldown < 0:
+                #            object.Fighter.burnCooldown = 0
+                #        if object.Fighter.burnCooldown == 0:
+                #            object.Fighter.burning = False
+                #            message(object.name.capitalize() + "'s flames die down", colors.darker_orange)
+                #    except AttributeError:
+                #        global DEBUG
+                #        if DEBUG:
+                #            message('Failed to apply burn to ' + object.name, colors.violet)
 
                 if object.Fighter and object.Fighter.spellsOnCooldown and object.Fighter is not None:
                     try:
@@ -5107,7 +5109,7 @@ def playGame():
                             if monster.Fighter and not monster == player and (monster.x, monster.y) in visibleTiles:
                                 monsterInSight = True
                                 break
-                        if not player.Fighter.burning and not 'frozen' in convertBuffsToNames(player.Fighter) and  player.Fighter.hp != player.Fighter.maxHP and not monsterInSight and not player.Player.hungerStatus == 'starving':
+                        if not 'burning' in convertBuffsToNames(player.Fighter) and not 'frozen' in convertBuffsToNames(player.Fighter) and  player.Fighter.hp != player.Fighter.maxHP and not monsterInSight and not player.Player.hungerStatus == 'starving':
                             player.Fighter.healCountdown -= 1
                             if player.Fighter.healCountdown < 0:
                                 player.Fighter.healCountdown = 0
