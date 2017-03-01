@@ -3761,13 +3761,17 @@ def createSword(x, y):
     if qualityChoice == 'rusty':
         name = qualityChoice + ' ' + name
         swordPow -= 2
-        if name != 'great sword':
-            pic = 'rustysword.xp'
+        if sizeChoice != 'great ':
+            pic = 'rustySword.xp'
+        else:
+            pic = 'rustyGreatSword.xp'
         color = colors.brass
     elif qualityChoice == 'sharp':
         name = qualityChoice + ' ' + name
         swordPow += 2
         color = colors.light_sky
+        if sizeChoice == 'great sword':
+            pic = 'sharpGreatSword.xp'
     burningChances = {'yes' : 20, 'no': 80}
     burningChoice = randomChoice(burningChances)
     if burningChoice == 'yes':
@@ -3810,11 +3814,19 @@ def createAxe(x, y):
         axePow -= 2
         armorPenetration -= 1
         color = colors.brass
+        if sizeChoice == 'great ':
+            pic = 'rustyGreatAxe.xp'
+        else:
+            pic = 'rustyAxe.xp'
     elif qualityChoice == 'sharp':
         name = qualityChoice + ' ' + name
         axePow += 2
         armorPenetration += 1
         color = colors.light_sky
+        if sizeChoice == 'great ':
+            pic = 'sharpGreatAxe.xp'
+        else:
+            pic = 'sharpAxe.xp'
     burningChances = {'yes' : 20, 'no': 80}
     burningChoice = randomChoice(burningChances)
     if burningChoice == 'yes':
