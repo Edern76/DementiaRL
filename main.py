@@ -1,5 +1,6 @@
-import tdl, colors, math, textwrap, time, os, shelve, sys, code, gzip
+import tdl, colors, math, textwrap, time, os, shelve, sys, code, gzip #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
 import simpleaudio as sa
+import dill #THIS IS NOT AN UNUSED IMPORT. Importing this changes the behavior of the pickle module (and the shelve module too), so as we can actually save lambda expressions
 from tdl import *
 from random import randint, choice
 from math import *
@@ -9,6 +10,7 @@ import nameGen
 import xpLoaderPy3 as xpL
 import dunbranches as dBr
 from dunbranches import gluttonyDungeon
+
 
 # Naming conventions :
 # MY_CONSTANT
@@ -515,8 +517,11 @@ def castConfuse(caster = player, monsterTarget = None):
     message('The ' + target.name + ' starts wandering around as he seems to lose all bound with reality.', colors.light_violet)
 
 def castFreeze(caster = player, monsterTarget = None):
-    message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
-    target = targetMonster(maxRange = None)
+    if monsterTarget is None:
+        message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
+        target = targetMonster(maxRange = None)
+    else:
+        target = monsterTarget
     frozen = Buff('frozen', colors.light_violet, owner = target, cooldown = 4)
     if target is None:
         message('Invalid target.', colors.red)
@@ -2015,7 +2020,7 @@ class Player:
         self.hostDeath = self.HOST_DEATH
 
 class Item:
-    def __init__(self, useFunction = None,  arg1 = None, arg2 = None, arg3 = None, stackable = False, amount = 1, weight = 0, description = 'Placeholder.', pic = 'trollMace.xp'):
+    def __init__(self, useFunction = None,  arg1 = None, arg2 = None, arg3 = None, stackable = False, amount = 1, weight = 0, description = 'Placeholder.', pic = 'trollMace.xp', itemtype = None):
         self.useFunction = useFunction
         self.arg1 = arg1
         self.arg2 = arg2
@@ -2025,6 +2030,7 @@ class Item:
         self.weight = weight
         self.description = description
         self.pic = pic
+        self.type = itemtype
 
     def pickUp(self):
         if not self.stackable:
@@ -2273,6 +2279,8 @@ def getInput():
         #else:
             #set_fullscreen(True)
     elif userInput.keychar.upper() == 'F3':
+        castFreeze(player, player)
+        '''
         global GRAPHICS
         if GRAPHICS == 'modern':
             print('Graphics mode set to classic')
@@ -2283,7 +2291,8 @@ def getInput():
             print('Graphics mode set to modern')
             GRAPHICS = 'modern'
             FOV_recompute = True
-            return 'didnt-take-turn'    
+            return 'didnt-take-turn'
+        '''
     elif userInput.keychar.upper() == 'F2' and gameState != 'looking':
         player.Fighter.takeDamage(1)
         FOV_recompute = True
@@ -4194,7 +4203,24 @@ def placeObjects(room, first = False):
             elif itemChoice == 'spellbook':
                 item = createSpellbook(x, y)
             elif itemChoice == "food":
-                item = GameObject(x, y, ',', "slice of bread", colors.yellow, Item = Item(useFunction=satiateHunger, arg1 = 50, arg2 = "a slice of bread", weight = 0.2, stackable=True, amount = randint(1, 5), description = "This has probably been lying on the ground for ages, but you'll have to deal with it if you don't want to starve."), blocks = False, pName = "slices of bread") #50 regen might be a little overkill (or maybe not, needs playtesting). Also, ',' is the symbol that Angband uses for food, so I used it too.
+                foodChances = currentBranch.foodChances
+                foodChoice = randomChoice(foodChances)
+                if foodChoice == 'bread':
+                    item = GameObject(x, y, ',', "slice of bread", colors.yellow, Item = Item(useFunction=satiateHunger, arg1 = 20, arg2 = "a slice of bread", weight = 0.2, stackable=True, amount = randint(1, 5), description = "This has probably been lying on the ground for ages, but you'll have to deal with it if you don't want to starve.", itemtype = 'food'), blocks = False, pName = "slices of bread") 
+                elif foodChoice == 'herbs':
+                    item = GameObject(x, y, ',', "'edible' herb", colors.darkest_lime, Item = Item(useFunction=satiateHunger, arg1 = 10, arg2 = "some weird looking herb", weight = 0.05, stackable=True, amount = randint(1, 8), description = "An oddly shapen herb, which looks 'slightly' withered. Your empty stomach makes you think this is comestible, but you're not sure about this.", itemtype = 'food'), blocks = False, pName = "'edible' herbs")
+                elif foodChoice == 'rMeat':
+                    item = GameObject(x, y, ',', "piece of rancid meat", colors.darker_fuchsia, Item = Item(useFunction=satiateHunger, arg1 = 100, arg2 = "a chunk of rancid meat", weight = 0.4, stackable=True, amount = randint(1, 3), description = "'Rancid' is not the most appropriate term to describe the state of this chunk of meat, 'half-putrefacted' would be closer to the reality. Eating this is probably not a good idea", itemtype = 'food'), blocks = False, pName = "pieces of rancid meat") #TO-DO : Use a lambda expression to add poisoning effect.
+                elif foodChoice == 'pie':
+                    item = GameObject(x, y, ',', "strange pie", colors.fuchsia, Item = Item(useFunction=satiateHunger, arg1 = randint(70, 150), arg2 = "the pie", weight = 0.4, stackable=True, amount = 1, description = "This looks like a pie of some sort, but for some reason it doesn't look appetizing at all. Should fill your stomach for a little while though. Wait, is that a worm you saw inside ?", itemtype = 'food'), blocks = False, pName = "strange pies") #TO-DO : Add chance of a random status effect by picking from a list of lambda expressions, complete with displaying approrpiate message (e.g : 'This pie is so cold that you can feel it's coldness as it is going down your throat. Wait, actually it's your whole body that is freezing !' )
+                elif foodChoice == 'pasta':
+                    item = GameObject(x, y, ',', "'plate' of pasta", colors.light_yellow, Item = Item(useFunction=satiateHunger, arg1 = 50, arg2 = "the pasta", weight = 0.3, stackable=True, amount = randint(1, 4), description = "If you exclude the fact that the 'plate' is inexistent, and therefore the pasta are spilled on the floor, this actually looks delicious.", itemtype = 'food'), blocks = False, pName = "'plates' of pasta")
+                elif foodChoice == 'meat':
+                    item = GameObject(x, y, ',', "piece of cooked meat", colors.red, Item = Item(useFunction=satiateHunger, arg1 = 300, arg2 = "a chunk of edible meat (at last !)", weight = 0.4, stackable=True, amount = 1, description = "A perfectly fine-looking grilled steak. Yummy !", itemtype = 'food'), blocks = False, pName = "cooked pieces of meat")
+                elif foodChoice == 'hBaguette':
+                    item = GameObject(x, y, ',', "holy baguette", colors.white, Item = Item(useFunction=satiateHunger, arg1 = 500, arg2 = "le holy baguette", weight = 0.4, stackable=True, amount = 1, description = "HON HON HON ! Dis iz going to be le most goodest meal you iz gonna have in years !", itemtype = 'food'), blocks = False, pName = "holy baguettes") #Easter-egg. You'll maybe want to tone down its spawn rate by a little bit. TO-DO : Add a funny effect when eating this. TO-DO : Make this illuminate the adjacent tiles (when and if we implement lighting)
+                else:
+                    item = None
             else:
                 item = None
             if item is not None:            
@@ -4868,8 +4894,9 @@ def saveGame():
     #mapFile.close()
 
 def newGame():
-    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, gameMsgs, equipmentList, currentBranch, bossDungeonsAppeared
+    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, gameMsgs, equipmentList, currentBranch, bossDungeonsAppeared, DEBUG
     
+    DEBUG = False
     deleteSaves()
     bossDungeonsAppeared = {'gluttony': False}
     gameMsgs = []
@@ -5033,7 +5060,7 @@ def nextLevel(boss = False, changeBranch = None):
 
 def playGame():
     while not tdl.event.isWindowClosed():
-        global FOV_recompute
+        global FOV_recompute, DEBUG
         Update()
         checkLevelUp()
         tdl.flush()
