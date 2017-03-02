@@ -4533,22 +4533,25 @@ def message(newMsg, color = colors.white):
     
         gameMsgs.append((line, color))
 
-def inventoryMenu(header):
+def inventoryMenu(header, invList = None, noItemMessage = 'Inventory is empty'):
     #show a menu with each item of the inventory as an option
-    if len(inventory) == 0:
-        options = ['Inventory is empty.']
+    global inventory
+    if invList is None:
+        invList = inventory
+    if len(invList) == 0:
+        options = [noItemMessage]
     else:
         options = []
-        for item in inventory:
+        for item in invList:
             text = item.name
             if item.Item.stackable:
                 text = text + ' (' + str(item.Item.amount) + ')'
             options.append(text)
     index = menu(header, options, INVENTORY_WIDTH)
-    if index is None or len(inventory) == 0 or index == "cancelled":
+    if index is None or len(invList) == 0 or index == "cancelled":
         return None
     else:
-        return inventory[index].Item
+        return invList[index].Item
 
 def spellsMenu(header):
     #shows a menu with each known ready spell as an option
