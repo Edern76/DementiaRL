@@ -1,4 +1,4 @@
-import tdl, colors, math, textwrap, time, os, shelve, sys, code, gzip #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
+import tdl, colors, math, textwrap, time, os, sys, code, gzip #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
 import simpleaudio as sa
 import dill #THIS IS NOT AN UNUSED IMPORT. Importing this changes the behavior of the pickle module (and the shelve module too), so as we can actually save lambda expressions
 from tdl import *
@@ -9,7 +9,8 @@ from constants import MAX_HIGH_CULTIST_MINIONS
 import nameGen
 import xpLoaderPy3 as xpL
 import dunbranches as dBr
-from dunbranches import gluttonyDungeon
+import code.dilledShelve as shelve
+from code.dunbranches import gluttonyDungeon
 
 
 # Naming conventions :
@@ -126,6 +127,7 @@ color_light_gravel = dBr.mainDungeon.color_light_gravel
 gameState = 'playing'
 playerAction = None
 DEBUG = False #If true, enables debug messages
+REVEL = False #If true, revels all items
 
 lookCursor = None
 cursor = None
@@ -200,7 +202,7 @@ def playWavSound(sound, forceStop = False):
     #TO-DO : Add an ear-rape prevention system, such as allowing sounds to be played every X milliseconds.
 
 #_____________MENU_______________
-def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp):
+def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp, noItemMessage = None):
     window.clear()
     for i, line in enumerate(headerWrapped):
         window.draw_str(0, 0+i, headerWrapped[i], fg = colors.yellow)
@@ -208,13 +210,19 @@ def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxP
         window.draw_str(10, y - 2, str(page + 1) + '/' + str(maxPages + 1), fg = colors.yellow)
     letterIndex = ord('a')
     counter = 0
-    for optionText in options:
-        if counter >= page * 26 and counter < (page + 1) * 26:
-            text = '(' + chr(letterIndex) + ') ' + optionText
-            letterIndex += 1
-            window.draw_str(0, y, text, bg=None)
-            y += 1
-        counter += 1
+    if (noItemMessage is None or options[0] != str(noItemMessage)):
+        if len(options) == 1:
+            print(options[0])
+            print(str(noItemMessage))
+        for optionText in options:
+            if counter >= page * 26 and counter < (page + 1) * 26:
+                text = '(' + chr(letterIndex) + ') ' + optionText
+                letterIndex += 1
+                window.draw_str(0, y, text, bg=None)
+                y += 1
+            counter += 1
+    else:
+        window.draw_str(0, y, options[0], bg = None, fg = colors.red)
         
     x = MID_WIDTH - int(width/2)
     y = MID_HEIGHT - int(height/2)
@@ -222,7 +230,7 @@ def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxP
 
     tdl.flush()
 
-def menu(header, options, width):
+def menu(header, options, width, noItemMessage = None):
     global menuWindows, FOV_recompute
     page = 0
     pagesDisp = True
@@ -247,13 +255,13 @@ def menu(header, options, width):
     menuWindows.append(window)
     window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
     y = headerHeight + 2
-    drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp)
+    drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp, noItemMessage)
 
     choseOrQuit = False
     while not choseOrQuit:
         choseOrQuit = True
         arrow = False
-        drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp)
+        drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp, noItemMessage)
         key = tdl.event.key_wait()
         keyChar = key.keychar
         if keyChar == '':
@@ -1278,7 +1286,7 @@ class GameObject:
             self.y += dy
     
     def draw(self):
-        if (self.x, self.y) in visibleTiles:
+        if (self.x, self.y) in visibleTiles or REVEL:
             con.draw_char(self.x, self.y, self.char, self.color, bg=None)
         elif self.alwaysVisible and myMap[self.x][self.y].explored:
             con.draw_char(self.x, self.y, self.char, self.darkColor, bg=None)
@@ -2350,6 +2358,8 @@ def getInput():
         FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'F12' and DEBUG and not tdl.event.isWindowClosed():
+        global REVEL
+        REVEL = True
         for x in range(MAP_WIDTH):
             for y in range(MAP_HEIGHT):
                 try:
@@ -2555,7 +2565,13 @@ def getInput():
                         choseOrQuit = False
                 else:
                     return 'didnt-take-turn'
-        elif userInput.keychar.upper() == 'E':
+        elif userInput.keychar == 'e':
+            chosenItem = inventoryMenu('Press the key next to an item to eat it, or any other to cancel.\n', 'food', 'You have nothing to eat')
+            if chosenItem is not None:
+                chosenItem.use()
+            else:
+                return 'didnt-take-turn'
+        elif userInput.keychar == 'E':
             choseOrQuit = False
             while not choseOrQuit:
                 choseOrQuit = True
@@ -4208,11 +4224,25 @@ def placeObjects(room, first = False):
                 if foodChoice == 'bread':
                     item = GameObject(x, y, ',', "slice of bread", colors.yellow, Item = Item(useFunction=satiateHunger, arg1 = 20, arg2 = "a slice of bread", weight = 0.2, stackable=True, amount = randint(1, 5), description = "This has probably been lying on the ground for ages, but you'll have to deal with it if you don't want to starve.", itemtype = 'food'), blocks = False, pName = "slices of bread") 
                 elif foodChoice == 'herbs':
-                    item = GameObject(x, y, ',', "'edible' herb", colors.darkest_lime, Item = Item(useFunction=satiateHunger, arg1 = 10, arg2 = "some weird looking herb", weight = 0.05, stackable=True, amount = randint(1, 8), description = "An oddly shapen herb, which looks 'slightly' withered. Your empty stomach makes you think this is comestible, but you're not sure about this.", itemtype = 'food'), blocks = False, pName = "'edible' herbs")
+                    item = GameObject(x, y, ',', "'edible' herb", colors.darker_lime, Item = Item(useFunction=satiateHunger, arg1 = 10, arg2 = "some weird looking herb", weight = 0.05, stackable=True, amount = randint(1, 8), description = "An oddly shapen herb, which looks 'slightly' withered. Your empty stomach makes you think this is comestible, but you're not sure about this.", itemtype = 'food'), blocks = False, pName = "'edible' herbs")
                 elif foodChoice == 'rMeat':
-                    item = GameObject(x, y, ',', "piece of rancid meat", colors.darker_fuchsia, Item = Item(useFunction=satiateHunger, arg1 = 100, arg2 = "a chunk of rancid meat", weight = 0.4, stackable=True, amount = randint(1, 3), description = "'Rancid' is not the most appropriate term to describe the state of this chunk of meat, 'half-putrefacted' would be closer to the reality. Eating this is probably not a good idea", itemtype = 'food'), blocks = False, pName = "pieces of rancid meat") #TO-DO : Use a lambda expression to add poisoning effect.
+                    def rMeatDebuff(amount, text):
+                        if not 'poisoned' in convertBuffsToNames(player.Fighter):
+                            poisoned = Buff('poisoned', colors.purple, owner = player, cooldown=randint(5, 10), continuousFunction=lambda: randomDamage(player.Fighter, chance = 100, minDamage=1, maxDamage=10))
+                            satiateHunger(amount, text)
+                            dice = randint(1, 100)
+                            if DEBUG:
+                                message('Rancid meat dice : {}'.format(dice), colors.purple)
+                            if dice <= 90:
+                                message("You don't feel very good...", colors.red)
+                                poisoned.applyBuff()
+                        else:
+                            message("You really don't want to take the risk of being in worse condition than you currently are.", colors.red)
+                            return 'cancelled'
+                            
+                    item = GameObject(x, y, ',', "piece of rancid meat", colors.light_crimson, Item = Item(useFunction=lambda: rMeatDebuff(150, 'a chunk of rancid meat'), weight = 0.4, stackable=True, amount = 1, description = "'Rancid' is not the most appropriate term to describe the state of this chunk of meat, 'half-putrefacted' would be closer to the reality. Eating this is probably not a good idea", itemtype = 'food'), blocks = False, pName = "pieces of rancid meat")
                 elif foodChoice == 'pie':
-                    item = GameObject(x, y, ',', "strange pie", colors.fuchsia, Item = Item(useFunction=satiateHunger, arg1 = randint(70, 150), arg2 = "the pie", weight = 0.4, stackable=True, amount = 1, description = "This looks like a pie of some sort, but for some reason it doesn't look appetizing at all. Should fill your stomach for a little while though. Wait, is that a worm you saw inside ?", itemtype = 'food'), blocks = False, pName = "strange pies") #TO-DO : Add chance of a random status effect by picking from a list of lambda expressions, complete with displaying approrpiate message (e.g : 'This pie is so cold that you can feel it's coldness as it is going down your throat. Wait, actually it's your whole body that is freezing !' )
+                    item = GameObject(x, y, ',', "strange pie", colors.fuchsia, Item = Item(useFunction=satiateHunger, arg1 = randint(100, 200), arg2 = "the pie", weight = 0.4, stackable=True, amount = 1, description = "This looks like a pie of some sort, but for some reason it doesn't look appetizing at all. Should fill your stomach for a little while though. Wait, is that a worm you saw inside ?", itemtype = 'food'), blocks = False, pName = "strange pies") #TO-DO : Add chance of a random status effect by picking from a list of lambda expressions, complete with displaying approrpiate message (e.g : 'This pie is so cold that you can feel it's coldness as it is going down your throat. Wait, actually it's your whole body that is freezing !' )
                 elif foodChoice == 'pasta':
                     item = GameObject(x, y, ',', "'plate' of pasta", colors.light_yellow, Item = Item(useFunction=satiateHunger, arg1 = 50, arg2 = "the pasta", weight = 0.3, stackable=True, amount = randint(1, 4), description = "If you exclude the fact that the 'plate' is inexistent, and therefore the pasta are spilled on the floor, this actually looks delicious.", itemtype = 'food'), blocks = False, pName = "'plates' of pasta")
                 elif foodChoice == 'meat':
@@ -4538,6 +4568,8 @@ def inventoryMenu(header, invList = None, noItemMessage = 'Inventory is empty'):
     global inventory
     if invList is None:
         invList = inventory
+    elif invList == 'food':
+        invList = [object for object in inventory if object.Item and object.Item.type == "food"]
     if len(invList) == 0:
         options = [noItemMessage]
     else:
@@ -4547,7 +4579,7 @@ def inventoryMenu(header, invList = None, noItemMessage = 'Inventory is empty'):
             if item.Item.stackable:
                 text = text + ' (' + str(item.Item.amount) + ')'
             options.append(text)
-    index = menu(header, options, INVENTORY_WIDTH)
+    index = menu(header, options, INVENTORY_WIDTH, noItemMessage)
     if index is None or len(invList) == 0 or index == "cancelled":
         return None
     else:
@@ -4736,7 +4768,7 @@ def Update():
                         
     for object in objects:
         if object != player:
-            if (object.x, object.y) in visibleTiles or (object.alwaysVisible and myMap[object.x][object.y].explored):
+            if (object.x, object.y) in visibleTiles or (object.alwaysVisible and myMap[object.x][object.y].explored) or REVEL:
                 object.draw()
     player.draw()
     root.blit(con, 0, 0, WIDTH, HEIGHT, 0, 0)
@@ -4897,9 +4929,10 @@ def saveGame():
     #mapFile.close()
 
 def newGame():
-    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, gameMsgs, equipmentList, currentBranch, bossDungeonsAppeared, DEBUG
+    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, gameMsgs, equipmentList, currentBranch, bossDungeonsAppeared, DEBUG, REVEL
     
     DEBUG = False
+    REVEL = False
     deleteSaves()
     bossDungeonsAppeared = {'gluttony': False}
     gameMsgs = []
