@@ -4645,7 +4645,9 @@ def inventoryMenu(header, invList = None, noItemMessage = 'Inventory is empty'):
             return invList[index].Item
 
 def spellsMenu(header):
-    #shows a menu with each known ready spell as an option
+    '''
+    Shows a menu with each known ready spell as an option
+    '''
     borked = False
     if len(player.Fighter.knownSpells) == 0:
         options = []
