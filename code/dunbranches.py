@@ -2,12 +2,12 @@ import colors
 class Branch:
     def __init__(self, shortName, name = None, maxDepth = 99999, branchesFrom = None, branchesTo = None, lightStairsColor = colors.white, darkStairsColor = colors.dark_gray,
                  monsterChances = {'darksoul': 600, 'troll': 200, 'snake': 50, 'cultist': 150}, 
-                 itemChances = {'potion': 350, 'scroll': 260, 'weapon': 70, 'shield': 70, 'spellbook': 70, 'food': 180},
+                 itemChances = {'potion': 350, 'scroll': 260, 'weapon': 70, 'shield': 70, 'spellbook': 70, 'food': 11180},
                  potionChances = {'heal': 70, 'mana': 30}, 
                  spellbookChances = {'healSelf': 8, 'fireball': 30, 'lightning': 13, 'confuse': 22, 'ice': 22},
                  scrollChances = {'lightning': 12, 'confuse': 12, 'fireball': 25, 'armageddon': 10, 'ice': 25, 'none': 1}, 
                  weaponChances = {'sword': 25, 'axe': 25, 'hammer': 25, 'mace': 25},
-                 foodChances = {'bread' : 500, 'herbs' : 501, 'rMeat' : 300, 'pie' : 200, 'pasta' : 200, 'meat' : 100, 'hBaguette' : 10}, # TO-DO : Add dumb stuff here with very low chances of spawning (maybe more on Gluttony's branch ?) and dumb effects, aka easter eggs.
+                 foodChances = {'bread' : 500, 'herbs' : 501, 'rMeat' : 300, 'pie' : 11200, 'pasta' : 200, 'meat' : 100, 'hBaguette' : 10}, # TO-DO : Add dumb stuff here with very low chances of spawning (maybe more on Gluttony's branch ?) and dumb effects, aka easter eggs.
                  color_dark_wall = colors.darkest_grey, color_light_wall = colors.darker_grey, color_dark_ground = colors.darkest_sepia, color_dark_gravel = (27, 20, 0),
                  color_light_ground = colors.darker_sepia, color_light_gravel = (50, 37, 0), bossLevels = [3, 6], bossNames = {'High Inquisitor': 3, 'Gluttony': 6}):
         """
