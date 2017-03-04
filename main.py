@@ -139,9 +139,10 @@ tilesinPath = []
 menuWindows = []
 hiroshimanNumber = 0
 FOV_recompute = True
-inventory = []
-equipmentList = []
+inventory = [] #Player inventory
+equipmentList = [] #Player equipment
 activeSounds = []
+spells = [] #List of all spells in the game
 ########
 # These need to be globals because otherwise Python will flip out when we try to look for some kind of stairs in the object lists.
 stairs = None
@@ -343,11 +344,13 @@ def setFighterStatsBack(fighter = None):
         player.Player.willpower = player.Player.BASE_WILLPOWER
         player.Player.updatePlayerStats()
 
-def randomDamage(fighter = None, chance = 33, minDamage = 1, maxDamage = 1):
+def randomDamage(fighter = None, chance = 33, minDamage = 1, maxDamage = 1, dmgMessage = None, dmgColor = colors.red, msgPlayerOnly = True):
     dice = randint(1, 100)
     if dice <= chance:
         damage = randint(minDamage, maxDamage)
         fighter.takeDamage(damage)
+        if (dmgMessage is not None) and (fighter == player or (not msgPlayerOnly)):
+            message(dmgMessage.format(damage), dmgColor)
 
 class Buff: #also (and mainly) used for debuffs
     def __init__(self, name, color, owner = None, cooldown = 20, applyFunction = None, continuousFunction = None, removeFunction = None):
@@ -685,6 +688,8 @@ lightning = Spell(ressourceCost = 10, cooldown = 7, useFunction = castLightning,
 confuse = Spell(ressourceCost = 5, cooldown = 4, useFunction = castConfuse, name = 'Confusion', ressource = 'MP', type = 'Magic', magicLevel = 1)
 ice = Spell(ressourceCost = 9, cooldown = 5, useFunction = castFreeze, name = 'Ice bolt', ressource = 'MP', type = 'Magic', magicLevel = 2)
 ressurect = Spell(ressourceCost = 10, cooldown = 15, useFunction=castRessurect, name = "Dark ressurection", ressource = 'MP', type = "Occult", arg1 = 4)
+
+spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect])
 #_____________SPELLS_____________
 
 #______________CHARACTER GENERATION____________
@@ -1284,6 +1289,9 @@ class GameObject:
         elif not isBlocked(self.x + dx, self.y + dy) or self.ghost:
             self.x += dx
             self.y += dy
+        else:
+            if self.Player and self.Fighter and 'confused' in convertBuffsToNames(self.Fighter):
+                message('You bump into a wall !')
     
     def draw(self):
         if (self.x, self.y) in visibleTiles or REVEL:
@@ -2367,6 +2375,8 @@ def getInput():
                         myMap[x][y].explored = True
                 except:
                     pass
+        for spell in spells:
+            learnSpell(spell)
         FOV_recompute = True
     elif userInput.keychar == 'B' and DEBUG and not tdl.event.isWindowClosed():
         castPlaceBoss()
@@ -2678,8 +2688,15 @@ def checkDiagonals(monster, target):
     return None
 
 def moveOrAttack(dx, dy):
-    x = player.x + dx
-    y = player.y + dy
+    if not 'confused' in convertBuffsToNames(player.Fighter):
+        x = player.x + dx
+        y = player.y + dy
+    else:
+        possibleDirections = [(1, 1), (1,0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1), (0, 1)]
+        index = randint(0, len(possibleDirections) - 1)
+        (dx, dy) = possibleDirections[index]
+        x = player.x + dx
+        y = player.y + dy
     
     target = None
     for object in objects:
@@ -2987,10 +3004,10 @@ def castPlaceBoss():
             return 'cancelled'
 
 def applyBurn(target, chance = 30):
-    burning = Buff('burning', colors.flame, owner = target, cooldown=4, continuousFunction=lambda: randomDamage(target.Fighter, chance = 100, minDamage=1, maxDamage=3))
+    burning = Buff('burning', colors.flame, owner = target, cooldown=4, continuousFunction=lambda: randomDamage(target.Fighter, chance = 100, minDamage=1, maxDamage=3, dmgMessage = 'You take {} damage from burning !'))
     if target.Fighter and randint(0, 100) > chance and not 'burning' in convertBuffsToNames(target.Fighter):
         if not 'frozen' in convertBuffsToNames(target.Fighter):
-            target.Fighter.buffList.append(burning)
+            burning.applyBuff()
         else:
             for buff in target.Fighter.buffList:
                 if buff.name == 'frozen':
@@ -4242,7 +4259,50 @@ def placeObjects(room, first = False):
                             
                     item = GameObject(x, y, ',', "piece of rancid meat", colors.light_crimson, Item = Item(useFunction=lambda: rMeatDebuff(150, 'a chunk of rancid meat'), weight = 0.4, stackable=True, amount = 1, description = "'Rancid' is not the most appropriate term to describe the state of this chunk of meat, 'half-putrefacted' would be closer to the reality. Eating this is probably not a good idea", itemtype = 'food'), blocks = False, pName = "pieces of rancid meat")
                 elif foodChoice == 'pie':
-                    item = GameObject(x, y, ',', "strange pie", colors.fuchsia, Item = Item(useFunction=satiateHunger, arg1 = randint(100, 200), arg2 = "the pie", weight = 0.4, stackable=True, amount = 1, description = "This looks like a pie of some sort, but for some reason it doesn't look appetizing at all. Should fill your stomach for a little while though. Wait, is that a worm you saw inside ?", itemtype = 'food'), blocks = False, pName = "strange pies") #TO-DO : Add chance of a random status effect by picking from a list of lambda expressions, complete with displaying approrpiate message (e.g : 'This pie is so cold that you can feel it's coldness as it is going down your throat. Wait, actually it's your whole body that is freezing !' )
+                    def pieDebuff(amount, text):
+                        pieChoices = {'noDebuff' : 20, 'poison' : 20, 'freeze' : 20, 'burn' : 20, 'confuse' : 20}
+                        choice = randomChoice(pieChoices)
+                        satiateHunger(amount, text)
+                        if choice == 'poison':
+                            message("This had a very strange aftertaste...", colors.red)
+                            if not 'poisoned' in convertBuffsToNames(player.Fighter):
+                                poisoned = Buff('poisoned', colors.purple, owner = player, cooldown=randint(5, 10), continuousFunction=lambda: randomDamage(player.Fighter, chance = 100, minDamage=1, maxDamage=10))
+                                poisoned.applyBuff()
+                            else:
+                                bIndex = convertBuffsToNames(player.Fighter).index('poisoned')
+                                player.Fighter.buffList[bIndex].curCooldown += randint(5,10)
+                        elif choice == 'freeze':
+                            if not 'burning' in convertBuffsToNames(player.Fighter):
+                                message("This pie is so cold that you can feel it's coldness as it is going down your throat. Wait, actually it's your whole body that is freezing !", colors.red)
+                                if not 'frozen' in convertBuffsToNames(player.Fighter):
+                                    frozen = Buff('frozen', colors.light_violet, owner = player, cooldown = 4)
+                                    frozen.applyBuff()
+                                else:
+                                    bIndex = convertBuffsToNames(player.Fighter).index('frozen')
+                                    player.Fighter.buffList[bIndex].curCooldown += 4
+                            else:
+                                message("For a moment, you feel like you're burning a bit less, but it's probably just your imagination. Or your senses going numb because of your imminent death. Or both.")
+                        elif choice == 'burn':
+                            message("This pie is so hot that your mouth is on fire ! Literally.", colors.red)
+                            if not 'burning' in convertBuffsToNames(player.Fighter):
+                                applyBurn(player, -2)
+                            else:
+                                bIndex = convertBuffsToNames(player.Fighter).index('burning')
+                                player.Fighter.buffList[bIndex].curCooldown += 4
+                        elif choice == 'confuse':
+                            message("You feel funny...", colors.red)
+                            if not 'confused' in convertBuffsToNames(player.Fighter):
+                                confused = Buff('confused', colors.white, owner = player, cooldown = randint(2,8))
+                                confused.applyBuff()
+                            else:
+                                bIndex = convertBuffsToNames(player.Fighter).index('confused')
+                                player.Fighter.buffList[bIndex].curCooldown += 4
+                        else:
+                            message("This didn't taste as bad as you'd expect.")
+                            #TO-DO : Implement chance for buffs
+                            
+                                
+                    item = GameObject(x, y, ',', "strange pie", colors.fuchsia, Item = Item(useFunction= lambda : pieDebuff(randint(100, 200), 'the pie'), weight = 0.4, stackable=True, amount = 1, description = "This looks like a pie of some sort, but for some reason it doesn't look appetizing at all. Should fill your stomach for a little while though. Wait, is that a worm you saw inside ?", itemtype = 'food'), blocks = False, pName = "strange pies")
                 elif foodChoice == 'pasta':
                     item = GameObject(x, y, ',', "'plate' of pasta", colors.light_yellow, Item = Item(useFunction=satiateHunger, arg1 = 50, arg2 = "the pasta", weight = 0.3, stackable=True, amount = randint(1, 4), description = "If you exclude the fact that the 'plate' is inexistent, and therefore the pasta are spilled on the floor, this actually looks delicious.", itemtype = 'food'), blocks = False, pName = "'plates' of pasta")
                 elif foodChoice == 'meat':
@@ -4566,32 +4626,54 @@ def message(newMsg, color = colors.white):
 def inventoryMenu(header, invList = None, noItemMessage = 'Inventory is empty'):
     #show a menu with each item of the inventory as an option
     global inventory
-    if invList is None:
-        invList = inventory
-    elif invList == 'food':
-        invList = [object for object in inventory if object.Item and object.Item.type == "food"]
-    if len(invList) == 0:
-        options = [noItemMessage]
-    else:
-        options = []
-        for item in invList:
-            text = item.name
-            if item.Item.stackable:
-                text = text + ' (' + str(item.Item.amount) + ')'
-            options.append(text)
-    index = menu(header, options, INVENTORY_WIDTH, noItemMessage)
-    if index is None or len(invList) == 0 or index == "cancelled":
+    if 'frozen' in convertBuffsToNames(player.Fighter):
+        message('You cannot check your inventory right now !', colors.red)
         return None
     else:
-        return invList[index].Item
+        if invList is None:
+            invList = inventory
+        elif invList == 'food':
+            invList = [object for object in inventory if object.Item and object.Item.type == "food"]
+        if len(invList) == 0:
+            options = [noItemMessage]
+        else:
+            options = []
+            for item in invList:
+                text = item.name
+                if item.Item.stackable:
+                    text = text + ' (' + str(item.Item.amount) + ')'
+                options.append(text)
+        index = menu(header, options, INVENTORY_WIDTH, noItemMessage)
+        if index is None or len(invList) == 0 or index == "cancelled":
+            return None
+        else:
+            return invList[index].Item
 
+def sortSpells(spellsToSort):
+    kSpells = spellsToSort
+    spellNames = []
+    spellNamesOrdered = []
+    spellsOrdered = []
+    for spell in kSpells:
+        spellNames.append(spell.name)
+        spellNamesOrdered.append(spell.name)
+    spellNamesOrdered.sort()
+    for i in spellNamesOrdered:
+        unorderedIndex = spellNames.index(i)
+        spellsOrdered.append(kSpells[unorderedIndex])
+    return spellsOrdered
+        
+        
 def spellsMenu(header):
-    #shows a menu with each known ready spell as an option
+    '''
+    Shows a menu with each known ready spell as an option
+    '''
     borked = False
     if len(player.Fighter.knownSpells) == 0:
         options = []
         showableHeader = "You don't have any spells ready right now"
     else:
+        player.Fighter.knownSpells = sortSpells(player.Fighter.knownSpells)
         options = []
         try:
             for spell in player.Fighter.knownSpells:
@@ -4612,47 +4694,50 @@ def spellsMenu(header):
 
 
 def equipmentMenu(header):
-    if len(equipmentList) == 0:
-        options = ['You have nothing equipped']
+    if 'frozen' in convertBuffsToNames(player.Fighter):
+        message("You cannot change your equipment right now !")
     else:
-        options = []
-        for item in equipmentList:
-            text = item.name
-            if item.Equipment and item.Equipment.isEquipped:
-                #powBonus = item.Equipment.basePowerBonus
-                #skillPowBonus = item.Equipment.powerBonus - powBonus
-                #hpBonus = item.Equipment.maxHP_Bonus
-                #armBonus = item.Equipment.armorBonus
-                #if powBonus != 0 or hpBonus !=0 or armBonus != 0:
-                #    info = '['
-                #    if powBonus != 0:
-                #        info = info + 'POWER + ' + str(powBonus)
-                #        if skillPowBonus > 0:
-                #            info += ' + ' + str(skillPowBonus)
-                #    if hpBonus != 0:
-                #        if powBonus == 0:
-                #            info = info + 'HP + ' + str(hpBonus)
-                #        else:
-                #            info = info + ' HP + ' + str(hpBonus)
-                #    if armBonus != 0:
-                #        if powBonus == 0 and hpBonus == 0:
-                #            info = info + 'ARMOR + ' + str(armBonus)
-                #        else:
-                #            info = info + ' ARMOR + ' + str(armBonus)
-                #    info = info + ']'
-                #else:
-                #    info = ''
-                handed = item.Equipment.slot == 'one handed' or item.Equipment.slot == 'two handed'
-                if handed:
-                    text = text + ' (on ' + item.Equipment.curSlot + ')'
-                else:
-                    text = text + ' (on ' + item.Equipment.slot + ')'
-            options.append(text)
-    index = menu(header, options, INVENTORY_WIDTH)
-    if index is None or len(equipmentList) == 0 or index == "cancelled":
-        return None
-    else:
-        return equipmentList[index].Item
+        if len(equipmentList) == 0:
+            options = ['You have nothing equipped']
+        else:
+            options = []
+            for item in equipmentList:
+                text = item.name
+                if item.Equipment and item.Equipment.isEquipped:
+                    #powBonus = item.Equipment.basePowerBonus
+                    #skillPowBonus = item.Equipment.powerBonus - powBonus
+                    #hpBonus = item.Equipment.maxHP_Bonus
+                    #armBonus = item.Equipment.armorBonus
+                    #if powBonus != 0 or hpBonus !=0 or armBonus != 0:
+                    #    info = '['
+                    #    if powBonus != 0:
+                    #        info = info + 'POWER + ' + str(powBonus)
+                    #        if skillPowBonus > 0:
+                    #            info += ' + ' + str(skillPowBonus)
+                    #    if hpBonus != 0:
+                    #        if powBonus == 0:
+                    #            info = info + 'HP + ' + str(hpBonus)
+                    #        else:
+                    #            info = info + ' HP + ' + str(hpBonus)
+                    #    if armBonus != 0:
+                    #        if powBonus == 0 and hpBonus == 0:
+                    #            info = info + 'ARMOR + ' + str(armBonus)
+                    #        else:
+                    #            info = info + ' ARMOR + ' + str(armBonus)
+                    #    info = info + ']'
+                    #else:
+                    #    info = ''
+                    handed = item.Equipment.slot == 'one handed' or item.Equipment.slot == 'two handed'
+                    if handed:
+                        text = text + ' (on ' + item.Equipment.curSlot + ')'
+                    else:
+                        text = text + ' (on ' + item.Equipment.slot + ')'
+                options.append(text)
+        index = menu(header, options, INVENTORY_WIDTH)
+        if index is None or len(equipmentList) == 0 or index == "cancelled":
+            return None
+        else:
+            return equipmentList[index].Item
 
 def mainMenu():
     global player
@@ -4786,8 +4871,13 @@ def Update():
     
     panel.draw_str(BUFF_X, 1, 'Buffs:', colors.white)
     buffY = 2
+    selfAware = True #TO-DO : Changes this so that this is true only if the player picked the 'self-aware' trait
     for buff in player.Fighter.buffList:
-        panel.draw_str(BUFF_X, buffY, buff.name.capitalize(), buff.color)
+        if selfAware:
+            buffText = buff.name.capitalize() + ' (' + str(buff.curCooldown) + ')'
+        else:
+            buffText = buff.name.capitalize()
+        panel.draw_str(BUFF_X, buffY, buffText, buff.color)
         buffY += 1
     # Look code
     if gameState == 'looking' and lookCursor != None:
