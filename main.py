@@ -139,9 +139,10 @@ tilesinPath = []
 menuWindows = []
 hiroshimanNumber = 0
 FOV_recompute = True
-inventory = []
-equipmentList = []
+inventory = [] #Player inventory
+equipmentList = [] #Player equipment
 activeSounds = []
+spells = [] #List of all spells in the game
 ########
 # These need to be globals because otherwise Python will flip out when we try to look for some kind of stairs in the object lists.
 stairs = None
@@ -687,6 +688,8 @@ lightning = Spell(ressourceCost = 10, cooldown = 7, useFunction = castLightning,
 confuse = Spell(ressourceCost = 5, cooldown = 4, useFunction = castConfuse, name = 'Confusion', ressource = 'MP', type = 'Magic', magicLevel = 1)
 ice = Spell(ressourceCost = 9, cooldown = 5, useFunction = castFreeze, name = 'Ice bolt', ressource = 'MP', type = 'Magic', magicLevel = 2)
 ressurect = Spell(ressourceCost = 10, cooldown = 15, useFunction=castRessurect, name = "Dark ressurection", ressource = 'MP', type = "Occult", arg1 = 4)
+
+spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect])
 #_____________SPELLS_____________
 
 #______________CHARACTER GENERATION____________
@@ -2372,6 +2375,8 @@ def getInput():
                         myMap[x][y].explored = True
                 except:
                     pass
+        for spell in spells:
+            learnSpell(spell)
         FOV_recompute = True
     elif userInput.keychar == 'B' and DEBUG and not tdl.event.isWindowClosed():
         castPlaceBoss()
@@ -4644,6 +4649,21 @@ def inventoryMenu(header, invList = None, noItemMessage = 'Inventory is empty'):
         else:
             return invList[index].Item
 
+def sortSpells(spellsToSort):
+    kSpells = spellsToSort
+    spellNames = []
+    spellNamesOrdered = []
+    spellsOrdered = []
+    for spell in kSpells:
+        spellNames.append(spell.name)
+        spellNamesOrdered.append(spell.name)
+    spellNamesOrdered.sort()
+    for i in spellNamesOrdered:
+        unorderedIndex = spellNames.index(i)
+        spellsOrdered.append(kSpells[unorderedIndex])
+    return spellsOrdered
+        
+        
 def spellsMenu(header):
     '''
     Shows a menu with each known ready spell as an option
@@ -4653,6 +4673,7 @@ def spellsMenu(header):
         options = []
         showableHeader = "You don't have any spells ready right now"
     else:
+        player.Fighter.knownSpells = sortSpells(player.Fighter.knownSpells)
         options = []
         try:
             for spell in player.Fighter.knownSpells:
