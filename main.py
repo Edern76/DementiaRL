@@ -4621,24 +4621,28 @@ def message(newMsg, color = colors.white):
 def inventoryMenu(header, invList = None, noItemMessage = 'Inventory is empty'):
     #show a menu with each item of the inventory as an option
     global inventory
-    if invList is None:
-        invList = inventory
-    elif invList == 'food':
-        invList = [object for object in inventory if object.Item and object.Item.type == "food"]
-    if len(invList) == 0:
-        options = [noItemMessage]
-    else:
-        options = []
-        for item in invList:
-            text = item.name
-            if item.Item.stackable:
-                text = text + ' (' + str(item.Item.amount) + ')'
-            options.append(text)
-    index = menu(header, options, INVENTORY_WIDTH, noItemMessage)
-    if index is None or len(invList) == 0 or index == "cancelled":
+    if 'frozen' in convertBuffsToNames(player.Fighter):
+        message('You cannot check your inventory right now !', colors.red)
         return None
     else:
-        return invList[index].Item
+        if invList is None:
+            invList = inventory
+        elif invList == 'food':
+            invList = [object for object in inventory if object.Item and object.Item.type == "food"]
+        if len(invList) == 0:
+            options = [noItemMessage]
+        else:
+            options = []
+            for item in invList:
+                text = item.name
+                if item.Item.stackable:
+                    text = text + ' (' + str(item.Item.amount) + ')'
+                options.append(text)
+        index = menu(header, options, INVENTORY_WIDTH, noItemMessage)
+        if index is None or len(invList) == 0 or index == "cancelled":
+            return None
+        else:
+            return invList[index].Item
 
 def spellsMenu(header):
     #shows a menu with each known ready spell as an option
@@ -4667,47 +4671,50 @@ def spellsMenu(header):
 
 
 def equipmentMenu(header):
-    if len(equipmentList) == 0:
-        options = ['You have nothing equipped']
+    if 'frozen' in convertBuffsToNames(player.Fighter):
+        message("You cannot change your equipment right now !")
     else:
-        options = []
-        for item in equipmentList:
-            text = item.name
-            if item.Equipment and item.Equipment.isEquipped:
-                #powBonus = item.Equipment.basePowerBonus
-                #skillPowBonus = item.Equipment.powerBonus - powBonus
-                #hpBonus = item.Equipment.maxHP_Bonus
-                #armBonus = item.Equipment.armorBonus
-                #if powBonus != 0 or hpBonus !=0 or armBonus != 0:
-                #    info = '['
-                #    if powBonus != 0:
-                #        info = info + 'POWER + ' + str(powBonus)
-                #        if skillPowBonus > 0:
-                #            info += ' + ' + str(skillPowBonus)
-                #    if hpBonus != 0:
-                #        if powBonus == 0:
-                #            info = info + 'HP + ' + str(hpBonus)
-                #        else:
-                #            info = info + ' HP + ' + str(hpBonus)
-                #    if armBonus != 0:
-                #        if powBonus == 0 and hpBonus == 0:
-                #            info = info + 'ARMOR + ' + str(armBonus)
-                #        else:
-                #            info = info + ' ARMOR + ' + str(armBonus)
-                #    info = info + ']'
-                #else:
-                #    info = ''
-                handed = item.Equipment.slot == 'one handed' or item.Equipment.slot == 'two handed'
-                if handed:
-                    text = text + ' (on ' + item.Equipment.curSlot + ')'
-                else:
-                    text = text + ' (on ' + item.Equipment.slot + ')'
-            options.append(text)
-    index = menu(header, options, INVENTORY_WIDTH)
-    if index is None or len(equipmentList) == 0 or index == "cancelled":
-        return None
-    else:
-        return equipmentList[index].Item
+        if len(equipmentList) == 0:
+            options = ['You have nothing equipped']
+        else:
+            options = []
+            for item in equipmentList:
+                text = item.name
+                if item.Equipment and item.Equipment.isEquipped:
+                    #powBonus = item.Equipment.basePowerBonus
+                    #skillPowBonus = item.Equipment.powerBonus - powBonus
+                    #hpBonus = item.Equipment.maxHP_Bonus
+                    #armBonus = item.Equipment.armorBonus
+                    #if powBonus != 0 or hpBonus !=0 or armBonus != 0:
+                    #    info = '['
+                    #    if powBonus != 0:
+                    #        info = info + 'POWER + ' + str(powBonus)
+                    #        if skillPowBonus > 0:
+                    #            info += ' + ' + str(skillPowBonus)
+                    #    if hpBonus != 0:
+                    #        if powBonus == 0:
+                    #            info = info + 'HP + ' + str(hpBonus)
+                    #        else:
+                    #            info = info + ' HP + ' + str(hpBonus)
+                    #    if armBonus != 0:
+                    #        if powBonus == 0 and hpBonus == 0:
+                    #            info = info + 'ARMOR + ' + str(armBonus)
+                    #        else:
+                    #            info = info + ' ARMOR + ' + str(armBonus)
+                    #    info = info + ']'
+                    #else:
+                    #    info = ''
+                    handed = item.Equipment.slot == 'one handed' or item.Equipment.slot == 'two handed'
+                    if handed:
+                        text = text + ' (on ' + item.Equipment.curSlot + ')'
+                    else:
+                        text = text + ' (on ' + item.Equipment.slot + ')'
+                options.append(text)
+        index = menu(header, options, INVENTORY_WIDTH)
+        if index is None or len(equipmentList) == 0 or index == "cancelled":
+            return None
+        else:
+            return equipmentList[index].Item
 
 def mainMenu():
     global player
