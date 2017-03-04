@@ -4297,7 +4297,7 @@ def placeObjects(room, first = False):
                             #TO-DO : Implement chance for buffs
                             
                                 
-                    item = GameObject(x, y, ',', "strange pie", colors.fuchsia, Item = Item(useFunction= lambda : pieDebuff(randint(100, 200), 'the pie'), weight = 0.4, stackable=True, amount = 1111, description = "This looks like a pie of some sort, but for some reason it doesn't look appetizing at all. Should fill your stomach for a little while though. Wait, is that a worm you saw inside ?", itemtype = 'food'), blocks = False, pName = "strange pies")
+                    item = GameObject(x, y, ',', "strange pie", colors.fuchsia, Item = Item(useFunction= lambda : pieDebuff(randint(100, 200), 'the pie'), weight = 0.4, stackable=True, amount = 1, description = "This looks like a pie of some sort, but for some reason it doesn't look appetizing at all. Should fill your stomach for a little while though. Wait, is that a worm you saw inside ?", itemtype = 'food'), blocks = False, pName = "strange pies")
                 elif foodChoice == 'pasta':
                     item = GameObject(x, y, ',', "'plate' of pasta", colors.light_yellow, Item = Item(useFunction=satiateHunger, arg1 = 50, arg2 = "the pasta", weight = 0.3, stackable=True, amount = randint(1, 4), description = "If you exclude the fact that the 'plate' is inexistent, and therefore the pasta are spilled on the floor, this actually looks delicious.", itemtype = 'food'), blocks = False, pName = "'plates' of pasta")
                 elif foodChoice == 'meat':
