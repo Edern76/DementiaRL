@@ -4850,8 +4850,13 @@ def Update():
     
     panel.draw_str(BUFF_X, 1, 'Buffs:', colors.white)
     buffY = 2
+    selfAware = True #TO-DO : Changes this so that this is true only if the player picked the 'self-aware' trait
     for buff in player.Fighter.buffList:
-        panel.draw_str(BUFF_X, buffY, buff.name.capitalize(), buff.color)
+        if selfAware:
+            buffText = buff.name.capitalize() + ' (' + str(buff.curCooldown) + ')'
+        else:
+            buffText = buff.name.capitalize()
+        panel.draw_str(BUFF_X, buffY, buffText, buff.color)
         buffY += 1
     # Look code
     if gameState == 'looking' and lookCursor != None:
