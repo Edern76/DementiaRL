@@ -206,11 +206,25 @@ def playWavSound(sound, forceStop = False):
 def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp, noItemMessage = None):
     window.clear()
     for i, line in enumerate(headerWrapped):
-        window.draw_str(0, 0+i, headerWrapped[i], fg = colors.yellow)
+        window.draw_str(1, 1+i, headerWrapped[i], fg = colors.yellow)
     if pagesDisp:
         window.draw_str(10, y - 2, str(page + 1) + '/' + str(maxPages + 1), fg = colors.yellow)
     letterIndex = ord('a')
     counter = 0
+    for k in range(width):
+        window.draw_char(k, 0, chr(196))
+    window.draw_char(0, 0, chr(218))
+    window.draw_char(k, 0, chr(191))
+    kMax = k
+    for l in range(height):
+        if l > 0:
+            window.draw_char(0, l, chr(179))
+            window.draw_char(kMax, l, chr(179))
+    lMax = l
+    for m in range(width):
+        window.draw_char(m, lMax, chr(196))
+    window.draw_char(0, lMax, chr(192))
+    window.draw_char(kMax, lMax, chr(217))
     if (noItemMessage is None or options[0] != str(noItemMessage)):
         if len(options) == 1:
             print(options[0])
@@ -219,11 +233,11 @@ def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxP
             if counter >= page * 26 and counter < (page + 1) * 26:
                 text = '(' + chr(letterIndex) + ') ' + optionText
                 letterIndex += 1
-                window.draw_str(0, y, text, bg=None)
+                window.draw_str(1, y, text, bg=None)
                 y += 1
             counter += 1
     else:
-        window.draw_str(0, y, options[0], bg = None, fg = colors.red)
+        window.draw_str(1, y, options[0], bg = None, fg = colors.red)
         
     x = MID_WIDTH - int(width/2)
     y = MID_HEIGHT - int(height/2)
@@ -231,7 +245,7 @@ def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxP
 
     tdl.flush()
 
-def menu(header, options, width, noItemMessage = None):
+def menu(header, options, width, noItemMessage = None, inGame = True, adjustHeight = True):
     global menuWindows, FOV_recompute
     page = 0
     pagesDisp = True
@@ -240,13 +254,17 @@ def menu(header, options, width, noItemMessage = None):
         pagesDisp = False
     headerWrapped = textwrap.wrap(header, width)
     headerHeight = len(headerWrapped)
+    if adjustHeight:
+        toAdd = 3
+    else:
+        toAdd = 2
     if header == "":
         headerHeight = 0
     if len(options) > 26:
-        height = 26 + headerHeight + 2
+        height = 26 + headerHeight + toAdd
     else:
-        height = len(options) + headerHeight + 2
-    if menuWindows:
+        height = len(options) + headerHeight + toAdd
+    if menuWindows and inGame:
         for mWindow in menuWindows:
             mWindow.clear()
         FOV_recompute = True
@@ -289,8 +307,8 @@ def menu(header, options, width, noItemMessage = None):
                 return "cancelled"
     return None
 
-def msgBox(text, width = 50):
-    menu(text, [], width)
+def msgBox(text, width = 50, inGame = True, adjustHeight = True):
+    menu(text, [], width, None, inGame, adjustHeight)
 
 def drawCentered (cons = con , y = 1, text = "Lorem Ipsum", fg = None, bg = None):
     xCentered = (WIDTH - len(text))//2
@@ -4779,12 +4797,16 @@ def mainMenu():
                 else:
                     mainMenu()
             elif index == 1:
+                error = False
                 try:
                     loadGame()
                 except:
-                    msgBox("\n No saved game to load.\n", 24)
+                    msgBox("\n No saved game to load.\n", 26, False, False)
+                    error = True
+                    key = None
                     continue
-                playGame()
+                if not error:
+                    playGame()
             elif index == 2:
                 pass
                 #Credits
