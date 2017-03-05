@@ -133,6 +133,7 @@ lookCursor = None
 cursor = None
 
 gameMsgs = [] #List of game messages
+logMsgs = []
 tilesInRange = []
 explodingTiles = []
 tilesinPath = []
@@ -206,11 +207,25 @@ def playWavSound(sound, forceStop = False):
 def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp, noItemMessage = None):
     window.clear()
     for i, line in enumerate(headerWrapped):
-        window.draw_str(0, 0+i, headerWrapped[i], fg = colors.yellow)
+        window.draw_str(1, 1+i, headerWrapped[i], fg = colors.yellow)
     if pagesDisp:
         window.draw_str(10, y - 2, str(page + 1) + '/' + str(maxPages + 1), fg = colors.yellow)
     letterIndex = ord('a')
     counter = 0
+    for k in range(width):
+        window.draw_char(k, 0, chr(196))
+    window.draw_char(0, 0, chr(218))
+    window.draw_char(k, 0, chr(191))
+    kMax = k
+    for l in range(height):
+        if l > 0:
+            window.draw_char(0, l, chr(179))
+            window.draw_char(kMax, l, chr(179))
+    lMax = l
+    for m in range(width):
+        window.draw_char(m, lMax, chr(196))
+    window.draw_char(0, lMax, chr(192))
+    window.draw_char(kMax, lMax, chr(217))
     if (noItemMessage is None or options[0] != str(noItemMessage)):
         if len(options) == 1:
             print(options[0])
@@ -219,11 +234,11 @@ def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxP
             if counter >= page * 26 and counter < (page + 1) * 26:
                 text = '(' + chr(letterIndex) + ') ' + optionText
                 letterIndex += 1
-                window.draw_str(0, y, text, bg=None)
+                window.draw_str(1, y, text, bg=None)
                 y += 1
             counter += 1
     else:
-        window.draw_str(0, y, options[0], bg = None, fg = colors.red)
+        window.draw_str(1, y, options[0], bg = None, fg = colors.red)
         
     x = MID_WIDTH - int(width/2)
     y = MID_HEIGHT - int(height/2)
@@ -231,7 +246,7 @@ def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxP
 
     tdl.flush()
 
-def menu(header, options, width, noItemMessage = None):
+def menu(header, options, width, noItemMessage = None, inGame = True, adjustHeight = True):
     global menuWindows, FOV_recompute
     page = 0
     pagesDisp = True
@@ -240,13 +255,17 @@ def menu(header, options, width, noItemMessage = None):
         pagesDisp = False
     headerWrapped = textwrap.wrap(header, width)
     headerHeight = len(headerWrapped)
+    if adjustHeight:
+        toAdd = 3
+    else:
+        toAdd = 2
     if header == "":
         headerHeight = 0
     if len(options) > 26:
-        height = 26 + headerHeight + 2
+        height = 26 + headerHeight + toAdd
     else:
-        height = len(options) + headerHeight + 2
-    if menuWindows:
+        height = len(options) + headerHeight + toAdd
+    if menuWindows and inGame:
         for mWindow in menuWindows:
             mWindow.clear()
         FOV_recompute = True
@@ -289,8 +308,8 @@ def menu(header, options, width, noItemMessage = None):
                 return "cancelled"
     return None
 
-def msgBox(text, width = 50):
-    menu(text, [], width)
+def msgBox(text, width = 50, inGame = True, adjustHeight = True):
+    menu(text, [], width, None, inGame, adjustHeight)
 
 def drawCentered (cons = con , y = 1, text = "Lorem Ipsum", fg = None, bg = None):
     xCentered = (WIDTH - len(text))//2
@@ -2422,6 +2441,8 @@ def getInput():
         objects.append(lookCursor)
         FOV_recompute = True
         return 'didnt-take-turn'
+    elif userInput.keychar == 'L':
+        displayLog(50)
     elif userInput.keychar.upper() == 'C':
         levelUp_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
         
@@ -4622,6 +4643,67 @@ def message(newMsg, color = colors.white):
             del gameMsgs[0] #Deletes the oldest message if the log is full
     
         gameMsgs.append((line, color))
+        logMsgs.append((line, color))
+
+def displayLog(height):
+    global menuWindows, FOV_recompute
+    noStartMsg = True
+    if menuWindows:
+        for mWindow in menuWindows:
+            mWindow.clear()
+        FOV_recompute = True
+        Update()
+        tdl.flush()
+    width = MSG_WIDTH + 2
+    window = tdl.Console(width, height)
+    menuWindows.append(window)
+    window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)    
+    
+    for k in range(width):
+        window.draw_char(k, 0, chr(196))
+    window.draw_char(0, 0, chr(218))
+    window.draw_char(k, 0, chr(191))
+    kMax = k
+    for l in range(height):
+        if l > 0:
+            window.draw_char(0, l, chr(179))
+            window.draw_char(kMax, l, chr(179))
+    lMax = l
+    for m in range(width):
+        window.draw_char(m, lMax, chr(196))
+    window.draw_char(0, lMax, chr(192))
+    window.draw_char(kMax, lMax, chr(217))
+    
+    if len(logMsgs) == 0:
+        pass
+    else:
+        lastMsgIndex = len(logMsgs) - 1
+        displayableHeight = height - 3
+        if noStartMsg:
+            if lastMsgIndex - displayableHeight <= 0:
+                startMsg = 0
+                curStartIndex = int(startMsg)
+            else:
+                startMsg = lastMsgIndex - displayableHeight
+                curStartIndex = int(startMsg)
+            print('Log start : ' + str(curStartIndex))
+        if curStartIndex + displayableHeight < lastMsgIndex:
+            lastDisplayedMessage = curStartIndex + displayableHeight
+            print('Log end : ' + str(lastDisplayedMessage))
+        else:
+            lastDisplayedMessage = int(lastMsgIndex)
+        y = 1
+        for curIndex in range(curStartIndex, lastDisplayedMessage + 1):
+            (line, color) = logMsgs[curIndex]
+            window.draw_str(1, y, line, fg = color, bg = Ellipsis)
+            y += 1
+    windowX = MID_WIDTH - int(width/2)
+    windowY = MID_HEIGHT - int(height/2)
+    root.blit(window, windowX, windowY, width, height, 0, 0)
+
+    tdl.flush()
+    tdl.event.key_wait()
+
 
 def inventoryMenu(header, invList = None, noItemMessage = 'Inventory is empty'):
     #show a menu with each item of the inventory as an option
@@ -4779,12 +4861,16 @@ def mainMenu():
                 else:
                     mainMenu()
             elif index == 1:
+                error = False
                 try:
                     loadGame()
                 except:
-                    msgBox("\n No saved game to load.\n", 24)
+                    msgBox("\n No saved game to load.\n", 26, False, False)
+                    error = True
+                    key = None
                     continue
-                playGame()
+                if not error:
+                    playGame()
             elif index == 2:
                 pass
                 #Credits
@@ -4856,9 +4942,12 @@ def Update():
             if (object.x, object.y) in visibleTiles or (object.alwaysVisible and myMap[object.x][object.y].explored) or REVEL:
                 object.draw()
     player.draw()
+    for x in range(WIDTH):
+        con.draw_char(x, PANEL_Y - 1, chr(196))
     root.blit(con, 0, 0, WIDTH, HEIGHT, 0, 0)
     panel.clear(fg=colors.white, bg=colors.black)
     # Draw log
+    
     msgY = 1
     for (line, color) in gameMsgs:
         panel.draw_str(MSG_X, msgY, line, bg=None, fg = color)
@@ -5001,6 +5090,7 @@ def saveGame():
     file["inventory"] = inventory
     file["equipmentList"] = equipmentList
     file["gameMsgs"] = gameMsgs
+    file["logMsgs"] = logMsgs
     file["gameState"] = gameState
     file["hiroshimanNumber"] = hiroshimanNumber
     if dungeonLevel > 1:
@@ -5060,7 +5150,7 @@ def newGame():
         highCultistHasAppeared = False #Make so more high cultists can spawn at lower levels (still only one by floor though)
 
 def loadGame():
-    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipmentList, stairs, upStairs, hiroshimanNumber, currentBranch, gluttonyStairs
+    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipmentList, stairs, upStairs, hiroshimanNumber, currentBranch, gluttonyStairs, logMsgs
     
     
     #myMap = [[Tile(True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)]
@@ -5075,6 +5165,7 @@ def loadGame():
     equipmentList = file["equipmentList"]
     gameMsgs = file["gameMsgs"]
     gameState = file["gameState"]
+    logMsgs = file["logMsgs"]
     hiroshimanNumber = file["hiroshimanNumber"]
     if dungeonLevel > 1:
         upStairs = objects[file["upStairsIndex"]]
