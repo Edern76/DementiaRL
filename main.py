@@ -133,6 +133,7 @@ lookCursor = None
 cursor = None
 
 gameMsgs = [] #List of game messages
+logMsgs = []
 tilesInRange = []
 explodingTiles = []
 tilesinPath = []
@@ -2440,6 +2441,8 @@ def getInput():
         objects.append(lookCursor)
         FOV_recompute = True
         return 'didnt-take-turn'
+    elif userInput.keychar == 'L':
+        displayLog(50)
     elif userInput.keychar.upper() == 'C':
         levelUp_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
         
@@ -4640,6 +4643,67 @@ def message(newMsg, color = colors.white):
             del gameMsgs[0] #Deletes the oldest message if the log is full
     
         gameMsgs.append((line, color))
+        logMsgs.append((line, color))
+
+def displayLog(height):
+    global menuWindows, FOV_recompute
+    noStartMsg = True
+    if menuWindows:
+        for mWindow in menuWindows:
+            mWindow.clear()
+        FOV_recompute = True
+        Update()
+        tdl.flush()
+    width = MSG_WIDTH + 2
+    window = tdl.Console(width, height)
+    menuWindows.append(window)
+    window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)    
+    
+    for k in range(width):
+        window.draw_char(k, 0, chr(196))
+    window.draw_char(0, 0, chr(218))
+    window.draw_char(k, 0, chr(191))
+    kMax = k
+    for l in range(height):
+        if l > 0:
+            window.draw_char(0, l, chr(179))
+            window.draw_char(kMax, l, chr(179))
+    lMax = l
+    for m in range(width):
+        window.draw_char(m, lMax, chr(196))
+    window.draw_char(0, lMax, chr(192))
+    window.draw_char(kMax, lMax, chr(217))
+    
+    if len(logMsgs) == 0:
+        pass
+    else:
+        lastMsgIndex = len(logMsgs) - 1
+        displayableHeight = height - 3
+        if noStartMsg:
+            if lastMsgIndex - displayableHeight <= 0:
+                startMsg = 0
+                curStartIndex = int(startMsg)
+            else:
+                startMsg = lastMsgIndex - displayableHeight
+                curStartIndex = int(startMsg)
+            print('Log start : ' + str(curStartIndex))
+        if curStartIndex + displayableHeight < lastMsgIndex:
+            lastDisplayedMessage = curStartIndex + displayableHeight
+            print('Log end : ' + str(lastDisplayedMessage))
+        else:
+            lastDisplayedMessage = int(lastMsgIndex)
+        y = 1
+        for curIndex in range(curStartIndex, lastDisplayedMessage + 1):
+            (line, color) = logMsgs[curIndex]
+            window.draw_str(1, y, line, fg = color, bg = Ellipsis)
+            y += 1
+    windowX = MID_WIDTH - int(width/2)
+    windowY = MID_HEIGHT - int(height/2)
+    root.blit(window, windowX, windowY, width, height, 0, 0)
+
+    tdl.flush()
+    tdl.event.key_wait()
+
 
 def inventoryMenu(header, invList = None, noItemMessage = 'Inventory is empty'):
     #show a menu with each item of the inventory as an option
@@ -5026,6 +5090,7 @@ def saveGame():
     file["inventory"] = inventory
     file["equipmentList"] = equipmentList
     file["gameMsgs"] = gameMsgs
+    file["logMsgs"] = logMsgs
     file["gameState"] = gameState
     file["hiroshimanNumber"] = hiroshimanNumber
     if dungeonLevel > 1:
@@ -5085,7 +5150,7 @@ def newGame():
         highCultistHasAppeared = False #Make so more high cultists can spawn at lower levels (still only one by floor though)
 
 def loadGame():
-    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipmentList, stairs, upStairs, hiroshimanNumber, currentBranch, gluttonyStairs
+    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipmentList, stairs, upStairs, hiroshimanNumber, currentBranch, gluttonyStairs, logMsgs
     
     
     #myMap = [[Tile(True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)]
@@ -5100,6 +5165,7 @@ def loadGame():
     equipmentList = file["equipmentList"]
     gameMsgs = file["gameMsgs"]
     gameState = file["gameState"]
+    logMsgs = file["logMsgs"]
     hiroshimanNumber = file["hiroshimanNumber"]
     if dungeonLevel > 1:
         upStairs = objects[file["upStairsIndex"]]
