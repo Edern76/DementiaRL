@@ -149,10 +149,12 @@ spells = [] #List of all spells in the game
 stairs = None
 upStairs = None
 gluttonyStairs = None
+townStairs = None
 ########
 hiroshimanHasAppeared = False
 highCultistHasAppeared = False
 player = None
+levelAttributes = None
 currentBranch = dBr.mainDungeon #Setting this to None causes errors. It doesn't matter tough, since this gets updated on loading or starting a game.
 dungeonLevel = 1
 
@@ -2535,19 +2537,34 @@ def getInput():
                     object.Item.pickUp()
                     break
                 
-        elif userInput.keychar.upper() == '<':  
-            if dungeonLevel > 1:
+        elif userInput.keychar.upper() == '<':
+            print('You pressed the freaking climb up key')
+            if dungeonLevel > 1 or currentBranch.name != 'Main':
                 saveLevel(dungeonLevel)
-                for object in objects:    
+                for object in objects:
                     if upStairs.x == player.x and upStairs.y == player.y:
+                        print(currentBranch.name)
                         if stairCooldown == 0:
                             global stairCooldown, dungeonLevel
                             saveLevel(dungeonLevel)
+                            chosen = False
                             stairCooldown = 2
                             if DEBUG:
                                 message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
-                            toLoad = dungeonLevel - 1
-                            loadLevel(toLoad, save = False)
+                            if dungeonLevel == 1 and currentBranch.name != 'Main':
+                                if not chosen:
+                                    chosen = True
+                                    print('Returning to origin branch')
+                                    loadLevel(currentBranch.origDepth, save = False, branch = currentBranch.origBranch)
+                                else:
+                                    print('WHY THE HECK IS THE CODE EXECUTING THIS FFS ?')
+                            else:
+                                if not chosen:
+                                    chosen = True
+                                    toLoad = dungeonLevel - 1
+                                    loadLevel(toLoad, save = False)
+                                else:
+                                    print('Chosen was equal to true. If the code ever goes here, I fucking hate all of this.')
                         else:
                             message("You're too tired to climb the stairs right now")
                         return None
@@ -2602,6 +2619,17 @@ def getInput():
                 chosenItem.use()
             else:
                 return 'didnt-take-turn'
+        elif userInput.keychar == '*':
+            print('Stairs at {};{}'.format(stairs.x, stairs.y))
+            if upStairs is not None:
+                print('Upstairs at {};{}'.format(upStairs.x, upStairs.y))
+            if gluttonyStairs is not None:
+                print('Gluttony stairs at {};{}'.format(gluttonyStairs.x, gluttonyStairs.y))
+            if townStairs is not None:
+                print('Town stairs at {};{}'.format(townStairs.x, townStairs.y))
+            print('Player at {};{}'.format(player.x, player.y))
+            print('Current branch : {}'.format(currentBranch.name))
+            return 'didnt-take-turn'
         elif userInput.keychar == 'E':
             choseOrQuit = False
             while not choseOrQuit:
@@ -3311,7 +3339,12 @@ def secretRoom():
         print("created secret room at x ", entryX, " y ", entryY, " in quarter ", quarter)
 
 def makeMap():
-    global myMap, stairs, objects, upStairs, bossDungeonsAppeared, color_dark_wall, color_light_wall, color_dark_ground, color_light_ground, color_dark_gravel, color_light_gravel
+    global myMap, stairs, objects, upStairs, bossDungeonsAppeared, color_dark_wall, color_light_wall, color_dark_ground, color_light_ground, color_dark_gravel, color_light_gravel, townStairs, gluttonyStairs, stairs, upStairs
+    
+    stairs = None
+    upStairs = None
+    gluttonyStairs = None
+    townStairs = None
         
     color_dark_wall = currentBranch.color_dark_wall
     color_light_wall = currentBranch.color_light_wall
@@ -3350,7 +3383,7 @@ def makeMap():
             if numberRooms == 0:
                 player.x = new_x
                 player.y = new_y
-                if dungeonLevel > 1:
+                if dungeonLevel > 1 or currentBranch.name != 'Main':
                     upStairs = GameObject(new_x, new_y, '<', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor)
                     objects.append(upStairs)
                     upStairs.sendToBack()
@@ -3373,7 +3406,9 @@ def makeMap():
     objects.append(stairs)
     stairs.sendToBack()
     
+    branches = []
     for (branch, level) in currentBranch.branchesTo:
+        branches.append(branch)
         if branch == dBr.gluttonyDungeon:
             if dungeonLevel == level and not bossDungeonsAppeared['gluttony']:
                 createdStairs = False
@@ -3394,7 +3429,43 @@ def makeMap():
                         bossDungeonsAppeared['gluttony'] = True
                         createdStairs = True
                         print('created gluttonys stairs at ' + str(x) + ', ' + str(y))
-
+            else:
+                global gluttonyStairs
+                print('No gluttony stairs on this level')
+                gluttonyStairs = None
+        if branch == dBr.hiddenTown:
+            if dungeonLevel == level:
+                createdStairs = False
+                while not createdStairs:
+                    randRoom = randint(0, len(rooms) - 1)
+                    room = rooms[randRoom]
+                    (x, y) = room.center()
+                    wrongCentre = False
+                    for object in objects:
+                        if object.x == x and object.y == y:
+                            wrongCentre = True
+                            break
+                    if not wrongCentre:
+                        global townStairs
+                        townStairs = GameObject(x, y, '>', 'glowing portal', branch.lightStairsColor, alwaysVisible = True, darkColor = branch.darkStairsColor)
+                        objects.append(townStairs)
+                        gluttonyStairs.sendToBack()
+                        createdStairs = True
+                        print('created hidden town stairs at ' + str(x) + ', ' + str(y))
+            else:
+                global townStairs
+                print('No town stairs on this level')
+                townStairs = None
+    
+    
+    if not dBr.hiddenTown in branches:
+        global townStairs
+        print('Wrong branch for town stairs')
+        townStairs = None
+    if not dBr.gluttonyDungeon in branches:
+        global gluttonyStairs
+        print('Wrong branch for gluttony stairs')
+        gluttonyStairs = None           
 def makeBossLevel():
     global myMap, objects, upStairs, rooms, numberRooms
     myMap = [[Tile(True, wall = True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
@@ -4150,7 +4221,6 @@ def randomChoiceIndex(chances):
 
 def randomChoice(chancesDictionnary):
     chances = chancesDictionnary.values()
-    print(chances)
     for value in chances:
         if value < 0:
             print(value)
@@ -5116,12 +5186,30 @@ def saveGame():
     file["logMsgs"] = logMsgs
     file["gameState"] = gameState
     file["hiroshimanNumber"] = hiroshimanNumber
-    if dungeonLevel > 1:
+    if dungeonLevel > 1 or currentBranch.name != 'Main':
+        print(currentBranch.name)
+        print(currentBranch.shortName)
         file["upStairsIndex"] = objects.index(upStairs)
     gluttBrLevel = dBr.gluttonyDungeon.origDepth
-    if dungeonLevel == gluttBrLevel and currentBranch == dBr.mainDungeon:
+    townBrLevel = dBr.hiddenTown.origDepth
+    if dungeonLevel == gluttBrLevel and currentBranch.name == 'Main':
         try:
             file["gluttStairsIndex"] = objects.index(gluttonyStairs)
+            print('SAVED FUCKING GLUTTONY STAIRS AT INDEX {}'.format(objects.index(gluttonyStairs)))
+        except Exception as error:
+            print("===========WARNING============")
+            print("Couldn't save Gluttony stairs")
+            print('Error : {}'.format(type(error)))
+            print('Details : {}'.format(error.args))
+            print('==============================')
+            pass
+    else:
+        print("DIDNT SAVE GLUTTONY STAIRS")
+        print("DungeonLevel : {} / GluttonyLevel : {}".format(dungeonLevel, gluttBrLevel))
+        print('Current branch : {}'.format(currentBranch.name))
+    if dungeonLevel == townBrLevel and currentBranch.name == 'Main':
+        try:
+            file["townStairsIndex"] = objects.index(townStairs)
         except:
             print("Couldn't save Gluttony stairs")
             pass
@@ -5173,7 +5261,7 @@ def newGame():
         highCultistHasAppeared = False #Make so more high cultists can spawn at lower levels (still only one by floor though)
 
 def loadGame():
-    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipmentList, stairs, upStairs, hiroshimanNumber, currentBranch, gluttonyStairs, logMsgs
+    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipmentList, stairs, upStairs, hiroshimanNumber, currentBranch, gluttonyStairs, logMsgs, townStairs
     
     
     #myMap = [[Tile(True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)]
@@ -5190,11 +5278,15 @@ def loadGame():
     gameState = file["gameState"]
     logMsgs = file["logMsgs"]
     hiroshimanNumber = file["hiroshimanNumber"]
-    if dungeonLevel > 1:
+    if dungeonLevel > 1 or currentBranch.name != 'Main':
+        print(currentBranch.name)
         upStairs = objects[file["upStairsIndex"]]
     gluttBrLevel = dBr.gluttonyDungeon.origDepth
-    if dungeonLevel == gluttBrLevel and currentBranch == dBr.mainDungeon:
+    townBrLevel = dBr.hiddenTown.origDepth
+    if dungeonLevel == gluttBrLevel and currentBranch.name == 'Main':
         gluttonyStairs = objects[file["gluttStairsIndex"]]
+    if dungeonLevel == townBrLevel and currentBranch.name == 'Main':
+        townStairs = objects[file["townStairsIndex"]]
     #mapFile = open(absPicklePath, "rb")
     #myMap = pickle.load(mapFile)
     #mapFile.close()
@@ -5208,28 +5300,50 @@ def saveLevel(level = dungeonLevel):
         #print()
     #else:
         #file = shelve.open(absFilePath, "w")
-    mapFilePath = accessMapFile(level)
+    print("=============SAVING LEVEL===============")
+    print("Current branch = {}".format(currentBranch.name))
+    mapFilePath = accessMapFile(level, branchToDisplay = currentBranch.shortName)
     mapFile = shelve.open(mapFilePath, "n")
     mapFile["myMap"] = myMap
     mapFile["objects"] = objects
     mapFile["playerIndex"] = objects.index(player)
     mapFile["stairsIndex"] = objects.index(stairs)
-    if dungeonLevel > 1:
+    if (level > 1 or currentBranch.name != 'Main') and upStairs in objects:
         mapFile["upStairsIndex"] = objects.index(upStairs)
+        print('SAVED FREAKING UPSTAIRS')
     gluttBrLevel = dBr.gluttonyDungeon.origDepth
-    if dungeonLevel == gluttBrLevel and currentBranch == dBr.mainDungeon:
+    townBrLevel = dBr.hiddenTown.origDepth
+    if dungeonLevel == gluttBrLevel and currentBranch.name == 'Main':
         try:
             mapFile["gluttStairsIndex"] = objects.index(gluttonyStairs)
+            print('SAVED FUCKING GLUTTONY STAIRS AT INDEX {}'.format(objects.index(gluttonyStairs)))
+        except Exception as error:
+            print("===========WARNING============")
+            print("Couldn't save Gluttony stairs")
+            print('Error : {}'.format(type(error)))
+            print('Details : {}'.format(error.args))
+            print('==============================')
+            pass
+    else:
+        print("DIDNT SAVE GLUTTONY STAIRS")
+        print("DungeonLevel : {} / GluttonyLevel : {}".format(dungeonLevel, gluttBrLevel))
+        print('Current branch : {}'.format(currentBranch.name))
+    if dungeonLevel == townBrLevel and currentBranch.name == 'Main':
+        try:
+            mapFile["townStairsIndex"] = objects.index(townStairs)
         except:
-            print("Couldn't save Gluttony Dungeon")
+            print("Couldn't save Gluttony stairs")
+            pass
     mapFile["yunowork"] = "SCREW THIS"
     print("Saved level at " + mapFilePath)
+    mapFile.sync()
     mapFile.close()
+    print("========================================")
     
     return "completed"
 
 def loadLevel(level, save = True, branch = currentBranch):
-    global objects, player, myMap, stairs, dungeonLevel, gluttonyStairs
+    global objects, player, myMap, stairs, dungeonLevel, gluttonyStairs, townStairs, currentBranch
     if save:
         try:
             saveLevel(dungeonLevel)
@@ -5242,16 +5356,24 @@ def loadLevel(level, save = True, branch = currentBranch):
     objects = xfile["objects"]
     player = objects[xfile["playerIndex"]]
     stairs = objects[xfile["stairsIndex"]]
-    if level > 1:
+    if level > 1 or branch.name != 'Main':
         global upStairs
         upStairs = objects[xfile["upStairsIndex"]]
     gluttBrLevel = dBr.gluttonyDungeon.origDepth
-    if dungeonLevel == gluttBrLevel and branch == dBr.gluttonyDungeon:
+    townBrLevel = dBr.hiddenTown.origDepth
+    if level == gluttBrLevel and branch.name == 'Main':
+        print("Branch name is {} and gluttony stairs appear in branch Main. Moreover, we are at level {} and they appear at level {}. Therefore we are loading them and NOTHING SHOULD GO FUCKING WRONG.".format(branch.name, level, gluttBrLevel))
         gluttonyStairs = objects[xfile["gluttStairsIndex"]]
+    else:
+        print("We didn't load gluttony stairs because they don't exist. So the game SHOULD NOT crash at that point.")
+    if level == townBrLevel and branch.name == 'Main':
+        townStairs = objects[xfile["townStairsIndex"]]
+        
     message("You climb the stairs")
     print("Loaded level " + str(level))
     xfile.close()
     dungeonLevel = level
+    currentBranch = branch
     initializeFOV()
 
 def nextLevel(boss = False, changeBranch = None):
@@ -5268,17 +5390,26 @@ def nextLevel(boss = False, changeBranch = None):
         message('You enter ' + changeBranch.name)
         dungeonLevel = 1
         currentBranch = changeBranch
+        if DEBUG:
+            print('Changing branch...')
     if changeToCurrent:
         changeBranch = currentBranch
     tempMap = myMap
     tempObjects = objects
     tempPlayer = player
     tempStairs = stairs
+    print("Before try/except block")
     try:
-        loadLevel(dungeonLevel, save = False, branch= changeBranch)
+        loadLevel(dungeonLevel, save = False, branch = changeBranch)
         print("Loaded existing level {}".format(dungeonLevel))
-    except:
+    except Exception as error:
         global myMap, objects, player, stairs
+        if DEBUG:
+            print("===========NO NEXT LEVEL============")
+            print("Loading error : {}".format(type(error)))
+            print("Details : {}".format(error.args))
+            print("Tried to load dungeon level {} of branch {}".format(dungeonLevel, changeBranch.name))
+            print("====================================")
         myMap = tempMap
         objects = tempObjects
         player = tempPlayer
@@ -5288,6 +5419,7 @@ def nextLevel(boss = False, changeBranch = None):
         else:
             makeBossLevel()
         print("Created a new level")
+    print("After try except block")
     if hiroshimanNumber == 1 and not hiroshimanHasAppeared:
         global hiroshimanHasAppeared
         message('You suddenly feel uneasy.', colors.dark_red)
