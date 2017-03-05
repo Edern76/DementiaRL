@@ -4856,9 +4856,12 @@ def Update():
             if (object.x, object.y) in visibleTiles or (object.alwaysVisible and myMap[object.x][object.y].explored) or REVEL:
                 object.draw()
     player.draw()
+    for x in range(WIDTH):
+        con.draw_char(x, PANEL_Y - 1, chr(196))
     root.blit(con, 0, 0, WIDTH, HEIGHT, 0, 0)
     panel.clear(fg=colors.white, bg=colors.black)
     # Draw log
+    
     msgY = 1
     for (line, color) in gameMsgs:
         panel.draw_str(MSG_X, msgY, line, bg=None, fg = color)
