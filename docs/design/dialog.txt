@@ -1,0 +1,59 @@
+=================================================NPC/Dialog design===================================================
+
+Dialog system :
+	Each NPC has a Dialoger component, which refers to its dialog tree.
+	A dialog tree is a class which contains the current dialog screen, the original dialog screen (aka intro line), and the list of all dialog screens.
+	A dialog screen is a class which contains the text spoken by the NPC, and the list of all possible reactions to this text, called dialog choices. Each dialog screen has a unique ID, which cannot be a special ID.
+	A dialog choice is a choice that you can pick, and sends you to another screen or performs special actions. It is composed of the text which appears on the screen, and of an ID, which corresponds either to the unique ID of the screen it will take you to or to a special ID which will perform special actions.
+
+	The two last classes also have a owner variable which points back to the tree they are a part of. This allow them to change the current screen.
+	Displaying of the screen happens in the main module. Dialog trees, screens and choices (classes and instances) are stocked in a separate module.
+
+	Message to other devs : Unless you really want to, don't waste your time implementing this, I'll handle it myself (unless you have objections).
+				If you have suggestions, you can include them in this file. Pukil is a placeholder character, but he will probably stay in the final game as an easter egg (so hard to find)
+
+
+Special IDs :
+	- End : Ends the conversation, sends you back to main game screen. Can be triggered by pressing ESCAPE.
+	- Intro : Sends you back to the origin of the dialog tree, as if you exitted the conversation then reinitiated it.
+	- Back : Goes one screen back in the dialog tree.
+
+========Pukil the Debugger==========
+#If you want to know the origin of the name Pukil; it was the randomly generated name of the character I used when debugging the stairs system.
+
+Encountered in : Hidden Refuge
+
+Intro line : {PLACEHOLDER}
+
+Dialog choices : 
+  1) What do you think about stairs ?
+	- ID : stairs
+	- Answer : 'No... No.... Not again.... NOT AGAIN ! \n
+	  *He seems to have lost all bounds with the reality as he repeats the same words over and over. It would be better to leave him alone for now*'
+	- Choices :		
+	 	1) (End conversation)
+			-ID : End
+
+  2) Why is your nickname the 'debugger' ?
+	- ID : debug
+	- Answer : 'I hate bugs more than anything in this world. So, I used to walk down the everchanging corridors of this darned place, and to splat any bugs that entered my vision, ignoring the other abominations which roam this site 
+	- Choices :
+		1) It seemed you were quite effective, since I didn't see any bug around them.
+			- ID : bugs
+			- Answer : 'It's not because you haven't seen them that they're not here. They're everywhere, all around us, and they will always be.'
+			- Choices :
+				1) Sure...
+					- ID : Back
+		2) Why did you ignore the monsters around you ? They are way more dangerous than mere insects.
+			- ID : dangerous
+			- Answer : 'That's where you're wrong. Bugs are way more powerful than any monster you'll encounter, and they can't be killed by swords or magic. They are the ones you should be afraid of.
+				1) (Back)
+					- ID : Back
+		3) You used to ? Why did you stopped ?
+			- ID : stop
+			- Answer : 'Because I have grown old, in case you couldn't tell. Age made me too weak for such a task, it was time for me to get remplaced by people more competent than I am.
+
+		4) (Back)
+			- ID : Back
+   3) Farewell.
+	-ID : End
