@@ -4648,6 +4648,7 @@ def message(newMsg, color = colors.white):
 def displayLog(height):
     global menuWindows, FOV_recompute
     noStartMsg = True
+    quitted = False
     if menuWindows:
         for mWindow in menuWindows:
             mWindow.clear()
@@ -4657,52 +4658,74 @@ def displayLog(height):
     width = MSG_WIDTH + 2
     window = tdl.Console(width, height)
     menuWindows.append(window)
-    window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)    
-    
-    for k in range(width):
-        window.draw_char(k, 0, chr(196))
-    window.draw_char(0, 0, chr(218))
-    window.draw_char(k, 0, chr(191))
-    kMax = k
-    for l in range(height):
-        if l > 0:
-            window.draw_char(0, l, chr(179))
-            window.draw_char(kMax, l, chr(179))
-    lMax = l
-    for m in range(width):
-        window.draw_char(m, lMax, chr(196))
-    window.draw_char(0, lMax, chr(192))
-    window.draw_char(kMax, lMax, chr(217))
-    
-    if len(logMsgs) == 0:
-        pass
-    else:
-        lastMsgIndex = len(logMsgs) - 1
-        displayableHeight = height - 3
-        if noStartMsg:
-            if lastMsgIndex - displayableHeight <= 0:
-                startMsg = 0
-                curStartIndex = int(startMsg)
-            else:
-                startMsg = lastMsgIndex - displayableHeight
-                curStartIndex = int(startMsg)
-            print('Log start : ' + str(curStartIndex))
-        if curStartIndex + displayableHeight < lastMsgIndex:
-            lastDisplayedMessage = curStartIndex + displayableHeight
-            print('Log end : ' + str(lastDisplayedMessage))
+    upKeys = ['UP', 'KP8', 'PAGEUP', '^']
+    downKeys = ['DOWN', 'KP2', 'PAGEDOWN', 'V']
+    exitKeys = ['SPACE', 'ENTER', 'ESCAPE']
+    while not quitted:
+        window.clear()
+        window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)    
+        
+        for k in range(width):
+            window.draw_char(k, 0, chr(196))
+        window.draw_char(0, 0, chr(218))
+        window.draw_char(k, 0, chr(191))
+        kMax = k
+        for l in range(height):
+            if l > 0:
+                window.draw_char(0, l, chr(179))
+                window.draw_char(kMax, l, chr(179))
+        lMax = l
+        for m in range(width):
+            window.draw_char(m, lMax, chr(196))
+        window.draw_char(0, lMax, chr(192))
+        window.draw_char(kMax, lMax, chr(217))
+        
+        if len(logMsgs) == 0:
+            pass
         else:
-            lastDisplayedMessage = int(lastMsgIndex)
-        y = 1
-        for curIndex in range(curStartIndex, lastDisplayedMessage + 1):
-            (line, color) = logMsgs[curIndex]
-            window.draw_str(1, y, line, fg = color, bg = Ellipsis)
-            y += 1
-    windowX = MID_WIDTH - int(width/2)
-    windowY = MID_HEIGHT - int(height/2)
-    root.blit(window, windowX, windowY, width, height, 0, 0)
-
-    tdl.flush()
-    tdl.event.key_wait()
+            lastMsgIndex = len(logMsgs) - 1
+            displayableHeight = height - 3
+            if noStartMsg:
+                if lastMsgIndex - displayableHeight <= 0:
+                    startMsg = 0
+                    curStartIndex = int(startMsg)
+                else:
+                    startMsg = lastMsgIndex - displayableHeight
+                    curStartIndex = int(startMsg)
+                noStartMsg = False
+                print('Log start : ' + str(curStartIndex))
+            if curStartIndex + displayableHeight < lastMsgIndex:
+                lastDisplayedMessage = curStartIndex + displayableHeight
+                print('Log end : ' + str(lastDisplayedMessage))
+            else:
+                lastDisplayedMessage = int(lastMsgIndex)
+            y = 1
+            print('curStartIndex at displaying : ' + str(curStartIndex))
+            for curIndex in range(curStartIndex, lastDisplayedMessage + 1):
+                (line, color) = logMsgs[curIndex]
+                window.draw_str(1, y, line, fg = color, bg = Ellipsis)
+                y += 1
+            
+            if curStartIndex > 0:
+                window.draw_char(kMax, 1, '^', colors.green)
+            if curStartIndex + displayableHeight < lastMsgIndex:
+                window.draw_char(kMax, lMax - 1, 'v', colors.green)
+        windowX = MID_WIDTH - int(width/2)
+        windowY = MID_HEIGHT - int(height/2)
+        root.blit(window, windowX, windowY, width, height, 0, 0)
+    
+        tdl.flush()
+        key = tdl.event.key_wait()
+        if key.keychar.upper() in upKeys:
+            if curStartIndex > 0:
+                print('curStartIndex before : ' + str(curStartIndex))
+                curStartIndex -= 1
+                print('curStartIndex after : ' + str(curStartIndex))
+        elif key.keychar.upper() in downKeys:
+            if curStartIndex + displayableHeight < lastMsgIndex:
+                curStartIndex += 1
+        elif key.keychar.upper() in exitKeys:
+            quitted = True
 
 
 def inventoryMenu(header, invList = None, noItemMessage = 'Inventory is empty'):
