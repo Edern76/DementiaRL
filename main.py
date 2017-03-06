@@ -1966,6 +1966,23 @@ class Spellcaster():
                                 monster.move(randint(-1, 1), randint(-1, 1)) #wandering
             FOV_recompute = True
 
+class LeechAI:
+    def __init__(self, leechRessource = 'hunger', leechAmount = 15):
+        self.leechRessource = leechRessource
+        self.leechAmount = leechAmount
+
+    def takeTurn(self):
+        monster = self.owner
+        if not 'frozen' in convertBuffsToNames(monster.Fighter):
+            if monster.distanceTo(player) < 2:
+                (hit, crit) = monster.Fighter.toHit(player)
+                if hit:
+                    if self.leechRessource == 'hunger':
+                        player.Player.hunger -= self.leechAmount
+                        message(monster.name.capitalize() + ' hits you and sucked some of your ' + self.leechRessource + '!', colors.dark_orange)
+                else:
+                    message(monster.name.capitalize() + ' missed you.')
+
 class Player:
     def __init__(self, name, strength, dexterity, vitality, willpower, actualPerSkills, levelUpStats, skillsBonus, race, classes, traits, baseHunger = BASE_HUNGER):
         self.name = name
@@ -4307,6 +4324,10 @@ def placeObjects(room, first = False):
                 if minionNumber == 0:
                     print("Couldn't create any minion")
                 highCultistHasAppeared = True
+            
+            elif monsterChoice == 'starveling':
+                fighterComponent = Fighter(hp=45, power=0, armor = 0, xp = 50, deathFunction = monsterDeath, evasion = 45, accuracy = 40)
+                monster = GameObject(x, y, char = 'S', color = colors.lightest_yellow, name = 'starveling', blocks = True, Fighter=fighterComponent, AI = LeechAI())
                             
             else:
                 monster = None
