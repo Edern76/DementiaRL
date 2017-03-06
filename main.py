@@ -498,7 +498,7 @@ def learnSpell(spell):
         return "cancelled"
 
 def castRegenMana(regenAmount, caster = None, target = None):
-    if caster is None:
+    if caster is None or caster == player:
         caster = player
     if caster.Fighter.MP != caster.Fighter.maxMP:
         caster.Fighter.MP += regenAmount
@@ -512,12 +512,14 @@ def castRegenMana(regenAmount, caster = None, target = None):
         message(caster.name.capitalize() + "'s MP are already maxed out")
         return "cancelled"
 
-def castDarkRitual(regen, damage, caster = player, target = None):
+def castDarkRitual(regen, damage, caster = None, target = None):
+    if caster is None or caster == player:
+        caster = player
     message(caster.name.capitalize() + ' takes ' + str(damage) + ' damage from the ritual !', colors.red)
     castRegenMana(regen, caster)
 
 def castHeal(healAmount = 10, caster = None, target = None):
-    if caster is None:
+    if caster is None or caster == player:
         caster = player
     if caster.Fighter.hp == caster.Fighter.maxHP:
         message(caster.name.capitalize() + ' is already at full health')
@@ -526,8 +528,9 @@ def castHeal(healAmount = 10, caster = None, target = None):
         message(caster.name.capitalize() + ' is healed for {} HP !'.format(healAmount), colors.light_green)
         caster.Fighter.heal(healAmount)
 
-def castLightning(caster = player, monsterTarget = player):
-    if caster == player:
+def castLightning(caster = None, monsterTarget = player):
+    if caster is None or caster == player:
+        caster = player
         target = closestMonster(LIGHTNING_RANGE)
     elif caster.distanceTo(monsterTarget) <= LIGHTNING_RANGE:
         target = monsterTarget
@@ -537,18 +540,20 @@ def castLightning(caster = player, monsterTarget = player):
     message('A lightning bolt strikes the ' + target.name + ' with a heavy thunder ! It is shocked and suffers ' + str(LIGHTNING_DAMAGE) + ' shock damage.', colors.light_blue)
     target.Fighter.takeDamage(LIGHTNING_DAMAGE)
 
-def castConfuse(caster = player, monsterTarget = None):
-    message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
-    target = targetMonster(maxRange = CONFUSE_RANGE)
-    if target is None:
-        message('Invalid target.', colors.red)
-        return 'cancelled'
-    old_AI = target.AI
-    target.AI = ConfusedMonster(old_AI)
-    target.AI.owner = target
-    message('The ' + target.name + ' starts wandering around as he seems to lose all bound with reality.', colors.light_violet)
+def castConfuse(caster = None, monsterTarget = None):
+    if caster is None or caster == player:
+        caster = player
+        message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
+        target = targetMonster(maxRange = CONFUSE_RANGE)
+        if target is None:
+            message('Invalid target.', colors.red)
+            return 'cancelled'
+        old_AI = target.AI
+        target.AI = ConfusedMonster(old_AI)
+        target.AI.owner = target
+        message('The ' + target.name + ' starts wandering around as he seems to lose all bound with reality.', colors.light_violet)
 
-def castFreeze(caster = player, monsterTarget = None):
+def castFreeze(caster = None, monsterTarget = None):
     if monsterTarget is None:
         message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
         target = targetMonster(maxRange = None)
@@ -564,9 +569,10 @@ def castFreeze(caster = player, monsterTarget = None):
         message("The " + target.name + " is already frozen.")
         return 'cancelled'
     
-def castFireball(radius = 3, damage = 24, range = 4, caster = player, monsterTarget = player):
+def castFireball(radius = 3, damage = 24, range = 4, caster = None, monsterTarget = player):
     global explodingTiles
-    if caster.Player is not None:
+    if caster is None or caster == player:
+        caster = player
         message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
         target = targetTile(maxRange = range)
     else:
@@ -604,8 +610,10 @@ def castFireball(radius = 3, damage = 24, range = 4, caster = player, monsterTar
                     #explodingTiles.append((x,y))
         #explode()
 
-def castArmageddon(radius = 4, damage = 80, caster = player, monsterTarget = None):
+def castArmageddon(radius = 4, damage = 80, caster = None, monsterTarget = None):
     global FOV_recompute
+    if caster is None or caster == player:
+        caster = player
     message('As you begin to read the scroll, the runes inscribed on it start emitting a very bright crimson light. Continue (Y/N)', colors.dark_red)
     FOV_recompute = True
     Update()
@@ -665,11 +673,15 @@ def castArmageddon(radius = 4, damage = 80, caster = player, monsterTarget = Non
     #Display explosion eye-candy, this could get it's own function
     explode()
 
-def castEnrage(enrageTurns, caster = player, monsterTarget = None):
+def castEnrage(enrageTurns, caster = None, monsterTarget = None):
+    if caster is None or caster == player:
+        caster = player
     enraged = Buff('enraged', colors.dark_red, owner = caster, cooldown = enrageTurns, applyFunction = lambda: modifyFighterStats(caster.Fighter, pow = 10), removeFunction = lambda: setFighterStatsBack(caster.Fighter))
     enraged.applyBuff()
 
-def castRessurect(range = 4, caster = player, monsterTarget = None):
+def castRessurect(range = 4, caster = None, monsterTarget = None):
+    if caster is None or caster == player:
+        caster = player
     target = targetTile(range)
     if target == "cancelled":
         message("Spell casting cancelled")
@@ -4416,7 +4428,7 @@ def placeObjects(room, first = False):
                 monsterChances['highCultist'] = previousHighCultistChances 
 #_____________ ROOM POPULATION + ITEMS GENERATION_______________
 
-#_____________ EQUIPEMENT ________________
+#_____________ EQUIPMENT ________________
 class Equipment:
     def __init__(self, slot, type, powerBonus=0, armorBonus=0, maxHP_Bonus=0, accuracyBonus=0, evasionBonus=0, criticalBonus = 0, maxMP_Bonus = 0, burning = False, ranged = False, rangedPower = 0, maxRange = 0, ammo = None, meleeWeapon = False, armorPenetrationBonus = 0, slow = False):
         self.slot = slot
@@ -4626,7 +4638,7 @@ def getAllEquipped(object):  #returns a list of equipped items
         return equippedList
     else:
         return []
-#_____________ EQUIPEMENT ________________
+#_____________ EQUIPMENT ________________
 
 def getAllWeights(object):
     if object == player:
