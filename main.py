@@ -384,10 +384,14 @@ class Buff: #also (and mainly) used for debuffs
         self.owner = owner
     
     def applyBuff(self):
-        message(self.owner.name.capitalize() + ' is now ' + self.name + '!', self.color)
-        if self.applyFunction is not None:
-            self.applyFunction()
-        self.owner.Fighter.buffList.append(self)
+        if not self.name in convertBuffsToNames(self.owner.Fighter):
+            message(self.owner.name.capitalize() + ' is now ' + self.name + '!', self.color)
+            if self.applyFunction is not None:
+                self.applyFunction()
+            self.owner.Fighter.buffList.append(self)
+        else:
+            bIndex = convertBuffsToNames(self.owner.Fighter).index(self.name)
+            self.owner.Fighter.buffList[bIndex].curCooldown += self.curCooldown
     
     def removeBuff(self):
         if self.removeFunction is not None:
@@ -1396,7 +1400,7 @@ class GameObject:
             return "fail"
 
 class Fighter: #All NPCs, enemies and the player
-    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = 0, shootCooldown = 0, landCooldown = 0, transferDamage = None):
+    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = 0, shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = None):
         self.baseMaxHP = hp
         self.BASE_MAX_HP = hp
         self.hp = hp
@@ -1415,7 +1419,11 @@ class Fighter: #All NPCs, enemies and the player
         self.baseArmorPenetration = armorPenetration
         self.BASE_ARMOR_PENETRATION = armorPenetration
         self.lootFunction = lootFunction
-        self.lootRate = lootRate 
+        self.lootRate = lootRate
+        
+        self.leechRessource = leechRessource
+        self.leechAmount = leechAmount
+        self.buffsOnAttack = buffsOnAttack
         
         self.buffList = []
         
@@ -1499,6 +1507,29 @@ class Fighter: #All NPCs, enemies and the player
                 else:
                     xp = self.xp
                 player.Fighter.xp += xp
+    
+    def onAttack(self, target):
+        if self.buffsOnAttack is not None:
+            for buff in self.buffsOnAttack:
+                dice = randint(1, 100)
+                if dice <= buff[0]:
+                    if buff[1] == 'burning':
+                        applyBurn(target, 100)
+                    if buff[1] == 'poisoned':
+                        poisoned = Buff('poisoned', colors.purple, owner = player, cooldown=randint(5, 10), continuousFunction=lambda: randomDamage(player.Fighter, chance = 100, minDamage=1, maxDamage=10))
+                        poisoned.applyBuff()
+        if self.leechRessource is not None:
+            hunger = self.leechRessource == 'hunger'
+            HP = self.leechRessource == 'HP'
+            MP = self.leechRessource == 'MP'
+            if hunger and target == player:
+                player.Player.hunger -= self.leechAmount
+            if HP:
+                target.Fighter.hp -= self.leechAmount
+                self.heal(self.leechAmount//2)
+            if MP:
+                target.Fighter.MP -= self.leechAmount
+                castRegenMana(self.leechAmount//2, caster = self.owner)
 
     def toHit(self, target):
         attack = randint(1, 100)
@@ -1573,7 +1604,7 @@ class Fighter: #All NPCs, enemies and the player
                             for weapon in weapons:
                                 if weapon is not None:
                                     if weapon.Equipment.burning:
-                                        applyBurn(target, chance = 25)
+                                        applyBurn(target, chance = 75)
                     
                     else:
                         message('You attack ' + target.name + ' but it has no effect!', colors.grey)
@@ -1595,6 +1626,8 @@ class Fighter: #All NPCs, enemies and the player
                     print('found slow weapon')
                     player.Player.attackedSlowly = True
                     player.Player.slowAttackCooldown = 1
+        
+        self.onAttack(target)
         
     def heal(self, amount):
         self.hp += amount
@@ -1965,23 +1998,6 @@ class Spellcaster():
                             elif diagPathState is None or monster.distanceTo(player) > 15:
                                 monster.move(randint(-1, 1), randint(-1, 1)) #wandering
             FOV_recompute = True
-
-class LeechAI:
-    def __init__(self, leechRessource = 'hunger', leechAmount = 15):
-        self.leechRessource = leechRessource
-        self.leechAmount = leechAmount
-
-    def takeTurn(self):
-        monster = self.owner
-        if not 'frozen' in convertBuffsToNames(monster.Fighter):
-            if monster.distanceTo(player) < 2:
-                (hit, crit) = monster.Fighter.toHit(player)
-                if hit:
-                    if self.leechRessource == 'hunger':
-                        player.Player.hunger -= self.leechAmount
-                        message(monster.name.capitalize() + ' hits you and sucked some of your ' + self.leechRessource + '!', colors.dark_orange)
-                else:
-                    message(monster.name.capitalize() + ' missed you.')
 
 class Player:
     def __init__(self, name, strength, dexterity, vitality, willpower, actualPerSkills, levelUpStats, skillsBonus, race, classes, traits, baseHunger = BASE_HUNGER):
@@ -3081,9 +3097,9 @@ def castPlaceBoss():
         else:
             return 'cancelled'
 
-def applyBurn(target, chance = 30):
-    burning = Buff('burning', colors.flame, owner = target, cooldown=4, continuousFunction=lambda: randomDamage(target.Fighter, chance = 100, minDamage=1, maxDamage=3, dmgMessage = 'You take {} damage from burning !'))
-    if target.Fighter and randint(0, 100) > chance and not 'burning' in convertBuffsToNames(target.Fighter):
+def applyBurn(target, chance = 70):
+    burning = Buff('burning', colors.flame, owner = target, cooldown= randint(3, 6), continuousFunction=lambda: randomDamage(target.Fighter, chance = 100, minDamage=1, maxDamage=3, dmgMessage = 'You take {} damage from burning !'))
+    if target.Fighter and randint(1, 100) <= chance and not 'burning' in convertBuffsToNames(target.Fighter):
         if not 'frozen' in convertBuffsToNames(target.Fighter):
             burning.applyBuff()
         else:
@@ -4224,14 +4240,14 @@ def createHighCultist(x, y):
         AI_component = BasicMonster()
         name = nameGen.humanLike()
         actualName = name + ' the high cultist'
-        monster = GameObject(x, y, char = 'c', color = colors.dark_red, name = actualName, blocks = True, Fighter = fighterComponent, AI = AI_component)
+        monster = GameObject(x, y, char = 'C', color = colors.dark_red, name = actualName, blocks = True, Fighter = fighterComponent, AI = AI_component)
         return monster
     else:
         return 'cancelled'
 
 def createSnake(x, y):
     if x!= player.x or y != player.y:
-        fighterComponent = Fighter(hp = 10, armor = 0, power = 3, xp = 10, deathFunction = monsterDeath, accuracy = 20, evasion = 70)
+        fighterComponent = Fighter(hp = 10, armor = 0, power = 3, xp = 10, deathFunction = monsterDeath, accuracy = 20, evasion = 70, buffsOnAttack=[[5, 'poisoned']])
         AI_component = FastMonster(2)
         monster = GameObject(x, y, char = 's', color = colors.light_green, name = 'snake', blocks = True, Fighter = fighterComponent, AI = AI_component)
         return monster
@@ -4326,8 +4342,8 @@ def placeObjects(room, first = False):
                 highCultistHasAppeared = True
             
             elif monsterChoice == 'starveling':
-                fighterComponent = Fighter(hp=45, power=0, armor = 0, xp = 50, deathFunction = monsterDeath, evasion = 45, accuracy = 40)
-                monster = GameObject(x, y, char = 'S', color = colors.lightest_yellow, name = 'starveling', blocks = True, Fighter=fighterComponent, AI = LeechAI())
+                fighterComponent = Fighter(hp=45, power=10, armor = 0, xp = 50, deathFunction = monsterDeath, evasion = 45, accuracy = 40, leechRessource='hunger', leechAmount=25)
+                monster = GameObject(x, y, char = 'S', color = colors.lightest_yellow, name = 'starveling', blocks = True, Fighter=fighterComponent, AI = BasicMonster())
                             
             else:
                 monster = None
@@ -4389,42 +4405,24 @@ def placeObjects(room, first = False):
                         satiateHunger(amount, text)
                         if choice == 'poison':
                             message("This had a very strange aftertaste...", colors.red)
-                            if not 'poisoned' in convertBuffsToNames(player.Fighter):
-                                poisoned = Buff('poisoned', colors.purple, owner = player, cooldown=randint(5, 10), continuousFunction=lambda: randomDamage(player.Fighter, chance = 100, minDamage=1, maxDamage=10))
-                                poisoned.applyBuff()
-                            else:
-                                bIndex = convertBuffsToNames(player.Fighter).index('poisoned')
-                                player.Fighter.buffList[bIndex].curCooldown += randint(5,10)
+                            poisoned = Buff('poisoned', colors.purple, owner = player, cooldown=randint(5, 10), continuousFunction=lambda: randomDamage(player.Fighter, chance = 100, minDamage=1, maxDamage=10))
+                            poisoned.applyBuff()
                         elif choice == 'freeze':
                             if not 'burning' in convertBuffsToNames(player.Fighter):
                                 message("This pie is so cold that you can feel it's coldness as it is going down your throat. Wait, actually it's your whole body that is freezing !", colors.red)
-                                if not 'frozen' in convertBuffsToNames(player.Fighter):
-                                    frozen = Buff('frozen', colors.light_violet, owner = player, cooldown = 4)
-                                    frozen.applyBuff()
-                                else:
-                                    bIndex = convertBuffsToNames(player.Fighter).index('frozen')
-                                    player.Fighter.buffList[bIndex].curCooldown += 4
+                                frozen = Buff('frozen', colors.light_violet, owner = player, cooldown = 4)
+                                frozen.applyBuff()
                             else:
                                 message("For a moment, you feel like you're burning a bit less, but it's probably just your imagination. Or your senses going numb because of your imminent death. Or both.")
                         elif choice == 'burn':
                             message("This pie is so hot that your mouth is on fire ! Literally.", colors.red)
-                            if not 'burning' in convertBuffsToNames(player.Fighter):
-                                applyBurn(player, -2)
-                            else:
-                                bIndex = convertBuffsToNames(player.Fighter).index('burning')
-                                player.Fighter.buffList[bIndex].curCooldown += 4
+                            applyBurn(player, 100)
                         elif choice == 'confuse':
                             message("You feel funny...", colors.red)
-                            if not 'confused' in convertBuffsToNames(player.Fighter):
-                                confused = Buff('confused', colors.white, owner = player, cooldown = randint(2,8))
-                                confused.applyBuff()
-                            else:
-                                bIndex = convertBuffsToNames(player.Fighter).index('confused')
-                                player.Fighter.buffList[bIndex].curCooldown += 4
+                            confused = Buff('confused', colors.white, owner = player, cooldown = randint(2,8))
+                            confused.applyBuff()
                         else:
                             message("This didn't taste as bad as you'd expect.")
-                            #TO-DO : Implement chance for buffs
-                            
                                 
                     item = GameObject(x, y, ',', "strange pie", colors.fuchsia, Item = Item(useFunction= lambda : pieDebuff(randint(100, 200), 'the pie'), weight = 0.4, stackable=True, amount = 1, description = "This looks like a pie of some sort, but for some reason it doesn't look appetizing at all. Should fill your stomach for a little while though. Wait, is that a worm you saw inside ?", itemtype = 'food'), blocks = False, pName = "strange pies")
                 elif foodChoice == 'pasta':
@@ -5491,21 +5489,6 @@ def playGame():
                     object.Fighter.curShootCooldown -= 1
                 if object.Fighter and object.Fighter.baseLandCooldown > 0 and object.Fighter is not None:
                     object.Fighter.curLandCooldown -= 1
-
-                #if object.Fighter and object.Fighter.burning and object.Fighter is not None:
-                #    try:
-                #        object.Fighter.burnCooldown -= 1
-                #        object.Fighter.takeDamage(3)
-                #        message('The ' + str(object.name) + ' keeps burning !')
-                #        if object.Fighter.burnCooldown < 0:
-                #            object.Fighter.burnCooldown = 0
-                #        if object.Fighter.burnCooldown == 0:
-                #            object.Fighter.burning = False
-                #            message(object.name.capitalize() + "'s flames die down", colors.darker_orange)
-                #    except AttributeError:
-                #        global DEBUG
-                #        if DEBUG:
-                #            message('Failed to apply burn to ' + object.name, colors.violet)
 
                 if object.Fighter and object.Fighter.spellsOnCooldown and object.Fighter is not None:
                     try:
