@@ -138,6 +138,7 @@ logMsgs = []
 tilesInRange = []
 explodingTiles = []
 tilesinPath = []
+tilesInRect = []
 menuWindows = []
 hiroshimanNumber = 0
 FOV_recompute = True
@@ -733,9 +734,33 @@ def castPlaceTag(caster = None, monsterTarget = None):
             textFile = open(rawPath, 'w')
         toWrite = '(' + str(x) + ';' + str(y) + ')\n'
         textFile.write(toWrite)
-        textFile.close
+        textFile.close()
     else:
         return 'cancelled'
+
+def castDrawRectangle(caster = None, monsterTarget = None):
+    startingTile = targetAnyTile()
+    if startingTile != 'cancelled' :
+        (startingX, startingY) = startingTile
+        endTile = targetAnyTile(startingX, startingY, True)
+        if endTile != 'cancelled':
+            (endX, endY) = endTile
+            rWidth = endY - startingY
+            rHeight = endX - startingX
+            rawPath = os.path.join(curDir, 'rectangles.txt')
+            filePath = pathlib.Path(os.path.join(rawPath))
+            if filePath.is_file():
+                textFile = open(rawPath, 'a')
+            else:
+                textFile = open(rawPath, 'w')
+            toWrite = '( Start X = ' + str(startingX) + '/ Start Y = ' + str(startingY) + '/ Width = ' + str(rWidth) + '/ Height = '+ str(rHeight) +')\n'
+            textFile.write(toWrite)
+            textFile.close()
+        else:
+            return 'cancelled'
+    else:
+        return 'cancelled'
+    
 
 fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 1, arg2 = 12, arg3 = 4)
 heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 20)
@@ -746,8 +771,9 @@ confuse = Spell(ressourceCost = 5, cooldown = 4, useFunction = castConfuse, name
 ice = Spell(ressourceCost = 9, cooldown = 5, useFunction = castFreeze, name = 'Ice bolt', ressource = 'MP', type = 'Magic', magicLevel = 2)
 ressurect = Spell(ressourceCost = 10, cooldown = 15, useFunction=castRessurect, name = "Dark ressurection", ressource = 'MP', type = "Occult", arg1 = 4)
 placeTag = Spell(ressourceCost = 0, cooldown = 0, useFunction=castPlaceTag, name = 'DEBUG : Place tag', ressource = 'MP', type = 'Occult')
+drawRect = Spell(ressourceCost = 0, cooldown = 0, useFunction=castDrawRectangle, name = 'DEBUG : Draw Rectangle', ressource = 'MP', type = 'Occult')
 
-spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag])
+spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect])
 #_____________SPELLS_____________
 
 #______________CHARACTER GENERATION____________
@@ -2069,6 +2095,8 @@ class Player:
         
         if DEBUG:
             print('Player component initialized')
+        
+        self.hasDiscoveredTown = False
         
     def changeColor(self):
         self.hpRatio = ((self.owner.Fighter.hp / self.owner.Fighter.maxHP) * 100)
@@ -3649,6 +3677,16 @@ def makeHiddenTown():
     upStairs = GameObject(int(player.x), int(player.y), '<', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor)
     objects.append(upStairs)
     upStairs.sendToBack()
+    
+    #Code above this must go at the end of the makeHiddenTown() function, no matter what kinds of additions you make to it
+    for y in range(MAP_HEIGHT):
+        for x in range(MAP_WIDTH):
+            if myMap[x][y].blocked:
+                myMap[x][y].unbreakable = True #We make so we cannot destruct town walls.
+    
+    if not player.Player.hasDiscoveredTown:
+        player.Player.hasDiscoveredTown = True
+        message("You feel the walls of this place emanating a strong magical aura.")
 
 def createEndRooms():
     global rooms, stairs, myMap, objects, numberRooms
@@ -5090,6 +5128,7 @@ def Update():
     global FOV_recompute
     global visibleTiles
     global tilesinPath
+    global tilesInRange
     con.clear()
     tdl.flush()
     player.Player.changeColor()
@@ -5112,6 +5151,7 @@ def Update():
                 if gameState == 'targeting':
                     inRange = (x, y) in tilesInRange
                     inPath = pathToTargetTile and (x,y) in pathToTargetTile
+                    inRect = tilesInRect and (x, y) in tilesInRect
                     if inRange and not tile.wall:
                         con.draw_char(x, y, None, fg=None, bg=colors.darker_yellow)
                     if inPath:
@@ -5120,6 +5160,8 @@ def Update():
                                 con.draw_char(x, y, '.', fg = colors.dark_green, bg = None)
                             else:
                                 con.draw_char(x, y, 'X', fg = colors.red, bg = None)
+                    if inRect:
+                        con.draw_char(x, y, 'X', fg = colors.yellow, bg = None)
                         
                 elif gameState == 'exploding':
                     exploded = (x,y) in explodingTiles
@@ -5167,6 +5209,7 @@ def Update():
         global lookCursor
         lookCursor.draw()
         panel.draw_str(1, 0, GetNamesUnderLookCursor(), bg=None, fg = colors.yellow)
+ 
         
     root.blit(panel, 0, PANEL_Y, WIDTH, PANEL_HEIGHT, 0, 0)
     
@@ -5256,10 +5299,14 @@ def targetTile(maxRange = None, showBresenham = False, unlimited = False):
             Update()
             return (x, y)
 
-def targetAnyTile():
-    global gameState, FOV_recompute
+def targetAnyTile(startX = None, startY = None, drawRectangle = False):
+    global gameState, FOV_recompute, tilesInRect
     gameState = 'targeting'
-    cursor = GameObject(x = player.x, y = player.y, char = 'X', name = 'cursor', color = colors.yellow, Ghost = True)
+    if startX is None:
+        startX = player.x
+    if startY is None:
+        startY = player.y
+    cursor = GameObject(x = startX, y = startY, char = 'X', name = 'cursor', color = colors.yellow, Ghost = True)
     objects.append(cursor)
         
     FOV_recompute= True
@@ -5272,14 +5319,20 @@ def targetAnyTile():
         if key.keychar.upper() == 'ESCAPE':
             gameState = 'playing'
             objects.remove(cursor)
+            tilesInRect = []
             del cursor
             con.clear()
             Update()
             return 'cancelled'
         elif key.keychar.upper() in MOVEMENT_KEYS:
             dx, dy = MOVEMENT_KEYS[key.keychar.upper()]
-            if not myMap[cursor.x + dx][cursor.y + dy].unbreakable:
+            if not myMap[cursor.x + dx][cursor.y + dy].unbreakable and (not drawRectangle or (not ((cursor.x+dx) < startX) and not ((cursor.y + dy) < startY))) :
                 cursor.move(dx, dy)
+                if drawRectangle:
+                    tilesInRect = []
+                    for wx in range(startX, cursor.x + 1):
+                        for wy in range(startY, cursor.y + 1):
+                            tilesInRect.append((wx, wy))
                 Update()
                 tdl.flush()
                 for object in objects:
@@ -5289,7 +5342,7 @@ def targetAnyTile():
             gameState = 'playing'
             x = cursor.x
             y = cursor.y
-            tilesInRange = []
+            tilesInRect = []
             gameState = 'playing'
             objects.remove(cursor)
             del cursor
