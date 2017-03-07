@@ -1,4 +1,4 @@
-import colors, math, textwrap, time, os, sys, code, gzip #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
+import colors, math, textwrap, time, os, sys, code, gzip, pathlib #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
 import tdlib as tdl
 import simpleaudio as sa
 import dill #THIS IS NOT AN UNUSED IMPORT. Importing this changes the behavior of the pickle module (and the shelve module too), so as we can actually save lambda expressions
@@ -718,7 +718,16 @@ def castRessurect(range = 4, caster = None, monsterTarget = None):
             if monster is not None:
                 objects.append(monster)
 
-    
+def castPlaceTag(caster = None, monsterTarget = None):
+    (x, y) = targetTile(maxRange = None, showBresenham = False, unlimited = True)
+    filePath = pathlib.Path(os.path.join(curDir, 'tags.txt'))
+    if filePath.is_file():
+        textFile = open(filePath, 'a')
+    else:
+        textFile = open(filePath, 'w')
+    toWrite = '(' + str(x) + ';' + str(y) + ')\n'
+    textFile.write(toWrite)
+    textFile.close
 
 fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 1, arg2 = 12, arg3 = 4)
 heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 20)
@@ -728,8 +737,9 @@ lightning = Spell(ressourceCost = 10, cooldown = 7, useFunction = castLightning,
 confuse = Spell(ressourceCost = 5, cooldown = 4, useFunction = castConfuse, name = 'Confusion', ressource = 'MP', type = 'Magic', magicLevel = 1)
 ice = Spell(ressourceCost = 9, cooldown = 5, useFunction = castFreeze, name = 'Ice bolt', ressource = 'MP', type = 'Magic', magicLevel = 2)
 ressurect = Spell(ressourceCost = 10, cooldown = 15, useFunction=castRessurect, name = "Dark ressurection", ressource = 'MP', type = "Occult", arg1 = 4)
+placeTag = Spell(ressourceCost = 0, cooldown = 0, useFunction=castPlaceTag, name = 'DEBUG : Place tag', ressource = 'MP', type = 'Occult')
 
-spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect])
+spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag])
 #_____________SPELLS_____________
 
 #______________CHARACTER GENERATION____________
@@ -5121,7 +5131,7 @@ def GetNamesUnderLookCursor():
     names = ', '.join(names)
     return names.capitalize()
 
-def targetTile(maxRange = None, showBresenham = False):
+def targetTile(maxRange = None, showBresenham = False, unlimited = False):
     global gameState
     global cursor
     global tilesInRange
@@ -5134,8 +5144,13 @@ def targetTile(maxRange = None, showBresenham = False):
     gameState = 'targeting'
     cursor = GameObject(x = player.x, y = player.y, char = 'X', name = 'cursor', color = colors.yellow, Ghost = True)
     objects.append(cursor)
-    for (rx, ry) in visibleTiles:
-            if maxRange is None or player.distanceToCoords(rx,ry) <= maxRange:
+    if not unlimited:
+        for (rx, ry) in visibleTiles:
+                if maxRange is None or player.distanceToCoords(rx,ry) <= maxRange:
+                    tilesInRange.append((rx, ry))
+    else:
+        for (rx, ry) in myMap:
+            if not myMap[rx][ry].blocked:
                 tilesInRange.append((rx, ry))
     
         
