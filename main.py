@@ -1,4 +1,5 @@
-import tdl, colors, math, textwrap, time, os, sys, code, gzip #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
+import colors, math, textwrap, time, os, sys, code, gzip, pathlib #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
+import tdlib as tdl
 import simpleaudio as sa
 import dill #THIS IS NOT AN UNUSED IMPORT. Importing this changes the behavior of the pickle module (and the shelve module too), so as we can actually save lambda expressions
 from tdl import *
@@ -110,7 +111,7 @@ FIREBALL_SPELL_BASE_DAMAGE = 12
 FIREBALL_SPELL_BASE_RADIUS = 1
 FIREBALL_SPELL_BASE_RANGE = 4
 
-RESURECTABLE_CORPSES = ["darksoul", "troll"]
+RESURECTABLE_CORPSES = ["darksoul", "ogre"]
 
 BASE_HUNGER = 500
 # - Spells -
@@ -384,10 +385,14 @@ class Buff: #also (and mainly) used for debuffs
         self.owner = owner
     
     def applyBuff(self):
-        message(self.owner.name.capitalize() + ' is now ' + self.name + '!', self.color)
-        if self.applyFunction is not None:
-            self.applyFunction()
-        self.owner.Fighter.buffList.append(self)
+        if not self.name in convertBuffsToNames(self.owner.Fighter):
+            message(self.owner.name.capitalize() + ' is now ' + self.name + '!', self.color)
+            if self.applyFunction is not None:
+                self.applyFunction()
+            self.owner.Fighter.buffList.append(self)
+        else:
+            bIndex = convertBuffsToNames(self.owner.Fighter).index(self.name)
+            self.owner.Fighter.buffList[bIndex].curCooldown += self.curCooldown
     
     def removeBuff(self):
         if self.removeFunction is not None:
@@ -498,7 +503,7 @@ def learnSpell(spell):
         return "cancelled"
 
 def castRegenMana(regenAmount, caster = None, target = None):
-    if caster is None:
+    if caster is None or caster == player:
         caster = player
     if caster.Fighter.MP != caster.Fighter.maxMP:
         caster.Fighter.MP += regenAmount
@@ -512,12 +517,14 @@ def castRegenMana(regenAmount, caster = None, target = None):
         message(caster.name.capitalize() + "'s MP are already maxed out")
         return "cancelled"
 
-def castDarkRitual(regen, damage, caster = player, target = None):
+def castDarkRitual(regen, damage, caster = None, target = None):
+    if caster is None or caster == player:
+        caster = player
     message(caster.name.capitalize() + ' takes ' + str(damage) + ' damage from the ritual !', colors.red)
     castRegenMana(regen, caster)
 
 def castHeal(healAmount = 10, caster = None, target = None):
-    if caster is None:
+    if caster is None or caster == player:
         caster = player
     if caster.Fighter.hp == caster.Fighter.maxHP:
         message(caster.name.capitalize() + ' is already at full health')
@@ -526,8 +533,9 @@ def castHeal(healAmount = 10, caster = None, target = None):
         message(caster.name.capitalize() + ' is healed for {} HP !'.format(healAmount), colors.light_green)
         caster.Fighter.heal(healAmount)
 
-def castLightning(caster = player, monsterTarget = player):
-    if caster == player:
+def castLightning(caster = None, monsterTarget = player):
+    if caster is None or caster == player:
+        caster = player
         target = closestMonster(LIGHTNING_RANGE)
     elif caster.distanceTo(monsterTarget) <= LIGHTNING_RANGE:
         target = monsterTarget
@@ -537,18 +545,20 @@ def castLightning(caster = player, monsterTarget = player):
     message('A lightning bolt strikes the ' + target.name + ' with a heavy thunder ! It is shocked and suffers ' + str(LIGHTNING_DAMAGE) + ' shock damage.', colors.light_blue)
     target.Fighter.takeDamage(LIGHTNING_DAMAGE)
 
-def castConfuse(caster = player, monsterTarget = None):
-    message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
-    target = targetMonster(maxRange = CONFUSE_RANGE)
-    if target is None:
-        message('Invalid target.', colors.red)
-        return 'cancelled'
-    old_AI = target.AI
-    target.AI = ConfusedMonster(old_AI)
-    target.AI.owner = target
-    message('The ' + target.name + ' starts wandering around as he seems to lose all bound with reality.', colors.light_violet)
+def castConfuse(caster = None, monsterTarget = None):
+    if caster is None or caster == player:
+        caster = player
+        message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
+        target = targetMonster(maxRange = CONFUSE_RANGE)
+        if target is None:
+            message('Invalid target.', colors.red)
+            return 'cancelled'
+        old_AI = target.AI
+        target.AI = ConfusedMonster(old_AI)
+        target.AI.owner = target
+        message('The ' + target.name + ' starts wandering around as he seems to lose all bound with reality.', colors.light_violet)
 
-def castFreeze(caster = player, monsterTarget = None):
+def castFreeze(caster = None, monsterTarget = None):
     if monsterTarget is None:
         message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
         target = targetMonster(maxRange = None)
@@ -564,9 +574,10 @@ def castFreeze(caster = player, monsterTarget = None):
         message("The " + target.name + " is already frozen.")
         return 'cancelled'
     
-def castFireball(radius = 3, damage = 24, range = 4, caster = player, monsterTarget = player):
+def castFireball(radius = 3, damage = 24, range = 4, caster = None, monsterTarget = player):
     global explodingTiles
-    if caster.Player is not None:
+    if caster is None or caster == player:
+        caster = player
         message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
         target = targetTile(maxRange = range)
     else:
@@ -604,8 +615,10 @@ def castFireball(radius = 3, damage = 24, range = 4, caster = player, monsterTar
                     #explodingTiles.append((x,y))
         #explode()
 
-def castArmageddon(radius = 4, damage = 80, caster = player, monsterTarget = None):
+def castArmageddon(radius = 4, damage = 80, caster = None, monsterTarget = None):
     global FOV_recompute
+    if caster is None or caster == player:
+        caster = player
     message('As you begin to read the scroll, the runes inscribed on it start emitting a very bright crimson light. Continue (Y/N)', colors.dark_red)
     FOV_recompute = True
     Update()
@@ -665,11 +678,15 @@ def castArmageddon(radius = 4, damage = 80, caster = player, monsterTarget = Non
     #Display explosion eye-candy, this could get it's own function
     explode()
 
-def castEnrage(enrageTurns, caster = player, monsterTarget = None):
+def castEnrage(enrageTurns, caster = None, monsterTarget = None):
+    if caster is None or caster == player:
+        caster = player
     enraged = Buff('enraged', colors.dark_red, owner = caster, cooldown = enrageTurns, applyFunction = lambda: modifyFighterStats(caster.Fighter, pow = 10), removeFunction = lambda: setFighterStatsBack(caster.Fighter))
     enraged.applyBuff()
 
-def castRessurect(range = 4, caster = player, monsterTarget = None):
+def castRessurect(range = 4, caster = None, monsterTarget = None):
+    if caster is None or caster == player:
+        caster = player
     target = targetTile(range)
     if target == "cancelled":
         message("Spell casting cancelled")
@@ -696,10 +713,26 @@ def castRessurect(range = 4, caster = player, monsterTarget = None):
             objects.remove(ressurectable)
             if corpseType == "darksoul":
                 monster = createDarksoul(x, y, friendly = True, corpse = True)
-            elif corpseType == "troll":
-                monster = createTroll(x, y, friendly = True, corpse = True)
+            elif corpseType == "ogre":
+                monster = createOgre(x, y, friendly = True, corpse = True)
             if monster is not None:
                 objects.append(monster)
+
+def castPlaceTag(caster = None, monsterTarget = None):
+    targetedTile = targetTile(maxRange = None, showBresenham = False, unlimited = True)
+    if targetedTile != 'cancelled':
+        (x, y) = targetedTile
+        rawPath = os.path.join(curDir, 'tags.txt')
+        filePath = pathlib.Path(os.path.join(rawPath))
+        if filePath.is_file():
+            textFile = open(rawPath, 'a')
+        else:
+            textFile = open(rawPath, 'w')
+        toWrite = '(' + str(x) + ';' + str(y) + ')\n'
+        textFile.write(toWrite)
+        textFile.close
+    else:
+        return 'cancelled'
 
 fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 1, arg2 = 12, arg3 = 4)
 heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 20)
@@ -709,8 +742,9 @@ lightning = Spell(ressourceCost = 10, cooldown = 7, useFunction = castLightning,
 confuse = Spell(ressourceCost = 5, cooldown = 4, useFunction = castConfuse, name = 'Confusion', ressource = 'MP', type = 'Magic', magicLevel = 1)
 ice = Spell(ressourceCost = 9, cooldown = 5, useFunction = castFreeze, name = 'Ice bolt', ressource = 'MP', type = 'Magic', magicLevel = 2)
 ressurect = Spell(ressourceCost = 10, cooldown = 15, useFunction=castRessurect, name = "Dark ressurection", ressource = 'MP', type = "Occult", arg1 = 4)
+placeTag = Spell(ressourceCost = 0, cooldown = 0, useFunction=castPlaceTag, name = 'DEBUG : Place tag', ressource = 'MP', type = 'Occult')
 
-spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect])
+spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag])
 #_____________SPELLS_____________
 
 #______________CHARACTER GENERATION____________
@@ -794,12 +828,12 @@ def characterCreation():
     races = ['Human', 'Minotaur', 'Insectoid', 'Felis', 'Reptilian', 'Demon spawn', 'Rootling', 'Werewolf', 'Devourer', 'Virus ']
     racesDescription = ['Humans are the most common race. They have no special characteristic, and are neither better or worse at anything. However, they are good learners and gain experience faster.',
                         'Minotaurs, whose muscular bodies are topped with a taurine head, are tougher and stronger than humans, but are way less smart. They are uncontrollable and, when angered, can become a wrecking ball of muscles and thorns.',
-                        'Insectoids are a rare race of bipedal insects which are stronger than human but, more importantly, very good at arcane arts. They come in all kinds of forms, from the slende mantis to the bulky beetle.',
+                        'Insectoids are a rare race of bipedal insects which are stronger than human but, more importantly, very good at arcane arts. They come in all kinds of forms, from the slender mantis to the bulky beetle.',
                         'Felis, kinds of humanoid cats, are sneaky thieves and assassins. They usually move silently and can see in the dark.',
                         'Reptilians are very agile but absurdly weak. Their scaled skin, however, sometimes provides them with natural camouflage, and they might use their natural venom on their daggers or arrows to make them even more deadly.',
                         'Demon spawns, a very uncommon breed of a human and a demon, are cursed with the heritage of  their demonic parents, which will make them grow disturbing mutations as they grow older and stronger.',
                         'Rootlings, also called treants, are rare, sentient plants. They begin their life as a simple twig, but, with time, might become gigantic oaks.',
-                        'Werewolves are a martyred and despised race. Very tough to kill, they are naturally stronger than basic humans and uncontrollably shapeshift more or less regularly. However, older werewolves are used to these transformations and can even use them to their interests.',
+                        'Werewolves are a martyred and despised race. Very tough to kill, they are naturally stronger than basic humans and unconogreably shapeshift more or less regularly. However, older werewolves are used to these transformations and can even use them to their interests.',
                         'Devourers are strange, dreaded creatures from another dimension. Few have arrived in ours and even fewer have been described. These animals, half mantis, half lizard, are only born to kill and consume. Some of their breeds can even, after consuming anything - even a weapon - grow an organic replica of it.',
                         'Viruses are the physically weakest race, but do not base their success on their own bodies. Indeed, they are able to infect another race, making it their host and fully controllable by the virus. What is more, the virus own physical attributes, instead of applying to it directly, rather modifies the host metabolism, potentially making it stronger or tougher. However, this take-over is very harmful for the host, who will eventually die. The virus must then find a new host to continue living.']
     racesBonus = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], #Human
@@ -1266,7 +1300,7 @@ def closestMonster(max_range):
 
 class GameObject:
     "A generic object, represented by a character"
-    def __init__(self, x, y, char, name, color = colors.white, blocks = False, Fighter = None, AI = None, Player = None, Ghost = False, Item = None, alwaysVisible = False, darkColor = None, Equipment = None, pName = None):
+    def __init__(self, x, y, char, name, color = colors.white, blocks = False, Fighter = None, AI = None, Player = None, Ghost = False, Item = None, alwaysVisible = False, darkColor = None, Equipment = None, pName = None, Essence = None):
         self.x = x
         self.y = y
         self.char = char
@@ -1291,6 +1325,9 @@ class GameObject:
         self.Equipment = Equipment
         if self.Equipment:
             self.Equipment.owner = self
+        self.Essence = Essence
+        if self.Essence:
+            self.Essence.owner = self
         self.astarPath = []
         self.lastTargetX = None
         self.lastTargetY = None
@@ -1384,7 +1421,7 @@ class GameObject:
             return "fail"
 
 class Fighter: #All NPCs, enemies and the player
-    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = 0, shootCooldown = 0, landCooldown = 0, transferDamage = None):
+    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = 0, shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = None):
         self.baseMaxHP = hp
         self.BASE_MAX_HP = hp
         self.hp = hp
@@ -1403,7 +1440,11 @@ class Fighter: #All NPCs, enemies and the player
         self.baseArmorPenetration = armorPenetration
         self.BASE_ARMOR_PENETRATION = armorPenetration
         self.lootFunction = lootFunction
-        self.lootRate = lootRate 
+        self.lootRate = lootRate
+        
+        self.leechRessource = leechRessource
+        self.leechAmount = leechAmount
+        self.buffsOnAttack = buffsOnAttack
         
         self.buffList = []
         
@@ -1487,6 +1528,29 @@ class Fighter: #All NPCs, enemies and the player
                 else:
                     xp = self.xp
                 player.Fighter.xp += xp
+    
+    def onAttack(self, target):
+        if self.buffsOnAttack is not None:
+            for buff in self.buffsOnAttack:
+                dice = randint(1, 100)
+                if dice <= buff[0]:
+                    if buff[1] == 'burning':
+                        applyBurn(target, 100)
+                    if buff[1] == 'poisoned':
+                        poisoned = Buff('poisoned', colors.purple, owner = player, cooldown=randint(5, 10), continuousFunction=lambda: randomDamage(player.Fighter, chance = 100, minDamage=1, maxDamage=10))
+                        poisoned.applyBuff()
+        if self.leechRessource is not None:
+            hunger = self.leechRessource == 'hunger'
+            HP = self.leechRessource == 'HP'
+            MP = self.leechRessource == 'MP'
+            if hunger and target == player:
+                player.Player.hunger -= self.leechAmount
+            if HP:
+                target.Fighter.hp -= self.leechAmount
+                self.heal(self.leechAmount//2)
+            if MP:
+                target.Fighter.MP -= self.leechAmount
+                castRegenMana(self.leechAmount//2, caster = self.owner)
 
     def toHit(self, target):
         attack = randint(1, 100)
@@ -1561,7 +1625,7 @@ class Fighter: #All NPCs, enemies and the player
                             for weapon in weapons:
                                 if weapon is not None:
                                     if weapon.Equipment.burning:
-                                        applyBurn(target, chance = 25)
+                                        applyBurn(target, chance = 75)
                     
                     else:
                         message('You attack ' + target.name + ' but it has no effect!', colors.grey)
@@ -1583,6 +1647,8 @@ class Fighter: #All NPCs, enemies and the player
                     print('found slow weapon')
                     player.Player.attackedSlowly = True
                     player.Player.slowAttackCooldown = 1
+        
+        self.onAttack(target)
         
     def heal(self, amount):
         self.hp += amount
@@ -2056,6 +2122,14 @@ class Player:
         self.inHost = True
         self.hostDeath = self.HOST_DEATH
 
+class Essence:
+    def __init(self, sin = None, color = None):
+        self.sin = sin
+        self.color = color
+    
+    #def absorb(self):
+        
+
 class Item:
     def __init__(self, useFunction = None,  arg1 = None, arg2 = None, arg3 = None, stackable = False, amount = 1, weight = 0, description = 'Placeholder.', pic = 'trollMace.xp', itemtype = None):
         self.useFunction = useFunction
@@ -2175,7 +2249,10 @@ class Item:
         self.owner.x = player.x
         self.owner.y = player.y
         if self.stackable:
-            message('You dropped ' + str(self.amount) + ' ' + self.owner.pluralName + '.', colors.yellow)
+            try:
+                message('You dropped ' + str(self.amount) + ' ' + self.owner.pluralName + '.', colors.yellow)
+            except TypeError: #Bug Theo
+                message('Amount is None', colors.red)
         else:
             message('You dropped a ' + self.owner.name + '.', colors.yellow)
         if self.owner.Equipment:
@@ -3052,9 +3129,9 @@ def castPlaceBoss():
         else:
             return 'cancelled'
 
-def applyBurn(target, chance = 30):
-    burning = Buff('burning', colors.flame, owner = target, cooldown=4, continuousFunction=lambda: randomDamage(target.Fighter, chance = 100, minDamage=1, maxDamage=3, dmgMessage = 'You take {} damage from burning !'))
-    if target.Fighter and randint(0, 100) > chance and not 'burning' in convertBuffsToNames(target.Fighter):
+def applyBurn(target, chance = 70):
+    burning = Buff('burning', colors.flame, owner = target, cooldown= randint(3, 6), continuousFunction=lambda: randomDamage(target.Fighter, chance = 100, minDamage=1, maxDamage=3, dmgMessage = 'You take {} damage from burning !'))
+    if target.Fighter and randint(1, 100) <= chance and not 'burning' in convertBuffsToNames(target.Fighter):
         if not 'frozen' in convertBuffsToNames(target.Fighter):
             burning.applyBuff()
         else:
@@ -4129,17 +4206,17 @@ def createDarksoul(x, y, friendly = False, corpse = False):
     else:
         return 'cancelled'
 
-def createTroll(x, y, friendly = False, corpse = False):
+def createOgre(x, y, friendly = False, corpse = False):
     if x != player.x or y != player.y:
         if not corpse:
             equipmentComponent = Equipment(slot = 'two handed', type = 'heavy weapon', powerBonus = 15, accuracyBonus = -20, meleeWeapon=True, slow = True)
-            trollMace = GameObject(x, y, '/', 'troll mace', colors.darker_orange, Equipment=equipmentComponent, Item=Item(weight = 13.0, pic = 'trollMace.xp', description= 'A dumb weapon for dumb people.'))
+            trollMace = GameObject(x, y, '/', 'ogre mace', colors.darker_orange, Equipment=equipmentComponent, Item=Item(weight = 13.0, pic = 'trollMace.xp', description= 'A dumb weapon for dumb people.'))
             lootOnDeath = [trollMace]
             deathType = monsterDeath
-            monName = "troll"
-            color = colors.darker_green
+            monName = "ogre"
+            color = colors.lightest_yellow
         else:
-            monName = "troll skeleton"
+            monName = "ogre skeleton"
             deathType = zombieDeath
             lootOnDeath = None
             color = colors.lighter_grey
@@ -4148,7 +4225,7 @@ def createTroll(x, y, friendly = False, corpse = False):
         else:
             AI_component = FriendlyMonster(friendlyTowards = player)
         fighterComponent = Fighter(hp=40, armor=4, power=8, xp = 100, deathFunction = deathType, accuracy = 7, evasion = 1, lootFunction=lootOnDeath, lootRate=[15])
-        monster = GameObject(x, y, char = 'T', color = color, name = monName, blocks = True, Fighter=fighterComponent, AI = AI_component)
+        monster = GameObject(x, y, char = 'O', color = color, name = monName, blocks = True, Fighter=fighterComponent, AI = AI_component)
         return monster
     else:
         if corpse:
@@ -4195,14 +4272,14 @@ def createHighCultist(x, y):
         AI_component = BasicMonster()
         name = nameGen.humanLike()
         actualName = name + ' the high cultist'
-        monster = GameObject(x, y, char = 'c', color = colors.dark_red, name = actualName, blocks = True, Fighter = fighterComponent, AI = AI_component)
+        monster = GameObject(x, y, char = 'C', color = colors.dark_red, name = actualName, blocks = True, Fighter = fighterComponent, AI = AI_component)
         return monster
     else:
         return 'cancelled'
 
 def createSnake(x, y):
     if x!= player.x or y != player.y:
-        fighterComponent = Fighter(hp = 10, armor = 0, power = 3, xp = 10, deathFunction = monsterDeath, accuracy = 20, evasion = 70)
+        fighterComponent = Fighter(hp = 10, armor = 0, power = 3, xp = 10, deathFunction = monsterDeath, accuracy = 20, evasion = 70, buffsOnAttack=[[5, 'poisoned']])
         AI_component = FastMonster(2)
         monster = GameObject(x, y, char = 's', color = colors.light_green, name = 'snake', blocks = True, Fighter = fighterComponent, AI = AI_component)
         return monster
@@ -4236,19 +4313,20 @@ def placeObjects(room, first = False):
     potionChances = currentBranch.potionChances
     numMonsters = randint(0, MAX_ROOM_MONSTERS)
     monster = None
-    if 'troll' in monsterChances.keys():
-        previousTrollChances = monsterChances['troll']
+    if 'ogre' in monsterChances.keys():
+        previousTrollChances = int(monsterChances['ogre'])
     if 'hiroshiman' in monsterChances.keys():
-        previousHiroChances = monsterChances['hiroshiman']
+        previousHiroChances = int(monsterChances['hiroshiman'])
     if 'highCultist' in monsterChances.keys():
-        previousHighCultistChances = monsterChances['highCultist']
+        previousHighCultistChances = int(monsterChances['highCultist'])
+        print('Previous high cultist chances {}'.format(previousHighCultistChances))
     if dungeonLevel > 2 and hiroshimanNumber == 0 and not first and 'hiroshiman' in monsterChances.keys():
-        if 'troll' in monsterChances.keys():
-            monsterChances['troll'] -= 50
+        if 'ogre' in monsterChances.keys() and not monsterChances['ogre'] < 50:
+            monsterChances['ogre'] -= 50
         monsterChances['hiroshiman'] = 50
     if not highCultistHasAppeared and not first and 'highCultist' in monsterChances.keys():
-        if 'troll' in monsterChances.keys():
-            monsterChances['troll'] -= 50
+        if 'ogre' in monsterChances.keys() and not monsterChances['ogre'] < 50:
+            monsterChances['ogre'] -= 50
         monsterChances['highCultist'] = 50
     
     for i in range(numMonsters):
@@ -4267,10 +4345,10 @@ def placeObjects(room, first = False):
                 monster = createHiroshiman(x, y)
                 hiroshimanNumber = 1
                 del monsterChances['hiroshiman']
-                monsterChances['troll'] = 20
+                monsterChances['ogre'] = 20
                 
-            elif monsterChoice == 'troll':
-                monster = createTroll(x, y)
+            elif monsterChoice == 'ogre':
+                monster = createOgre(x, y)
             
             elif monsterChoice == 'snake':
                 monster = createSnake(x, y)
@@ -4295,6 +4373,10 @@ def placeObjects(room, first = False):
                 if minionNumber == 0:
                     print("Couldn't create any minion")
                 highCultistHasAppeared = True
+            
+            elif monsterChoice == 'starveling':
+                fighterComponent = Fighter(hp=45, power=10, armor = 0, xp = 50, deathFunction = monsterDeath, evasion = 45, accuracy = 40, leechRessource='hunger', leechAmount=25)
+                monster = GameObject(x, y, char = 'S', color = colors.lightest_yellow, name = 'starveling', blocks = True, Fighter=fighterComponent, AI = BasicMonster())
                             
             else:
                 monster = None
@@ -4356,42 +4438,24 @@ def placeObjects(room, first = False):
                         satiateHunger(amount, text)
                         if choice == 'poison':
                             message("This had a very strange aftertaste...", colors.red)
-                            if not 'poisoned' in convertBuffsToNames(player.Fighter):
-                                poisoned = Buff('poisoned', colors.purple, owner = player, cooldown=randint(5, 10), continuousFunction=lambda: randomDamage(player.Fighter, chance = 100, minDamage=1, maxDamage=10))
-                                poisoned.applyBuff()
-                            else:
-                                bIndex = convertBuffsToNames(player.Fighter).index('poisoned')
-                                player.Fighter.buffList[bIndex].curCooldown += randint(5,10)
+                            poisoned = Buff('poisoned', colors.purple, owner = player, cooldown=randint(5, 10), continuousFunction=lambda: randomDamage(player.Fighter, chance = 100, minDamage=1, maxDamage=10))
+                            poisoned.applyBuff()
                         elif choice == 'freeze':
                             if not 'burning' in convertBuffsToNames(player.Fighter):
                                 message("This pie is so cold that you can feel it's coldness as it is going down your throat. Wait, actually it's your whole body that is freezing !", colors.red)
-                                if not 'frozen' in convertBuffsToNames(player.Fighter):
-                                    frozen = Buff('frozen', colors.light_violet, owner = player, cooldown = 4)
-                                    frozen.applyBuff()
-                                else:
-                                    bIndex = convertBuffsToNames(player.Fighter).index('frozen')
-                                    player.Fighter.buffList[bIndex].curCooldown += 4
+                                frozen = Buff('frozen', colors.light_violet, owner = player, cooldown = 4)
+                                frozen.applyBuff()
                             else:
                                 message("For a moment, you feel like you're burning a bit less, but it's probably just your imagination. Or your senses going numb because of your imminent death. Or both.")
                         elif choice == 'burn':
                             message("This pie is so hot that your mouth is on fire ! Literally.", colors.red)
-                            if not 'burning' in convertBuffsToNames(player.Fighter):
-                                applyBurn(player, -2)
-                            else:
-                                bIndex = convertBuffsToNames(player.Fighter).index('burning')
-                                player.Fighter.buffList[bIndex].curCooldown += 4
+                            applyBurn(player, 100)
                         elif choice == 'confuse':
                             message("You feel funny...", colors.red)
-                            if not 'confused' in convertBuffsToNames(player.Fighter):
-                                confused = Buff('confused', colors.white, owner = player, cooldown = randint(2,8))
-                                confused.applyBuff()
-                            else:
-                                bIndex = convertBuffsToNames(player.Fighter).index('confused')
-                                player.Fighter.buffList[bIndex].curCooldown += 4
+                            confused = Buff('confused', colors.white, owner = player, cooldown = randint(2,8))
+                            confused.applyBuff()
                         else:
                             message("This didn't taste as bad as you'd expect.")
-                            #TO-DO : Implement chance for buffs
-                            
                                 
                     item = GameObject(x, y, ',', "strange pie", colors.fuchsia, Item = Item(useFunction= lambda : pieDebuff(randint(100, 200), 'the pie'), weight = 0.4, stackable=True, amount = 1, description = "This looks like a pie of some sort, but for some reason it doesn't look appetizing at all. Should fill your stomach for a little while though. Wait, is that a worm you saw inside ?", itemtype = 'food'), blocks = False, pName = "strange pies")
                 elif foodChoice == 'pasta':
@@ -4408,15 +4472,18 @@ def placeObjects(room, first = False):
                 objects.append(item)
                 item.sendToBack()
             
-            if 'troll' in monsterChances.keys():
-                monsterChances['troll'] = previousTrollChances
+            if 'ogre' in monsterChances.keys():
+                print('Reverting ogre chances to previous value (current : {} / previous : {})'.format(monsterChances['ogre'], previousTrollChances))
+                monsterChances['ogre'] = previousTrollChances
             if 'hiroshiman' in monsterChances.keys():
+                print('Reverting hiroshiman chances to previous value (current : {} / previous : {})'.format(monsterChances['hiroshiman'], previousHiroChances))
                 monsterChances['hiroshiman'] = previousHiroChances
             if 'highCultist' in monsterChances.keys():
+                print('Reverting high cultist chances to previous value (current : {} / previous : {})'.format(monsterChances['highCultist'], previousHighCultistChances))
                 monsterChances['highCultist'] = previousHighCultistChances 
 #_____________ ROOM POPULATION + ITEMS GENERATION_______________
 
-#_____________ EQUIPEMENT ________________
+#_____________ EQUIPMENT ________________
 class Equipment:
     def __init__(self, slot, type, powerBonus=0, armorBonus=0, maxHP_Bonus=0, accuracyBonus=0, evasionBonus=0, criticalBonus = 0, maxMP_Bonus = 0, burning = False, ranged = False, rangedPower = 0, maxRange = 0, ammo = None, meleeWeapon = False, armorPenetrationBonus = 0, slow = False):
         self.slot = slot
@@ -4626,7 +4693,7 @@ def getAllEquipped(object):  #returns a list of equipped items
         return equippedList
     else:
         return []
-#_____________ EQUIPEMENT ________________
+#_____________ EQUIPMENT ________________
 
 def getAllWeights(object):
     if object == player:
@@ -5087,7 +5154,7 @@ def GetNamesUnderLookCursor():
     names = ', '.join(names)
     return names.capitalize()
 
-def targetTile(maxRange = None, showBresenham = False):
+def targetTile(maxRange = None, showBresenham = False, unlimited = False):
     global gameState
     global cursor
     global tilesInRange
@@ -5100,9 +5167,15 @@ def targetTile(maxRange = None, showBresenham = False):
     gameState = 'targeting'
     cursor = GameObject(x = player.x, y = player.y, char = 'X', name = 'cursor', color = colors.yellow, Ghost = True)
     objects.append(cursor)
-    for (rx, ry) in visibleTiles:
-            if maxRange is None or player.distanceToCoords(rx,ry) <= maxRange:
-                tilesInRange.append((rx, ry))
+    if not unlimited:
+        for (rx, ry) in visibleTiles:
+                if maxRange is None or player.distanceToCoords(rx,ry) <= maxRange:
+                    tilesInRange.append((rx, ry))
+    else:
+        for rx in range(MAP_WIDTH):
+            for ry in range(MAP_HEIGHT):
+                if not myMap[rx][ry].blocked:
+                    tilesInRange.append((rx, ry))
     
         
     FOV_recompute= True
@@ -5354,7 +5427,10 @@ def loadLevel(level, save = True, branch = currentBranch):
     print(xfile["yunowork"])
     myMap = xfile["myMap"]
     objects = xfile["objects"]
-    player = objects[xfile["playerIndex"]]
+    tempPlayer = objects[xfile["playerIndex"]]
+    player.x = int(tempPlayer.x)
+    player.y = int(tempPlayer.y)
+    objects[xfile["playerIndex"]] = player
     stairs = objects[xfile["stairsIndex"]]
     if level > 1 or branch.name != 'Main':
         global upStairs
@@ -5376,7 +5452,7 @@ def loadLevel(level, save = True, branch = currentBranch):
     currentBranch = branch
     initializeFOV()
 
-def nextLevel(boss = False, changeBranch = None):
+def nextLevel(boss = False, changeBranch = None, fixedMap = None):
     global dungeonLevel, currentBranch
     returned = "borked"
     changeToCurrent = False
@@ -5415,7 +5491,13 @@ def nextLevel(boss = False, changeBranch = None):
         player = tempPlayer
         stairs = tempStairs
         if not boss:
-            makeMap()
+            if currentBranch.fixedMap is None:
+                makeMap()
+            elif currentBranch.fixedMap == 'town':
+                print('Town making function goes here') #TO-DO : Replace this by town-making function
+                makeMap()
+            else:
+                raise ValueError('Current branch fixedMap attribute is invalid ({})'.format(currentBranch.fixedMap))
         else:
             makeBossLevel()
         print("Created a new level")
@@ -5458,21 +5540,6 @@ def playGame():
                     object.Fighter.curShootCooldown -= 1
                 if object.Fighter and object.Fighter.baseLandCooldown > 0 and object.Fighter is not None:
                     object.Fighter.curLandCooldown -= 1
-
-                #if object.Fighter and object.Fighter.burning and object.Fighter is not None:
-                #    try:
-                #        object.Fighter.burnCooldown -= 1
-                #        object.Fighter.takeDamage(3)
-                #        message('The ' + str(object.name) + ' keeps burning !')
-                #        if object.Fighter.burnCooldown < 0:
-                #            object.Fighter.burnCooldown = 0
-                #        if object.Fighter.burnCooldown == 0:
-                #            object.Fighter.burning = False
-                #            message(object.name.capitalize() + "'s flames die down", colors.darker_orange)
-                #    except AttributeError:
-                #        global DEBUG
-                #        if DEBUG:
-                #            message('Failed to apply burn to ' + object.name, colors.violet)
 
                 if object.Fighter and object.Fighter.spellsOnCooldown and object.Fighter is not None:
                     try:
