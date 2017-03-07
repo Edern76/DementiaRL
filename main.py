@@ -1,4 +1,4 @@
-import colors, math, textwrap, time, os, sys, code, gzip, pathlib #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
+import colors, math, textwrap, time, os, sys, code, gzip, pathlib, traceback #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
 import tdlib as tdl
 import simpleaudio as sa
 import dill #THIS IS NOT AN UNUSED IMPORT. Importing this changes the behavior of the pickle module (and the shelve module too), so as we can actually save lambda expressions
@@ -13,7 +13,21 @@ import code.dunbranches as dBr
 import code.dilledShelve as shelve
 from code.dunbranches import gluttonyDungeon
 
-
+def notCloseImmediatelyAfterCrash(exc_type, exc_value, tb):
+    traceback.print_exception(exc_type, exc_value, tb)
+    try:
+        root.__del__()
+    except Exception as error:
+        print('Cannot delete window')
+        print('Problem = ' + str(type(error)))
+        print('Details = ' + str(error.args))
+    if getattr(sys, 'frozen', False):
+        input('Press Enter to exit')
+    else:
+        pass
+    os._exit(-1)
+    
+sys.excepthook = notCloseImmediatelyAfterCrash
 # Naming conventions :
 # MY_CONSTANT
 # myVariable
