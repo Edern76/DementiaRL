@@ -6,10 +6,10 @@ from tdl import *
 from random import randint, choice
 from math import *
 from os import makedirs
-from constants import MAX_HIGH_CULTIST_MINIONS
-import nameGen
-import xpLoaderPy3 as xpL
-import dunbranches as dBr
+from code.constants import MAX_HIGH_CULTIST_MINIONS
+import code.nameGen as nameGen
+import code.xpLoaderPy3 as xpL
+import code.dunbranches as dBr
 import code.dilledShelve as shelve
 from code.dunbranches import gluttonyDungeon
 
@@ -167,6 +167,9 @@ def findCurrentDir():
     return datadir
 
 def deleteSaves():
+    if not os.path.isdir(absDirPath):
+        os.makedirs(absDirPath)
+        print('Created save folder')
     os.chdir(absDirPath)
     saves = [save for save in os.listdir(absDirPath) if (save.endswith(".bak") or save.endswith(".dat") or save.endswith(".dir") or save.startswith("map"))]
     for save in saves:
