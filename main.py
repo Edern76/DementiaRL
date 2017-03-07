@@ -1,4 +1,5 @@
-import tdl, colors, math, textwrap, time, os, sys, code, gzip #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
+import colors, math, textwrap, time, os, sys, code, gzip #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
+import tdlib as tdl
 import simpleaudio as sa
 import dill #THIS IS NOT AN UNUSED IMPORT. Importing this changes the behavior of the pickle module (and the shelve module too), so as we can actually save lambda expressions
 from tdl import *
@@ -716,6 +717,8 @@ def castRessurect(range = 4, caster = None, monsterTarget = None):
                 monster = createTroll(x, y, friendly = True, corpse = True)
             if monster is not None:
                 objects.append(monster)
+
+    
 
 fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 1, arg2 = 12, arg3 = 4)
 heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 20)
