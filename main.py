@@ -111,7 +111,7 @@ FIREBALL_SPELL_BASE_DAMAGE = 12
 FIREBALL_SPELL_BASE_RADIUS = 1
 FIREBALL_SPELL_BASE_RANGE = 4
 
-RESURECTABLE_CORPSES = ["darksoul", "troll"]
+RESURECTABLE_CORPSES = ["darksoul", "ogre"]
 
 BASE_HUNGER = 500
 # - Spells -
@@ -713,8 +713,8 @@ def castRessurect(range = 4, caster = None, monsterTarget = None):
             objects.remove(ressurectable)
             if corpseType == "darksoul":
                 monster = createDarksoul(x, y, friendly = True, corpse = True)
-            elif corpseType == "troll":
-                monster = createTroll(x, y, friendly = True, corpse = True)
+            elif corpseType == "ogre":
+                monster = createOgre(x, y, friendly = True, corpse = True)
             if monster is not None:
                 objects.append(monster)
 
@@ -828,12 +828,12 @@ def characterCreation():
     races = ['Human', 'Minotaur', 'Insectoid', 'Felis', 'Reptilian', 'Demon spawn', 'Rootling', 'Werewolf', 'Devourer', 'Virus ']
     racesDescription = ['Humans are the most common race. They have no special characteristic, and are neither better or worse at anything. However, they are good learners and gain experience faster.',
                         'Minotaurs, whose muscular bodies are topped with a taurine head, are tougher and stronger than humans, but are way less smart. They are uncontrollable and, when angered, can become a wrecking ball of muscles and thorns.',
-                        'Insectoids are a rare race of bipedal insects which are stronger than human but, more importantly, very good at arcane arts. They come in all kinds of forms, from the slende mantis to the bulky beetle.',
+                        'Insectoids are a rare race of bipedal insects which are stronger than human but, more importantly, very good at arcane arts. They come in all kinds of forms, from the slender mantis to the bulky beetle.',
                         'Felis, kinds of humanoid cats, are sneaky thieves and assassins. They usually move silently and can see in the dark.',
                         'Reptilians are very agile but absurdly weak. Their scaled skin, however, sometimes provides them with natural camouflage, and they might use their natural venom on their daggers or arrows to make them even more deadly.',
                         'Demon spawns, a very uncommon breed of a human and a demon, are cursed with the heritage of  their demonic parents, which will make them grow disturbing mutations as they grow older and stronger.',
                         'Rootlings, also called treants, are rare, sentient plants. They begin their life as a simple twig, but, with time, might become gigantic oaks.',
-                        'Werewolves are a martyred and despised race. Very tough to kill, they are naturally stronger than basic humans and uncontrollably shapeshift more or less regularly. However, older werewolves are used to these transformations and can even use them to their interests.',
+                        'Werewolves are a martyred and despised race. Very tough to kill, they are naturally stronger than basic humans and unconogreably shapeshift more or less regularly. However, older werewolves are used to these transformations and can even use them to their interests.',
                         'Devourers are strange, dreaded creatures from another dimension. Few have arrived in ours and even fewer have been described. These animals, half mantis, half lizard, are only born to kill and consume. Some of their breeds can even, after consuming anything - even a weapon - grow an organic replica of it.',
                         'Viruses are the physically weakest race, but do not base their success on their own bodies. Indeed, they are able to infect another race, making it their host and fully controllable by the virus. What is more, the virus own physical attributes, instead of applying to it directly, rather modifies the host metabolism, potentially making it stronger or tougher. However, this take-over is very harmful for the host, who will eventually die. The virus must then find a new host to continue living.']
     racesBonus = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], #Human
@@ -1300,7 +1300,7 @@ def closestMonster(max_range):
 
 class GameObject:
     "A generic object, represented by a character"
-    def __init__(self, x, y, char, name, color = colors.white, blocks = False, Fighter = None, AI = None, Player = None, Ghost = False, Item = None, alwaysVisible = False, darkColor = None, Equipment = None, pName = None):
+    def __init__(self, x, y, char, name, color = colors.white, blocks = False, Fighter = None, AI = None, Player = None, Ghost = False, Item = None, alwaysVisible = False, darkColor = None, Equipment = None, pName = None, Essence = None):
         self.x = x
         self.y = y
         self.char = char
@@ -1325,6 +1325,9 @@ class GameObject:
         self.Equipment = Equipment
         if self.Equipment:
             self.Equipment.owner = self
+        self.Essence = Essence
+        if self.Essence:
+            self.Essence.owner = self
         self.astarPath = []
         self.lastTargetX = None
         self.lastTargetY = None
@@ -2118,6 +2121,14 @@ class Player:
         objects.remove(target)
         self.inHost = True
         self.hostDeath = self.HOST_DEATH
+
+class Essence:
+    def __init(self, sin = None, color = None):
+        self.sin = sin
+        self.color = color
+    
+    #def absorb(self):
+        
 
 class Item:
     def __init__(self, useFunction = None,  arg1 = None, arg2 = None, arg3 = None, stackable = False, amount = 1, weight = 0, description = 'Placeholder.', pic = 'trollMace.xp', itemtype = None):
@@ -4195,17 +4206,17 @@ def createDarksoul(x, y, friendly = False, corpse = False):
     else:
         return 'cancelled'
 
-def createTroll(x, y, friendly = False, corpse = False):
+def createOgre(x, y, friendly = False, corpse = False):
     if x != player.x or y != player.y:
         if not corpse:
             equipmentComponent = Equipment(slot = 'two handed', type = 'heavy weapon', powerBonus = 15, accuracyBonus = -20, meleeWeapon=True, slow = True)
-            trollMace = GameObject(x, y, '/', 'troll mace', colors.darker_orange, Equipment=equipmentComponent, Item=Item(weight = 13.0, pic = 'trollMace.xp', description= 'A dumb weapon for dumb people.'))
+            trollMace = GameObject(x, y, '/', 'ogre mace', colors.darker_orange, Equipment=equipmentComponent, Item=Item(weight = 13.0, pic = 'trollMace.xp', description= 'A dumb weapon for dumb people.'))
             lootOnDeath = [trollMace]
             deathType = monsterDeath
-            monName = "troll"
-            color = colors.darker_green
+            monName = "ogre"
+            color = colors.lightest_yellow
         else:
-            monName = "troll skeleton"
+            monName = "ogre skeleton"
             deathType = zombieDeath
             lootOnDeath = None
             color = colors.lighter_grey
@@ -4214,7 +4225,7 @@ def createTroll(x, y, friendly = False, corpse = False):
         else:
             AI_component = FriendlyMonster(friendlyTowards = player)
         fighterComponent = Fighter(hp=40, armor=4, power=8, xp = 100, deathFunction = deathType, accuracy = 7, evasion = 1, lootFunction=lootOnDeath, lootRate=[15])
-        monster = GameObject(x, y, char = 'T', color = color, name = monName, blocks = True, Fighter=fighterComponent, AI = AI_component)
+        monster = GameObject(x, y, char = 'O', color = color, name = monName, blocks = True, Fighter=fighterComponent, AI = AI_component)
         return monster
     else:
         if corpse:
@@ -4302,20 +4313,20 @@ def placeObjects(room, first = False):
     potionChances = currentBranch.potionChances
     numMonsters = randint(0, MAX_ROOM_MONSTERS)
     monster = None
-    if 'troll' in monsterChances.keys():
-        previousTrollChances = int(monsterChances['troll'])
+    if 'ogre' in monsterChances.keys():
+        previousTrollChances = int(monsterChances['ogre'])
     if 'hiroshiman' in monsterChances.keys():
         previousHiroChances = int(monsterChances['hiroshiman'])
     if 'highCultist' in monsterChances.keys():
         previousHighCultistChances = int(monsterChances['highCultist'])
         print('Previous high cultist chances {}'.format(previousHighCultistChances))
     if dungeonLevel > 2 and hiroshimanNumber == 0 and not first and 'hiroshiman' in monsterChances.keys():
-        if 'troll' in monsterChances.keys() and not monsterChances['troll'] < 50:
-            monsterChances['troll'] -= 50
+        if 'ogre' in monsterChances.keys() and not monsterChances['ogre'] < 50:
+            monsterChances['ogre'] -= 50
         monsterChances['hiroshiman'] = 50
     if not highCultistHasAppeared and not first and 'highCultist' in monsterChances.keys():
-        if 'troll' in monsterChances.keys() and not monsterChances['troll'] < 50:
-            monsterChances['troll'] -= 50
+        if 'ogre' in monsterChances.keys() and not monsterChances['ogre'] < 50:
+            monsterChances['ogre'] -= 50
         monsterChances['highCultist'] = 50
     
     for i in range(numMonsters):
@@ -4334,10 +4345,10 @@ def placeObjects(room, first = False):
                 monster = createHiroshiman(x, y)
                 hiroshimanNumber = 1
                 del monsterChances['hiroshiman']
-                monsterChances['troll'] = 20
+                monsterChances['ogre'] = 20
                 
-            elif monsterChoice == 'troll':
-                monster = createTroll(x, y)
+            elif monsterChoice == 'ogre':
+                monster = createOgre(x, y)
             
             elif monsterChoice == 'snake':
                 monster = createSnake(x, y)
@@ -4461,9 +4472,9 @@ def placeObjects(room, first = False):
                 objects.append(item)
                 item.sendToBack()
             
-            if 'troll' in monsterChances.keys():
-                print('Reverting troll chances to previous value (current : {} / previous : {})'.format(monsterChances['troll'], previousTrollChances))
-                monsterChances['troll'] = previousTrollChances
+            if 'ogre' in monsterChances.keys():
+                print('Reverting ogre chances to previous value (current : {} / previous : {})'.format(monsterChances['ogre'], previousTrollChances))
+                monsterChances['ogre'] = previousTrollChances
             if 'hiroshiman' in monsterChances.keys():
                 print('Reverting hiroshiman chances to previous value (current : {} / previous : {})'.format(monsterChances['hiroshiman'], previousHiroChances))
                 monsterChances['hiroshiman'] = previousHiroChances
