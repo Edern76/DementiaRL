@@ -722,7 +722,7 @@ def castRessurect(range = 4, caster = None, monsterTarget = None):
                 objects.append(monster)
 
 def castPlaceTag(caster = None, monsterTarget = None):
-    targetedTile = targetTile(maxRange = None, showBresenham = False, unlimited = True)
+    targetedTile = targetAnyTile()
     if targetedTile != 'cancelled':
         (x, y) = targetedTile
         rawPath = os.path.join(curDir, 'tags.txt')
@@ -2674,6 +2674,16 @@ def getInput():
                     else:
                         message("You're too tired to climb down the stairs right now")
                     return None
+                elif object == townStairs and object.x == player.x and object.y == player.y:
+                    if stairCooldown == 0:
+                        global stairCooldown
+                        stairCooldown = 2
+                        boss = False
+                        if DEBUG:
+                            message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
+                        nextLevel(boss, changeBranch = dBr.hiddenTown)
+                    else:
+                        message("You're too tired to climb down the stairs right now")
         elif userInput.keychar.upper() == 'I':
             choseOrQuit = False
             while not choseOrQuit:
@@ -3618,6 +3628,27 @@ def makeBossLevel():
     (previous_x, previous_y) = bossRoom.center()
     rooms.append(bossRoom)
     numberRooms += 1
+
+def makeHiddenTown():
+    global myMap, objects, upStairs, rooms, numberRooms
+    myMap = [[Tile(True, wall = True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
+    objects = [player]
+    rooms = []
+    numberRooms = 0
+    
+    for y in range (MAP_HEIGHT):
+        myMap[0][y].unbreakable = True
+        myMap[MAP_WIDTH-1][y].unbreakable = True
+    for x in range(MAP_WIDTH):
+        myMap[x][0].unbreakable = True
+        myMap[x][MAP_HEIGHT-1].unbreakable = True #Borders of the map cannot be broken
+    
+    newRoom = Rectangle(10, 10, 20, 10)
+    createRoom(newRoom)
+    (player.x, player.y) = newRoom.center()
+    upStairs = GameObject(int(player.x), int(player.y), '<', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor)
+    objects.append(upStairs)
+    upStairs.sendToBack()
 
 def createEndRooms():
     global rooms, stairs, myMap, objects, numberRooms
@@ -5224,7 +5255,48 @@ def targetTile(maxRange = None, showBresenham = False, unlimited = False):
             con.clear()
             Update()
             return (x, y)
+
+def targetAnyTile():
+    global gameState, FOV_recompute
+    gameState = 'targeting'
+    cursor = GameObject(x = player.x, y = player.y, char = 'X', name = 'cursor', color = colors.yellow, Ghost = True)
+    objects.append(cursor)
         
+    FOV_recompute= True
+    Update()
+    tdl.flush()
+
+    while gameState == 'targeting':
+        FOV_recompute = True
+        key = tdl.event.key_wait()
+        if key.keychar.upper() == 'ESCAPE':
+            gameState = 'playing'
+            objects.remove(cursor)
+            del cursor
+            con.clear()
+            Update()
+            return 'cancelled'
+        elif key.keychar.upper() in MOVEMENT_KEYS:
+            dx, dy = MOVEMENT_KEYS[key.keychar.upper()]
+            if not myMap[cursor.x + dx][cursor.y + dy].unbreakable:
+                cursor.move(dx, dy)
+                Update()
+                tdl.flush()
+                for object in objects:
+                    object.clear
+                con.clear()    
+        elif key.keychar.upper() == 'ENTER':
+            gameState = 'playing'
+            x = cursor.x
+            y = cursor.y
+            tilesInRange = []
+            gameState = 'playing'
+            objects.remove(cursor)
+            del cursor
+            con.clear()
+            Update()
+            return (x, y)
+
 def targetMonster(maxRange = None):
     target = targetTile(maxRange)
     if target == 'cancelled':
@@ -5255,7 +5327,8 @@ def saveGame():
     print("Saved myMap_level{}".format(dungeonLevel))
     file["objects_level{}".format(dungeonLevel)] = objects
     file["playerIndex"] = objects.index(player)
-    file["stairsIndex"] = objects.index(stairs)
+    if currentBranch.shortName != 'town':
+        file["stairsIndex"] = objects.index(stairs)
     file["inventory"] = inventory
     file["equipmentList"] = equipmentList
     file["gameMsgs"] = gameMsgs
@@ -5347,7 +5420,8 @@ def loadGame():
     myMap = file["myMap_level{}".format(dungeonLevel)]
     objects = file["objects_level{}".format(dungeonLevel)]
     player = objects[file["playerIndex"]]
-    stairs = objects[file["stairsIndex"]]
+    if currentBranch.shortName != 'town':
+        stairs = objects[file["stairsIndex"]]
     inventory = file["inventory"]
     equipmentList = file["equipmentList"]
     gameMsgs = file["gameMsgs"]
@@ -5383,7 +5457,8 @@ def saveLevel(level = dungeonLevel):
     mapFile["myMap"] = myMap
     mapFile["objects"] = objects
     mapFile["playerIndex"] = objects.index(player)
-    mapFile["stairsIndex"] = objects.index(stairs)
+    if currentBranch.shortName != 'town':
+        mapFile["stairsIndex"] = objects.index(stairs)
     if (level > 1 or currentBranch.name != 'Main') and upStairs in objects:
         mapFile["upStairsIndex"] = objects.index(upStairs)
         print('SAVED FREAKING UPSTAIRS')
@@ -5434,7 +5509,8 @@ def loadLevel(level, save = True, branch = currentBranch):
     player.x = int(tempPlayer.x)
     player.y = int(tempPlayer.y)
     objects[xfile["playerIndex"]] = player
-    stairs = objects[xfile["stairsIndex"]]
+    if branch.shortName != 'town':
+        stairs = objects[xfile["stairsIndex"]]
     if level > 1 or branch.name != 'Main':
         global upStairs
         upStairs = objects[xfile["upStairsIndex"]]
@@ -5497,8 +5573,7 @@ def nextLevel(boss = False, changeBranch = None, fixedMap = None):
             if currentBranch.fixedMap is None:
                 makeMap()
             elif currentBranch.fixedMap == 'town':
-                print('Town making function goes here') #TO-DO : Replace this by town-making function
-                makeMap()
+                makeHiddenTown()
             else:
                 raise ValueError('Current branch fixedMap attribute is invalid ({})'.format(currentBranch.fixedMap))
         else:
