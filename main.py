@@ -719,15 +719,20 @@ def castRessurect(range = 4, caster = None, monsterTarget = None):
                 objects.append(monster)
 
 def castPlaceTag(caster = None, monsterTarget = None):
-    (x, y) = targetTile(maxRange = None, showBresenham = False, unlimited = True)
-    filePath = pathlib.Path(os.path.join(curDir, 'tags.txt'))
-    if filePath.is_file():
-        textFile = open(filePath, 'a')
+    targetedTile = targetTile(maxRange = None, showBresenham = False, unlimited = True)
+    if targetedTile != 'cancelled':
+        (x, y) = targetedTile
+        rawPath = os.path.join(curDir, 'tags.txt')
+        filePath = pathlib.Path(os.path.join(rawPath))
+        if filePath.is_file():
+            textFile = open(rawPath, 'a')
+        else:
+            textFile = open(rawPath, 'w')
+        toWrite = '(' + str(x) + ';' + str(y) + ')\n'
+        textFile.write(toWrite)
+        textFile.close
     else:
-        textFile = open(filePath, 'w')
-    toWrite = '(' + str(x) + ';' + str(y) + ')\n'
-    textFile.write(toWrite)
-    textFile.close
+        return 'cancelled'
 
 fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 1, arg2 = 12, arg3 = 4)
 heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 20)
@@ -2233,7 +2238,10 @@ class Item:
         self.owner.x = player.x
         self.owner.y = player.y
         if self.stackable:
-            message('You dropped ' + str(self.amount) + ' ' + self.owner.pluralName + '.', colors.yellow)
+            try:
+                message('You dropped ' + str(self.amount) + ' ' + self.owner.pluralName + '.', colors.yellow)
+            except TypeError: #Bug Theo
+                message('Amount is None', colors.red)
         else:
             message('You dropped a ' + self.owner.name + '.', colors.yellow)
         if self.owner.Equipment:
@@ -4295,17 +4303,18 @@ def placeObjects(room, first = False):
     numMonsters = randint(0, MAX_ROOM_MONSTERS)
     monster = None
     if 'troll' in monsterChances.keys():
-        previousTrollChances = monsterChances['troll']
+        previousTrollChances = int(monsterChances['troll'])
     if 'hiroshiman' in monsterChances.keys():
-        previousHiroChances = monsterChances['hiroshiman']
+        previousHiroChances = int(monsterChances['hiroshiman'])
     if 'highCultist' in monsterChances.keys():
-        previousHighCultistChances = monsterChances['highCultist']
+        previousHighCultistChances = int(monsterChances['highCultist'])
+        print('Previous high cultist chances {}'.format(previousHighCultistChances))
     if dungeonLevel > 2 and hiroshimanNumber == 0 and not first and 'hiroshiman' in monsterChances.keys():
-        if 'troll' in monsterChances.keys():
+        if 'troll' in monsterChances.keys() and not monsterChances['troll'] < 50:
             monsterChances['troll'] -= 50
         monsterChances['hiroshiman'] = 50
     if not highCultistHasAppeared and not first and 'highCultist' in monsterChances.keys():
-        if 'troll' in monsterChances.keys():
+        if 'troll' in monsterChances.keys() and not monsterChances['troll'] < 50:
             monsterChances['troll'] -= 50
         monsterChances['highCultist'] = 50
     
@@ -4453,10 +4462,13 @@ def placeObjects(room, first = False):
                 item.sendToBack()
             
             if 'troll' in monsterChances.keys():
+                print('Reverting troll chances to previous value (current : {} / previous : {})'.format(monsterChances['troll'], previousTrollChances))
                 monsterChances['troll'] = previousTrollChances
             if 'hiroshiman' in monsterChances.keys():
+                print('Reverting hiroshiman chances to previous value (current : {} / previous : {})'.format(monsterChances['hiroshiman'], previousHiroChances))
                 monsterChances['hiroshiman'] = previousHiroChances
             if 'highCultist' in monsterChances.keys():
+                print('Reverting high cultist chances to previous value (current : {} / previous : {})'.format(monsterChances['highCultist'], previousHighCultistChances))
                 monsterChances['highCultist'] = previousHighCultistChances 
 #_____________ ROOM POPULATION + ITEMS GENERATION_______________
 
@@ -5149,9 +5161,10 @@ def targetTile(maxRange = None, showBresenham = False, unlimited = False):
                 if maxRange is None or player.distanceToCoords(rx,ry) <= maxRange:
                     tilesInRange.append((rx, ry))
     else:
-        for (rx, ry) in myMap:
-            if not myMap[rx][ry].blocked:
-                tilesInRange.append((rx, ry))
+        for rx in range(MAP_WIDTH):
+            for ry in range(MAP_HEIGHT):
+                if not myMap[rx][ry].blocked:
+                    tilesInRange.append((rx, ry))
     
         
     FOV_recompute= True
@@ -5403,7 +5416,10 @@ def loadLevel(level, save = True, branch = currentBranch):
     print(xfile["yunowork"])
     myMap = xfile["myMap"]
     objects = xfile["objects"]
-    player = objects[xfile["playerIndex"]]
+    tempPlayer = objects[xfile["playerIndex"]]
+    player.x = int(tempPlayer.x)
+    player.y = int(tempPlayer.y)
+    objects[xfile["playerIndex"]] = player
     stairs = objects[xfile["stairsIndex"]]
     if level > 1 or branch.name != 'Main':
         global upStairs
@@ -5425,7 +5441,7 @@ def loadLevel(level, save = True, branch = currentBranch):
     currentBranch = branch
     initializeFOV()
 
-def nextLevel(boss = False, changeBranch = None):
+def nextLevel(boss = False, changeBranch = None, fixedMap = None):
     global dungeonLevel, currentBranch
     returned = "borked"
     changeToCurrent = False
@@ -5464,7 +5480,13 @@ def nextLevel(boss = False, changeBranch = None):
         player = tempPlayer
         stairs = tempStairs
         if not boss:
-            makeMap()
+            if currentBranch.fixedMap is None:
+                makeMap()
+            elif currentBranch.fixedMap == 'town':
+                print('Town making function goes here') #TO-DO : Replace this by town-making function
+                makeMap()
+            else:
+                raise ValueError('Current branch fixedMap attribute is invalid ({})'.format(currentBranch.fixedMap))
         else:
             makeBossLevel()
         print("Created a new level")
