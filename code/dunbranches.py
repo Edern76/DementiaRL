@@ -1,7 +1,7 @@
 import colors
 class Branch:
     def __init__(self, shortName, name = None, maxDepth = 99999, branchesFrom = None, branchesTo = None, lightStairsColor = colors.white, darkStairsColor = colors.dark_gray,
-                 monsterChances = {'darksoul': 600, 'ogre': 200, 'snake': 50, 'cultist': 150}, 
+                 monsterChances = {'darksoul': 600, 'ogre': 200, 'snake': 50, 'cultist': 150, 'highCultist' : 0}, 
                  itemChances = {'potion': 350, 'scroll': 260, 'weapon': 70, 'shield': 70, 'spellbook': 70, 'food': 180},
                  potionChances = {'heal': 70, 'mana': 30}, 
                  spellbookChances = {'healSelf': 8, 'fireball': 30, 'lightning': 13, 'confuse': 22, 'ice': 22},

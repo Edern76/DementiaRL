@@ -1,5 +1,5 @@
 from random import randint
-from constants import *
+from code.constants import *
 
 
 def humanLike(length = randint(6, 12)):
