@@ -5116,9 +5116,19 @@ def mainMenu():
     global player
     choices = ['New Game', 'Continue', 'About', 'Quit']
     index = 0
+
     while not tdl.event.isWindowClosed():
         root.clear()
-        drawCentered(cons =  root, y = 15, text = 'Dementia', fg = colors.white, bg = None)
+        asciiFile = os.path.join(absAsciiPath, 'logo.xp')
+        xpRawString = gzip.open(asciiFile, "r").read()
+        convertedString = xpRawString
+        attributes = xpL.load_xp_string(convertedString)
+        picHeight = int(attributes["height"])
+        picWidth = int(attributes["width"])
+        lData = attributes["layer_data"]
+        layerInd = int(0)
+        for layerInd in range(len(lData)):
+            xpL.load_layer_to_console(root, lData[layerInd], WIDTH//2 - picWidth//2, 15)
         drawCentered(cons = root, y = 44, text = choices[0], fg = colors.white, bg = None)
         drawCentered(cons = root, y = 45, text = choices[1], fg  = colors.white, bg = None)
         drawCentered(cons = root, y = 46, text = choices[2], fg = colors.white, bg = None)
