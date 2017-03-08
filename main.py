@@ -1464,7 +1464,7 @@ class GameObject:
             return "fail"
 
 class Fighter: #All NPCs, enemies and the player
-    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = 0, shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = None):
+    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = [0], shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = None):
         self.baseMaxHP = hp
         self.BASE_MAX_HP = hp
         self.hp = hp
@@ -2089,6 +2089,8 @@ class Player:
         self.attackedSlowly = False
         self.slowAttackCooldown = 0
         
+        self.essences = {'Gluttony': 0, 'Wrath': 0, 'Lust': 0, 'Pride': 0, 'Envy': 0, 'Greed': 0, 'Sloth': 0}
+        
         if self.race == 'Werewolf':
             self.transformCooldown = 150
             self.transformCurCooldown = self.transformCooldown
@@ -2167,13 +2169,83 @@ class Player:
         self.inHost = True
         self.hostDeath = self.HOST_DEATH
 
+def displayCharacter():
+    levelUp_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
+    
+    width = CHARACTER_SCREEN_WIDTH
+    height = CHARACTER_SCREEN_HEIGHT
+    window = tdl.Console(width, height)
+    window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
+    window.clear()
+    page = 1
+
+    while not tdl.event.isWindowClosed():
+        if page == 1:
+            window.draw_str(5, 1, player.Player.race + ' ' + player.Player.classes, fg = colors.yellow)
+            window.draw_str(width - 2, 1, '>', colors.green)
+            renderBar(window, 1, 3, BAR_WIDTH, 'EXP', player.Fighter.xp, levelUp_xp, colors.desaturated_cyan, colors.dark_gray)
+            renderBar(window, 1, 5, BAR_WIDTH, 'Hunger', player.Player.hunger, BASE_HUNGER, colors.desaturated_lime, colors.dark_gray)
+            window.draw_str(1, 7, 'HP: ' + str(player.Fighter.hp) + '/' + str(player.Fighter.maxHP))
+            window.draw_str(20, 7, 'MP: ' + str(player.Fighter.MP) + '/' + str(player.Fighter.maxMP))
+            window.draw_str(1, 9, 'Armor: ' + str(player.Fighter.armor))
+            window.draw_str(13, 9, 'Accuracy: ' + str(player.Fighter.accuracy))
+            window.draw_str(30, 9, 'Evasion: ' + str(player.Fighter.evasion))
+            window.draw_str(1, 11, 'Strength: ' + str(player.Player.strength + 10))
+            window.draw_str(1, 13, 'Dexterity: ' + str(player.Player.dexterity + 10))
+            window.draw_str(1, 15, 'Vitality: ' + str(player.Player.vitality + 10))
+            window.draw_str(1, 17, 'Willpower: ' + str(player.Player.willpower + 10))
+            window.draw_str(1, 19, 'Current load: ' + str(getAllWeights(player)))
+            window.draw_str(20, 19, 'Max load: ' + str(player.Player.maxWeight))
+        else:
+            window.draw_str(5, 1, 'Absorbed Essences:', fg = colors.yellow)
+            window.draw_str(1, 1, '<', colors.green)
+            y = 3
+            index = 0
+            values = list(player.Player.essences.values())
+            sins = list(player.Player.essences.keys())
+            for sin in sins:
+                if values[index] != 0:
+                    window.draw_str(1, y, sin + ': ' + str(values[index]))
+                    y += 2
+                index += 1
+
+        x = MID_WIDTH - int(width/2)
+        y = MID_HEIGHT - int(height/2)
+        root.blit(window, x, y, width, height, 0, 0)
+        tdl.flush()
+        
+        key = tdl.event.key_wait()
+        keyChar = key.keychar
+        if key.keychar.upper() == 'RIGHT':
+            window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
+            window.clear()
+            page += 1
+        if key.keychar.upper() == 'LEFT':
+            window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
+            window.clear()
+            page -= 1
+        if page < 1:
+            page = 1
+        if page > 2:
+            page = 2
+
+        if keyChar == 'ESCAPE':
+            break
+
 class Essence:
-    def __init(self, sin = None, color = None):
+    def __init__(self, sin = None, color = None, strength = 'minor'):
         self.sin = sin
         self.color = color
+        self.strength = strength
     
-    #def absorb(self):
-        
+    def absorb(self):
+        if self.strength == 'minor':
+            bonus = 1
+        else:
+            bonus = 3
+        player.Player.essences[self.sin] += bonus
+        message('You absorbed a ' + self.strength + ' essence of ' + self.sin + '!', self.color)
+        objects.remove(self.owner)
 
 class Item:
     def __init__(self, useFunction = None,  arg1 = None, arg2 = None, arg3 = None, stackable = False, amount = 1, weight = 0, description = 'Placeholder.', pic = 'trollMace.xp', itemtype = None):
@@ -2568,40 +2640,7 @@ def getInput():
     elif userInput.keychar == 'L':
         displayLog(50)
     elif userInput.keychar.upper() == 'C':
-        levelUp_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
-        
-        width = CHARACTER_SCREEN_WIDTH
-        height = CHARACTER_SCREEN_HEIGHT
-        window = tdl.Console(width, height)
-        window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
-        window.clear()
-
-        while not tdl.event.isWindowClosed():
-            window.draw_str(5, 1, player.Player.race + ' ' + player.Player.classes, fg = colors.yellow)
-            renderBar(window, 1, 3, BAR_WIDTH, 'EXP', player.Fighter.xp, levelUp_xp, colors.desaturated_cyan, colors.dark_gray)
-            renderBar(window, 1, 5, BAR_WIDTH, 'Hunger', player.Player.hunger, BASE_HUNGER, colors.desaturated_lime, colors.dark_gray)
-            window.draw_str(1, 7, 'HP: ' + str(player.Fighter.hp) + '/' + str(player.Fighter.maxHP))
-            window.draw_str(20, 7, 'MP: ' + str(player.Fighter.MP) + '/' + str(player.Fighter.maxMP))
-            window.draw_str(1, 9, 'Armor: ' + str(player.Fighter.armor))
-            window.draw_str(13, 9, 'Accuracy: ' + str(player.Fighter.accuracy))
-            window.draw_str(30, 9, 'Evasion: ' + str(player.Fighter.evasion))
-            window.draw_str(1, 11, 'Strength: ' + str(player.Player.strength + 10))
-            window.draw_str(1, 13, 'Dexterity: ' + str(player.Player.dexterity + 10))
-            window.draw_str(1, 15, 'Vitality: ' + str(player.Player.vitality + 10))
-            window.draw_str(1, 17, 'Willpower: ' + str(player.Player.willpower + 10))
-            window.draw_str(1, 19, 'Current load: ' + str(getAllWeights(player)))
-            window.draw_str(20, 19, 'Max load: ' + str(player.Player.maxWeight))
-
-            x = MID_WIDTH - int(width/2)
-            y = MID_HEIGHT - int(height/2)
-            root.blit(window, x, y, width, height, 0, 0)
-            tdl.flush()
-            
-            key = tdl.event.key_wait()
-            keyChar = key.keychar
-            
-            if keyChar == 'ESCAPE':
-                break
+        displayCharacter()
         
     elif userInput.keychar == 'd' and gameState == 'playing':
         chosenItem = inventoryMenu('Press the key next to an item to drop it, or press any other key to cancel.')
@@ -2655,9 +2694,13 @@ def getInput():
             FOV_recompute = True #Don't ask why, but it's needed here to recompute FOV, despite not moving, or else Bad Things (trademark) happen.
         elif userInput.keychar.upper()== 'SPACE':
             for object in objects:
-                if object.x == player.x and object.y == player.y and object.Item is not None:
-                    object.Item.pickUp()
-                    break
+                if object.x == player.x and object.y == player.y:
+                    if object.Item is not None:
+                        object.Item.pickUp()
+                        break
+                    elif object.Essence is not None:
+                        object.Essence.absorb()
+                        break
                 
         elif userInput.keychar.upper() == '<':
             print('You pressed the freaking climb up key')
@@ -4461,7 +4504,9 @@ def placeObjects(room, first = False):
                 highCultistHasAppeared = True
             
             elif monsterChoice == 'starveling':
-                fighterComponent = Fighter(hp=45, power=10, armor = 0, xp = 50, deathFunction = monsterDeath, evasion = 45, accuracy = 40, leechRessource='hunger', leechAmount=25)
+                essenceComp = Essence('Gluttony', colors.darker_lime)
+                gluttEssence = GameObject(0, 0, '*', 'minor essence of Gluttony', colors.darker_lime, Essence=essenceComp)
+                fighterComponent = Fighter(hp=45, power=10, armor = 0, xp = 50, deathFunction = monsterDeath, evasion = 45, accuracy = 40, leechRessource='hunger', leechAmount=25, lootFunction=[gluttEssence], lootRate=[100])
                 monster = GameObject(x, y, char = 'S', color = colors.lightest_yellow, name = 'starveling', blocks = True, Fighter=fighterComponent, AI = BasicMonster())
                             
             else:
