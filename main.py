@@ -1343,7 +1343,7 @@ def closestMonster(max_range):
 
 class GameObject:
     "A generic object, represented by a character"
-    def __init__(self, x, y, char, name, color = colors.white, blocks = False, Fighter = None, AI = None, Player = None, Ghost = False, Item = None, alwaysVisible = False, darkColor = None, Equipment = None, pName = None, Essence = None):
+    def __init__(self, x, y, char, name, color = colors.white, blocks = False, Fighter = None, AI = None, Player = None, Ghost = False, Item = None, alwaysVisible = False, darkColor = None, Equipment = None, pName = None, Essence = None, socialComp = None):
         self.x = x
         self.y = y
         self.char = char
@@ -1375,6 +1375,7 @@ class GameObject:
         self.lastTargetX = None
         self.lastTargetY = None
         self.pluralName = pName
+        self.socialComp = socialComp
 
     def moveTowards(self, target_x, target_y):
         dx = target_x - self.x
