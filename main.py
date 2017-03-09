@@ -2065,7 +2065,7 @@ class Spellcaster():
             FOV_recompute = True
 
 class Player:
-    def __init__(self, name, strength, dexterity, vitality, willpower, actualPerSkills, levelUpStats, skillsBonus, race, classes, traits, baseHunger = BASE_HUNGER):
+    def __init__(self, name, strength, dexterity, vitality, willpower, actualPerSkills, levelUpStats, skillsBonus, race, classes, traits, baseHunger = BASE_HUNGER, speed = 'average'):
         self.name = name
         self.strength = strength
         self.BASE_STRENGTH = strength
@@ -2089,6 +2089,7 @@ class Player:
         self.dualWield = False
         self.attackedSlowly = False
         self.slowAttackCooldown = 0
+        self.speed = speed #or 'slow' or 'fast'
         
         self.essences = {'Gluttony': 0, 'Wrath': 0, 'Lust': 0, 'Pride': 0, 'Envy': 0, 'Greed': 0, 'Sloth': 0}
         
@@ -2142,6 +2143,7 @@ class Player:
     def updatePlayerStats(self):
         power, accuracy, evasion, maxHP, maxMP = self.bonusPlayerStats()
         object = self.owner
+
         object.Fighter.basePower = object.Fighter.BASE_POWER + power
         object.Fighter.baseAccuracy = object.Fighter.BASE_ACCURACY + accuracy
         object.Fighter.baseEvasion = object.Fighter.BASE_EVASION + evasion
@@ -3061,9 +3063,13 @@ def checkLevelUp():
         player.Fighter.BASE_MAX_MP += player.Player.levelUpStats[5]
         player.Fighter.baseCritical += player.Player.levelUpStats[6]
         player.Player.strength += player.Player.levelUpStats[7]
+        player.Player.BASE_STRENGTH += player.Player.levelUpStats[7]
         player.Player.dexterity += player.Player.levelUpStats[8]
+        player.Player.BASE_DEXTERITY += player.Player.levelUpStats[8]
         player.Player.vitality += player.Player.levelUpStats[9]
+        player.Player.BASE_VITALITY += player.Player.levelUpStats[9]
         player.Player.willpower += player.Player.levelUpStats[10]
+        player.Player.BASE_WILLPOWER += player.Player.levelUpStats[10]
         
         if player.Player.race == 'Demon spawn':
             if player.Player.possibleMutations and player.level in player.Player.mutationLevel:
@@ -3075,16 +3081,20 @@ def checkLevelUp():
                 mutation = randint(1, 4)
                 if mutation == 1:
                     player.Player.strength += 1
+                    player.Player.BASE_STRENGTH += player.Player.levelUpStats[7]
                     mutationName = 'strength'
                 elif mutation == 2:
                     player.Player.dexterity += 1
                     mutationName = 'dexterity'
+                    player.Player.BASE_DEXTERITY += player.Player.levelUpStats[8]
                 elif mutation == 1:
                     player.Player.vitality += 1
                     mutationName = 'vitality'
+                    player.Player.BASE_VITALITY += player.Player.levelUpStats[9]
                 else:
                     player.Player.willpower += 1
                     mutationName = 'willpower'
+                    player.Player.BASE_WILLPOWER += player.Player.levelUpStats[10]
                 message('You feel a strange power flowing through your body...You have gained ' + mutationName + '!', colors.yellow)
         
         if player.Player.race == 'Rootling':
@@ -3101,9 +3111,12 @@ def checkLevelUp():
                     player.Fighter.hp += hpBonus
                 elif choice == 1:
                     player.Player.dexterity += randint(1, 2)
+                    player.Player.BASE_DEXTERITY += player.Player.levelUpStats[8]
                     player.Player.strength += randint(1, 2)
+                    player.Player.BASE_STRENGTH += player.Player.levelUpStats[7]
                 elif choice == 2:
                     player.Player.willpower += randint(1, 2)
+                    player.Player.BASE_WILLPOWER += player.Player.levelUpStats[10]
                     mpBonus = randint(0, 10)
                     player.Fighter.BASE_MAX_MP += mpBonus
                     player.Fighter.baseMaxMP += mpBonus
@@ -3142,9 +3155,13 @@ def checkLevelUp():
                     player.Fighter.BASE_MAX_MP += player.Player.skillsBonus[choice][5]
                     player.Fighter.baseCritical += player.Player.skillsBonus[choice][6]
                     player.Player.strength += player.Player.skillsBonus[choice][7]
+                    player.Player.BASE_STRENGTH += player.Player.skillsBonus[choice][7]
                     player.Player.dexterity += player.Player.skillsBonus[choice][8]
+                    player.Player.BASE_DEXTERITY += player.Player.skillsBonus[choice][8]
                     player.Player.vitality += player.Player.skillsBonus[choice][9]
+                    player.Player.BASE_VITALITY += player.Player.skillsBonus[choice][9]
                     player.Player.willpower += player.Player.skillsBonus[choice][10]
+                    player.Player.BASE_WILLPOWER += player.Player.skillsBonus[choice][10]
 
                     player.Player.actualPerSkills[choice] += 1
                     FOV_recompute = True
@@ -5776,7 +5793,7 @@ def playGame():
                             if monster.Fighter and not monster == player and (monster.x, monster.y) in visibleTiles:
                                 monsterInSight = True
                                 break
-                        if not 'burning' in convertBuffsToNames(player.Fighter) and not 'frozen' in convertBuffsToNames(player.Fighter) and  player.Fighter.hp != player.Fighter.maxHP and not monsterInSight and not player.Player.hungerStatus == 'starving':
+                        if not 'burning' in convertBuffsToNames(player.Fighter) and not 'frozen' in convertBuffsToNames(player.Fighter) and player.Fighter.hp != player.Fighter.maxHP and not monsterInSight and not player.Player.hungerStatus == 'starving' and not 'poisoned' in convertBuffsToNames(player.Fighter):
                             player.Fighter.healCountdown -= 1
                             if player.Fighter.healCountdown < 0:
                                 player.Fighter.healCountdown = 0
