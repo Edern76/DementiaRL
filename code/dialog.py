@@ -113,4 +113,45 @@ pukDbgText = "'I hate bugs more than anything in this world. So, I used to walk 
 pukDbgId = 'debug'
 
 pukDbgCh1 = DialogChoice(idT = 'bugs', text = "It seemed you were quite effective, since I didn't see any bug around there.")
-pukDbgCh2 =  
+pukDbgCh2 = DialogChoice(idT = 'dangerous', text = "Why did you ignore the monsters around you ? They are way more dangerous than mere insects.")
+pukDbgCh3 = DialogChoice(idT = 'stop', text = "You used to ? Why did you stopped ?")
+pukDbgCh4 = DialogChoice(idT = 'BACK', text = '(Back)')
+
+pukDbgClist = [pukDbgCh1, pukDbgCh2, pukDbgCh3, pukDbgCh4]
+pukDbgScr = DialogScreen(idT = pukDbgId, dialogText = pukDbgText, choicesList = pukDbgClist, prevScreen= pukStrScr)
+
+###############################
+
+########'Bugs' Screen########
+pukBugText = "'It's not because you haven't seen them that they're not here. They're everywhere, all around us, and they will always be.'"
+pukBugId = 'bugs'
+
+pukBugCh = DialogChoice(idT = 'BACK', text = 'Sure...')
+
+pukBugClist = [pukBugCh]
+pukBugScr = DialogScreen(idT = pukBugId, dialogText = pukBugText, choicesList = pukBugClist, prevScreen= pukDbgScr)
+#############################
+
+########'Dangerous' Screen########
+pukDgrText = "'That's where you're wrong. Bugs are way more powerful than any monster you'll encounter, and they can't be killed by swords or magic. They are the ones you should be afraid of.'"
+pukDgrId = 'dangerous'
+
+pukDgrCh = DialogChoice(idT = 'BACK', text = '(Back)')
+
+pukDgrClist = [pukDgrCh]
+pukDgrScr = DialogScreen(idT = pukDgrId, dialogText = pukDgrText, choicesList = pukDgrClist, prevScreen= pukDbgScr)
+##################################
+
+########'Stop' Screen########
+pukStpText = "'Because I have grown old, in case you couldn't tell. Age made me too weak for such a task, it was time for me to get replaced by people more competent than I am.'"
+pukStpId = 'stop'
+
+pukStpCh = DialogChoice(idT = 'BACK', text = '(Back)')
+
+pukStpClist = [pukStpCh]
+pukStpScr = DialogScreen(idT = pukStpId, dialogText = pukStpText, choicesList = pukStpClist, prevScreen= pukDbgScr)
+#############################
+
+pukScrList = [pukIntScr, pukStrScr, pukDbgScr, pukBugScr, pukDgrScr, pukStpScr]
+
+pukTree = DialogTree(screenList= pukScrList, name = 'Pukil', origScreen= pukScrList[0])

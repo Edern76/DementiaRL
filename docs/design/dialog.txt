@@ -46,12 +46,12 @@ Dialog choices :
 					- ID : Back
 		2) Why did you ignore the monsters around you ? They are way more dangerous than mere insects.
 			- ID : dangerous
-			- Answer : 'That's where you're wrong. Bugs are way more powerful than any monster you'll encounter, and they can't be killed by swords or magic. They are the ones you should be afraid of.
+			- Answer : 'That's where you're wrong. Bugs are way more powerful than any monster you'll encounter, and they can't be killed by swords or magic. They are the ones you should be afraid of.'
 				1) (Back)
 					- ID : Back
 		3) You used to ? Why did you stopped ?
 			- ID : stop
-			- Answer : 'Because I have grown old, in case you couldn't tell. Age made me too weak for such a task, it was time for me to get replaced by people more competent than I am.
+			- Answer : 'Because I have grown old, in case you couldn't tell. Age made me too weak for such a task, it was time for me to get replaced by people more competent than I am.'
 
 		4) (Back)
 			- ID : Back
