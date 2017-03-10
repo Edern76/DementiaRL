@@ -1,10 +1,12 @@
 import colors, math, textwrap, time, os, sys, code, gzip, pathlib, traceback #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
 import tdlib as tdl
+import dialog as dial
 import simpleaudio as sa
 import dill #THIS IS NOT AN UNUSED IMPORT. Importing this changes the behavior of the pickle module (and the shelve module too), so as we can actually save lambda expressions
 from tdl import *
 from random import randint, choice
 from math import *
+from copy import copy
 from os import makedirs
 from code.constants import MAX_HIGH_CULTIST_MINIONS
 import code.nameGen as nameGen
@@ -3753,6 +3755,9 @@ def makeHiddenTown():
     objects.append(upStairs)
     upStairs.sendToBack()
     
+    pukil = GameObject(25, 15, '@', 'Pukil the Debugger', colors.purple, blocks = True, socialComp = dial.pukTree)
+    objects.append(pukil)
+    
     #Code above this must go at the end of the makeHiddenTown() function, no matter what kinds of additions you make to it
     for y in range(MAP_HEIGHT):
         for x in range(MAP_WIDTH):
@@ -5300,6 +5305,39 @@ def Update():
         
     root.blit(panel, 0, PANEL_Y, WIDTH, PANEL_HEIGHT, 0, 0)
     
+def chat():
+    target = targetDirection()
+    if target == 'cancelled':
+        return 'cancelled'
+    else:
+        (tarX, tarY) = target
+        baddie = None
+        item = None
+        NPC = None
+        for object in objects:
+            if object.x == tarX and object.y == tarY:
+                if object.socialComp :
+                    NPC = object
+                    break
+                elif object.Fighter and object.AI and type(object.AI) != FriendlyMonster:
+                    baddie = object
+                elif object.Item:
+                    item = object
+        if NPC is not None:
+            tree = NPC.socialComp
+            assert isinstance(tree, dial.DialogTree) #Tells PyDev that tree is an instance of the DialogTree class, so we can have auto-completion working. The side effect is that Python will throw an exception if tree isn't actually an instance of the DialogTree class (but if it isn't, you did something wrong and the rest of the code wouldn't work anyways).
+            root.clear()
+            tree.currentScreen = copy(tree.origScreen)
+            #TO-DO : Write what goes below here 
+        elif baddie is not None:
+            msgString = baddie.name.capitalize() + ' is too busy trying to kill you to talk to you right now.'
+            message(msgString)
+        elif item is not None:
+            msgString = 'You receive no answer.'
+            message(msgString)
+        else:
+            msgString = 'You start a heated philosophical debate with yourself.'
+            message(msgString)
 def GetNamesUnderLookCursor():
     names = [obj for obj in objects
                 if obj.x == lookCursor.x and obj.y == lookCursor.y and (obj.x, obj.y in visibleTiles) and obj != lookCursor]
@@ -5436,7 +5474,24 @@ def targetAnyTile(startX = None, startY = None, drawRectangle = False):
             con.clear()
             Update()
             return (x, y)
-
+        
+def targetDirection():
+    global FOV_recompute
+    message('Please press a direction key')
+    FOV_recompute = True
+    Update()
+    tdl.flush()
+    key = tdl.event.key_wait()
+    if key in MOVEMENT_KEYS:
+        (dx, dy) = MOVEMENT_KEYS[key]
+        (x, y) = (player.x + dx, player.y + dy)
+        return (x, y)
+    else:
+        FOV_recompute = True
+        message('Invalid input')
+        Update()
+        tdl.flush()
+        return 'cancelled'
 def targetMonster(maxRange = None):
     target = targetTile(maxRange)
     if target == 'cancelled':

@@ -102,7 +102,7 @@ pukIntScr = DialogScreen(idT = pukIntId, dialogText = pukIntText, choicesList= p
 pukStrText = "'No... No.... Not again.... NOT AGAIN !' \n *He seems to have lost all bounds with the reality as he repeats the same words over and over. It would be better to leave him alone for now.*"
 pukStrId = 'stairs'
 
-pukStrCh = DialogChoice(idt = 'END', text = '(End conversation)')
+pukStrCh = DialogChoice(idT = 'END', text = '(End conversation)')
 pukStrClist = [pukStrCh]
 
 pukStrScr = DialogScreen(idT = pukStrId, dialogText = pukStrText, choicesList=pukStrClist, prevScreen= pukIntScr)
