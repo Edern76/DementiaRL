@@ -2092,6 +2092,7 @@ class Player:
         self.attackedSlowly = False
         self.slowAttackCooldown = 0
         self.speed = speed #or 'slow' or 'fast'
+        self.speedChance = speedChance
         
         self.essences = {'Gluttony': 0, 'Wrath': 0, 'Lust': 0, 'Pride': 0, 'Envy': 0, 'Greed': 0, 'Sloth': 0}
         
@@ -3451,50 +3452,47 @@ def secretRoomTest(startingX, endX, startingY, endY):
     for x in range(startingX, endX):
         for y in range(startingY, endY):
             if not myMap[x][y].block_sight:
-                if myMap[x + 1][y].block_sight: #right of the current tile
-                    intersect = False
-                    for indexX in range(5):
-                        for indexY in range(5):
-                            if not myMap[x + 1 + indexX][y - 2 + indexY].block_sight or myMap[x + 1 + indexX][y - 2 + indexY].unbreakable:
-                                intersect = True
-                                break
-                        break
-                    if not intersect:
-                        print("right")
-                        return x + 1, y - 2, x + 1, y
-                if myMap[x - 1][y].block_sight: #left
-                    intersect = False
-                    for indexX in range(5):
-                        for indexY in range(5):
-                            if not myMap[x - 1 - indexX][y - 2 + indexY].block_sight or myMap[x - 1 - indexX][y - 2 + indexY].unbreakable:
-                                intersect = True
-                                break
-                        break
-                    if not intersect:
-                        print("left")
-                        return x - 5, y - 2, x - 1, y
-                if myMap[x][y + 1].block_sight: #under
-                    intersect = False
-                    for indexX in range(5):
-                        for indexY in range(5):
-                            if not myMap[x - 2 + indexX][y + 1 + indexY].block_sight or myMap[x - 2 + indexX][y + 1 + indexY].unbreakable:
-                                intersect = True
-                                break
-                        break
-                    if not intersect:
-                        print("under")
-                        return x - 2, y + 1, x, y + 1
-                if myMap[x][y - 1].block_sight: #above
-                    intersect = False
-                    for indexX in range(5):
-                        for indexY in range(5):
-                            if not myMap[x - 2 + indexX][y - 1 - indexY].block_sight or myMap[x - 2 + indexX][y - 1 - indexY].unbreakable:
-                                intersect = True
-                                break
-                        break
-                    if not intersect:
-                        print("above")
-                        return x - 2, y - 5, x, y - 1
+                if x >= 6 and x <= MAP_WIDTH - 6 and y >= 6 and y <= MAP_HEIGHT -6:
+                    if myMap[x + 1][y].wall: #right of the current tile
+                        intersect = False
+                        for indexX in range(5):
+                            for indexY in range(5):
+                                if not myMap[x + 1 + indexX][y - 2 + indexY].wall:
+                                    intersect = True
+                                    break
+                        if not intersect:
+                            print("right")
+                            return x + 1, y - 2, x + 1, y
+                    if myMap[x - 1][y].wall: #left
+                        intersect = False
+                        for indexX in range(5):
+                            for indexY in range(5):
+                                if not myMap[x - 1 - indexX][y - 2 + indexY].wall:
+                                    intersect = True
+                                    break
+                        if not intersect:
+                            print("left")
+                            return x - 5, y - 2, x - 1, y
+                    if myMap[x][y + 1].wall: #under
+                        intersect = False
+                        for indexX in range(5):
+                            for indexY in range(5):
+                                if not myMap[x - 2 + indexX][y + 1 + indexY].wall:
+                                    intersect = True
+                                    break
+                        if not intersect:
+                            print("under")
+                            return x - 2, y + 1, x, y + 1
+                    if myMap[x][y - 1].wall: #above
+                        intersect = False
+                        for indexX in range(5):
+                            for indexY in range(5):
+                                if not myMap[x - 2 + indexX][y - 1 - indexY].wall:
+                                    intersect = True
+                                    break
+                        if not intersect:
+                            print("above")
+                            return x - 2, y - 5, x, y - 1
 
 def secretRoom():
     global myMap
@@ -5803,15 +5801,16 @@ def playGame():
         else:
             for loop in range(actions):
                 playerAction = getInput()
-                FOV_recompute = True
-                Update()
-                checkLevelUp()
-                tdl.flush()
-                for object in objects:
-                    object.clear()
+                if actions > 1:
+                    FOV_recompute = True
+                    Update()
+                    checkLevelUp()
+                    tdl.flush()
+                    for object in objects:
+                        object.clear()
+                    if playerAction == 'exit':
+                        quitGame('Player pressed escape', True)
         FOV_recompute = True #So as to avoid the blackscreen bug no matter which key we press
-        if playerAction == 'exit':
-            quitGame('Player pressed escape', True)
         if gameState == 'playing' and playerAction != 'didnt-take-turn':
             for object in objects:
                 if object.AI:
