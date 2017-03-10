@@ -908,7 +908,7 @@ def characterCreation():
                                 [True, True, True, True, True, True, True, True, True, True, False, False, False, False, False, False, False, False]]
     
     classes = ['Knight', 'Barbarian', 'Rogue', 'Mage ', 'Necromancer']
-    classesDescription = ['A warrior who wears armor and yields shields',
+    classesDescription = ['A warrior who wears armor and wields shields',
                           'A brutal fighter who is mighty strong',
                           'A rogue who is stealthy and backstabby (probably has a french accent)',
                           'A wizard who zaps everything',
@@ -2067,7 +2067,7 @@ class Spellcaster():
             FOV_recompute = True
 
 class Player:
-    def __init__(self, name, strength, dexterity, vitality, willpower, actualPerSkills, levelUpStats, skillsBonus, race, classes, traits, baseHunger = BASE_HUNGER, speed = 'average'):
+    def __init__(self, name, strength, dexterity, vitality, willpower, actualPerSkills, levelUpStats, skillsBonus, race, classes, traits, baseHunger = BASE_HUNGER, speed = 'average', speedChance = 15):
         self.name = name
         self.strength = strength
         self.BASE_STRENGTH = strength
@@ -5786,8 +5786,9 @@ def nextLevel(boss = False, changeBranch = None, fixedMap = None):
     initializeFOV()
 
 def playGame():
+    actions = 1
     while not tdl.event.isWindowClosed():
-        global FOV_recompute, DEBUG
+        global FOV_recompute, DEBUG, actions
         Update()
         checkLevelUp()
         tdl.flush()
@@ -5800,7 +5801,14 @@ def playGame():
             if player.Player.slowAttackCooldown <= 0:
                 player.Player.attackedSlowly = False
         else:
-            playerAction = getInput()
+            for loop in range(actions):
+                playerAction = getInput()
+                FOV_recompute = True
+                Update()
+                checkLevelUp()
+                tdl.flush()
+                for object in objects:
+                    object.clear()
         FOV_recompute = True #So as to avoid the blackscreen bug no matter which key we press
         if playerAction == 'exit':
             quitGame('Player pressed escape', True)
@@ -5935,7 +5943,15 @@ def playGame():
                 player.Player.hungerStatus = "full"
                 if prevStatus != "full":
                     message("You feel way less hungry")
-
+        
+        actions = 1
+        if player.Player.speed == 'fast' and randint(1, 100) <= player.Player.speedChance:
+            message('GOTTA GO FAST', colors.green)
+            actions += 1
+        if player.Player.speed == 'slow' and randint(1, 100) <= player.Player.speedChance:
+            message('SLOW', colors.red)
+            actions -= 1
+    
     DEBUG = False
     quitGame('Window has been closed')
     
