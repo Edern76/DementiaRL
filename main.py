@@ -395,11 +395,11 @@ def randomDamage(fighter = None, chance = 33, minDamage = 1, maxDamage = 1, dmgM
     if dice <= chance:
         damage = randint(minDamage, maxDamage)
         fighter.takeDamage(damage)
-        if (dmgMessage is not None) and (fighter == player or (not msgPlayerOnly)):
+        if (dmgMessage is not None) and (fighter == player.Fighter or (not msgPlayerOnly)):
             message(dmgMessage.format(damage), dmgColor)
 
 class Buff: #also (and mainly) used for debuffs
-    def __init__(self, name, color, owner = None, cooldown = 20, applyFunction = None, continuousFunction = None, removeFunction = None):
+    def __init__(self, name, color, owner = None, cooldown = 20, showCooldown = True, showBuff = True, applyFunction = None, continuousFunction = None, removeFunction = None):
         self.name = name
         self.color = color
         self.curCooldown = cooldown
@@ -407,10 +407,13 @@ class Buff: #also (and mainly) used for debuffs
         self.continuousFunction = continuousFunction
         self.removeFunction = removeFunction
         self.owner = owner
+        self.showCooldown = showCooldown
+        self.showBuff = showBuff
     
     def applyBuff(self):
         if not self.name in convertBuffsToNames(self.owner.Fighter):
-            message(self.owner.name.capitalize() + ' is now ' + self.name + '!', self.color)
+            if self.showBuff:
+                message(self.owner.name.capitalize() + ' is now ' + self.name + '!', self.color)
             if self.applyFunction is not None:
                 self.applyFunction()
             self.owner.Fighter.buffList.append(self)
@@ -422,7 +425,8 @@ class Buff: #also (and mainly) used for debuffs
         if self.removeFunction is not None:
             self.removeFunction()
         self.owner.Fighter.buffList.remove(self)
-        message(self.owner.name.capitalize() + ' is no longer ' + self.name + '.', self.color)
+        if self.showBuff:
+            message(self.owner.name.capitalize() + ' is no longer ' + self.name + '.', self.color)
     
     def passTurn(self):
         self.curCooldown -= 1
@@ -2101,11 +2105,10 @@ class Player:
         self.essences = {'Gluttony': 0, 'Wrath': 0, 'Lust': 0, 'Pride': 0, 'Envy': 0, 'Greed': 0, 'Sloth': 0}
         
         if self.race == 'Werewolf':
-            self.transformCooldown = 150
-            self.transformCurCooldown = self.transformCooldown
-            self.transformed = False
-            self.transformMaxTurns = 30
-            self.transformationTime = 0
+            self.human = 150
+            self.wolf = 30
+            self.shapeshift = 'human'
+            self.shapeshifted = True
         
         if self.race == 'Virus ':
             self.HOST_DEATH = 1500
@@ -5295,12 +5298,13 @@ def Update():
     buffY = 2
     selfAware = True #TO-DO : Changes this so that this is true only if the player picked the 'self-aware' trait
     for buff in player.Fighter.buffList:
-        if selfAware:
-            buffText = buff.name.capitalize() + ' (' + str(buff.curCooldown) + ')'
-        else:
-            buffText = buff.name.capitalize()
-        panel.draw_str(BUFF_X, buffY, buffText, buff.color)
-        buffY += 1
+        if buff.showBuff:
+            if selfAware and buff.showCooldown:
+                buffText = buff.name.capitalize() + ' (' + str(buff.curCooldown) + ')'
+            else:
+                buffText = buff.name.capitalize()
+            panel.draw_str(BUFF_X, buffY, buffText, buff.color)
+            buffY += 1
     # Look code
     if gameState == 'looking' and lookCursor != None:
         global lookCursor
@@ -5921,28 +5925,24 @@ def playGame():
                                 player.Fighter.healCountdown= 25 - player.Player.vitality
 
                 if object.Player and object.Player.race == 'Werewolf':
-                    object.Player.transformCurCooldown -= 1
-                    if object.Player.transformationTime > 0:
-                        object.Player.transformationTime -= 1
-                    if object.Player.transformCurCooldown <= 0:
-                        message('You feel your wild instincts overwhelming you! You have turned into your wolf form!', colors.amber)
-                        object.Player.transformed = True
-                        object.Player.transformationTime = object.Player.transformMaxTurns
-                        object.Player.strength += 5
-                        object.Player.dexterity += 3
-                        object.Player.vitality += 4
-                        object.Player.willpower -= 5
-                        object.Player.transformCurCooldown = object.Player.transformCooldown    
-                        object.Player.updatePlayerStats()
-                    if object.Player.transformationTime <= 0 and object.Player.transformed:
-                        message('You are no longer in wolf form.', colors.amber)
-                        object.Player.transformed = False
-                        object.Player.transformationTime = object.Player.transformMaxTurns
-                        object.Player.strength -= 5
-                        object.Player.dexterity -= 3
-                        object.Player.vitality -= 4
-                        object.Player.willpower += 5
-                        object.Player.updatePlayerStats()
+                    def shapeshift(fromWolf = False, fromHuman = True):
+                        if fromWolf:
+                            player.Player.shapeshift = 'human'
+                            object.Player.shapeshifted = True
+                        if fromHuman:
+                            player.Player.shapeshift = 'wolf'
+                            object.Player.shapeshifted = True
+
+                    human = Buff('human', colors.lightest_yellow, owner = player, cooldown = player.Player.human, showBuff = False, applyFunction = lambda: setFighterStatsBack(player.Fighter), removeFunction = lambda: shapeshift())
+                    wolf = Buff('in wolf form', colors.amber, owner = player, cooldown = player.Player.wolf, applyFunction = lambda: modifyFighterStats(player.Fighter, str = 5, dex = 3, vit = 4, will = -5), removeFunction = lambda: shapeshift(fromHuman=False, fromWolf=True))
+                    if object.Player.shapeshifted:
+                        if object.Player.shapeshift == 'wolf':
+                            message('You feel your wild instincts overwhelming you! You have turned into your wolf form!', colors.amber)
+                            wolf.applyBuff()
+                            object.Player.shapeshifted = False
+                        if object.Player.shapeshift == 'human':
+                            human.applyBuff()
+                            object.Player.shapeshifted = False
                 
                 x = object.x
                 y = object.y
@@ -5982,11 +5982,14 @@ def playGame():
             if player.Player.hunger < 0:
                 player.Player.hunger = 0
             if player.Player.hunger <= BASE_HUNGER // 10:
-                player.Player.hungerStatus = "starving"
-                starveDamage = randint(0, 2)
-                if starveDamage == 0:
-                    player.Fighter.takeDamage(1)
-                    message("You're starving !", colors.red)
+                if not player.Player.hungerStatus == 'starving':
+                    starving = Buff('starving', colors.red, owner = player, cooldown = 99999, showCooldown = False, continuousFunction = lambda: randomDamage(player.Fighter, chance = 33, minDamage = 1, maxDamage = 1, dmgMessage = 'You are starving!', dmgColor = colors.red, msgPlayerOnly = True))
+                    starving.applyBuff()
+                    player.Player.hungerStatus = "starving"
+                #starveDamage = randint(0, 2)
+                #if starveDamage == 0:
+                #    player.Fighter.takeDamage(1)
+                #    message("You're starving !", colors.red)
             elif player.Player.hunger <= BASE_HUNGER // 2:
                 prevStatus = player.Player.hungerStatus
                 player.Player.hungerStatus = "hungry"
@@ -5994,6 +5997,9 @@ def playGame():
                     message("You're starting to feel a little bit hungry.", colors.yellow)
                 elif prevStatus == "starving":
                     message("You're no longer starving")
+                    for buff in player.Fighter.buffList:
+                        if buff.name == 'starving':
+                            buff.removeBuff()
             else:
                 prevStatus = player.Player.hungerStatus
                 player.Player.hungerStatus = "full"
@@ -6002,10 +6008,10 @@ def playGame():
         
         actions = 1
         if player.Player.speed == 'fast' and randint(1, 100) <= player.Player.speedChance:
-            message('GOTTA GO FAST', colors.green)
+            message('Your great speed allows you to take two actions this turn!', colors.green)
             actions += 1
         if player.Player.speed == 'slow' and randint(1, 100) <= player.Player.speedChance:
-            message('SLOW', colors.red)
+            message('Your incredible slowness prevents you from taking any action this turn', colors.red)
             actions -= 1
     
     DEBUG = False
