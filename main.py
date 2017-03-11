@@ -16,20 +16,23 @@ import code.dilledShelve as shelve
 from code.dunbranches import gluttonyDungeon
 
 def notCloseImmediatelyAfterCrash(exc_type, exc_value, tb):
-    traceback.print_exception(exc_type, exc_value, tb)
+    '''
+    Does exactly what it says on the tin : prevent the console from closing immediately after crash
+    '''
+    traceback.print_exception(exc_type, exc_value, tb) #Print the error message
     try:
-        root.__del__()
+        root.__del__() #Delete the game window
     except Exception as error:
         print('Cannot delete window')
         print('Problem = ' + str(type(error)))
         print('Details = ' + str(error.args))
-    if getattr(sys, 'frozen', False):
-        input('Press Enter to exit')
+    if getattr(sys, 'frozen', False): #If we are running the frozen binaries, then we prevent the console from immediately closing
+        input('Press Enter to exit') #Prevent stuff from executing further until we press Enter
     else:
-        pass
-    os._exit(-1)
+        pass #If we are not running the frozen binaries, we close the program immediately, since we can read the error log in IDLE/PyDev/WhateverIDEYouAreUsing's console.
+    os._exit(-1) #Exit the program
     
-sys.excepthook = notCloseImmediatelyAfterCrash
+sys.excepthook = notCloseImmediatelyAfterCrash #We call the above defined function each time the program encounters an unhandled exception. Don't try to change this function to a simple 'pass' so as to 'fix all crashes'. This would make so a lot of stuff would break and we wouldn't know when it did break or what caused it to break.
 # Naming conventions :
 # MY_CONSTANT
 # myVariable
@@ -77,6 +80,7 @@ MID_WIDTH, MID_HEIGHT = int(WIDTH/2), int(HEIGHT/2)
 BAR_WIDTH = 20
 
 PANEL_HEIGHT = 10
+CON_HEIGHT = HEIGHT - PANEL_HEIGHT
 PANEL_Y = HEIGHT - PANEL_HEIGHT
 
 MSG_X = BAR_WIDTH + 10
@@ -5333,7 +5337,8 @@ def chat():
             state = 'starting'
             while state != 'END':
                 con.clear()
-                ty = 2
+                dialLength = len(tree.currentScreen.dialogText) - 1
+                ty = (CON_HEIGHT // 2) - (dialLength // 2)
                 for line in tree.currentScreen.dialogText:
                     if line != 'BREAK':
                         drawCentered(con, y = ty, text = line)
@@ -5350,7 +5355,7 @@ def chat():
                         assert isinstance(dchoice, dial.DialogChoice)
                         ind = tree.currentScreen.choicesList.index(dchoice)
                         showInd = ind + 1
-                        prefix = str(showInd) + ')'
+                        prefix = str(showInd) + ') '
                         strShown = prefix + dchoice.text
                         if selectedIndex == ind:
                             background = colors.dark_azure
