@@ -24,6 +24,8 @@ def formatText(text, w):
         for toPrint in wrappedLine:
             outputText.append(toPrint)
         outputText.append('BREAK')
+    
+    return outputText
 
 class DialogTree:
     def __init__(self, screenList, name, origScreen):
@@ -66,7 +68,7 @@ class DialogChoice:
             return 'OK'
         elif self.idT == 'BACK':
             if self.parentScreen.prevScreen is not None:
-                rootTree.currentScreen = copy(rootTree.prevScreen)
+                rootTree.currentScreen = copy(self.parentScreen.prevScreen)
                 return 'OK'
             else:
                 raise AttributeError('No previous screen found')
@@ -118,7 +120,7 @@ pukDbgCh3 = DialogChoice(idT = 'stop', text = "You used to ? Why did you stopped
 pukDbgCh4 = DialogChoice(idT = 'BACK', text = '(Back)')
 
 pukDbgClist = [pukDbgCh1, pukDbgCh2, pukDbgCh3, pukDbgCh4]
-pukDbgScr = DialogScreen(idT = pukDbgId, dialogText = pukDbgText, choicesList = pukDbgClist, prevScreen= pukStrScr)
+pukDbgScr = DialogScreen(idT = pukDbgId, dialogText = pukDbgText, choicesList = pukDbgClist, prevScreen= pukIntScr)
 
 ###############################
 

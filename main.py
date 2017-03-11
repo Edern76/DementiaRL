@@ -2645,7 +2645,7 @@ def getInput():
         return 'didnt-take-turn'
     elif userInput.keychar == 'L':
         displayLog(50)
-    elif userInput.keychar.upper() == 'C':
+    elif userInput.keychar == 'C':
         displayCharacter()
         
     elif userInput.keychar == 'd' and gameState == 'playing':
@@ -2832,6 +2832,9 @@ def getInput():
                 else:
                     FOV_recompute = True
                     return 'didnt-take-turn'
+        elif userInput.keychar == 'c':
+            FOV_recompute = True
+            chat()
         else:
             FOV_recompute = True
             return 'didnt-take-turn'
@@ -5326,7 +5329,56 @@ def chat():
             assert isinstance(tree, dial.DialogTree) #Tells PyDev that tree is an instance of the DialogTree class, so we can have auto-completion working. The side effect is that Python will throw an exception if tree isn't actually an instance of the DialogTree class (but if it isn't, you did something wrong and the rest of the code wouldn't work anyways).
             root.clear()
             tree.currentScreen = copy(tree.origScreen)
-            #TO-DO : Write what goes below here 
+            assert isinstance(tree.currentScreen, dial.DialogScreen)
+            state = 'starting'
+            while state != 'END':
+                con.clear()
+                ty = 2
+                for line in tree.currentScreen.dialogText:
+                    if line != 'BREAK':
+                        drawCentered(con, y = ty, text = line)
+                    ty += 1
+                root.blit(con, 0, 0, WIDTH, HEIGHT, 0, 0)
+                chosen = False
+                selectedIndex = 0
+                while not chosen:
+                    assert isinstance(panel, tdl.Console)
+                    panel.clear()
+                    for x in range(WIDTH):
+                        panel.draw_char(x, 0, chr(196))
+                    for dchoice in tree.currentScreen.choicesList:
+                        assert isinstance(dchoice, dial.DialogChoice)
+                        ind = tree.currentScreen.choicesList.index(dchoice)
+                        showInd = ind + 1
+                        prefix = str(showInd) + ')'
+                        strShown = prefix + dchoice.text
+                        if selectedIndex == ind:
+                            background = colors.dark_azure
+                        else:
+                            background = Ellipsis
+                        panel.draw_str(0, 1 + ind, prefix, fg = Ellipsis, bg = background)
+                        panel.draw_str(len(prefix), 1 + ind, dchoice.text, fg = Ellipsis, bg = background)
+                    root.blit(panel, 0, PANEL_Y, WIDTH, PANEL_HEIGHT, 0, 0)
+                    tdl.flush()
+                    key = tdl.event.key_wait()
+                    actualKey = key.keychar.upper()
+                    if actualKey == 'ESCAPE':
+                        state = 'END'
+                        chosen = True
+                    elif actualKey in ('UP', 'KP8'):
+                        selectedIndex -= 1
+                        if selectedIndex < 0:
+                            selectedIndex = len(tree.currentScreen.choicesList) - 1
+                        playWavSound('select.wav', True)
+                    elif actualKey in ('DOWN', 'KP2'):
+                        selectedIndex += 1
+                        if selectedIndex > len(tree.currentScreen.choicesList) - 1 :
+                            selectedIndex = 0
+                        playWavSound('select.wav', True)
+                    elif actualKey == 'ENTER':
+                        state = tree.currentScreen.choicesList[selectedIndex].select()
+                        chosen = True
+                    
         elif baddie is not None:
             msgString = baddie.name.capitalize() + ' is too busy trying to kill you to talk to you right now.'
             message(msgString)
@@ -5480,8 +5532,8 @@ def targetDirection():
     Update()
     tdl.flush()
     key = tdl.event.key_wait()
-    if key in MOVEMENT_KEYS:
-        (dx, dy) = MOVEMENT_KEYS[key]
+    if key.keychar.upper() in MOVEMENT_KEYS:
+        (dx, dy) = MOVEMENT_KEYS[key.keychar.upper()]
         (x, y) = (player.x + dx, player.y + dy)
         return (x, y)
     else:
@@ -5808,8 +5860,8 @@ def playGame():
                     tdl.flush()
                     for object in objects:
                         object.clear()
-                    if playerAction == 'exit':
-                        quitGame('Player pressed escape', True)
+                if playerAction == 'exit':
+                    quitGame('Player pressed escape', True)
         FOV_recompute = True #So as to avoid the blackscreen bug no matter which key we press
         if gameState == 'playing' and playerAction != 'didnt-take-turn':
             for object in objects:
