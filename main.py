@@ -1,4 +1,4 @@
-import colors, math, textwrap, time, os, sys, code, gzip, pathlib, traceback #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
+import colors, math, textwrap, time, os, sys, code, gzip, pathlib, traceback, queue #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
 import tdlib as tdl
 import dialog as dial
 import simpleaudio as sa
@@ -8,6 +8,7 @@ from random import randint, choice
 from math import *
 from copy import copy
 from os import makedirs
+from queue import *
 from code.constants import MAX_HIGH_CULTIST_MINIONS
 import code.nameGen as nameGen
 import code.xpLoaderPy3 as xpL
@@ -1339,6 +1340,53 @@ def enterName(race):
             mainMenu()
 #______________CHARACTER GENERATION____________
 
+def astarPath(startX, startY, goalX, goalY):
+        
+    def neighbors(x, y):
+        upperLeft = (x - 1, y - 1)
+        up = (x, y - 1)
+        upperRight = (x + 1, y - 1)
+        left = (x - 1, y)
+        right = (x + 1, y)
+        lowerLeft = (x - 1, y + 1)
+        low = (x, y + 1)
+        lowerRight = (x + 1, y + 1)
+        return [upperLeft, up, upperRight, left, right, lowerLeft, low, lowerRight]
+    #start = myMap[startX][startY]
+    #goal = myMap[goalX][goalY]
+    start = (startX, startY)
+    goal = (goalX, goalY)
+    frontier = PriorityQueue()
+    frontier.put(start, 0)
+    cameFrom = {}
+    costSoFar = {}
+    cameFrom[start] = None
+    costSoFar[start] = 0
+    
+    while not frontier.empty():
+        current = frontier.get()
+        if current == goal:
+            break
+        x, y = current
+        for next in neighbors(x, y):
+            nextX, nextY = next
+            if not isBlocked(nextX, nextY):
+                newCost = costSoFar[current] + myMap[nextX][nextY].moveCost
+                if next not in costSoFar or newCost < costSoFar[next]:
+                    costSoFar[next] = newCost
+                    priority = newCost + 1
+                    frontier.put(next, priority)
+                    cameFrom[next] = current
+    
+    current = goal
+    x, y = current
+    path = [myMap[x][y]]
+    while current != start:
+        current = cameFrom[current]
+        x, y = current
+        path.append(myMap[x][y])
+    return path.reverse()
+
 def closestMonster(max_range):
     closestEnemy = None
     closestDistance = max_range + 1
@@ -1473,6 +1521,18 @@ class GameObject:
                 print(self.name + " found no Astar path")
         else:
             return "fail"
+    
+    def moveOnAstarPath(self, goal = player):
+        self.astarPath = astarPath(self.x, self.y, goal.x, goal.y)
+        if self.astarPath is not None:
+            (self.x, self.y) = (self.astarPath.pop(0).x, self.astarPath.pop(0).y)
+            tilesinPath.extend(self.astarPath)
+            print(self.name + "'s path :", end = " ")
+            for (x,y) in self.astarPath:
+                print (str(x) + "/" + str(y) + ";", end = " ", sep = " ")
+                print()
+        else:
+            self.moveTowards(goal.x, goal.y)
 
 class Fighter: #All NPCs, enemies and the player
     def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = [0], shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = None):
@@ -1768,11 +1828,13 @@ class BasicMonster: #Basic monsters' AI
                 if monster.distanceTo(selectedTarget) < 2:
                     monster.Fighter.attack(selectedTarget)
                 else:
-                    state = monster.moveAstar(selectedTarget.x, selectedTarget.y, fallback = False)
-                    if state == "fail":
-                        diagState = checkDiagonals(monster, selectedTarget)
-                        if diagState is None:
-                            monster.moveTowards(selectedTarget.x, selectedTarget.y)
+                    #state = monster.moveAstar(selectedTarget.x, selectedTarget.y, fallback = False)
+                    #if state == "fail":
+                    #   diagState = checkDiagonals(monster, selectedTarget)
+                    #    if diagState is None:
+                    #        monster.moveTowards(selectedTarget.x, selectedTarget.y)
+                    monster.moveOnAstarPath(goal = selectedTarget)
+                    
             #elif (monster.x, monster.y) in visibleTiles and monster.distanceTo(player) >= 2:
                 #monster.moveAstar(player.x, player.y)
             else:
@@ -3358,7 +3420,7 @@ ROOM_MIN_SIZE = 6
 MAX_ROOMS = 30
 
 class Tile:
-    def __init__(self, blocked, block_sight = None, acid = False, acidCooldown = 5, character = None, fg = None, bg = None, dark_fg = None, dark_bg = None, wall = False):
+    def __init__(self, blocked, block_sight = None, acid = False, acidCooldown = 5, character = None, fg = None, bg = None, dark_fg = None, dark_bg = None, wall = False, moveCost = 1):
         self.blocked = blocked
         self.explored = False
         self.unbreakable = False
@@ -3386,6 +3448,7 @@ class Tile:
             self.dark_fg = color_dark_wall
             self.DARK_BG = color_dark_ground
             self.dark_bg = color_dark_ground
+        self.moveCost = moveCost
 
 class Rectangle:
     def __init__(self, x, y, w, h):
