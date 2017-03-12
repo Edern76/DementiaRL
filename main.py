@@ -1341,21 +1341,8 @@ def enterName(race):
 #______________CHARACTER GENERATION____________
 
 def astarPath(startX, startY, goalX, goalY):
-        
-    def neighbors(x, y):
-        upperLeft = (x - 1, y - 1)
-        up = (x, y - 1)
-        upperRight = (x + 1, y - 1)
-        left = (x - 1, y)
-        right = (x + 1, y)
-        lowerLeft = (x - 1, y + 1)
-        low = (x, y + 1)
-        lowerRight = (x + 1, y + 1)
-        return [upperLeft, up, upperRight, left, right, lowerLeft, low, lowerRight]
-    #start = myMap[startX][startY]
-    #goal = myMap[goalX][goalY]
-    start = (startX, startY)
-    goal = (goalX, goalY)
+    start = myMap[startX][startY]
+    goal = myMap[goalX][goalY]
     frontier = PriorityQueue()
     frontier.put(start, 0)
     cameFrom = {}
@@ -1365,26 +1352,23 @@ def astarPath(startX, startY, goalX, goalY):
     
     while not frontier.empty():
         current = frontier.get()
+        print('current:', current)
         if current == goal:
             break
-        x, y = current
-        for next in neighbors(x, y):
-            nextX, nextY = next
-            if not isBlocked(nextX, nextY):
-                newCost = costSoFar[current] + myMap[nextX][nextY].moveCost
+        for next in current.neighbors():
+            if not isBlocked(next.x, next.y):
+                newCost = costSoFar[current] + myMap[next.x][next.y].moveCost
                 if next not in costSoFar or newCost < costSoFar[next]:
                     costSoFar[next] = newCost
                     priority = newCost + 1
-                    frontier.put(next, priority)
+                    frontier.put(priority, next)
                     cameFrom[next] = current
     
     current = goal
-    x, y = current
-    path = [myMap[x][y]]
+    path = [goal]
     while current != start:
         current = cameFrom[current]
-        x, y = current
-        path.append(myMap[x][y])
+        path.append(current)
     return path.reverse()
 
 def closestMonster(max_range):
@@ -1525,7 +1509,8 @@ class GameObject:
     def moveOnAstarPath(self, goal = player):
         self.astarPath = astarPath(self.x, self.y, goal.x, goal.y)
         if self.astarPath is not None:
-            (self.x, self.y) = (self.astarPath.pop(0).x, self.astarPath.pop(0).y)
+            nextTile = self.astarPath.pop(0)
+            (self.x, self.y) = (nextTile.x, nextTile.y)
             tilesinPath.extend(self.astarPath)
             print(self.name + "'s path :", end = " ")
             for (x,y) in self.astarPath:
@@ -3420,7 +3405,7 @@ ROOM_MIN_SIZE = 6
 MAX_ROOMS = 30
 
 class Tile:
-    def __init__(self, blocked, block_sight = None, acid = False, acidCooldown = 5, character = None, fg = None, bg = None, dark_fg = None, dark_bg = None, wall = False, moveCost = 1):
+    def __init__(self, blocked, x, y, block_sight = None, acid = False, acidCooldown = 5, character = None, fg = None, bg = None, dark_fg = None, dark_bg = None, wall = False, moveCost = 0):
         self.blocked = blocked
         self.explored = False
         self.unbreakable = False
@@ -3430,6 +3415,8 @@ class Tile:
         self.dark_fg = dark_fg
         self.dark_bg = dark_bg
         self.wall = wall
+        self.x = x
+        self.y = y
         if block_sight is None:
             block_sight = blocked
             self.block_sight = block_sight
@@ -3449,6 +3436,19 @@ class Tile:
             self.DARK_BG = color_dark_ground
             self.dark_bg = color_dark_ground
         self.moveCost = moveCost
+        
+    def neighbors(self):
+        x = self.x
+        y = self.y
+        upperLeft = myMap[x - 1][y - 1]
+        up = myMap[x][y - 1]
+        upperRight = myMap[x + 1][y - 1]
+        left = myMap[x - 1][y]
+        right = myMap[x + 1][y]
+        lowerLeft = myMap[x - 1][y + 1]
+        low = myMap[x - 1][y + 1]
+        lowerRight = myMap[x + 1][y + 1]
+        return [upperLeft, up, upperRight, left, right, lowerLeft, low, lowerRight]
 
 class Rectangle:
     def __init__(self, x, y, w, h):
@@ -3619,7 +3619,7 @@ def makeMap():
     color_light_ground = currentBranch.color_light_ground
     color_light_gravel = currentBranch.color_light_gravel
 
-    myMap = [[Tile(True, wall = True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
+    myMap = [[Tile(True, x = x, y = y, wall = True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
     rooms = []
     numberRooms = 0
     objects = [player]
