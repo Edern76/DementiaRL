@@ -1343,15 +1343,25 @@ def enterName(race):
 def astarPath(startX, startY, goalX, goalY):
     start = myMap[startX][startY]
     goal = myMap[goalX][goalY]
-    frontier = PriorityQueue()
-    frontier.put(start, 0)
+    frontier = [(start, 0)]
     cameFrom = {}
     costSoFar = {}
     cameFrom[start] = None
     costSoFar[start] = 0
     
-    while not frontier.empty():
-        current = frontier.get()
+    print('frontier:', frontier)
+    while len(frontier) != 0:
+        prioTile = None
+        lastPrio = 9999
+        for tile, prio in frontier:
+            print(tile, prio)
+            if prio < lastPrio:
+                lastPrio = prio
+                prioTile = tile
+        
+        print(prioTile, lastPrio)
+        frontier.remove((prioTile, lastPrio))
+        current = prioTile
         print('current:', current)
         if current == goal:
             break
@@ -1361,13 +1371,14 @@ def astarPath(startX, startY, goalX, goalY):
                 if next not in costSoFar or newCost < costSoFar[next]:
                     costSoFar[next] = newCost
                     priority = newCost + 1
-                    frontier.put(priority, next)
+                    frontier.append((next, priority))
                     cameFrom[next] = current
     
     current = goal
     path = [goal]
     while current != start:
-        current = cameFrom[current]
+        former = current
+        current = cameFrom[former]
         path.append(current)
     return path.reverse()
 
