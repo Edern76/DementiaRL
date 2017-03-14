@@ -355,40 +355,55 @@ def convertBuffsToNames(fighter):
     return names
 
 def modifyFighterStats(fighter = None, pow = 0, acc = 0, evas = 0, arm = 0, hp = 0, mp = 0, crit = 0, ap = 0, str = 0, dex = 0, vit = 0, will = 0):
+    hpDiff = fighter.baseMaxHP - fighter.hp
+    print(fighter.baseMaxHP, fighter.hp, hpDiff)
+    mpDiff = fighter.baseMaxMP - fighter.MP
     if fighter.owner == player:
         player.Player.strength += str
         player.Player.dexterity += dex
         player.Player.vitality += vit
+        print(player.Player.BASE_VITALITY, player.Player.vitality, vit)
         player.Player.willpower += will
     fighter.noStrengthPower += pow
     fighter.noDexAccuracy += acc
     fighter.noDexEvasion += evas
     fighter.baseArmor += arm
+    
+    print(fighter.noVitHP, fighter.hp)
     fighter.noVitHP += hp
-    fighter.hp += hp
+    fighter.hp = fighter.baseMaxHP - hpDiff
+    print(fighter.noVitHP, fighter.hp, fighter.baseMaxHP, hp)
     fighter.noWillMP += mp
-    fighter.MP += mp
+    fighter.MP = fighter.baseMaxMP - mpDiff
     fighter.baseCritical += crit
     fighter.baseArmorPenetration += ap
-    player.Player.updatePlayerStats()
 
 def setFighterStatsBack(fighter = None):
-    fighter.noStrengthPower = fighter.BASE_POWER
-    fighter.noDexAccuracy = fighter.BASE_ACCURACY
-    fighter.noDexEvasion = fighter.BASE_EVASION
-    fighter.baseArmor = fighter.BASE_ARMOR
-    fighter.hp -= fighter.baseMaxHP - fighter.BASE_MAX_HP
-    fighter.noVitHP = fighter.BASE_MAX_HP
-    fighter.MP -= fighter.baseMaxMP - fighter.BASE_MAX_MP
-    fighter.noWillMP = fighter.BASE_MAX_MP
-    fighter.baseCritical = fighter.BASE_CRITICAL
-    fighter.baseArmorPenetration = fighter.BASE_ARMOR_PENETRATION
+    hpDiff = fighter.baseMaxHP - fighter.hp
+    print(fighter.baseMaxHP, fighter.hp, hpDiff, fighter.noVitHP)
+    mpDiff = fighter.baseMaxMP - fighter.MP
+    print(player.Player.vitality, player.Player.BASE_VITALITY)
     if fighter.owner == player:
         player.Player.strength = player.Player.BASE_STRENGTH
         player.Player.dexterity = player.Player.BASE_DEXTERITY
         player.Player.vitality = player.Player.BASE_VITALITY
+        print(player.Player.vitality)
         player.Player.willpower = player.Player.BASE_WILLPOWER
-        player.Player.updatePlayerStats()
+    fighter.noStrengthPower = fighter.BASE_POWER
+    fighter.noDexAccuracy = fighter.BASE_ACCURACY
+    fighter.noDexEvasion = fighter.BASE_EVASION
+    fighter.baseArmor = fighter.BASE_ARMOR
+
+    fighter.noVitHP = fighter.BASE_MAX_HP
+    print(fighter.noVitHP, fighter.BASE_MAX_HP, fighter.hp)
+    fighter.hp = fighter.baseMaxHP - hpDiff
+    print(fighter.hp, fighter.baseMaxHP)
+
+    fighter.noWillMP = fighter.BASE_MAX_MP
+    fighter.MP = fighter.baseMaxMP - mpDiff
+
+    fighter.baseCritical = fighter.BASE_CRITICAL
+    fighter.baseArmorPenetration = fighter.BASE_ARMOR_PENETRATION
 
 def randomDamage(fighter = None, chance = 33, minDamage = 1, maxDamage = 1, dmgMessage = None, dmgColor = colors.red, msgPlayerOnly = True):
     dice = randint(1, 100)
@@ -1476,21 +1491,17 @@ class GameObject:
 
 class Fighter: #All NPCs, enemies and the player
     def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = [0], shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = None):
-        self.baseMaxHP = hp
         self.noVitHP = hp
         self.BASE_MAX_HP = hp
         self.hp = hp
         self.baseArmor = armor
         self.BASE_ARMOR = armor
-        self.basePower = power
         self.noStrengthPower = power
         self.BASE_POWER = power
         self.deathFunction = deathFunction
         self.xp = xp
-        self.baseAccuracy = accuracy
         self.noDexAccuracy = accuracy
         self.BASE_ACCURACY = accuracy
-        self.baseEvasion = evasion
         self.noDexEvasion = evasion
         self.BASE_EVASION = evasion
         self.baseCritical = critical
@@ -1516,8 +1527,7 @@ class Fighter: #All NPCs, enemies and the player
         
         self.acidified = False
         self.acidifiedCooldown = 0
-        
-        self.baseMaxMP = maxMP
+
         self.noWillMP = maxMP
         self.MP = maxMP
         self.BASE_MAX_MP = maxMP
@@ -1532,6 +1542,42 @@ class Fighter: #All NPCs, enemies and the player
         self.spellsOnCooldown = []
         
         self.transferDamage = transferDamage
+
+    @property
+    def basePower(self):
+        bonus = 0
+        if self.owner == player:
+            bonus = player.Player.strength
+        return self.noStrengthPower + bonus
+    
+    @property
+    def baseMaxHP(self):
+        bonus = 0
+        if self.owner == player:
+            bonus = 5 * player.Player.vitality
+        return self.noVitHP + bonus
+    
+    @property
+    def baseAccuracy(self):
+        bonus = 0
+        if self.owner == player:
+            bonus = 2 * player.Player.dexterity
+        return self.noDexAccuracy + bonus
+    
+    @property
+    def baseEvasion(self):
+        bonus = 0
+        if self.owner == player:
+            bonus = player.Player.dexterity
+        return self.noDexAccuracy + bonus
+    
+    @property
+    def baseMaxMP(self):
+        bonus = 0
+        if self.owner == player:
+            bonus = 5 * player.Player.willpower
+        return self.noWillMP + bonus
+
 
     @property
     def power(self):
@@ -2082,6 +2128,7 @@ class Spellcaster():
 class Player:
     def __init__(self, name, strength, dexterity, vitality, willpower, actualPerSkills, levelUpStats, skillsBonus, race, classes, traits, baseHunger = BASE_HUNGER, speed = 'average', speedChance = 5):
         self.name = name
+
         self.strength = strength
         self.BASE_STRENGTH = strength
         self.dexterity = dexterity
@@ -2091,7 +2138,7 @@ class Player:
         self.willpower = willpower
         self.BASE_WILLPOWER = willpower
         self.baseMaxWeight = 45.0
-        self.maxWeight = self.baseMaxWeight
+
         self.actualPerSkills = actualPerSkills
         self.levelUpStats = levelUpStats
         self.skillsBonus = skillsBonus
@@ -2131,6 +2178,10 @@ class Player:
         
         self.hasDiscoveredTown = False
         
+    @property
+    def maxWeight(self):
+        return self.baseMaxWeight + 3 * self.strength
+        
     def changeColor(self):
         self.hpRatio = ((self.owner.Fighter.hp / self.owner.Fighter.maxHP) * 100)
         if self.hpRatio == 100:
@@ -2145,32 +2196,6 @@ class Player:
             self.owner.color = (255, 0, 0)
         elif self.hpRatio == 0:
             self.owner.color = (120, 0, 0)
-    
-    def bonusPlayerStats(self):
-        #[power, accuracy, evasion, armor, maxHP, maxMP, critical]
-        power = self.strength
-        accuracy = 2 * self.dexterity
-        evasion = self.dexterity
-        maxHP = 5 * self.vitality
-        maxMP = 5 * self.willpower
-        return power, accuracy, evasion, maxHP, maxMP
-
-    def updatePlayerStats(self):
-        power, accuracy, evasion, maxHP, maxMP = self.bonusPlayerStats()
-        object = self.owner
-
-        object.Fighter.basePower = object.Fighter.noStrengthPower + power
-        object.Fighter.baseAccuracy = object.Fighter.noDexAccuracy + accuracy
-        object.Fighter.baseEvasion = object.Fighter.noDexEvasion + evasion
-        self.maxWeight = self.baseMaxWeight + 3 * power
-        
-        hpDiff = object.Fighter.baseMaxHP - object.Fighter.hp
-        mpDiff = object.Fighter.baseMaxMP - object.Fighter.MP
-        
-        object.Fighter.baseMaxHP = object.Fighter.noVitHP + maxHP
-        object.Fighter.hp = object.Fighter.baseMaxHP - hpDiff
-        object.Fighter.baseMaxMP = object.Fighter.noWillMP + maxMP
-        object.Fighter.MP = object.Fighter.baseMaxMP - mpDiff
     
     def takeControl(self, target):
         player.Fighter.hp = target.Fighter.hp
@@ -2280,27 +2305,22 @@ class Essence:
                     player.Player.BASE_DEXTERITY += boost
                     player.Player.dexterity += boost
                 if stat == 'power':
-                    player.Fighter.basePower += boost
                     player.Fighter.noStrengthPower += boost
                     player.Fighter.BASE_POWER += boost
                 if stat == 'accuracy':
-                    player.Fighter.baseAccuracy += boost
                     player.Fighter.noDexAccuracy += boost
                     player.Fighter.BASE_ACCURACY += boost
                 if stat == 'evasion':
-                    player.Fighter.baseEvasion += boost
                     player.Fighter.noDexEvasion += boost
                     player.Fighter.BASE_EVASION += boost
                 if stat == 'armor':
                     player.Fighter.baseArmor += boost
                     player.Fighter.BASE_ARMOR += boost
                 if stat == 'HP':
-                    player.Fighter.baseMaxHP += boost
                     player.Fighter.noVitHP += boost
                     player.Fighter.hp += boost
                     player.Fighter.BASE_MAX_HP += boost
                 if stat == 'mp':
-                    player.Fighter.baseMaxMP += boost
                     player.Fighter.noWillMP += boost
                     player.Fighter.MP += boost
                     player.Fighter.BASE_MAX_MP += boost
@@ -2625,7 +2645,6 @@ def getInput():
     elif userInput.keychar.upper() == 'F5' and DEBUG and not tdl.event.isWindowClosed(): #Don't know if tdl.event.isWindowClosed() is necessary here but added it just to be sure
         player.Player.vitality += 1000
         player.Player.BASE_VITALITY += 1000
-        player.Player.updatePlayerStats()
         player.Fighter.hp = player.Fighter.maxHP
         message('Healed player and increased their maximum HP value by 1000', colors.purple)
         FOV_recompute = True
@@ -3120,22 +3139,17 @@ def checkLevelUp():
         message('Your battle skills grow stronger! You reached level ' + str(player.level) + '!', colors.yellow)
         
         #applying Class specific stat boosts
-        player.Fighter.basePower += player.Player.levelUpStats[0]
         player.Fighter.noStrengthPower += player.Player.levelUpStats[0]
         player.Fighter.BASE_POWER += player.Player.levelUpStats[0]
-        player.Fighter.baseAccuracy += player.Player.levelUpStats[1]
         player.Fighter.noDexAccuracy += player.Player.levelUpStats[1]
         player.Fighter.BASE_ACCURACY += player.Player.levelUpStats[1]
-        player.Fighter.baseEvasion += player.Player.levelUpStats[2]
         player.Fighter.noDexEvasion += player.Player.levelUpStats[2]
         player.Fighter.BASE_EVASION += player.Player.levelUpStats[2]
         player.Fighter.baseArmor += player.Player.levelUpStats[3]
         player.Fighter.BASE_ARMOR += player.Player.levelUpStats[3]
-        player.Fighter.baseMaxHP += player.Player.levelUpStats[4]
         player.Fighter.noVitHP += player.Player.levelUpStats[4]
         player.Fighter.hp += player.Player.levelUpStats[4]
         player.Fighter.BASE_MAX_HP += player.Player.levelUpStats[4]
-        player.Fighter.baseMaxMP += player.Player.levelUpStats[5]
         player.Fighter.noWillMP += player.Player.levelUpStats[5]
         player.Fighter.MP += player.Player.levelUpStats[5]
         player.Fighter.BASE_MAX_MP += player.Player.levelUpStats[5]
@@ -3186,7 +3200,6 @@ def checkLevelUp():
                     player.Fighter.baseArmor += armorBonus
                     hpBonus = randint(5, 15)
                     player.Fighter.BASE_MAX_HP += hpBonus
-                    player.Fighter.baseMaxHP += hpBonus
                     player.Fighter.noVitHP += hpBonus
                     player.Fighter.hp += hpBonus
                 elif choice == 1:
@@ -3199,7 +3212,6 @@ def checkLevelUp():
                     player.Player.BASE_WILLPOWER += player.Player.levelUpStats[10]
                     mpBonus = randint(0, 10)
                     player.Fighter.BASE_MAX_MP += mpBonus
-                    player.Fighter.baseMaxMP += mpBonus
                     player.Fighter.noWillMP += mpBonus
                     player.Fighter.MP += mpBonus
             message('You feel your wooden corpse thickening!', colors.celadon)
@@ -3220,22 +3232,17 @@ def checkLevelUp():
                  'Accuracy (from ' + str(player.Player.actualPerSkills[10]) + ')',], LEVEL_SCREEN_WIDTH)
             if choice != None:
                 if player.Player.actualPerSkills[choice] < 5:
-                    player.Fighter.basePower += player.Player.skillsBonus[choice][0]
                     player.Fighter.noStrengthPower += player.Player.skillsBonus[choice][0]
                     player.Fighter.BASE_POWER += player.Player.skillsBonus[choice][0]
-                    player.Fighter.baseAccuracy += player.Player.skillsBonus[choice][1]
                     player.Fighter.noDexAccuracy += player.Player.skillsBonus[choice][1]
                     player.Fighter.BASE_ACCURACY += player.Player.skillsBonus[choice][1]
-                    player.Fighter.baseEvasion += player.Player.skillsBonus[choice][2]
                     player.Fighter.noDexEvasion += player.Player.skillsBonus[choice][2]
                     player.Fighter.BASE_EVASION += player.Player.skillsBonus[choice][2]
                     player.Fighter.baseArmor += player.Player.skillsBonus[choice][3]
                     player.Fighter.BASE_ARMOR += player.Player.skillsBonus[choice][3]
-                    player.Fighter.baseMaxHP += player.Player.skillsBonus[choice][4]
                     player.Fighter.noVitHP += player.Player.skillsBonus[choice][4]
                     player.Fighter.hp += player.Player.skillsBonus[choice][4]
                     player.Fighter.BASE_MAX_HP += player.Player.skillsBonus[choice][4]
-                    player.Fighter.baseMaxMP += player.Player.skillsBonus[choice][5]
                     player.Fighter.noWillMP += player.Player.skillsBonus[choice][5]
                     player.Fighter.MP += player.Player.skillsBonus[choice][5]
                     player.Fighter.BASE_MAX_MP += player.Player.skillsBonus[choice][5]
@@ -3258,7 +3265,6 @@ def checkLevelUp():
                 elif player.Player.actualPerSkills[choice] >= 5:
                     choice = None
 
-        player.Player.updatePlayerStats()
         if player.Player.actualPerSkills[0] >= 4 and not player.Player.dualWield:
             message('You are now proficient enough with light weapons to wield two at the same time!', colors.yellow)
             player.Player.dualWield = True
@@ -5261,7 +5267,8 @@ def mainMenu():
                     playFight = Fighter(hp = playerComponent[4], power= playerComponent[0], armor= playerComponent[3], deathFunction=playerDeath, xp=0, evasion = playerComponent[2], accuracy = playerComponent[1], maxMP= playerComponent[5], knownSpells=startingSpells, critical = playerComponent[6], armorPenetration = playerComponent[11])
                     player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = name, color = (0, 210, 0))
                     player.level = 1
-                    player.Player.updatePlayerStats()
+                    player.Fighter.hp = player.Fighter.baseMaxHP
+                    player.Fighter.MP = player.Fighter.baseMaxMP
 
                     newGame()
                     playGame()
