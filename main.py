@@ -816,229 +816,186 @@ spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressur
 #_____________SPELLS_____________
 
 #______________CHARACTER GENERATION____________
-def initializeCharCreation():
-    global power, accuracy, evasion, armor, maxHP, maxMP, critical, strength, dexterity, vitality, willpower, startingSpells, baseMaxLoad, ap
+createdCharacter = {'pow': 0, 'acc': 20, 'ev': 0, 'arm': 0, 'hp': 0, 'mp': 0, 'crit': 0, 'str': 0, 'dex': 0, 'vit': 0, 'will': 0, 'ap': 0, 
+                    'powLvl': 0, 'accLvl': 0, 'evLvl': 0, 'armLvl': 0, 'hpLvl': 0, 'mpLvl': 0, 'critLvl': 0, 'strLvl': 0, 'dexLvl': 0, 'vitLvl': 0, 'willLvl': 0, 'apLvl': 0,
+                    'spells': [], 'load': 45.0}
+
+class Trait():
+    '''
+    Actually used for everything in the character creation, from race to skills etc
+    '''
+    def __init__(self, name, description, type, selectable = True, selected = False, allowsSelection = [], amount = 0, maxAmount = 1, pow = (0, 0), acc = (0, 0), ev = (0, 0), arm = (0, 0), hp = (0, 0), mp = (0, 0), crit = (0, 0), str = (0, 0), dex = (0, 0), vit = (0, 0), will = (0, 0), spells = None, load = 0, ap = (0, 0)):
+        self.name = name
+        self.desc = description
+        self.type = type
+        self.selectable = selectable
+        self.selected = selected
+        self.allowsSelection = allowsSelection
+        self.amount = amount
+        self.maxAmount = maxAmount
+        self.pow, self.powPerLvl = pow
+        self.acc, self.accPerLvl = acc
+        self.ev, self.evPerLvl = ev
+        self.arm, self.armPerLvl = arm
+        self.hp, self.hpPerLvl = hp
+        self.mp, self.mpPerLvl = mp
+        self.crit, self.critPerLvl = crit
+        self.str, self.strPerLvl = str
+        self.dex, self.dexPerLvl = dex
+        self.vit, self.vitPerLvl = vit
+        self.will,self.willPerLvl = will
+        self.ap, self.apPerLvl = ap
+        self.load = load
+        self.spells = spells
+        
+    def description(self):
+        wrappedText = textwrap.wrap(self.desc, 25)
+        line = 0
+        for lines in wrappedText:
+            line += 1
+            drawCentered(cons = root, y = 35 + line, text = lines, fg = colors.white, bg = None)
     
-    BASE_POWER = 0
-    BASE_ACCURACY = 20
-    BASE_EVASION = 0
-    BASE_ARMOR = 0
-    BASE_MAXHP = 0
-    BASE_MAXMP = 0
-    BASE_CRITICAL = 5
-    BASE_STRENGTH = 0
-    BASE_DEXTERITY = 0
-    BASE_VITALITY = 0
-    BASE_WILLPOWER = 0
-    BASE_AP = 0
+    def applyBonus(self):
+        global createdCharacter
+        if self.amount < self.maxAmount:
+            createdCharacter['pow'] += self.pow
+            createdCharacter['acc'] += self.acc
+            createdCharacter['ev'] += self.ev
+            createdCharacter['arm'] += self.arm
+            createdCharacter['hp'] += self.hp
+            createdCharacter['mp'] += self.mp
+            createdCharacter['crit'] += self.crit
+            createdCharacter['str'] += self.str
+            createdCharacter['dex'] += self.dex
+            createdCharacter['vit'] += self.vit
+            createdCharacter['will'] += self.will
+            createdCharacter['ap'] += self.ap
+            createdCharacter['spells'].extend(self.spells)
+            createdCharacter['load'] += self.load
+            createdCharacter['powLvl'] += self.powPerLvl
+            createdCharacter['accLvl'] += self.accPerLvl
+            createdCharacter['evLvl'] += self.evPerLvl
+            createdCharacter['armLvl'] += self.armPerLvl
+            createdCharacter['hpLvl'] += self.hpPerLvl
+            createdCharacter['mpLvl'] += self.mpPerLvl
+            createdCharacter['critLvl'] += self.critPerLvl
+            createdCharacter['strLvl'] += self.strPerLvl
+            createdCharacter['dexLvl'] += self.dexPerLvl
+            createdCharacter['vitLvl'] += self.vitPerLvl
+            createdCharacter['willLvl'] += self.willPerLvl
+            createdCharacter['apLvl'] += self.apPerLvl
+            self.amount += 1
+            self.selected = True
+            for trait in self.allowsSelection:
+                trait.selectable = True
     
-    power = BASE_POWER
-    accuracy = BASE_ACCURACY
-    evasion = BASE_EVASION
-    armor = BASE_ARMOR
-    maxHP = BASE_MAXHP
-    maxMP = BASE_MAXMP
-    critical = BASE_CRITICAL
-    ap = BASE_AP
-    
-    strength = BASE_STRENGTH
-    dexterity = BASE_DEXTERITY
-    vitality = BASE_VITALITY
-    willpower = BASE_WILLPOWER
-    
-    baseMaxLoad = 45.0
-
-    startingSpells = []
-
-def description(text):
-    wrappedText = textwrap.wrap(text, 25)
-    line = 0
-    for lines in wrappedText:
-        line += 1
-        drawCentered(cons = root, y = 35 + line, text = lines, fg = colors.white, bg = None)
-
-def applyBonus(list, chosenList):
-    global power, accuracy, evasion, armor, maxHP, maxMP, critical, strength, dexterity, vitality, willpower, ap
-    power += list[chosenList][0]
-    accuracy += list[chosenList][1]
-    evasion += list[chosenList][2]
-    armor += list[chosenList][3]
-    maxHP += list[chosenList][4]
-    maxMP += list[chosenList][5]
-    critical += list[chosenList][6]
-    strength += list[chosenList][7]
-    dexterity += list[chosenList][8]
-    vitality += list[chosenList][9]
-    willpower += list[chosenList][10]
-    ap += list[chosenList][11]
-
-def removeBonus(list, chosenList):
-    global power, accuracy, evasion, armor, maxHP, maxMP, critical, strength, dexterity, vitality, willpower, ap
-    power -= list[chosenList][0]
-    accuracy -= list[chosenList][1]
-    evasion -= list[chosenList][2]
-    armor -= list[chosenList][3]
-    maxHP -= list[chosenList][4]
-    maxMP -= list[chosenList][5]
-    critical -= list[chosenList][6]
-    strength -= list[chosenList][7]
-    dexterity -= list[chosenList][8]
-    vitality -= list[chosenList][9]
-    willpower -= list[chosenList][10]
-    ap -= list[chosenList][11]
-
-#Bonus template: [power, accuracy, evasion, armor, maxHP, maxMP, critical, strength, dexterity, vitality, willpower, armor penetration]
+    def removeBonus(self):
+        global createdCharacter
+        if self.amount > 0:
+            createdCharacter['pow'] -= self.pow
+            createdCharacter['acc'] -= self.acc
+            createdCharacter['ev'] -= self.ev
+            createdCharacter['arm'] -= self.arm
+            createdCharacter['hp'] -= self.hp
+            createdCharacter['mp'] -= self.mp
+            createdCharacter['crit'] -= self.crit
+            createdCharacter['str'] -= self.str
+            createdCharacter['dex'] -= self.dex
+            createdCharacter['vit'] -= self.vit
+            createdCharacter['will'] -= self.will
+            createdCharacter['ap'] -= self.ap
+            for spell in self.spells:
+                createdCharacter['spells'].remove(spell)
+            createdCharacter['load'] -= self.load
+            createdCharacter['powLvl'] -= self.powPerLvl
+            createdCharacter['accLvl'] -= self.accPerLvl
+            createdCharacter['evLvl'] -= self.evPerLvl
+            createdCharacter['armLvl'] -= self.armPerLvl
+            createdCharacter['hpLvl'] -= self.hpPerLvl
+            createdCharacter['mpLvl'] -= self.mpPerLvl
+            createdCharacter['critLvl'] -= self.critPerLvl
+            createdCharacter['strLvl'] -= self.strPerLvl
+            createdCharacter['dexLvl'] -= self.dexPerLvl
+            createdCharacter['vitLvl'] -= self.vitPerLvl
+            createdCharacter['willLvl'] -= self.willPerLvl
+            createdCharacter['apLvl'] -= self.apPerLvl
+            self.amount -= 1
+            if self.amount == 0:
+                self.selected = True
+                for trait in self.allowsSelection:
+                    trait.selectable = False
+                    if trait.selected: 
+                        trait.selected = False
 
 def characterCreation():
-    initializeCharCreation()
-    baseMaxLoad = 45.0
+    allTraits = []
     
-    races = ['Human', 'Minotaur', 'Insectoid', 'Felis', 'Reptilian', 'Demon spawn', 'Rootling', 'Werewolf', 'Devourer', 'Virus ']
-    racesDescription = ['Humans are the most common race. They have no special characteristic, and are neither better or worse at anything. However, they are good learners and gain experience faster.',
-                        'Minotaurs, whose muscular bodies are topped with a taurine head, are tougher and stronger than humans, but are way less smart. They are uncontrollable and, when angered, can become a wrecking ball of muscles and thorns.',
-                        'Insectoids are a rare race of bipedal insects which are stronger than human but, more importantly, very good at arcane arts. They come in all kinds of forms, from the slender mantis to the bulky beetle.',
-                        'Felis, kinds of humanoid cats, are sneaky thieves and assassins. They usually move silently and can see in the dark.',
-                        'Reptilians are very agile but absurdly weak. Their scaled skin, however, sometimes provides them with natural camouflage, and they might use their natural venom on their daggers or arrows to make them even more deadly.',
-                        'Demon spawns, a very uncommon breed of a human and a demon, are cursed with the heritage of  their demonic parents, which will make them grow disturbing mutations as they grow older and stronger.',
-                        'Rootlings, also called treants, are rare, sentient plants. They begin their life as a simple twig, but, with time, might become gigantic oaks.',
-                        'Werewolves are a martyred and despised race. Very tough to kill, they are naturally stronger than basic humans and unconogreably shapeshift more or less regularly. However, older werewolves are used to these transformations and can even use them to their interests.',
-                        'Devourers are strange, dreaded creatures from another dimension. Few have arrived in ours and even fewer have been described. These animals, half mantis, half lizard, are only born to kill and consume. Some of their breeds can even, after consuming anything - even a weapon - grow an organic replica of it.',
-                        'Viruses are the physically weakest race, but do not base their success on their own bodies. Indeed, they are able to infect another race, making it their host and fully controllable by the virus. What is more, the virus own physical attributes, instead of applying to it directly, rather modifies the host metabolism, potentially making it stronger or tougher. However, this take-over is very harmful for the host, who will eventually die. The virus must then find a new host to continue living.']
-    racesBonus = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], #Human
-                  [0, 0, 0, 0, 0, 0, 0, 5, -4, 4, -3, 0], #Minotaur
-                  [0, 0, 0, 0, 0, 0, 0, 1, -1, -2, 2, 0], #Insectoid
-                  [0, 0, 0, 0, 0, 0, 0, 0, 2, 0, -2, 0], #Felis
-                  [0, 0, 10, 0, 0, 0, 0, -4, 2, 0, 0, 0], #Reptilian
-                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], #Demon Spawn
-                  [0, 0, 0, 0, 0, 0, 0, -3, -2, -4, -3, 0], #Rootling
-                  [0, 0, 0, 0, 0, 0, 0, 2, 1, -2, -4, 0], #Werewolf
-                  [0, 0, 0, 0, 0, 0, 0, 1, 0, -2, -10, 0], #Devourer
-                  [0, 0, 999, 0, 0, 0, 0, -9, -9, -9, -9, 0]] #Virus
-    MAX_RACES = 1
-    actualRaces = 0
-    selectedRaces = [False, False, False, False, False, False, False, False, False, False]
-    chosenRace = None
-                    #after 10: 'Fast learner', 'Rage', 'Horned', 'Chitin carapace', 'Silent walk', 'Venomous glands', 'Mimesis', 'Wild instincts'
-    selectableTraitsPerRaces = [[True, True, True, True, True, True, True, True, True, True, True, False, False, False, False, False, False, False],
-                                [True, True, True, True, True, True, True, True, True, True, False, True, True, False, False, False, False, False],
-                                [True, True, True, True, True, True, True, True, True, True, False, False, False, True, False, False, False, False],
-                                [True, True, True, True, True, True, True, True, True, True, False, False, False, False, True, False, False, False],
-                                [True, True, True, True, True, True, True, True, True, True, False, False, False, False, False, True, True, False],
-                                [True, True, True, True, True, True, True, True, True, True, False, False, False, False, False, False, False, False],
-                                [True, True, True, True, True, True, True, True, True, True, False, False, False, False, False, False, False, False],
-                                [True, True, True, True, True, True, True, True, True, True, False, False, False, False, False, False, False, True],
-                                [True, True, True, True, True, True, True, True, True, True, False, False, False, False, False, False, False, False],
-                                [True, True, True, True, True, True, True, True, True, True, False, False, False, False, False, False, False, False]]
+    fastLearn = Trait('Fast learner', 'You are very smart and learn from your wins or losses very fast', type = 'trait', selectable = False)
+    rage = Trait('Rage', 'When low on health, you will lose all control', type = 'trait', selectable = False)
+    horns = Trait('Horned', 'Your horns are very large and can be used in combats', type = 'trait', selectable = False)
+    carapace = Trait('Chitin carapace', 'Your natural exoskeleton is very resistant', type = 'trait', arm=(2, 0), selectable = False)
+    silence = Trait('Silent walk', 'Your paws are very soft, allowing you to be very sneaky', type = 'trait', selectable = False)
+    venom = Trait('Venomous glands', 'You are able to envenom your weapons', type = 'trait', selectable = False)
+    mimesis = Trait('Mimesis', 'You can mimic your environment, making it very hard to see you', type = 'trait', selectable = False)
+    wild = Trait('Wild instincts', 'Your natural transformation is even more deadly', type = 'trait', selectable = False)
+    optionTraits = [fastLearn, rage, horns, carapace, silence, venom, mimesis, wild]
+    allTraits.extend(optionTraits)
     
-    classes = ['Knight', 'Barbarian', 'Rogue', 'Mage ', 'Necromancer']
-    classesDescription = ['A warrior who wears armor and wields shields',
-                          'A brutal fighter who is mighty strong',
-                          'A rogue who is stealthy and backstabby (probably has a french accent)',
-                          'A wizard who zaps everything',
-                          'A master of the occult arts who has the ability to raise and control the dead.']
-    classesBonus = [[0, 0, 0, 1, 120, 30, 0, 0, 0, 0, 0, 0], #Knight
-                    [0, 0, 0, 0, 160, 30, 0, 1, 0, 0, 0, 0], #Barbarian
-                    [0, 8, 10, 0, 90, 40, 3, 0, 0, 0, 0, 0], #Rogue
-                    [0, 0, 0, 0, 70, 50, 0, 0, 0, 0, 2, 0], #Mage
-                    [0, 0, 0, 0, 100, 15, 0, 0, 0, 0, 0, 0]] #Necromancer
-    classesLevelUp = [[0, 0, 0, 1, 14, 3, 0, 0, 0, 0, 0, 0],
-                      [0, 0, 0, 0, 20, 3, 0, 1, 0, 0, 0, 0],
-                      [0, 2, 1, 0, 10, 5, 0, 0, 0, 0, 0, 0],
-                      [0, 0, 0, 0, 6, 7, 0, 0, 0, 0, 0, 0],
-                      [0, 0, 0, 0, 4, 1, 0, 0, 0, 0, 0, 0]]
-    MAX_CLASSES = 1
-    actualClasses = 0
-    selectedClasses = [False, False, False, False, False]
-    levelUpStats = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    classesSpells = [[], [enrage], [], [fireball], [darkPact, ressurect]]
-    chosenClass = None
+    human = Trait('human', 'Humans are the most common race. They have no special characteristic, and are neither better or worse at anything. However, they are good learners and gain experience faster.', type = 'race', allowsSelection=[fastLearn])
+    mino = Trait('Minotaur', 'Minotaurs, whose muscular bodies are topped with a taurine head, are tougher and stronger than humans, but are way less smart. They are uncontrollable and, when angered, can become a wrecking ball of muscles and thorns.', type= 'race', allowsSelection=[rage, horns], str=(5, 0), dex=(-4, 0), vit=(4, 0), will=(-3, 0))
+    insect = Trait('Insectoid', 'Insectoids are a rare race of bipedal insects which are stronger than human but, more importantly, very good at arcane arts. They come in all kinds of forms, from the slender mantis to the bulky beetle.', type = 'race', allowsSelection=[carapace], str=(1, 0), dex=(-1, 0), vit=(-2, 0), will=(2, 0))
+    cat = Trait('Felis', 'Felis, kinds of humanoid cats, are sneaky thieves and assassins. They usually move silently and can see in the dark.', type ='race', allowsSelection=[silence], str = (2, 0), vit = (-2, 0))
+    rept = Trait('Reptilian', 'Reptilians are very agile but absurdly weak. Their scaled skin, however, sometimes provides them with natural camouflage, and they might use their natural venom on their daggers or arrows to make them even more deadly.', type = 'race', allowsSelection=[venom, mimesis], ev=(20, 0), str=(-4, 0), dex=(2, 0))
+    demon = Trait('Demon Spawn', 'Demon spawns, a very uncommon breed of a human and a demon, are cursed with the heritage of  their demonic parents, which will make them grow disturbing mutations as they grow older and stronger.', type = 'race')
+    tree = Trait('Rootling', 'Rootlings, also called treants, are rare, sentient plants. They begin their life as a simple twig, but, with time, might become gigantic oaks.', type = 'race', str=(-3, 0), dex=(-2, 0), vit=(-4, 0), will=(-3, 0))
+    wolf = Trait('Werewolf', 'Werewolves are a martyred and despised race. Very tough to kill, they are naturally stronger than basic humans and unconogreably shapeshift more or less regularly. However, older werewolves are used to these transformations and can even use them to their interests.', type = 'race', allowsSelection=[wild], str=(2, 0), dex=(1, 0), vit=(-2, 0), will=(-4, 0))
+    devourer = Trait('Devourer', 'Devourers are strange, dreaded creatures from another dimension. Few have arrived in ours and even fewer have been described. These animals, half mantis, half lizard, are only born to kill and consume. Some of their breeds can even, after consuming anything - even a weapon - grow an organic replica of it.', type = 'race', vit = (-2, 0), will = (-10, 0))
+    virus = Trait('Virus ', 'Viruses are the physically weakest race, but do not base their success on their own bodies. Indeed, they are able to infect another race, making it their host and fully controllable by the virus. What is more, the virus own physical attributes, instead of applying to it directly, rather modifies the host metabolism, potentially making it stronger or tougher. However, this take-over is very harmful for the host, who will eventually die. The virus must then find a new host to continue living.', type = 'race', ev = (999, 0), str=(-9, 0), dex=(-9, 0), vit=(-9, 0), will=(-9, 0))
+    races = [human, mino, insect, cat, rept, demon, tree, wolf, devourer, virus]
+    allTraits.extend(races)
 
-    attributes = ['Strength', 'Dexterity', 'Constitution', 'Willpower']
-    attributesDescription = ['Strength augments the power of your attacks',
-                             'Dexterity augments your accuracy and your evasion',
-                             'Constitution augments your maximum health',
-                             'Willpower augments your energy']
-    attributesBonus = [[0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0], #strength
-                       [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], #dex
-                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0], #vitality
-                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]] #willpower
-    MAX_ATTRIBUTES_POINTS = 10
-    MAX_PER_ATTRIBUTES = 5
-    actualAttributesPoints = 0
-    actualPerAttributes = [0, 0, 0, 0]
-    selectedAttributes = [False, False, False, False]
+    knight = Trait('Knight', 'A warrior who wears armor and wields shields', type ='class', arm=(1, 1), hp=(120, 14), mp=(30, 3))
+    barb = Trait('Barbarian', 'A brutal fighter who is mighty strong', type = 'class', hp=(160, 20), mp=(30, 3), str=(1, 1), spells=[enrage])
+    rogue = Trait('Rogue', 'A rogue who is stealthy and backstabby (probably has a french accent)', type = 'class', acc=(8, 4), ev=(10, 2), hp=(90, 10), mp=(40, 5), crit=(3, 0))
+    mage = Trait('Mage ', 'A wizard who zaps everything', type ='class', hp=(70, 6), mp=(50, 7), will=(2, 0), spells=[fireball])
+    necro = Trait('Necromancer', 'A master of the occult arts who has the ability to raise and control the dead.', type = 'class', hp=(100, 4), mp=(15, 1), spells=[darkPact, ressurect])
+    classes = [knight, barb, rogue, mage, necro]
+    allTraits.extend(classes)
     
-    traits = ['Aggressive', 'Aura', 'Evasive', 'Healthy', 'Muscular', 'Natural armor', 'Strong mind', 'Agile', 'Martial training', 'Tough',
-              'Fast learner', 'Rage', 'Horned', 'Chitin carapace', 'Silent walk', 'Venomous glands', 'Mimesis', 'Wild instincts']
-    traitsDescription = ['Your anger is uncontrollable',
-                         'You are surrounded by a potent aura',
-                         'You are aware of how to stay out of trouble',
-                         'You are healthy',
-                         'You are very strong',
-                         'Your skin is rock-hard',
-                         'Your mind is fast and potent',
-                         'You have incredible reflexes',
-                         'You are trained to master all weapons',
-                         'You can endure harm better',
-                         'You are very smart and learn from your wins or losses very fast',
-                         'When low on health, you will lose all control',
-                         'Your horns are very large and can be used in combats',
-                         'Your natural exoskeleton is very resistant',
-                         'Your paws are very soft, allowing you to be very sneaky',
-                         'You are able to envenom your weapons',
-                         'You can mimic your environment, making it very hard to see you',
-                         'Your natural transformation is even more deadly']
-    traitsBonus= [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 0, 20, 0, 0, 0, 0, 0, 0],
-                  [0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0],
-                  [0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0],
-                  [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0],
-                  [0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0],
-                  [0, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 40, 0, 0, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],]
-    MAX_TRAITS = 2
-    actualTraits = 0
-    selectedTraits = [False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False]
-    selectableTraits = [True, True, True, True, True, True, True, True, True, True, False, False, False, False, False, False, False, False]
-    
-    skills = ['Light weapons', 'Heavy weapons', 'Missile weapons', 'Throwing weapons', 'Magic ', 'Armor wielding', 'Athletics', 'Concentration', 'Dodge ', 'Critical ', 'Accuracy']
-    skillsDescription = ['+20% damage per skillpoints with light weapons',
-                         '+20% damage per skillpoints with heavy weapons',
-                         '+20% damage per skillpoints with missile weapons',
-                         '+20% damage per skillpoints with throwing weapons',
-                         'Magic ',
-                         'Armor wielding',
-                         '+20 HP and maximum HP per skillpoints',
-                         '+20 MP and maximum MP per skillpoints',
-                         '+3 evasion per skillpoints',
-                         '+3 critical chance par skillpoints ',
-                         '+10 accuracy per skillpoints']
-    skillsBonus = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], #light
-                   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], #heavy
-                   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], #missile
-                   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], #throwing
-                   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], #magic
-                   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], #armor
-                   [0, 0, 0, 0, 20, 0, 0, 0, 0, 0, 0, 0], #athletics
-                   [0, 0, 0, 0, 0, 20, 0, 0, 0, 0, 0, 0], #concentration
-                   [0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0], #dodge
-                   [0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0], #crit
-                   [0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]] #accuracy
-    MAX_SKILLS = 2
-    MAX_PER_SKILLS = 1
-    actualSkills = 0
-    actualPerSkills = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    selectedSkills = [False, False, False, False, False, False, False, False, False, False, False]
+    str = Trait('Strength', 'Strength augments the power of your attacks', type = 'attribute', maxAmount=5, str=(1, 0))
+    dex = Trait('Dexterity', 'Dexterity augments your accuracy and your evasion', type = 'attribute', maxAmount=5, dex=(1, 0))
+    const = Trait('Constitution', 'Constitution augments your maximum health and your regeneration rate.', type = 'attribute', maxAmount=5, vit=(1, 0))
+    will = Trait('Willpower', 'Willpower augments your energy and the rate at which you regain it.', type = 'attribute', maxAmount=5, will=(1, 0))
+    attributes = [str, dex, const, will]
+    allTraits.extend(attributes)
+
+    aggressive = Trait('Aggressive', 'Your anger is uncontrollable', type = 'trait')
+    aura = Trait('Aura', 'You are surrounded by a potent aura', type = 'trait', mp=(20, 0))
+    evasive = Trait('Evasive', 'You are aware of how to stay out of trouble', type = 'trait', ev=(10, 0))
+    healthy = Trait('Healthy', 'You are healthy', type = 'trait', vit=(2, 0))
+    muscular = Trait('Muscular', 'You are very strong', type = 'trait', str=(2, 0))
+    natArmor = Trait('Natural armor', 'Your skin is rock-hard', type = 'trait', arm = (1, 0))
+    mind = Trait('Strong mind', 'Your mind is fast and potent', type = 'trait', will=(2, 0))
+    agile = Trait('Agile', 'You have incredible reflexes', type = 'trait', dex=(2, 0))
+    training = Trait('Martial training', 'You are trained to master all weapons', type = 'trait', acc=(7, 0))
+    tough = Trait('Tough', 'You can endure harm better', type = 'trait', hp=(40, 0))
+    traits = [aggressive, aura, evasive, healthy, muscular, natArmor, mind, agile, training, tough]
+    traits.extend(optionTraits)
+    allTraits.extend(traits)
+
+    light = Trait('Light weapons', '+20% damage per skillpoints with light weapons', type = 'skill')
+    heavy = Trait('Heavy weapons', '+20% damage per skillpoints with heavy weapons', type = 'skill')
+    missile = Trait('Missile weapons', '+20% damage per skillpoints with missile weapons', type = 'skill')
+    throw = Trait('Throwing weapons', '+20% damage per skillpoints with throwing weapons', type = 'skill')
+    magic = Trait('Magic ', 'Magic ', type = 'skill')
+    armorWield = Trait('Armor wielding', 'Armor wielding', type = 'skill')
+    athletics = Trait('Athletics', '+20 HP and maximum HP per skillpoints', type = 'skill', hp = (20, 0))
+    concentration = Trait('Concentration', '+20 MP and maximum MP per skillpoints', type = 'skill', mp = (20, 0))
+    dodge = Trait('Dodge', '+3 evasion per skillpoints', type = 'skill', ev=(3, 0))
+    crit = Trait('Critcial', '+3 critical chance par skillpoints ', type ='skill', crit=(3, 0))
+    accuracy = Trait('Accuracy', '+10 accuracy per skillpoints', type = 'skill', acc=(10, 0))
+    skills = [light, heavy, missile, throw, magic, armorWield, athletics, concentration, dodge, crit, accuracy]
+    allTraits.extend(skills)
     
     #index
     index = 0
@@ -1056,49 +1013,67 @@ def characterCreation():
         leftX = (WIDTH // 4)
         
         drawCenteredOnX(cons = root, x = leftX, y = 9, text = '-- RACE --', fg = colors.darker_red, bg = None)
-        for choice in range(len(races)):
-            if selectedRaces[choice]:
-                drawCenteredOnX(cons = root, x = leftX, y = 11 + choice, text = races[choice], fg = colors.yellow, bg = None)
+        counter = 0
+        for race in races:
+            if race.selected:
+                drawCenteredOnX(cons = root, x = leftX, y = 11 + counter, text = race.name, fg = colors.yellow, bg = None)
             else:
-                drawCenteredOnX(cons = root, x = leftX, y = 11 + choice, text = races[choice], fg = colors.white, bg = None)
+                drawCenteredOnX(cons = root, x = leftX, y = 11 + counter, text = race.name, fg = colors.white, bg = None)
+            counter += 1
         
         drawCenteredOnX(cons = root, x = leftX, y = 33, text = '-- ATTRIBUTES --', fg = colors.darker_red, bg = None)
-        drawCenteredOnX(cons = root, x = leftX, y = 34, text = str(actualAttributesPoints) + '/' + str(MAX_ATTRIBUTES_POINTS), fg = colors.dark_red, bg = None)
-        totalAttributes = [strength, dexterity, vitality, willpower]
-        for choice in range(len(attributes)):
-            if selectedAttributes[choice]:
-                drawCenteredOnX(cons = root, x = leftX, y = 36 + choice, text = attributes[choice], fg = colors.yellow, bg = None)
+        attributesPoints = 0
+        for attribute in attributes:
+            attributesPoints += attribute.amount
+        drawCenteredOnX(cons = root, x = leftX, y = 34, text = str(attributesPoints) + '/10', fg = colors.dark_red, bg = None)
+        counter = 0
+        for attribute in attributes:
+            if attribute.selected:
+                drawCenteredOnX(cons = root, x = leftX, y = 36 + counter, text = attribute.name, fg = colors.yellow, bg = None)
             else:
-                drawCenteredOnX(cons = root, x = leftX, y = 36 + choice, text = attributes[choice], fg = colors.white, bg = None)
-            drawCenteredOnX(cons = root, x = leftX - 10, y = 36 + choice, text = str(10 + totalAttributes[choice]), fg = colors.white, bg = None)
+                drawCenteredOnX(cons = root, x = leftX, y = 36 + counter, text = attribute.name, fg = colors.white, bg = None)
+            drawCenteredOnX(cons = root, x = leftX - 10, y = 36 + counter, text = str(10 + attribute.amount), fg = colors.white, bg = None)
+            counter += 1
 
         drawCenteredOnX(cons = root, x = leftX, y = 45, text = '-- TRAITS --', fg = colors.darker_red, bg = None)
-        drawCenteredOnX(cons = root, x = leftX, y = 46, text = str(actualTraits) + '/' + str(MAX_TRAITS), fg = colors.dark_red, bg = None)
-        for choice in range(len(traits)):
-            if selectedTraits[choice]:
-                drawCenteredOnX(cons = root, x = leftX, y = 48 + choice, text = traits[choice], fg = colors.yellow, bg = None)
-            elif not selectableTraits[choice]:
-                drawCenteredOnX(cons = root, x = leftX, y = 48 + choice, text = traits[choice], fg = colors.grey, bg = None)
+        traitsPoints = 0
+        for trait in traits:
+            traitsPoints += trait.amount
+        drawCenteredOnX(cons = root, x = leftX, y = 46, text = str(traitsPoints) + '/2', fg = colors.dark_red, bg = None)
+        counter = 0
+        for trait in traits:
+            if trait.selected:
+                drawCenteredOnX(cons = root, x = leftX, y = 48 + counter, text = trait.name, fg = colors.yellow, bg = None)
+            elif not trait.selectable:
+                drawCenteredOnX(cons = root, x = leftX, y = 48 + counter, text = trait.name, fg = colors.grey, bg = None)
             else:
-                drawCenteredOnX(cons = root, x = leftX, y = 48 + choice, text = traits[choice], fg = colors.white, bg = None)
+                drawCenteredOnX(cons = root, x = leftX, y = 48 + counter, text = trait.name, fg = colors.white, bg = None)
+            counter += 1
         
         # Classes and skills
         rightX = WIDTH - (WIDTH // 4)
         
         drawCenteredOnX(cons = root, x = rightX, y = 9, text = '-- CLASS --', fg = colors.darker_red, bg = None)
-        for choice in range(len(classes)):
-            if selectedClasses[choice]:
-                drawCenteredOnX(cons = root, x = rightX, y = 11 + choice, text = classes[choice], fg = colors.yellow, bg = None)
+        counter = 0
+        for classe in classes:
+            if classe.selected:
+                drawCenteredOnX(cons = root, x = rightX, y = 11 + counter, text = classe.name, fg = colors.yellow, bg = None)
             else:
-                drawCenteredOnX(cons = root, x = rightX, y = 11 + choice, text = classes[choice], fg = colors.white, bg = None)
+                drawCenteredOnX(cons = root, x = rightX, y = 11 + counter, text = classe.name, fg = colors.white, bg = None)
+            counter += 1
         
         drawCenteredOnX(cons = root, x = rightX, y = 33, text = '-- SKILLS --', fg = colors.darker_red, bg = None)
-        drawCenteredOnX(cons = root, x = rightX, y = 34, text = str(actualSkills) + '/' + str(MAX_SKILLS), fg = colors.dark_red, bg = None)
-        for choice in range(len(skills)):
-            if selectedSkills[choice]:
-                drawCenteredOnX(cons = root, x = rightX, y = 36 + choice, text = skills[choice], fg = colors.yellow, bg = None)
+        skillsPoints = 0
+        for skill in skills:
+            skillsPoints += skill.amount
+        drawCenteredOnX(cons = root, x = rightX, y = 34, text = str(skillsPoints) + '/2', fg = colors.dark_red, bg = None)
+        counter = 0
+        for skill in skills:
+            if skill.selected:
+                drawCenteredOnX(cons = root, x = rightX, y = 36 + counter, text = skill.name, fg = colors.yellow, bg = None)
             else:
-                drawCenteredOnX(cons = root, x = rightX, y = 36 + choice, text = skills[choice], fg = colors.white, bg = None)
+                drawCenteredOnX(cons = root, x = rightX, y = 36 + counter, text = skill.name, fg = colors.white, bg = None)
+            counter += 1
         
         drawCentered(cons = root, y = 33, text = '-- DESCRIPTION --', fg = colors.darker_red, bg = None)
         drawCentered(cons = root, y = 90, text = 'Start Game', fg = colors.white, bg = None)
@@ -1107,45 +1082,45 @@ def characterCreation():
         #Displaying stats
         eightScreen = WIDTH//5
         
-        text = 'Power: ' + str(power + strength)
+        text = 'Power: ' + str(createdCharacter['pow'] + createdCharacter['str'])
         drawCenteredOnX(cons = root, x = eightScreen * 1, y = 82, text = text, fg = colors.white, bg = None)
         X = eightScreen * 1 + ((len(text) + 1)// 2)
-        root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[0] + levelUpStats[7]) + '/lvl', fg = colors.yellow, bg = None)
+        root.draw_str(x = X, y = 82, string = ' + ' + str(createdCharacter['powLvl'] + createdCharacter['strLvl']) + '/lvl', fg = colors.yellow, bg = None)
         
-        text = 'Accuracy: ' + str(accuracy + 2 * dexterity)
+        text = 'Accuracy: ' + str(createdCharacter['acc'] + 2 * createdCharacter['dex'])
         drawCenteredOnX(cons = root, x = eightScreen * 2, y = 82, text = text, fg = colors.white, bg = None)
         X = eightScreen * 2 + ((len(text) + 1)// 2)
-        root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[1] + 2 * levelUpStats[8]) + '/lvl', fg = colors.yellow, bg = None)
+        root.draw_str(x = X, y = 82, string = ' + ' + str(createdCharacter['accLvl'] + createdCharacter['dexLvl']) + '/lvl', fg = colors.yellow, bg = None)
         
-        text = 'Evasion: ' + str(evasion + dexterity)
+        text = 'Evasion: ' + str(createdCharacter['ev'] + createdCharacter['dex'])
         drawCenteredOnX(cons = root, x = eightScreen * 3, y = 82, text = text, fg = colors.white, bg = None)
         X = eightScreen * 3 + ((len(text) + 1)// 2)
-        root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[2] + levelUpStats[8]) + '/lvl', fg = colors.yellow, bg = None)
+        root.draw_str(x = X, y = 82, string = ' + ' + str(createdCharacter['evLvl'] + createdCharacter['dexLvl']) + '/lvl', fg = colors.yellow, bg = None)
         
-        text = 'Armor: ' + str(armor)
+        text = 'Armor: ' + str(createdCharacter['arm'])
         drawCenteredOnX(cons = root, x = eightScreen * 4, y = 82, text = text, fg = colors.white, bg = None)
         X = eightScreen * 4 + ((len(text) + 1)// 2)
-        root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[3]) + '/lvl', fg = colors.yellow, bg = None)
+        root.draw_str(x = X, y = 82, string = ' + ' + str(createdCharacter['armLvl']) + '/lvl', fg = colors.yellow, bg = None)
         
-        text = 'Max HP: ' + str(maxHP + 5 * vitality)
+        text = 'Max HP: ' + str(createdCharacter['hp'] + 5 * createdCharacter['vit'])
         drawCenteredOnX(cons = root, x = eightScreen * 1, y = 84, text = text, fg = colors.white, bg = None)
         X = eightScreen * 1 + ((len(text) + 1)// 2)
-        root.draw_str(x = X, y = 84, string = ' + ' + str(levelUpStats[4] + 5 * levelUpStats[9]) + '/lvl', fg = colors.yellow, bg = None)
+        root.draw_str(x = X, y = 84, string = ' + ' + str(createdCharacter['hpLvl'] + 5 * createdCharacter['vitLvl']) + '/lvl', fg = colors.yellow, bg = None)
         
-        text = 'Max MP: ' + str(maxMP + 5 * willpower)
+        text = 'Max MP: ' + str(createdCharacter['mp'] + 5 * createdCharacter['will'])
         drawCenteredOnX(cons = root, x = eightScreen * 2, y = 84, text = text, fg = colors.white, bg = None)
         X = eightScreen * 2 + ((len(text) + 1)// 2)
-        root.draw_str(x = X, y = 84, string = ' + ' + str(levelUpStats[5] + 5 * levelUpStats[10]) + '/lvl', fg = colors.yellow, bg = None)
+        root.draw_str(x = X, y = 84, string = ' + ' + str(createdCharacter['mpLvl'] + 5 * createdCharacter['willLvl']) + '/lvl', fg = colors.yellow, bg = None)
         
-        text = 'Critical: ' + str(critical) + '%'
+        text = 'Critical: ' + str(createdCharacter['crit']) + '%'
         drawCenteredOnX(cons = root, x = eightScreen * 3, y = 84, text = text, fg = colors.white, bg = None)
         X = eightScreen * 3 + ((len(text) + 1)// 2)
-        root.draw_str(x = X, y = 84, string = ' + ' + str(levelUpStats[6]) + '/lvl', fg = colors.yellow, bg = None)
+        root.draw_str(x = X, y = 84, string = ' + ' + str(createdCharacter['critlvl']) + '/lvl', fg = colors.yellow, bg = None)
         
-        text = 'Max load: ' + str(baseMaxLoad + 3 * strength) + ' kg'
+        text = 'Max load: ' + str(createdCharacter['load'] + 3 * createdCharacter['str']) + ' kg'
         drawCenteredOnX(cons = root, x = eightScreen * 4, y = 84, text = text, fg = colors.white, bg = None)
         X = eightScreen * 4 + ((len(text) + 1)// 2)
-        root.draw_str(x = X, y = 84, string = ' + ' + str(3 * levelUpStats[7]) + '/lvl', fg = colors.yellow, bg = None)
+        root.draw_str(x = X, y = 84, string = ' + ' + str(3 * createdCharacter['strLvl']) + '/lvl', fg = colors.yellow, bg = None)
         
         # Selection
         if leftIndexMin <= index <= leftIndexMax:
