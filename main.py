@@ -995,6 +995,10 @@ class Trait():
             drawCenteredOnX(cons, self.x - 10, y = self.y, text = str(10 + createdCharacter['will']), fg = colors.white, bg = None)
 
 def characterCreation():
+    global createdCharacter
+    createdCharacter = {'pow': 0, 'acc': 20, 'ev': 0, 'arm': 0, 'hp': 0, 'mp': 0, 'crit': 0, 'str': 0, 'dex': 0, 'vit': 0, 'will': 0, 'ap': 0, 
+                    'powLvl': 0, 'accLvl': 0, 'evLvl': 0, 'armLvl': 0, 'hpLvl': 0, 'mpLvl': 0, 'critLvl': 0, 'strLvl': 0, 'dexLvl': 0, 'vitLvl': 0, 'willLvl': 0, 'apLvl': 0,
+                    'spells': [], 'load': 45.0}
     allTraits = []
     LEFT_X = (WIDTH // 4)
     RIGHT_X = WIDTH - (WIDTH // 4)
@@ -1245,6 +1249,7 @@ def characterCreation():
         if key.keychar.upper() == 'ENTER':
             if index == maxIndex - 1:
                 if raceSelected and classSelected:
+                    print(createdCharacter)
                     return createdCharacter, allTraits
             if index == maxIndex:
                 return 'cancelled', 'cancelled'
@@ -1526,7 +1531,7 @@ class Fighter: #All NPCs, enemies and the player
         bonus = 0
         if self.owner == player:
             bonus = player.Player.dexterity
-        return self.noDexAccuracy + bonus
+        return self.noDexEvasion + bonus
     
     @property
     def baseMaxMP(self):
@@ -1626,7 +1631,7 @@ class Fighter: #All NPCs, enemies and the player
             hitRatio = 95
 
         if DEBUG:
-            message(self.owner.name.capitalize() + ' rolled a ' + str(attack) + ' (target ' + str(hitRatio) + ')', colors.violet)
+            message(self.owner.name.capitalize() + ' rolled a ' + str(attack) + ' (target ' + str(hitRatio) + ': ' + str(BASE_HIT_CHANCE) + ' + ' + str(self.accuracy) + ' - ' + str(target.Fighter.evasion) + ')', colors.violet)
 
         if attack <= hitRatio:
             hit = True
@@ -2113,6 +2118,7 @@ class Player:
         for skill in self.allTraits:
             if skill.type == 'skill':
                 self.skills.append(skill)
+                skill.maxAmount = 5
         self.traits = []
         for trait in self.allTraits:
             if trait.type == 'trait':
