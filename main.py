@@ -95,7 +95,7 @@ INVENTORY_WIDTH = 90
 LEVEL_SCREEN_WIDTH = 40
 
 CHARACTER_SCREEN_WIDTH = 50
-CHARACTER_SCREEN_HEIGHT = 20
+CHARACTER_SCREEN_HEIGHT = 21
 # - GUI Constants -
 
 # - Consoles -
@@ -280,6 +280,9 @@ def menu(header, options, width, noItemMessage = None, inGame = True, adjustHeig
     maxPages = len(options)//26
     if maxPages < 1:
         pagesDisp = False
+    pagesDispHeight = 0
+    if pagesDisp:
+        pagesDispHeight = 1
     headerWrapped = textwrap.wrap(header, width)
     headerHeight = len(headerWrapped)
     if adjustHeight:
@@ -289,9 +292,9 @@ def menu(header, options, width, noItemMessage = None, inGame = True, adjustHeig
     if header == "":
         headerHeight = 0
     if len(options) > 26:
-        height = 26 + headerHeight + toAdd
+        height = 26 + headerHeight + toAdd + pagesDispHeight
     else:
-        height = len(options) + headerHeight + toAdd
+        height = len(options) + headerHeight + toAdd + pagesDispHeight
     if menuWindows and inGame:
         for mWindow in menuWindows:
             mWindow.clear()
@@ -301,7 +304,7 @@ def menu(header, options, width, noItemMessage = None, inGame = True, adjustHeig
     window = tdl.Console(width, height)
     menuWindows.append(window)
     window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
-    y = headerHeight + 2
+    y = headerHeight + 2 + pagesDispHeight
     drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp, noItemMessage)
 
     choseOrQuit = False
@@ -2198,9 +2201,23 @@ def displayCharacter():
     page = 1
 
     while not tdl.event.isWindowClosed():
+        for k in range(width):
+            window.draw_char(k, 0, chr(196))
+        window.draw_char(0, 0, chr(218))
+        window.draw_char(k, 0, chr(191))
+        kMax = k
+        for l in range(height):
+            if l > 0:
+                window.draw_char(0, l, chr(179))
+                window.draw_char(kMax, l, chr(179))
+        lMax = l
+        for m in range(width):
+            window.draw_char(m, lMax, chr(196))
+        window.draw_char(0, lMax, chr(192))
+        window.draw_char(kMax, lMax, chr(217))
         if page == 1:
             window.draw_str(5, 1, player.Player.race + ' ' + player.Player.classes, fg = colors.yellow)
-            window.draw_str(width - 2, 1, '>', colors.green)
+            window.draw_str(width - 1, 1, '>', colors.green)
             renderBar(window, 1, 3, BAR_WIDTH, 'EXP', player.Fighter.xp, levelUp_xp, colors.desaturated_cyan, colors.dark_gray)
             renderBar(window, 1, 5, BAR_WIDTH, 'Hunger', player.Player.hunger, BASE_HUNGER, colors.desaturated_lime, colors.dark_gray)
             window.draw_str(1, 7, 'HP: ' + str(player.Fighter.hp) + '/' + str(player.Fighter.maxHP))
@@ -2216,7 +2233,7 @@ def displayCharacter():
             window.draw_str(20, 19, 'Max load: ' + str(player.Player.maxWeight))
         else:
             window.draw_str(5, 1, 'Absorbed Essences:', fg = colors.yellow)
-            window.draw_str(1, 1, '<', colors.green)
+            window.draw_str(0, 1, '<', colors.green)
             y = 3
             index = 0
             values = list(player.Player.essences.values())
@@ -2489,7 +2506,7 @@ class Item:
         print("Pic Height = ", picHeight)
         lData = attributes["layer_data"]
         
-        width = picWidth + 16
+        width = picWidth + 12
         desc = self.fullDescription(width)
         descriptionHeight = len(desc)
         if desc == '':
@@ -2507,9 +2524,22 @@ class Item:
         choseOrQuit = False
         while not choseOrQuit:
             choseOrQuit = True
-            
-            startY = 3
-            startX = 2
+            for k in range(width):
+                window.draw_char(k, 0, chr(196))
+            window.draw_char(0, 0, chr(218))
+            window.draw_char(k, 0, chr(191))
+            kMax = k
+            for l in range(height):
+                if l > 0:
+                    window.draw_char(0, l, chr(179))
+                    window.draw_char(kMax, l, chr(179))
+            lMax = l
+            for m in range(width):
+                window.draw_char(m, lMax, chr(196))
+            window.draw_char(0, lMax, chr(192))
+            window.draw_char(kMax, lMax, chr(217))
+            startY = 4
+            startX = 3
             layerInd = int(0)
             for layerInd in range(len(lData)):
                 xpL.load_layer_to_console(window, lData[layerInd], startY, startX)
@@ -2521,17 +2551,17 @@ class Item:
                 #y += 1
             
             
-            window.draw_str(0, 0, self.owner.name.capitalize() + ':', fg = colors.yellow, bg = None)
+            window.draw_str(1, 1, self.owner.name.capitalize() + ':', fg = colors.yellow, bg = None)
             for i, line in enumerate(desc):
-                window.draw_str(0, int(picHeight) + 4 +i, desc[i], fg = colors.white)
+                window.draw_str(1, int(picHeight) + 5 +i, desc[i], fg = colors.white)
 
-            y = descriptionHeight + picHeight + 5
+            y = descriptionHeight + picHeight + 6
             letterIndex = ord('a')
             counter = 0
             for optionText in options:
                 text = '(' + chr(letterIndex) + ') ' + optionText
                 letterIndex += 1
-                window.draw_str(0, y, text, bg=None)
+                window.draw_str(1, y, text, bg=None)
                 y += 1
                 counter += 1
                 
@@ -4168,8 +4198,10 @@ def createSword(x, y):
     if qualityChoice == 'rusty':
         name = qualityChoice + ' ' + name
         swordPow -= 2
-        if sizeChoice != 'great ':
-            pic = 'rustySword.xp'
+        if sizeChoice == 'long':
+            pic = 'rustyLongSword.xp'
+        elif sizeChoice == 'short':
+            pic = 'rustyShortSword.xp'
         else:
             pic = 'rustyGreatSword.xp'
         color = colors.brass
@@ -4177,7 +4209,11 @@ def createSword(x, y):
         name = qualityChoice + ' ' + name
         swordPow += 2
         color = colors.light_sky
-        if sizeChoice == 'great sword':
+        if sizeChoice == 'long':
+            pic = 'sharpLongSword.xp'
+        elif sizeChoice == 'short':
+            pic = 'sharpShortSword.xp'
+        else:
             pic = 'sharpGreatSword.xp'
     burningChances = {'yes' : 20, 'no': 80}
     burningChoice = randomChoice(burningChances)
@@ -4602,7 +4638,7 @@ def placeObjects(room, first = False):
                 item = createWeapon(x, y)
             elif itemChoice == 'shield':
                 equipmentComponent = Equipment(slot = 'one handed', type = 'shield', armorBonus=3)
-                item = GameObject(x, y, '[', 'shield', colors.darker_orange, Equipment=equipmentComponent, Item=Item(weight = 3.0))
+                item = GameObject(x, y, '[', 'shield', colors.darker_orange, Equipment=equipmentComponent, Item=Item(weight = 3.0, pic = 'shield.xp'))
             elif itemChoice == 'spellbook':
                 item = createSpellbook(x, y)
             elif itemChoice == "food":
