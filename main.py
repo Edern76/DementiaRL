@@ -73,7 +73,7 @@ MOVEMENT_KEYS = {
                  
                  }
 
-WIDTH, HEIGHT, LIMIT = 170, 95, 20
+WIDTH, HEIGHT, LIMIT = 150, 80, 20
 MAP_WIDTH, MAP_HEIGHT = 140, 60
 MID_MAP_WIDTH, MID_MAP_HEIGHT = MAP_WIDTH//2, MAP_HEIGHT//2
 MID_WIDTH, MID_HEIGHT = int(WIDTH/2), int(HEIGHT/2)
@@ -1165,51 +1165,51 @@ def characterCreation():
         drawCenteredOnX(cons = root, x = RIGHT_X, y = 34, text = str(skillsPoints) + '/2', fg = colors.dark_red, bg = None)
         
         drawCentered(cons = root, y = 33, text = '-- DESCRIPTION --', fg = colors.darker_red, bg = None)
-        drawCentered(cons = root, y = 90, text = 'Start Game', fg = colors.white, bg = None)
-        drawCentered(cons = root, y = 91, text = 'Cancel', fg = colors.white, bg = None)
+        drawCentered(cons = root, y = 70, text = 'Start Game', fg = colors.white, bg = None)
+        drawCentered(cons = root, y = 71, text = 'Cancel', fg = colors.white, bg = None)
 
         #Displaying stats
         eightScreen = WIDTH//5
         
         text = 'Power: ' + str(createdCharacter['pow'] + createdCharacter['str'])
-        drawCenteredOnX(cons = root, x = eightScreen * 1, y = 82, text = text, fg = colors.white, bg = None)
+        drawCenteredOnX(cons = root, x = eightScreen * 1, y = 74, text = text, fg = colors.white, bg = None)
         X = eightScreen * 1 + ((len(text) + 1)// 2)
-        root.draw_str(x = X, y = 82, string = ' + ' + str(createdCharacter['powLvl'] + createdCharacter['strLvl']) + '/lvl', fg = colors.yellow, bg = None)
+        root.draw_str(x = X, y = 74, string = ' + ' + str(createdCharacter['powLvl'] + createdCharacter['strLvl']) + '/lvl', fg = colors.yellow, bg = None)
         
         text = 'Accuracy: ' + str(createdCharacter['acc'] + 2 * createdCharacter['dex'])
-        drawCenteredOnX(cons = root, x = eightScreen * 2, y = 82, text = text, fg = colors.white, bg = None)
+        drawCenteredOnX(cons = root, x = eightScreen * 2, y = 74, text = text, fg = colors.white, bg = None)
         X = eightScreen * 2 + ((len(text) + 1)// 2)
-        root.draw_str(x = X, y = 82, string = ' + ' + str(createdCharacter['accLvl'] + createdCharacter['dexLvl']) + '/lvl', fg = colors.yellow, bg = None)
+        root.draw_str(x = X, y = 74, string = ' + ' + str(createdCharacter['accLvl'] + createdCharacter['dexLvl']) + '/lvl', fg = colors.yellow, bg = None)
         
         text = 'Evasion: ' + str(createdCharacter['ev'] + createdCharacter['dex'])
-        drawCenteredOnX(cons = root, x = eightScreen * 3, y = 82, text = text, fg = colors.white, bg = None)
+        drawCenteredOnX(cons = root, x = eightScreen * 3, y = 74, text = text, fg = colors.white, bg = None)
         X = eightScreen * 3 + ((len(text) + 1)// 2)
-        root.draw_str(x = X, y = 82, string = ' + ' + str(createdCharacter['evLvl'] + createdCharacter['dexLvl']) + '/lvl', fg = colors.yellow, bg = None)
+        root.draw_str(x = X, y = 74, string = ' + ' + str(createdCharacter['evLvl'] + createdCharacter['dexLvl']) + '/lvl', fg = colors.yellow, bg = None)
         
         text = 'Armor: ' + str(createdCharacter['arm'])
-        drawCenteredOnX(cons = root, x = eightScreen * 4, y = 82, text = text, fg = colors.white, bg = None)
+        drawCenteredOnX(cons = root, x = eightScreen * 4, y = 74, text = text, fg = colors.white, bg = None)
         X = eightScreen * 4 + ((len(text) + 1)// 2)
-        root.draw_str(x = X, y = 82, string = ' + ' + str(createdCharacter['armLvl']) + '/lvl', fg = colors.yellow, bg = None)
+        root.draw_str(x = X, y = 74, string = ' + ' + str(createdCharacter['armLvl']) + '/lvl', fg = colors.yellow, bg = None)
         
         text = 'Max HP: ' + str(createdCharacter['hp'] + 5 * createdCharacter['vit'])
-        drawCenteredOnX(cons = root, x = eightScreen * 1, y = 84, text = text, fg = colors.white, bg = None)
+        drawCenteredOnX(cons = root, x = eightScreen * 1, y = 76, text = text, fg = colors.white, bg = None)
         X = eightScreen * 1 + ((len(text) + 1)// 2)
-        root.draw_str(x = X, y = 84, string = ' + ' + str(createdCharacter['hpLvl'] + 5 * createdCharacter['vitLvl']) + '/lvl', fg = colors.yellow, bg = None)
+        root.draw_str(x = X, y = 76, string = ' + ' + str(createdCharacter['hpLvl'] + 5 * createdCharacter['vitLvl']) + '/lvl', fg = colors.yellow, bg = None)
         
         text = 'Max MP: ' + str(createdCharacter['mp'] + 5 * createdCharacter['will'])
-        drawCenteredOnX(cons = root, x = eightScreen * 2, y = 84, text = text, fg = colors.white, bg = None)
+        drawCenteredOnX(cons = root, x = eightScreen * 2, y = 76, text = text, fg = colors.white, bg = None)
         X = eightScreen * 2 + ((len(text) + 1)// 2)
-        root.draw_str(x = X, y = 84, string = ' + ' + str(createdCharacter['mpLvl'] + 5 * createdCharacter['willLvl']) + '/lvl', fg = colors.yellow, bg = None)
+        root.draw_str(x = X, y = 76, string = ' + ' + str(createdCharacter['mpLvl'] + 5 * createdCharacter['willLvl']) + '/lvl', fg = colors.yellow, bg = None)
         
         text = 'Critical: ' + str(createdCharacter['crit']) + '%'
-        drawCenteredOnX(cons = root, x = eightScreen * 3, y = 84, text = text, fg = colors.white, bg = None)
+        drawCenteredOnX(cons = root, x = eightScreen * 3, y = 76, text = text, fg = colors.white, bg = None)
         X = eightScreen * 3 + ((len(text) + 1)// 2)
-        root.draw_str(x = X, y = 84, string = ' + ' + str(createdCharacter['critLvl']) + '/lvl', fg = colors.yellow, bg = None)
+        root.draw_str(x = X, y = 76, string = ' + ' + str(createdCharacter['critLvl']) + '/lvl', fg = colors.yellow, bg = None)
         
         text = 'Max load: ' + str(createdCharacter['load'] + 3 * createdCharacter['str']) + ' kg'
-        drawCenteredOnX(cons = root, x = eightScreen * 4, y = 84, text = text, fg = colors.white, bg = None)
+        drawCenteredOnX(cons = root, x = eightScreen * 4, y = 76, text = text, fg = colors.white, bg = None)
         X = eightScreen * 4 + ((len(text) + 1)// 2)
-        root.draw_str(x = X, y = 84, string = ' + ' + str(3 * createdCharacter['strLvl']) + '/lvl', fg = colors.yellow, bg = None)
+        root.draw_str(x = X, y = 76, string = ' + ' + str(3 * createdCharacter['strLvl']) + '/lvl', fg = colors.yellow, bg = None)
 
         for trait in allTraits:
             if index == allTraits.index(trait):
@@ -1218,9 +1218,9 @@ def characterCreation():
                 trait.underCursor = False
             trait.drawTrait()
         if index == maxIndex - 1:
-            drawCentered(cons = root, y = 90, text = 'Start Game', fg = colors.black, bg = colors.white)
+            drawCentered(cons = root, y = 70, text = 'Start Game', fg = colors.black, bg = colors.white)
         if index == maxIndex:
-            drawCentered(cons = root, y = 91, text = 'Cancel', fg = colors.black, bg = colors.white)
+            drawCentered(cons = root, y = 71, text = 'Cancel', fg = colors.black, bg = colors.white)
 
         tdl.flush()
 
