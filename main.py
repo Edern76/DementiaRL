@@ -6,6 +6,7 @@ import dill #THIS IS NOT AN UNUSED IMPORT. Importing this changes the behavior o
 from tdl import *
 from random import randint, choice
 from math import *
+from custom_except import *
 from copy import copy
 from os import makedirs
 from code.constants import MAX_HIGH_CULTIST_MINIONS
@@ -14,6 +15,7 @@ import code.xpLoaderPy3 as xpL
 import code.dunbranches as dBr
 import code.dilledShelve as shelve
 from code.dunbranches import gluttonyDungeon
+from code.custom_except import UnusableMethodException
 
 def notCloseImmediatelyAfterCrash(exc_type, exc_value, tb):
     '''
@@ -2146,10 +2148,11 @@ class Player:
             self.mutationsGotten = []
             self.mutationLevel = [2]
         
+        self.hasDiscoveredTown = False
+        self.money = 0
         if DEBUG:
             print('Player component initialized')
         
-        self.hasDiscoveredTown = False
         
     @property
     def maxWeight(self):
@@ -2580,6 +2583,29 @@ class Item:
             elif keyChar.upper() == "ESCAPE":
                 return "cancelled"
         return None
+    
+class Money(Item):
+    def __init__(self, moneyAmount):
+        self.amount = moneyAmount
+        self.stackable = True
+        Item.__init__(self, amount = self.amount, stackable = self.stackable)
+        
+    def pickUp(self):
+        player.Player.money += self.amount
+        objects.remove(self.owner)
+        message('You pick up ' + str(self.amount) + ' gold pieces !')
+    
+    def use(self):
+        raise UnusableMethodException("Cannot 'use' a money item.")
+    
+    def drop(self):
+        raise UnusableMethodException("Cannot 'drop' a money item.")
+    
+    def fullDescription(self):
+        raise UnusableMethodException("Cannot 'fullDescript' a money item.")
+    
+    def display(self):
+        raise UnusableMethodException("Cannot 'display' a money item.")
 
 
 def quitGame(message, backToMainMenu = False):
@@ -4417,7 +4443,8 @@ def createDarksoul(x, y, friendly = False, corpse = False):
         if not corpse:
             equipmentComponent = Equipment(slot='head', type = 'armor', armorBonus = 2)
             darksoulHelmet = GameObject(x = None, y = None, char = '[', name = 'darksoul helmet', color = colors.silver, Equipment = equipmentComponent, Item = Item(weight = 2.5, pic = 'darksoulHelmet.xp'))
-            lootOnDeath = [darksoulHelmet]
+            money = GameObject(x = None, y = None, char = '$', name = 'gold piece', color = colors.gold, Item=Money(randint(10, 50)), blocks = False, pName = 'gold pieces')
+            lootOnDeath = [darksoulHelmet, money]
             deathType = monsterDeath
             darksoulName = "darksoul"
             color = colors.dark_grey
@@ -4430,7 +4457,7 @@ def createDarksoul(x, y, friendly = False, corpse = False):
             AI_component = BasicMonster()
         else:
             AI_component = FriendlyMonster(friendlyTowards = player)
-        fighterComponent = Fighter(hp=30, armor=1, power=6, xp = 35, deathFunction = deathType, evasion = 25, accuracy = 10, lootFunction = lootOnDeath, lootRate = [30])
+        fighterComponent = Fighter(hp=30, armor=1, power=6, xp = 35, deathFunction = deathType, evasion = 25, accuracy = 10, lootFunction = lootOnDeath, lootRate = [30, 20])
         monster = GameObject(x, y, char = 'd', color = color, name = darksoulName, blocks = True, Fighter=fighterComponent, AI = AI_component)
         return monster
     else:
@@ -4481,7 +4508,9 @@ def createCultist(x,y):
         
         spellbook = GameObject(x, y, '=', 'spellbook of arcane rituals', colors.violet, Item = Item(useFunction = learnSpell, arg1 = darkPact, weight = 1.0, description = "A spellbook full of arcane rituals and occult incantations. Such magic is easy to learn and to use, but comes at a great price.", pic = 'spellbook.xp'), blocks = False)
         
-        fighterComponent = Fighter(hp = 20, armor = 2, power = 6, xp = 30, deathFunction = monsterDeath, accuracy = 18, evasion = 30, lootFunction = [robe, knife, spellbook], lootRate = [60, 20, 7])
+        money = GameObject(x = None, y = None, char = '$', name = 'gold piece', color = colors.gold, Item=Money(randint(20, 300)), blocks = False, pName = 'gold pieces')
+        
+        fighterComponent = Fighter(hp = 20, armor = 2, power = 6, xp = 30, deathFunction = monsterDeath, accuracy = 18, evasion = 30, lootFunction = [robe, knife, spellbook, money], lootRate = [60, 20, 7, 40])
         AI_component = BasicMonster()
         monster = GameObject(x, y, char = 'c', color = colors.desaturated_purple, name = 'cultist', blocks = True, Fighter = fighterComponent, AI = AI_component)
         return monster
@@ -5370,6 +5399,7 @@ def Update():
     # Draw GUI
     #panel.draw_str(1, 3, 'Dungeon level: ' + str(dungeonLevel), colors.white)
     panel.draw_str(1, 5, 'Player level: ' + str(player.level) + ' | Floor: ' + str(dungeonLevel), colors.white)
+    panel.draw_str(1, 6, 'Money: ' + str(player.Player.money))
     renderBar(panel, 1, 1, BAR_WIDTH, 'HP', player.Fighter.hp, player.Fighter.maxHP, player.color, colors.dark_gray)
     renderBar(panel, 1, 3, BAR_WIDTH, 'MP', player.Fighter.MP, player.Fighter.maxMP, colors.blue, colors.dark_gray)
     
