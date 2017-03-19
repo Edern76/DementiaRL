@@ -98,6 +98,9 @@ LEVEL_SCREEN_WIDTH = 40
 
 CHARACTER_SCREEN_WIDTH = 50
 CHARACTER_SCREEN_HEIGHT = 21
+
+DEATH_SCREEN_WIDTH = 25
+DEATH_SCREEN_HEIGHT = 10
 # - GUI Constants -
 
 # - Consoles -
@@ -122,6 +125,7 @@ boss_FOV_recompute = True
 BOSS_FOV_ALGO = 'BASIC'
 BOSS_SIGHT_RADIUS = 60
 bossDungeonsAppeared = {'gluttony': False}
+lastHitter = None
 
 # - Spells -
 LIGHTNING_DAMAGE = 40
@@ -410,11 +414,11 @@ def setFighterStatsBack(fighter = None):
     fighter.baseCritical = fighter.BASE_CRITICAL
     fighter.baseArmorPenetration = fighter.BASE_ARMOR_PENETRATION
 
-def randomDamage(fighter = None, chance = 33, minDamage = 1, maxDamage = 1, dmgMessage = None, dmgColor = colors.red, msgPlayerOnly = True):
+def randomDamage(name, fighter = None, chance = 33, minDamage = 1, maxDamage = 1, dmgMessage = None, dmgColor = colors.red, msgPlayerOnly = True):
     dice = randint(1, 100)
     if dice <= chance:
         damage = randint(minDamage, maxDamage)
-        fighter.takeDamage(damage)
+        fighter.takeDamage(damage, name)
         if (dmgMessage is not None) and (fighter == player.Fighter or (not msgPlayerOnly)):
             message(dmgMessage.format(damage), dmgColor)
 
@@ -498,7 +502,7 @@ class Spell:
                 if self.ressource == 'MP':
                     caster.Fighter.MP -= self.ressourceCost
                 elif self.ressource == 'HP':
-                    caster.Fighter.takeDamage(self.ressourceCost)
+                    caster.Fighter.takeDamage(self.ressourceCost, 'your spell')
                 return 'used'
             else:
                 return 'cancelled'
@@ -511,7 +515,7 @@ class Spell:
                 if self.ressource == 'MP':
                     caster.Fighter.MP -= self.ressourceCost
                 elif self.ressource == 'HP':
-                    caster.Fighter.takeDamage(self.ressourceCost)
+                    caster.Fighter.takeDamage(self.ressourceCost, 'your spell')
                 return 'used'
             else:
                 return 'cancelled'
@@ -524,7 +528,7 @@ class Spell:
                 if self.ressource == 'MP':
                     caster.Fighter.MP -= self.ressourceCost
                 elif self.ressource == 'HP':
-                    caster.Fighter.takeDamage(self.ressourceCost)
+                    caster.Fighter.takeDamage(self.ressourceCost, 'your spell')
                 return 'used'
             else:
                 return 'cancelled'
@@ -537,7 +541,7 @@ class Spell:
                 if self.ressource == 'MP':
                     caster.Fighter.MP -= self.ressourceCost
                 elif self.ressource == 'HP':
-                    caster.Fighter.takeDamage(self.ressourceCost)
+                    caster.Fighter.takeDamage(self.ressourceCost, 'your spell')
                 return 'used'
             else:
                 return 'cancelled'
@@ -591,7 +595,7 @@ def castLightning(caster = None, monsterTarget = player):
         message(caster.name.capitalize() + "'s magic fizzles: there is no enemy near enough to strike", colors.red)
         return 'cancelled'
     message('A lightning bolt strikes the ' + target.name + ' with a heavy thunder ! It is shocked and suffers ' + str(LIGHTNING_DAMAGE) + ' shock damage.', colors.light_blue)
-    target.Fighter.takeDamage(LIGHTNING_DAMAGE)
+    target.Fighter.takeDamage(LIGHTNING_DAMAGE, caster.name + "'s lightning spell")
 
 def castConfuse(caster = None, monsterTarget = None):
     if caster is None or caster == player:
@@ -655,7 +659,7 @@ def castFireball(radius = 3, damage = 24, range = 4, caster = None, monsterTarge
                     message('The {} gets burned for {} damage !'.format(obj.name, damage), colors.light_blue)
                 else:
                     message('You get burned for {} damage !'.format(damage), colors.orange)
-                obj.Fighter.takeDamage(damage)
+                obj.Fighter.takeDamage(damage, caster.name + "'s fireball spell")
                 applyBurn(obj)
         #for x in range(targetX - radmax, targetX + radmax):
             #for y in range(targetY - radmax, targetY + radmax):
@@ -718,7 +722,7 @@ def castArmageddon(radius = 4, damage = 80, caster = None, monsterTarget = None)
                                     message('The {} gets smited for {} damage !'.format(obj.name, damage), colors.light_blue)
                                 else:
                                     message('You get smited for {} damage !'.format(damage), colors.orange)        
-                                obj.Fighter.takeDamage(damage)
+                                obj.Fighter.takeDamage(damage, caster.name + "'s armaggedon spell")
                             except AttributeError: #If it tries to access a non-existing object (aka outside of the map)
                                 continue
             except IndexError: #If an IndexError is encountered (aka if the function tries to access a tile outside of the map), execute code below except
@@ -972,6 +976,14 @@ class Trait():
                     if trait.selected: 
                         trait.amount = 0
                         trait.selected = False
+    
+    def addTraitToPlayer(self):
+        if self.type == 'skill':
+            player.Player.skills.append(self)
+        elif self.type == 'trait':
+            player.Player.traits.append(self)
+        player.Player.allTraits.append(self)
+        self.selected = True
     
     def drawTrait(self, cons = root):
         if not self.underCursor:
@@ -1586,7 +1598,9 @@ class Fighter: #All NPCs, enemies and the player
         bonus = sum(equipment.armorPenetrationBonus for equipment in getAllEquipped(self.owner))
         return self.baseArmorPenetration + bonus
         
-    def takeDamage(self, damage):
+    def takeDamage(self, damage, damageSource):
+        global lastHitter
+        lastHitter = damageSource
         if damage > 0:
             self.hp -= damage
             self.updateDamageText()
@@ -1609,7 +1623,7 @@ class Fighter: #All NPCs, enemies and the player
                     if buff[1] == 'burning':
                         applyBurn(target, 100)
                     if buff[1] == 'poisoned':
-                        poisoned = Buff('poisoned', colors.purple, owner = player, cooldown=randint(5, 10), continuousFunction=lambda: randomDamage(player.Fighter, chance = 100, minDamage=1, maxDamage=10))
+                        poisoned = Buff('poisoned', colors.purple, owner = player, cooldown=randint(5, 10), continuousFunction=lambda: randomDamage('poison', player.Fighter, chance = 100, minDamage=1, maxDamage=10))
                         poisoned.applyBuff()
         if self.leechRessource is not None:
             hunger = self.leechRessource == 'hunger'
@@ -1681,7 +1695,7 @@ class Fighter: #All NPCs, enemies and the player
                                 message(self.owner.name.capitalize() + ' critically hits '+ target.name +' for ' + str(damage) + ' hit points!')
                             else:
                                 message(self.owner.name.capitalize() + ' attacks '+ target.name + ' for ' + str(damage) + ' hit points.')
-                        target.Fighter.takeDamage(damage)
+                        target.Fighter.takeDamage(damage, self.owner.name)
                     else:
                         if target == player:
                             message(self.owner.name.capitalize() + ' attacks you but it has no effect !')
@@ -1691,7 +1705,7 @@ class Fighter: #All NPCs, enemies and the player
                             message('You critically hit ' + target.name + ' for ' + str(damage) + ' hit points!', colors.darker_green)
                         else:
                             message('You attack ' + target.name + ' for ' + str(damage) + ' hit points.', colors.dark_green)
-                        target.Fighter.takeDamage(damage)
+                        target.Fighter.takeDamage(damage, self.owner.name)
                         weapons = getEquippedInHands()
                         if weapons:
                             for weapon in weapons:
@@ -2113,7 +2127,6 @@ class Player:
         self.burdened = False
         self.hunger = baseHunger
         self.hungerStatus = "full"
-        self.dualWield = False
         self.attackedSlowly = False
         self.slowAttackCooldown = 0
         self.speed = speed #or 'slow' or 'fast'
@@ -2192,6 +2205,7 @@ class Player:
         for trait in self.allTraits:
             if trait.type == searchedType and trait.name == name:
                 return trait
+        return 'not found'
 
 def displayCharacter():
     levelUp_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
@@ -2204,6 +2218,7 @@ def displayCharacter():
     page = 1
 
     while not tdl.event.isWindowClosed():
+        MAX_PAGE = 3
         for k in range(width):
             window.draw_char(k, 0, chr(196))
         window.draw_char(0, 0, chr(218))
@@ -2234,6 +2249,19 @@ def displayCharacter():
             window.draw_str(1, 17, 'Willpower: ' + str(player.Player.willpower + 10))
             window.draw_str(1, 19, 'Current load: ' + str(getAllWeights(player)))
             window.draw_str(20, 19, 'Max load: ' + str(player.Player.maxWeight))
+        elif page == 2:
+            window.draw_str(5, 1, 'Traits:', fg = colors.yellow)
+            window.draw_str(0, 1, '<', colors.green)
+            window.draw_str(width - 1, 1, '>', colors.green)
+            y = 3
+            x = 1
+            for trait in player.Player.traits:
+                if y > height - 2:
+                    y = 3
+                    x = width // 2
+                if trait.selected:
+                    window.draw_str(x, y, trait.name)
+                    y += 2
         else:
             window.draw_str(5, 1, 'Absorbed Essences:', fg = colors.yellow)
             window.draw_str(0, 1, '<', colors.green)
@@ -2264,8 +2292,8 @@ def displayCharacter():
             page -= 1
         if page < 1:
             page = 1
-        if page > 2:
-            page = 2
+        if page > MAX_PAGE:
+            page = MAX_PAGE
 
         if keyChar == 'ESCAPE':
             break
@@ -2649,7 +2677,7 @@ def getInput():
             return 'didnt-take-turn'
         '''
     elif userInput.keychar.upper() == 'F2' and gameState != 'looking':
-        player.Fighter.takeDamage(1)
+        player.Fighter.takeDamage(1, 'debug damage')
         FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'F1':
@@ -3113,7 +3141,7 @@ def shoot():
                                                     message('You critically hit ' + monsterTarget.name + ' for ' + str(damage) + ' damage !', colors.darker_green)
                                                 else:
                                                     message('You hit ' + monsterTarget.name + ' for ' + str(damage) + ' damage !', colors.dark_green)
-                                                monsterTarget.Fighter.takeDamage(damage)
+                                                monsterTarget.Fighter.takeDamage(damage, player.owner.name)
                                         else:
                                             message('You missed ' + monsterTarget.name + '!', colors.grey)
                                     else:
@@ -3148,7 +3176,7 @@ def shoot():
                                     message('You critically hit ' + target.name + ' for ' + str(damage) + ' damage !', colors.darker_green)
                                 else:
                                     message('You hit ' + target.name + ' for ' + str(damage) + ' damage !', colors.dark_green)
-                                target.Fighter.takeDamage(damage)
+                                target.Fighter.takeDamage(damage, player.owner.name)
                         else:
                             message('You missed ' + target.name + '!', colors.grey)
             else:
@@ -3275,9 +3303,15 @@ def checkLevelUp():
                 else:
                     choice = None
 
-        if player.Player.getTrait('skill', 'Light weapons').amount >= 4 and not player.Player.dualWield:
+        if player.Player.getTrait('skill', 'Light weapons').amount >= 5 and player.Player.getTrait('trait', 'Dual wield') == 'not found':
             message('You are now proficient enough with light weapons to wield two at the same time!', colors.yellow)
-            player.Player.dualWield = True
+            dual = Trait('Dual wield', 'Allows to wield two lights weapons at the same time.', 'trait')
+            dual.addTraitToPlayer()
+        
+        if player.Player.getTrait('skill', 'Concentration').amount >= 5 and player.Player.getTrait('trait', 'Self aware') == 'not found':
+            message('Your meditation training is now so strong you can be really aware of your health state!', colors.yellow)
+            aware = Trait('Self aware', 'Allows to see the buffs and debuffs cooldowns.', 'trait')
+            aware.addTraitToPlayer()
 
 def isVisibleTile(x, y):
     global myMap
@@ -3349,7 +3383,7 @@ def castPlaceBoss():
             return 'cancelled'
 
 def applyBurn(target, chance = 70):
-    burning = Buff('burning', colors.flame, owner = target, cooldown= randint(3, 6), continuousFunction=lambda: randomDamage(target.Fighter, chance = 100, minDamage=1, maxDamage=3, dmgMessage = 'You take {} damage from burning !'))
+    burning = Buff('burning', colors.flame, owner = target, cooldown= randint(3, 6), continuousFunction=lambda: randomDamage('fire', target.Fighter, chance = 100, minDamage=1, maxDamage=3, dmgMessage = 'You take {} damage from burning !'))
     if target.Fighter and randint(1, 100) <= chance and not 'burning' in convertBuffsToNames(target.Fighter):
         if not 'frozen' in convertBuffsToNames(target.Fighter):
             burning.applyBuff()
@@ -3384,7 +3418,7 @@ def monsterArmageddon(monsterName ,monsterX, monsterY, radius = 4, damage = 40, 
                                         message('The explosion deals {} damage to {} !'.format(damage, obj.name))
                                 else:
                                     message('The explosion deals {} damage to you !'.format(damage), colors.orange)        
-                                obj.Fighter.takeDamage(damage)
+                                obj.Fighter.takeDamage(damage, 'an explosion')
                             except AttributeError: #If it tries to access a non-existing object (aka outside of the map)
                                 continue
             except IndexError: #If an IndexError is encountered (aka if the function tries to access a tile outside of the map), execute code below except
@@ -4002,13 +4036,13 @@ class Gluttony():
                             for fighter in objects:
                                 if (fighter.x == x and fighter.y == y) and not (fighter.x == object.x and fighter.y == object.y):
                                     if fighter.Fighter:
-                                        fighter.Fighter.takeDamage(2)
+                                        fighter.Fighter.takeDamage(2, "Gluttony's vomit")
                                         fighter.Fighter.acidify()
                                         message(fighter.name + " is touched by the vomit  splatters and suffers 2 damage!", color = colors.orange)
                 for fighter in objects:
                     if fighter.x == object.x and fighter.y == object.y:
                         if fighter.Fighter and not fighter == object:
-                            fighter.Fighter.takeDamage(15)
+                            fighter.Fighter.takeDamage(15, "Gluttony's vomit")
                             fighter.Fighter.acidify()
                             message(fighter.name + " is hit by Gluttony's vomit and suffers 15 damage!", color = colors.orange)
                 objects.remove(object)
@@ -4017,7 +4051,7 @@ class Gluttony():
 
         for object in objects:
             if object.name == "Gluttony's fat" and object.distanceTo(player) < 2:
-                player.Fighter.takeDamage(1)
+                player.Fighter.takeDamage(1, object.name)
                 message('The massive chunks of flesh around you start crushing you slowly! You lose 1 hit point.', colors.dark_orange)
                 break
 
@@ -4680,7 +4714,7 @@ def placeObjects(room, first = False):
                 elif foodChoice == 'rMeat':
                     def rMeatDebuff(amount, text):
                         if not 'poisoned' in convertBuffsToNames(player.Fighter):
-                            poisoned = Buff('poisoned', colors.purple, owner = player, cooldown=randint(5, 10), continuousFunction=lambda: randomDamage(player.Fighter, chance = 100, minDamage=1, maxDamage=10))
+                            poisoned = Buff('poisoned', colors.purple, owner = player, cooldown=randint(5, 10), continuousFunction=lambda: randomDamage('poison', player.Fighter, chance = 100, minDamage=1, maxDamage=10))
                             satiateHunger(amount, text)
                             dice = randint(1, 100)
                             if DEBUG:
@@ -4700,7 +4734,7 @@ def placeObjects(room, first = False):
                         satiateHunger(amount, text)
                         if choice == 'poison':
                             message("This had a very strange aftertaste...", colors.red)
-                            poisoned = Buff('poisoned', colors.purple, owner = player, cooldown=randint(5, 10), continuousFunction=lambda: randomDamage(player.Fighter, chance = 100, minDamage=1, maxDamage=10))
+                            poisoned = Buff('poisoned', colors.purple, owner = player, cooldown=randint(5, 10), continuousFunction=lambda: randomDamage('poison', player.Fighter, chance = 100, minDamage=1, maxDamage=10))
                             poisoned.applyBuff()
                         elif choice == 'freeze':
                             if not 'burning' in convertBuffsToNames(player.Fighter):
@@ -4837,7 +4871,7 @@ class Equipment:
 
         possible = True
         if rightIsWeapon or leftIsWeapon or extraIsWeapon:
-            if not player.Player.dualWield:
+            if player.Player.getTrait('trait', 'Dual wield') == 'not found':
                 message('You cannot wield two weapons at the same time!', colors.yellow)
                 possible = False
             else:
@@ -4983,7 +5017,10 @@ def lootItem(object, x, y):
     object.x = x
     object.y = y
     object.sendToBack()
-    message('A ' + object.name + ' falls from the dead body !', colors.dark_sky)
+    if object.Item and object.Item.amount <= 1:
+        message('A ' + object.name + ' falls from the dead body!', colors.dark_sky)
+    else:
+        message(str(object.Item.amount) + object.pName + ' fall from the dead body!', colors.dark_sky)
 
 def playerDeath(player):
     global gameState
@@ -4992,6 +5029,7 @@ def playerDeath(player):
     player.char = '%'
     player.color = colors.dark_red
     deleteSaves()
+    deathMenu()
  
 def monsterDeath(monster):
     message(monster.name.capitalize() + ' is dead! You gain ' + str(monster.Fighter.xp) + ' XP.', colors.dark_sky)
@@ -5126,7 +5164,6 @@ def displayLog(height):
         elif key.keychar.upper() in exitKeys:
             quitted = True
 
-
 def inventoryMenu(header, invList = None, noItemMessage = 'Inventory is empty'):
     #show a menu with each item of the inventory as an option
     global inventory
@@ -5242,6 +5279,65 @@ def equipmentMenu(header):
             return None
         else:
             return equipmentList[index].Item
+
+def deathMenu():
+    Update()
+    deathText = textwrap.wrap('You were killed by ' + lastHitter + '.', DEATH_SCREEN_WIDTH)
+    width = DEATH_SCREEN_WIDTH + 2
+    height = DEATH_SCREEN_HEIGHT + len(deathText)
+    window = tdl.Console(width, height)
+    window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
+    window.clear()
+    index = 0
+
+    while not tdl.event.isWindowClosed():
+        for k in range(width):
+            window.draw_char(k, 0, chr(196))
+        window.draw_char(0, 0, chr(218))
+        window.draw_char(k, 0, chr(191))
+        kMax = k
+        for l in range(height):
+            if l > 0:
+                window.draw_char(0, l, chr(179))
+                window.draw_char(kMax, l, chr(179))
+        lMax = l
+        for m in range(width):
+            window.draw_char(m, lMax, chr(196))
+        window.draw_char(0, lMax, chr(192))
+        window.draw_char(kMax, lMax, chr(217))
+        window.draw_str(8, 1, 'YOU DIED!', colors.red)
+        y = 3
+        for line in deathText:
+            window.draw_str(1, y, line, fg = colors.yellow)
+            y += 1
+        if index == 0:
+            window.draw_str(7, y + 2, 'Main menu', fg = colors.black, bg = colors.white)
+            window.draw_str(7, y + 4, 'Quit')
+        else:
+            window.draw_str(7, y + 2, 'Main menu')
+            window.draw_str(7, y + 4, 'Quit', fg = colors.black, bg = colors.white)
+
+        x = MID_WIDTH - int(width/2)
+        y = MID_HEIGHT - int(height/2)
+        root.blit(window, x, y, width, height, 0, 0)
+        tdl.flush()
+        
+        key = tdl.event.key_wait()
+        keyChar = key.keychar
+        if key.keychar.upper() == 'DOWN':
+            index += 1
+        if key.keychar.upper() == 'UP':
+            index -= 1
+        if index <= 0:
+            index = 0
+        if index > 1:
+            index = 1
+
+        if keyChar == 'ENTER':
+            if index == 0:
+                mainMenu()
+            else:
+                quitGame('Quit game from the death menu.')
 
 def mainMenu():
     global player
@@ -5399,13 +5495,13 @@ def Update():
     # Draw GUI
     #panel.draw_str(1, 3, 'Dungeon level: ' + str(dungeonLevel), colors.white)
     panel.draw_str(1, 5, 'Player level: ' + str(player.level) + ' | Floor: ' + str(dungeonLevel), colors.white)
-    panel.draw_str(1, 6, 'Money: ' + str(player.Player.money))
+    panel.draw_str(1, 7, 'Money: ' + str(player.Player.money))
     renderBar(panel, 1, 1, BAR_WIDTH, 'HP', player.Fighter.hp, player.Fighter.maxHP, player.color, colors.dark_gray)
     renderBar(panel, 1, 3, BAR_WIDTH, 'MP', player.Fighter.MP, player.Fighter.maxMP, colors.blue, colors.dark_gray)
     
     panel.draw_str(BUFF_X, 1, 'Buffs:', colors.white)
     buffY = 2
-    selfAware = True #TO-DO : Changes this so that this is true only if the player picked the 'self-aware' trait
+    selfAware = player.Player.getTrait('trait', 'Self aware') != 'not found'
     for buff in player.Fighter.buffList:
         if buff.showBuff:
             if selfAware and buff.showCooldown:
@@ -5956,7 +6052,7 @@ def nextLevel(boss = False, changeBranch = None, fixedMap = None):
 def playGame():
     actions = 1
     while not tdl.event.isWindowClosed():
-        global FOV_recompute, DEBUG, actions
+    global FOV_recompute, DEBUG, actions
         Update()
         checkLevelUp()
         tdl.flush()
@@ -6056,7 +6152,7 @@ def playGame():
                 x = object.x
                 y = object.y
                 if myMap[x][y].acid and object.Fighter and object.Fighter is not None:
-                    object.Fighter.takeDamage(1)
+                    object.Fighter.takeDamage(1, 'acid')
                     object.Fighter.acidify()
                 
                 if object.Fighter and object.Fighter.acidified and object.Fighter is not None:
@@ -6092,7 +6188,7 @@ def playGame():
                 player.Player.hunger = 0
             if player.Player.hunger <= BASE_HUNGER // 10:
                 if not player.Player.hungerStatus == 'starving':
-                    starving = Buff('starving', colors.red, owner = player, cooldown = 99999, showCooldown = False, continuousFunction = lambda: randomDamage(player.Fighter, chance = 33, minDamage = 1, maxDamage = 1, dmgMessage = 'You are starving!', dmgColor = colors.red, msgPlayerOnly = True))
+                    starving = Buff('starving', colors.red, owner = player, cooldown = 99999, showCooldown = False, continuousFunction = lambda: randomDamage('starvation', player.Fighter, chance = 33, minDamage = 1, maxDamage = 1, dmgMessage = 'You are starving!', dmgColor = colors.red, msgPlayerOnly = True))
                     starving.applyBuff()
                     player.Player.hungerStatus = "starving"
                 #starveDamage = randint(0, 2)
