@@ -279,7 +279,7 @@ def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxP
 
     tdl.flush()
 
-def menu(header, options, width, noItemMessage = None, inGame = True, adjustHeight = True):
+def menu(header, options, width, noItemMessage = None, inGame = True, adjustHeight = True, needsInput = True):
     global menuWindows, FOV_recompute
     page = 0
     pagesDisp = True
@@ -312,40 +312,46 @@ def menu(header, options, width, noItemMessage = None, inGame = True, adjustHeig
     window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
     y = headerHeight + 2 + pagesDispHeight
     drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp, noItemMessage)
-
-    choseOrQuit = False
-    while not choseOrQuit:
-        choseOrQuit = True
-        arrow = False
-        drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp, noItemMessage)
-        key = tdl.event.key_wait()
-        keyChar = key.keychar
-        if keyChar == '':
-            keyChar = ' '
-        elif keyChar == 'RIGHT':
-            page += 1
-            choseOrQuit = False
-            arrow = True
-        elif keyChar == 'LEFT':
-            page -= 1
-            choseOrQuit = False
-            arrow = True
-        if page > maxPages:
-            page = 0
-        if page < 0:
-            page = maxPages
-        
-        if not arrow:
-            if keyChar in 'abcdefghijklmnopqrstuvwsyz':
-                index = ord(keyChar) - ord('a')
-                if index >= 0 and index < len(options):
-                    return index + page * 26
-            elif keyChar.upper() == "ESCAPE":
-                return "cancelled"
+    
+    if needsInput:
+        choseOrQuit = False
+        while not choseOrQuit:
+            choseOrQuit = True
+            arrow = False
+            drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp, noItemMessage)
+            key = tdl.event.key_wait()
+            keyChar = key.keychar
+            if keyChar == '':
+                keyChar = ' '
+            elif keyChar == 'RIGHT':
+                page += 1
+                choseOrQuit = False
+                arrow = True
+            elif keyChar == 'LEFT':
+                page -= 1
+                choseOrQuit = False
+                arrow = True
+            if page > maxPages:
+                page = 0
+            if page < 0:
+                page = maxPages
+            
+            if not arrow:
+                if keyChar in 'abcdefghijklmnopqrstuvwsyz':
+                    index = ord(keyChar) - ord('a')
+                    if index >= 0 and index < len(options):
+                        return index + page * 26
+                elif keyChar.upper() == "ESCAPE":
+                    return "cancelled"
+    else:
+        pass
     return None
 
-def msgBox(text, width = 50, inGame = True, adjustHeight = True):
-    menu(text, [], width, None, inGame, adjustHeight)
+def msgBox(text, width = 50, inGame = True, adjustHeight = True, adjustWidth = False, needsInput = True):
+    if adjustWidth:
+        textLength = len(text)
+        width = textLength + 2
+    menu(text, [], width, None, inGame, adjustHeight, needsInput)
 
 def drawCentered (cons = con , y = 1, text = "Lorem Ipsum", fg = None, bg = None):
     xCentered = (WIDTH - len(text))//2
@@ -2856,70 +2862,72 @@ def getInput():
         elif userInput.keychar.upper() == '<':
             print('You pressed the freaking climb up key')
             if dungeonLevel > 1 or currentBranch.name != 'Main':
-                saveLevel(dungeonLevel)
-                for object in objects:
-                    if upStairs.x == player.x and upStairs.y == player.y:
-                        print(currentBranch.name)
-                        if stairCooldown == 0:
-                            global stairCooldown, dungeonLevel
-                            saveLevel(dungeonLevel)
-                            chosen = False
-                            stairCooldown = 2
-                            if DEBUG:
-                                message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
-                            if dungeonLevel == 1 and currentBranch.name != 'Main':
-                                if not chosen:
-                                    chosen = True
-                                    print('Returning to origin branch')
-                                    loadLevel(currentBranch.origDepth, save = False, branch = currentBranch.origBranch)
-                                else:
-                                    print('WHY THE HECK IS THE CODE EXECUTING THIS FFS ?')
+                #saveLevel(dungeonLevel)
+                if upStairs.x == player.x and upStairs.y == player.y:
+                    print(currentBranch.name)
+                    if stairCooldown == 0:
+                        global stairCooldown, dungeonLevel
+                        temporaryBox('Loading...')
+                        saveLevel(dungeonLevel)
+                        chosen = False
+                        stairCooldown = 2
+                        if DEBUG:
+                            message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
+                        if dungeonLevel == 1 and currentBranch.name != 'Main':
+                            if not chosen:
+                                chosen = True
+                                print('Returning to origin branch')
+                                loadLevel(currentBranch.origDepth, save = False, branch = currentBranch.origBranch)
                             else:
-                                if not chosen:
-                                    chosen = True
-                                    toLoad = dungeonLevel - 1
-                                    loadLevel(toLoad, save = False)
-                                else:
-                                    print('Chosen was equal to true. If the code ever goes here, I fucking hate all of this.')
+                                print('WHY THE HECK IS THE CODE EXECUTING THIS FFS ?')
                         else:
-                            message("You're too tired to climb the stairs right now")
-                        return None
+                            if not chosen:
+                                chosen = True
+                                toLoad = dungeonLevel - 1
+                                loadLevel(toLoad, save = False)
+                            else:
+                                print('Chosen was equal to true. If the code ever goes here, I fucking hate all of this.')
+                    else:
+                        message("You're too tired to climb the stairs right now")
+                    return None
             FOV_recompute = True
         elif userInput.keychar.upper() == '>':
-            for object in objects:
-                if stairs.x == player.x and stairs.y == player.y:
-                    if stairCooldown == 0:
-                        global stairCooldown
-                        stairCooldown = 2
-                        boss = False
-                        if dungeonLevel + 1 in currentBranch.bossLevels:
-                            boss = True
-                        if DEBUG:
-                            message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
-                        nextLevel(boss)
-                    else:
-                        message("You're too tired to climb down the stairs right now")
-                elif object == gluttonyStairs and object.x == player.x and object.y == player.y:
-                    if stairCooldown == 0:
-                        global stairCooldown
-                        stairCooldown = 2
-                        boss = False
-                        if DEBUG:
-                            message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
-                        nextLevel(boss, changeBranch = dBr.gluttonyDungeon)
-                    else:
-                        message("You're too tired to climb down the stairs right now")
-                    return None
-                elif object == townStairs and object.x == player.x and object.y == player.y:
-                    if stairCooldown == 0:
-                        global stairCooldown
-                        stairCooldown = 2
-                        boss = False
-                        if DEBUG:
-                            message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
-                        nextLevel(boss, changeBranch = dBr.hiddenTown)
-                    else:
-                        message("You're too tired to climb down the stairs right now")
+            if stairs.x == player.x and stairs.y == player.y:
+                if stairCooldown == 0:
+                    global stairCooldown
+                    temporaryBox('Loading...')
+                    stairCooldown = 2
+                    boss = False
+                    if dungeonLevel + 1 in currentBranch.bossLevels:
+                        boss = True
+                    if DEBUG:
+                        message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
+                    nextLevel(boss)
+                else:
+                    message("You're too tired to climb down the stairs right now")
+            elif gluttonyStairs.x == player.x and gluttonyStairs.y == player.y:
+                if stairCooldown == 0:
+                    global stairCooldown
+                    temporaryBox('Loading...')
+                    stairCooldown = 2
+                    boss = False
+                    if DEBUG:
+                        message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
+                    nextLevel(boss, changeBranch = dBr.gluttonyDungeon)
+                else:
+                    message("You're too tired to climb down the stairs right now")
+                return None
+            elif townStairs.x == player.x and townStairs.y == player.y:
+                if stairCooldown == 0:
+                    global stairCooldown
+                    temporaryBox('Loading...')
+                    stairCooldown = 2
+                    boss = False
+                    if DEBUG:
+                        message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
+                    nextLevel(boss, changeBranch = dBr.hiddenTown)
+                else:
+                    message("You're too tired to climb down the stairs right now")
         elif userInput.keychar.upper() == 'I':
             choseOrQuit = False
             while not choseOrQuit:
@@ -5340,6 +5348,39 @@ def deathMenu():
                 mainMenu()
             else:
                 quitGame('Quit game from the death menu.')
+
+def temporaryBox(text, color = colors.white):
+    global FOV_recompute
+    FOV_recompute = True
+    Update()
+    width = len(text) + 2
+    height = 3
+    window = tdl.Console(width, height)
+    assert isinstance(window, tdl.Console)
+    
+    window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
+    window.clear()
+    
+    for k in range(width):
+        window.draw_char(k, 0, chr(196))
+    window.draw_char(0, 0, chr(218))
+    window.draw_char(k, 0, chr(191))
+    kMax = k
+    for l in range(height):
+        if l > 0:
+            window.draw_char(0, l, chr(179))
+            window.draw_char(kMax, l, chr(179))
+    lMax = l
+    for m in range(width):
+        window.draw_char(m, lMax, chr(196))
+    window.draw_char(0, lMax, chr(192))
+    window.draw_char(kMax, lMax, chr(217))
+    
+    window.draw_str(1, 1, text, fg = color)
+    x = MID_WIDTH - int(width/2)
+    y = MID_HEIGHT - int(height/2)
+    root.blit(window, x, y, width, height, 0, 0)
+    tdl.flush()
 
 def mainMenu():
     global player
