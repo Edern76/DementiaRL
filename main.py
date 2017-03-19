@@ -19,7 +19,7 @@ from code.custom_except import UnusableMethodException
 
 def notCloseImmediatelyAfterCrash(exc_type, exc_value, tb):
     '''
-    Does exactly what it says on the tin : prevent the console from closing immediately after crash
+    Does exactly what it says on the tin : prevents the console from closing immediately after crash
     '''
     traceback.print_exception(exc_type, exc_value, tb) #Print the error message
     try:
