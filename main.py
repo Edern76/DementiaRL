@@ -3007,7 +3007,7 @@ breadChoice = ShopChoice(gObject = bread, price = 40, stock = 5) #The amount of 
 
 cSwordEquip = Equipment(slot = 'one handed', type = 'light weapon', powerBonus = 2, criticalBonus = 1, meleeWeapon = True)
 cSwordItem = Item(weight= 0.6, description= "A sword made out of candy. Barely qualifies as a weapon.")
-cSword = GameObject(None, None, '/', colors.pink, Item = cSwordItem, Equipment = cSwordEquip, blocks = False)
+cSword = GameObject(None, None, char = '/', name = 'candy sword', color = colors.pink, Item = cSwordItem, Equipment = cSwordEquip, blocks = False)
 cSwordChoice = ShopChoice(gObject = cSword, price = 400, stock = 1)
 
 ayethShopChoices = [badPieChoice, saladChoice, breadChoice, cSwordChoice]
