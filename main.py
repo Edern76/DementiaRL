@@ -5281,6 +5281,8 @@ def equipmentMenu(header):
             return equipmentList[index].Item
 
 def deathMenu():
+    global FOV_recompute
+    FOV_recompute = True
     Update()
     deathText = textwrap.wrap('You were killed by ' + lastHitter + '.', DEATH_SCREEN_WIDTH)
     width = DEATH_SCREEN_WIDTH + 2
