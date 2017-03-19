@@ -5828,7 +5828,7 @@ def saveGame():
     #mapFile.close()
 
 def newGame():
-    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, gameMsgs, equipmentList, currentBranch, bossDungeonsAppeared, DEBUG, REVEL
+    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, gameMsgs, equipmentList, currentBranch, bossDungeonsAppeared, DEBUG, REVEL, logMsgs, tilesInRange, tilesinPath, tilesInRect, menuWindows, explodingTiles, hiroshimanNumber, FOV_recompute
     
     DEBUG = False
     REVEL = False
@@ -5836,6 +5836,14 @@ def newGame():
     bossDungeonsAppeared = {'gluttony': False}
     gameMsgs = []
     objects = [player]
+    logMsgs = []
+    tilesInRange = []
+    explodingTiles = []
+    tilesinPath = []
+    tilesInRect = []
+    menuWindows = []
+    hiroshimanNumber = 0
+    FOV_recompute = True
     currentBranch = dBr.mainDungeon
     dungeonLevel = 1 
     makeMap()
