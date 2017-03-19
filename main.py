@@ -1,12 +1,12 @@
 import colors, math, textwrap, time, os, sys, code, gzip, pathlib, traceback #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
 import tdlib as tdl
-import dialog as dial
+import code.dialog as dial
 import simpleaudio as sa
 import dill #THIS IS NOT AN UNUSED IMPORT. Importing this changes the behavior of the pickle module (and the shelve module too), so as we can actually save lambda expressions
 from tdl import *
 from random import randint, choice
 from math import *
-from custom_except import *
+from code.custom_except import *
 from copy import copy
 from os import makedirs
 from code.constants import MAX_HIGH_CULTIST_MINIONS
