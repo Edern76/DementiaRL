@@ -2,12 +2,12 @@ import colors, math, textwrap, time, os, sys, code, gzip, pathlib, traceback #Co
 import tdlib as tdl
 import code.dialog as dial
 import simpleaudio as sa
-import dill #THIS IS NOT AN UNUSED IMPORT. Importing this changes the behavior of the pickle module (and the shelve module too), so as we can actually save lambda expressions
+import dill #THIS IS NOT AN UNUSED IMPORT. Importing this changes the behavior of the pickle module (and the shelve module too), so as we can actually save lambda expressions. EDIT : It might actually be useless to import it here, since we import it in the dilledShelve module, but it freaking finally works perfectly fine so we're not touching this.
 from tdl import *
 from random import randint, choice
 from math import *
 from code.custom_except import *
-from copy import copy
+from copy import copy, deepcopy
 from os import makedirs
 from code.constants import MAX_HIGH_CULTIST_MINIONS
 import code.nameGen as nameGen
@@ -356,6 +356,25 @@ def msgBox(text, width = 50, inGame = True, adjustHeight = True, adjustWidth = F
 def drawCentered (cons = con , y = 1, text = "Lorem Ipsum", fg = None, bg = None):
     xCentered = (WIDTH - len(text))//2
     cons.draw_str(xCentered, y, text, fg, bg)
+
+def getCenterFilled(text = 'Lorem Ipsum'):
+    xCentered = (WIDTH - len(text))//2
+    newText = ''
+    passNb = 0
+    while passNb != 2:
+        for x in range(xCentered):
+            newText += ' '
+        if passNb == 0:
+            newText += text
+        passNb += 1
+    return newText
+
+def getRightFilled(text = 'Lorem Ipsum'):
+    newText = str(text)
+    remaining = WIDTH - len(newText)
+    for loop in range(remaining):
+        newText += ' '
+    return newText
 
 def drawCenteredOnX(cons = con, x = 1, y = 1, text = "Lorem Ipsum", fg = None, bg = None):
     centeredOnX = x - (len(text)//2)
@@ -1353,7 +1372,7 @@ def closestMonster(max_range):
 
 class GameObject:
     "A generic object, represented by a character"
-    def __init__(self, x, y, char, name, color = colors.white, blocks = False, Fighter = None, AI = None, Player = None, Ghost = False, Item = None, alwaysVisible = False, darkColor = None, Equipment = None, pName = None, Essence = None, socialComp = None):
+    def __init__(self, x, y, char, name, color = colors.white, blocks = False, Fighter = None, AI = None, Player = None, Ghost = False, Item = None, alwaysVisible = False, darkColor = None, Equipment = None, pName = None, Essence = None, socialComp = None, shopComp = None):
         self.x = x
         self.y = y
         self.char = char
@@ -1385,7 +1404,9 @@ class GameObject:
         self.lastTargetX = None
         self.lastTargetY = None
         self.pluralName = pName
+        self.pName = self.pluralName
         self.socialComp = socialComp
+        self.shopComp = shopComp
 
     def moveTowards(self, target_x, target_y):
         dx = target_x - self.x
@@ -1473,6 +1494,9 @@ class GameObject:
                 print(self.name + " found no Astar path")
         else:
             return "fail"
+        
+    def duplicate(self):
+        return deepcopy(self)
 
 class Fighter: #All NPCs, enemies and the player
     def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = [0], shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = None):
@@ -2382,31 +2406,35 @@ class Item:
         self.pic = pic
         self.type = itemtype
 
-    def pickUp(self):
+    def pickUp(self, silent = False, inObjects = True):
         if not self.stackable:
             #if len(inventory)>=26:
                 #message('Your bag already feels really heavy, you cannot pick up ' + self.owner.name + '.', colors.red)
             #else:
             inventory.append(self.owner)
-            objects.remove(self.owner)
-            message('You picked up a ' + self.owner.name + '!', colors.green)
+            if inObjects:
+                objects.remove(self.owner)
+            if not silent:
+                message('You picked up a ' + self.owner.name + '!', colors.green)
             equipment = self.owner.Equipment
             if equipment:
                 handed = equipment.slot == 'one handed' or equipment.slot == 'two handed'
                 if not handed and getEquippedInSlot(equipment.slot) is None:
-                    equipment.equip()
+                    equipment.equip(silent)
         else:
             itemFound = False
             for item in inventory:
                 if item.name == self.owner.name:
-                    if self.amount == 1:
-                        message('You picked up a' + ' ' + self.owner.name + ' !', colors.green)
-                    elif self.owner.pluralName is None:
-                        message('You picked up ' + str(self.amount) + ' ' + self.owner.name + 's !', colors.green)
-                    else:
-                        message('You picked up ' + str(self.amount) + ' ' + self.owner.pluralName + ' !', colors.green)
+                    if not silent:
+                        if self.amount == 1:
+                            message('You picked up a' + ' ' + self.owner.name + ' !', colors.green)
+                        elif self.owner.pluralName is None:
+                            message('You picked up ' + str(self.amount) + ' ' + self.owner.name + 's !', colors.green)
+                        else:
+                            message('You picked up ' + str(self.amount) + ' ' + self.owner.pluralName + ' !', colors.green)
                     item.Item.amount += self.amount
-                    objects.remove(self.owner)
+                    if inObjects:
+                        objects.remove(self.owner)
                     #if DEBUG:
                         #print("Amount of " + self.owner.name + " equals " + str(self.amount))
                     itemFound = True
@@ -2416,13 +2444,15 @@ class Item:
                     #message('Your bag already feels really heavy, you cannot pick up ' + str(self.amount) + self.owner.name + 's.', colors.red)
                 #else:
                 inventory.append(self.owner)
-                objects.remove(self.owner)
-                if self.amount == 1:
-                    message('You picked up a' + ' ' + self.owner.name + ' !', colors.green)
-                elif self.owner.pluralName is None:
-                    message('You picked up ' + str(self.amount) + ' ' + self.owner.name + 's !', colors.green)
-                else:
-                    message('You picked up ' + str(self.amount) + ' ' + self.owner.pluralName + ' !', colors.green)
+                if inObjects:
+                    objects.remove(self.owner)
+                if not silent:
+                    if self.amount == 1:
+                        message('You picked up a' + ' ' + self.owner.name + ' !', colors.green)
+                    elif self.owner.pluralName is None:
+                        message('You picked up ' + str(self.amount) + ' ' + self.owner.name + 's !', colors.green)
+                    else:
+                        message('You picked up ' + str(self.amount) + ' ' + self.owner.pluralName + ' !', colors.green)
 
     def use(self):
         if self.owner.Equipment:
@@ -2618,6 +2648,189 @@ class Item:
                 return "cancelled"
         return None
     
+class Equipment:
+    def __init__(self, slot, type, powerBonus=0, armorBonus=0, maxHP_Bonus=0, accuracyBonus=0, evasionBonus=0, criticalBonus = 0, maxMP_Bonus = 0, burning = False, ranged = False, rangedPower = 0, maxRange = 0, ammo = None, meleeWeapon = False, armorPenetrationBonus = 0, slow = False):
+        self.slot = slot
+        self.type = type
+        self.basePowerBonus = powerBonus
+        self.armorBonus = armorBonus
+        self.maxHP_Bonus = maxHP_Bonus
+        self.accuracyBonus = accuracyBonus
+        self.evasionBonus = evasionBonus
+        self.criticalBonus = criticalBonus
+        self.maxMP_Bonus = maxMP_Bonus
+        self.isEquipped = False
+        self.curSlot = None
+        self.armorPenetrationBonus = armorPenetrationBonus
+        
+        self.burning = burning
+        self.ranged = ranged
+        self.baseRangedPower = rangedPower
+        self.maxRange = maxRange
+        self.ammo = ammo
+        self.meleeWeapon = meleeWeapon
+        self.slow = slow
+ 
+    def toggleEquip(self):
+        if self.isEquipped:
+            self.unequip()
+        else:
+            self.equip()
+
+    def equip(self, silent = False):
+        extra = False
+        handSlot = None
+        oldEquipment = None
+        global FOV_recompute
+        
+        handed = self.slot == 'one handed' or self.slot == 'two handed'
+        
+        if self.slot == 'one handed':
+            inHands = getEquippedInHands()
+            rightText = "right hand"
+            leftText = "left hand"
+            extra = False
+            if player.Player.race == 'Demon spawn':
+                if 'extra limb' in player.Player.mutationsGotten:
+                    extraText = "extra arm"
+                    extra = True
+            for object in equipmentList:
+                if object.Equipment.curSlot == "right hand":
+                    rightText = rightText + " (" + object.name + ")"
+                if object.Equipment.curSlot == "left hand":
+                    leftText = leftText + " (" + object.name + ")"
+                if object.Equipment.curSlot == 'both hands':
+                    rightText = rightText + " (" + object.name + ")"
+                    leftText = leftText + " (" + object.name + ")"
+                if extra and object.Equipment.curSlot == 'extra arm':
+                    extraText = extraText + ' (' + object.name + ')'
+            if extra:
+                handList = [rightText, leftText, extraText]
+            else:
+                handList = [rightText, leftText]
+            handIndex = menu('What slot do you want to equip this ' + self.owner.name + ' in?', handList, 60)
+            if handIndex == 0:
+                handSlot = 'right hand'
+            elif handIndex == 1:
+                handSlot = 'left hand'
+            elif extra and handIndex == 2:
+                handSlot = 'extra arm'
+            else:
+                return None
+        elif self.slot == 'two handed':
+            handSlot = 'both hands'
+
+        rightEquipment = None
+        leftEquipment = None
+        extraEquipment = None
+        if handed:
+            if self.meleeWeapon and handSlot == 'right hand':
+                leftEquipment = getEquippedInSlot('left hand', hand = True)
+                extraEquipment = getEquippedInSlot('extra arm', hand = True)
+            elif self.meleeWeapon and handSlot == 'left hand':
+                rightEquipment = getEquippedInSlot('right hand', hand = True)
+                extraEquipment = getEquippedInSlot('extra arm', hand = True)
+            elif extra and self.meleeWeapon and handSlot == 'extra arm':
+                leftEquipment = getEquippedInSlot('left hand', hand = True)
+                rightEquipment = getEquippedInSlot('right hand', hand = True)
+        rightIsWeapon = rightEquipment and rightEquipment.meleeWeapon
+        leftIsWeapon = leftEquipment and leftEquipment.meleeWeapon
+        extraIsWeapon = extraEquipment and extraEquipment.meleeWeapon
+
+        possible = True
+        if rightIsWeapon or leftIsWeapon or extraIsWeapon:
+            if player.Player.getTrait('trait', 'Dual wield') == 'not found':
+                message('You cannot wield two weapons at the same time!', colors.yellow)
+                possible = False
+            else:
+                if self.type == 'light weapon':
+                    if rightIsWeapon and not rightEquipment.type == 'light weapon' or leftIsWeapon and not leftEquipment.type == 'light weapon' or rightIsWeapon and not rightEquipment.type == 'light weapon':
+                        message('You can only wield several light weapons.', colors.yellow)
+                        possible = False
+        if possible:
+            if not handed:
+                oldEquipment = getEquippedInSlot(self.slot)
+                if oldEquipment is not None:
+                    oldEquipment.unequip()
+            else:
+                rightEquipment = None
+                leftEquipment = None
+                bothEquipment = None
+        
+                if self.slot == 'one handed':
+                    bothEquipment = getEquippedInSlot('both hands', hand = True)
+                    oldEquipment = getEquippedInSlot(handSlot, hand = True)
+                if self.slot == 'two handed':
+                    rightEquipment = getEquippedInSlot('right hand', hand = True)
+                    leftEquipment = getEquippedInSlot('left hand', hand = True)
+                    bothEquipment = getEquippedInSlot('both hands', hand = True)
+    
+                if bothEquipment is not None:
+                    bothEquipment.unequip()
+                if rightEquipment is not None:
+                    rightEquipment.unequip()
+                if leftEquipment is not None:
+                    leftEquipment.unequip()
+                if oldEquipment is not None:
+                    oldEquipment.unequip()
+    
+            inventory.remove(self.owner)
+            equipmentList.append(self.owner)
+            self.isEquipped = True
+            if self.maxHP_Bonus != 0:
+                player.Fighter.hp += self.maxHP_Bonus
+            if self.maxMP_Bonus != 0:
+                player.Fighter.MP += self.maxMP_Bonus
+            
+            if not silent:
+                if handed:
+                    self.curSlot = handSlot
+                    message('Equipped ' + self.owner.name + ' on ' + self.curSlot + '.', colors.light_green)
+                else:
+                    message('Equipped ' + self.owner.name + ' on ' + self.slot + '.', colors.light_green)
+ 
+    def unequip(self):
+        handed = self.slot == 'one handed' or self.slot == 'two handed'
+
+        if not self.isEquipped: return
+        self.isEquipped = False
+        equipmentList.remove(self.owner)
+        inventory.append(self.owner)
+        if handed:
+            message('Unequipped ' + self.owner.name + ' from ' + self.curSlot + '.', colors.light_yellow)
+            self.curSlot = None
+        else:
+            message('Unequipped ' + self.owner.name + ' from ' + self.slot + '.', colors.light_yellow)
+        if self.maxHP_Bonus != 0:
+            player.Fighter.hp -= self.maxHP_Bonus
+        if self.maxMP_Bonus != 0:
+            player.Fighter.MP -= self.maxMP_Bonus
+
+    @property
+    def powerBonus(self):
+        if self.type == 'light weapon':
+            bonus = (20 * player.Player.getTrait('skill', 'Light weapons').amount) / 100
+            return int(self.basePowerBonus * bonus + self.basePowerBonus)
+        elif self.type == 'heavy weapon':
+            bonus = (20 * player.Player.getTrait('skill', 'Heavy weapons').amount) / 100
+            return int(self.basePowerBonus * bonus + self.basePowerBonus)
+        elif self.type == 'throwing weapon':
+            bonus = (20 * player.Player.getTrait('skill', 'Throwing weapons').amount) / 100
+            return int(self.basePowerBonus * bonus + self.basePowerBonus)
+        else:
+            return self.basePowerBonus
+    
+    @property
+    def rangedPower(self):
+        if self.type == 'missile weapon':
+            bonus = (20 * player.Player.getTrait('skill', 'Missile weapons').amount) / 100
+            return int(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.dexterity)
+        elif self.type == 'throwing weapon':
+            bonus = (20 * player.Player.getTrait('skill', 'Throwing weapons').amount) / 100
+            return int(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.strength)
+        else:
+            return self.baseRangedPower
+
 class Money(Item):
     def __init__(self, moneyAmount):
         self.amount = moneyAmount
@@ -2641,6 +2854,164 @@ class Money(Item):
     def display(self):
         raise UnusableMethodException("Cannot 'display' a money item.")
 
+class ShopChoice:
+    def __init__(self, gObject, itemComp = None, price = 0, stock = 0):
+        self.object = gObject
+        #assert isinstance(self.object, GameObject)
+        if not self.object.Item:
+            if itemComp:
+                self.itemComp = itemComp
+                print('Found itemComp without issues')
+            else:
+                print('========================================')
+                print('===============WARNING !================')
+                print('Assigning None itemComponent to ' + self.object.name)
+                print('This is likely to cause issues !')
+                print('========================================')
+                print('========================================')
+            self.object.Item = self.itemComp
+        else:
+            self.itemComp = self.object.Item
+            print('Found already existing item component')
+        self.price = price
+        self.stock = stock
+    
+    def buy(self):
+        if player.Player.money >= self.price:
+            if self.stock > 0:
+                player.Player.money -= self.price
+                self.stock -= 1
+                newObject = self.object.duplicate()
+                newObject.Item.pickUp(silent = True, inObjects = False)
+                return 'OK'
+            else:
+                return 'OOS' # Out of stock
+        else:
+            return 'NEM' #Not enough money
+    
+    def formatName(self):
+        o = self.object
+        i = o.Item
+        '''
+        if i != self.itemComp:
+            raise NotEqualToExpectedValueException('ItemComp is different from the Item component of the actual object')
+        '''
+        if self.stock > 1:
+            if o.pName:
+                name = str(self.stock) + ' ' + o.pName
+            else:
+                name = str(self.stock) + ' ' + o.name + 's'
+        else:
+            name = 'A ' + str(o.name) #TO-DO : Insert here check for other pronouns ('an', 'the', None, etc)
+        
+        name = getRightFilled(name)
+        priceText = str(self.price) + 'g'
+        priceLength = len(priceText)
+        lastNameCharacter = len(name) - 1
+        startPrice = lastNameCharacter - priceLength
+        name = name[:startPrice] + priceText
+        return name
+
+class Shop:
+    def __init__(self, choicesList, welcomeText = 'Welcome to my shop ! What can I do for you ?'):
+        self.choicesList = choicesList
+        self.welcomeText = welcomeText
+        
+    def browse(self):
+        root.clear()
+        state = 'starting'
+        selectedIndex = 0
+        while state != 'END':
+            con.clear()
+            con.draw_str(0, 1, 'ITEM')
+            con.draw_str(WIDTH - len('PRICE') - 1, 1, 'PRICE')
+            y = 2
+            for choice in self.choicesList:
+                ind = self.choicesList.index(choice)
+                if choice.stock > 0:
+                    toDraw = choice.formatName()
+                    foreground = colors.white
+                else:
+                    toDraw = getCenterFilled('OUT OF STOCK')
+                    foreground = colors.light_gray
+                if ind == selectedIndex:
+                    background = colors.dark_azure
+                else:
+                    background = Ellipsis
+                con.draw_str(0, y, toDraw, fg = foreground, bg = background)
+                y += 1
+            panel.clear()
+            for x in range(WIDTH):
+                panel.draw_char(x, 0, chr(196))
+            moneyText = 'Money : ' + str(player.Player.money)
+            startMoneyX = WIDTH - len(moneyText)
+            panel.draw_str(startMoneyX, 1, moneyText)
+            centerY = PANEL_HEIGHT // 2
+            if state == 'OK':
+                pMessage = 'Thanks for your purchase ! What else can I do for you ?'
+            elif state == 'OOS':
+                pMessage = "I'm sorry but this item is out of stock."
+            elif state == 'NEM':
+                pMessage = "Sorry but you can't afford this"
+            elif state == 'END':
+                pMessage = "Farewell. (you shouldn't see this message)"
+            else:
+                pMessage = self.welcomeText
+            drawCentered(panel, y = centerY, text = pMessage, fg = Ellipsis, bg = Ellipsis)
+            root.blit(con, 0, 0, WIDTH, HEIGHT, 0, 0)
+            root.blit(panel, 0, PANEL_Y, WIDTH, PANEL_HEIGHT, 0, 0)
+            tdl.flush()
+            key = tdl.event.key_wait()
+            actualKey = key.keychar.upper()
+            if actualKey == 'ESCAPE':
+                state = 'END'
+            elif actualKey in ('UP', 'KP8'):
+                selectedIndex -= 1
+                if selectedIndex < 0:
+                    selectedIndex = len(self.choicesList) - 1
+                playWavSound('select.wav', True)
+            elif actualKey in ('DOWN', 'KP2'):
+                selectedIndex += 1
+                if selectedIndex > len(self.choicesList) - 1 :
+                    selectedIndex = 0
+                playWavSound('select.wav', True)
+            elif actualKey == 'ENTER':
+                state = self.choicesList[selectedIndex].buy()
+
+def vomit(amount = 30):
+    message('You throw up !', colors.darker_lime)
+    player.Player.hunger -= amount
+    if player.Player.hunger < 0:
+        player.Player.hunger = 0
+
+def badPieEffect():
+    message('This tasted awful !', colors.red)
+    dice = randint(1, 100)
+    if dice > 40:
+        vomit()
+    else:
+        satiateHunger(randint(30, 80))
+    if dice > 70:
+        message("This had a very strange aftertaste...", colors.red)
+        poisoned = Buff('poisoned', colors.purple, owner = player, cooldown=randint(5, 10), continuousFunction=lambda: randomDamage('poison', player.Fighter, chance = 100, minDamage=1, maxDamage=10))
+        poisoned.applyBuff()
+
+badPie = GameObject(None, None, ',', "awful pie", colors.dark_fuchsia, Item = Item(useFunction = lambda : badPieEffect(), weight = 0.4, stackable=True, amount = 1, description = "This pie looks barely edible. Whoever baked it deserves the title of the worst baker of all this world.", itemtype = 'food'), blocks = False, pName = "awful pies") # TO-DO : Once we find the name of the world, change description
+badPieChoice = ShopChoice(gObject = badPie, price = 100, stock = 20)
+
+salad = GameObject(None, None, ',', "'herb salad", colors.green, Item = Item(useFunction = lambda : satiateHunger(40, 'the herb salad'), weight = 0.05, stackable=True, amount = 1, description = "A salad made out of the herbs that grow all arount this place. Oddly enough, this looks like it won't make you die of poisoning as soon as you eat it.", itemtype = 'food'), blocks = False, pName = "herb salads")
+saladChoice = ShopChoice(gObject = salad, price = 120, stock = 10)
+
+bread = GameObject(None, None, ',', "slice of bread", colors.yellow, Item = Item(useFunction= lambda : satiateHunger(20, 'the slice of bread'), weight = 0.2, stackable=True, amount = 1, description = "This has probably been lying on the ground for ages, but you'll have to deal with it if you don't want to starve.", itemtype = 'food'), blocks = False, pName = "slices of bread")
+breadChoice = ShopChoice(gObject = bread, price = 40, stock = 5) #The amount of stock will make sense once we have a restock system implemented (you have to bake more bread to get more, and since the NPC cannot leave the town because monsters there are limited ressources, so you can't bake a lot of it in one go)
+
+cSwordEquip = Equipment(slot = 'one handed', type = 'light weapon', powerBonus = 2, criticalBonus = 1, meleeWeapon = True)
+cSwordItem = Item(weight= 0.6, description= "A sword made out of candy. Barely qualifies as a weapon.")
+cSword = GameObject(None, None, '/', colors.pink, Item = cSwordItem, Equipment = cSwordEquip, blocks = False)
+cSwordChoice = ShopChoice(gObject = cSword, price = 400, stock = 1)
+
+ayethShopChoices = [badPieChoice, saladChoice, breadChoice, cSwordChoice]
+ayethShop = Shop(choicesList=ayethShopChoices)
 
 def quitGame(message, backToMainMenu = False):
     global objects
@@ -2734,7 +3105,7 @@ def getInput():
         FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'F11' and DEBUG and not tdl.event.isWindowClosed(): #For some reason, Bad Things (tm) happen if you don't perform a tdl.event.isWindowClosed() check here. Yeah, don't ask why.
-        learnSpell(ressurect)
+        player.Player.money += 100
         FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'F12' and DEBUG and not tdl.event.isWindowClosed():
@@ -3896,7 +4267,9 @@ def makeHiddenTown():
     upStairs.sendToBack()
     
     pukil = GameObject(25, 15, '@', 'Pukil the Debugger', colors.purple, blocks = True, socialComp = dial.pukTree)
+    ayeth = GameObject(25, 13, '@', 'Ayeth the Merchant', colors.pink, blocks = True, socialComp = dial.ayeTree, shopComp = ayethShop)
     objects.append(pukil)
+    objects.append(ayeth)
     
     #Code above this must go at the end of the makeHiddenTown() function, no matter what kinds of additions you make to it
     for y in range(MAP_HEIGHT):
@@ -4788,187 +5161,6 @@ def placeObjects(room, first = False):
 #_____________ ROOM POPULATION + ITEMS GENERATION_______________
 
 #_____________ EQUIPMENT ________________
-class Equipment:
-    def __init__(self, slot, type, powerBonus=0, armorBonus=0, maxHP_Bonus=0, accuracyBonus=0, evasionBonus=0, criticalBonus = 0, maxMP_Bonus = 0, burning = False, ranged = False, rangedPower = 0, maxRange = 0, ammo = None, meleeWeapon = False, armorPenetrationBonus = 0, slow = False):
-        self.slot = slot
-        self.type = type
-        self.basePowerBonus = powerBonus
-        self.armorBonus = armorBonus
-        self.maxHP_Bonus = maxHP_Bonus
-        self.accuracyBonus = accuracyBonus
-        self.evasionBonus = evasionBonus
-        self.criticalBonus = criticalBonus
-        self.maxMP_Bonus = maxMP_Bonus
-        self.isEquipped = False
-        self.curSlot = None
-        self.armorPenetrationBonus = armorPenetrationBonus
-        
-        self.burning = burning
-        self.ranged = ranged
-        self.baseRangedPower = rangedPower
-        self.maxRange = maxRange
-        self.ammo = ammo
-        self.meleeWeapon = meleeWeapon
-        self.slow = slow
- 
-    def toggleEquip(self):
-        if self.isEquipped:
-            self.unequip()
-        else:
-            self.equip()
-
-    def equip(self):
-        extra = False
-        handSlot = None
-        oldEquipment = None
-        global FOV_recompute
-        
-        handed = self.slot == 'one handed' or self.slot == 'two handed'
-        
-        if self.slot == 'one handed':
-            inHands = getEquippedInHands()
-            rightText = "right hand"
-            leftText = "left hand"
-            extra = False
-            if player.Player.race == 'Demon spawn':
-                if 'extra limb' in player.Player.mutationsGotten:
-                    extraText = "extra arm"
-                    extra = True
-            for object in equipmentList:
-                if object.Equipment.curSlot == "right hand":
-                    rightText = rightText + " (" + object.name + ")"
-                if object.Equipment.curSlot == "left hand":
-                    leftText = leftText + " (" + object.name + ")"
-                if object.Equipment.curSlot == 'both hands':
-                    rightText = rightText + " (" + object.name + ")"
-                    leftText = leftText + " (" + object.name + ")"
-                if extra and object.Equipment.curSlot == 'extra arm':
-                    extraText = extraText + ' (' + object.name + ')'
-            if extra:
-                handList = [rightText, leftText, extraText]
-            else:
-                handList = [rightText, leftText]
-            handIndex = menu('What slot do you want to equip this ' + self.owner.name + ' in?', handList, 60)
-            if handIndex == 0:
-                handSlot = 'right hand'
-            elif handIndex == 1:
-                handSlot = 'left hand'
-            elif extra and handIndex == 2:
-                handSlot = 'extra arm'
-            else:
-                return None
-        elif self.slot == 'two handed':
-            handSlot = 'both hands'
-
-        rightEquipment = None
-        leftEquipment = None
-        extraEquipment = None
-        if handed:
-            if self.meleeWeapon and handSlot == 'right hand':
-                leftEquipment = getEquippedInSlot('left hand', hand = True)
-                extraEquipment = getEquippedInSlot('extra arm', hand = True)
-            elif self.meleeWeapon and handSlot == 'left hand':
-                rightEquipment = getEquippedInSlot('right hand', hand = True)
-                extraEquipment = getEquippedInSlot('extra arm', hand = True)
-            elif extra and self.meleeWeapon and handSlot == 'extra arm':
-                leftEquipment = getEquippedInSlot('left hand', hand = True)
-                rightEquipment = getEquippedInSlot('right hand', hand = True)
-        rightIsWeapon = rightEquipment and rightEquipment.meleeWeapon
-        leftIsWeapon = leftEquipment and leftEquipment.meleeWeapon
-        extraIsWeapon = extraEquipment and extraEquipment.meleeWeapon
-
-        possible = True
-        if rightIsWeapon or leftIsWeapon or extraIsWeapon:
-            if player.Player.getTrait('trait', 'Dual wield') == 'not found':
-                message('You cannot wield two weapons at the same time!', colors.yellow)
-                possible = False
-            else:
-                if self.type == 'light weapon':
-                    if rightIsWeapon and not rightEquipment.type == 'light weapon' or leftIsWeapon and not leftEquipment.type == 'light weapon' or rightIsWeapon and not rightEquipment.type == 'light weapon':
-                        message('You can only wield several light weapons.', colors.yellow)
-                        possible = False
-        if possible:
-            if not handed:
-                oldEquipment = getEquippedInSlot(self.slot)
-                if oldEquipment is not None:
-                    oldEquipment.unequip()
-            else:
-                rightEquipment = None
-                leftEquipment = None
-                bothEquipment = None
-        
-                if self.slot == 'one handed':
-                    bothEquipment = getEquippedInSlot('both hands', hand = True)
-                    oldEquipment = getEquippedInSlot(handSlot, hand = True)
-                if self.slot == 'two handed':
-                    rightEquipment = getEquippedInSlot('right hand', hand = True)
-                    leftEquipment = getEquippedInSlot('left hand', hand = True)
-                    bothEquipment = getEquippedInSlot('both hands', hand = True)
-    
-                if bothEquipment is not None:
-                    bothEquipment.unequip()
-                if rightEquipment is not None:
-                    rightEquipment.unequip()
-                if leftEquipment is not None:
-                    leftEquipment.unequip()
-                if oldEquipment is not None:
-                    oldEquipment.unequip()
-    
-            inventory.remove(self.owner)
-            equipmentList.append(self.owner)
-            self.isEquipped = True
-            if self.maxHP_Bonus != 0:
-                player.Fighter.hp += self.maxHP_Bonus
-            if self.maxMP_Bonus != 0:
-                player.Fighter.MP += self.maxMP_Bonus
-    
-            if handed:
-                self.curSlot = handSlot
-                message('Equipped ' + self.owner.name + ' on ' + self.curSlot + '.', colors.light_green)
-            else:
-                message('Equipped ' + self.owner.name + ' on ' + self.slot + '.', colors.light_green)
- 
-    def unequip(self):
-        handed = self.slot == 'one handed' or self.slot == 'two handed'
-
-        if not self.isEquipped: return
-        self.isEquipped = False
-        equipmentList.remove(self.owner)
-        inventory.append(self.owner)
-        if handed:
-            message('Unequipped ' + self.owner.name + ' from ' + self.curSlot + '.', colors.light_yellow)
-            self.curSlot = None
-        else:
-            message('Unequipped ' + self.owner.name + ' from ' + self.slot + '.', colors.light_yellow)
-        if self.maxHP_Bonus != 0:
-            player.Fighter.hp -= self.maxHP_Bonus
-        if self.maxMP_Bonus != 0:
-            player.Fighter.MP -= self.maxMP_Bonus
-
-    @property
-    def powerBonus(self):
-        if self.type == 'light weapon':
-            bonus = (20 * player.Player.getTrait('skill', 'Light weapons').amount) / 100
-            return int(self.basePowerBonus * bonus + self.basePowerBonus)
-        elif self.type == 'heavy weapon':
-            bonus = (20 * player.Player.getTrait('skill', 'Heavy weapons').amount) / 100
-            return int(self.basePowerBonus * bonus + self.basePowerBonus)
-        elif self.type == 'throwing weapon':
-            bonus = (20 * player.Player.getTrait('skill', 'Throwing weapons').amount) / 100
-            return int(self.basePowerBonus * bonus + self.basePowerBonus)
-        else:
-            return self.basePowerBonus
-    
-    @property
-    def rangedPower(self):
-        if self.type == 'missile weapon':
-            bonus = (20 * player.Player.getTrait('skill', 'Missile weapons').amount) / 100
-            return int(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.dexterity)
-        elif self.type == 'throwing weapon':
-            bonus = (20 * player.Player.getTrait('skill', 'Throwing weapons').amount) / 100
-            return int(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.strength)
-        else:
-            return self.baseRangedPower
 
 def getEquippedInSlot(slot, hand = False):
     if not hand:
@@ -4998,6 +5190,7 @@ def getAllEquipped(object):  #returns a list of equipped items
     else:
         return []
 #_____________ EQUIPMENT ________________
+#EQUIPMENT CLASS WAS HERE, CUT PASTE AT THIS LINE IN CASE OF PROBLM
 
 def getAllWeights(object):
     if object == player:
@@ -5582,12 +5775,16 @@ def chat():
                     item = object
         if NPC is not None:
             tree = NPC.socialComp
-            assert isinstance(tree, dial.DialogTree) #Tells PyDev that tree is an instance of the DialogTree class, so we can have auto-completion working. The side effect is that Python will throw an exception if tree isn't actually an instance of the DialogTree class (but if it isn't, you did something wrong and the rest of the code wouldn't work anyways).
+            #assert isinstance(tree, dial.DialogTree) #Tells PyDev that tree is an instance of the DialogTree class, so we can have auto-completion working. The side effect is that Python will throw an exception if tree isn't actually an instance of the DialogTree class (but if it isn't, you did something wrong and the rest of the code wouldn't work anyways).
             root.clear()
             tree.currentScreen = copy(tree.origScreen)
-            assert isinstance(tree.currentScreen, dial.DialogScreen)
+            #assert isinstance(tree.currentScreen, dial.DialogScreen)
             state = 'starting'
             while state != 'END':
+                if state == 'SHOP':
+                    state = 'END'
+                    NPC.shopComp.browse()
+                    break
                 con.clear()
                 dialLength = len(tree.currentScreen.dialogText) - 1
                 ty = (CON_HEIGHT // 2) - (dialLength // 2)
@@ -5599,12 +5796,12 @@ def chat():
                 chosen = False
                 selectedIndex = 0
                 while not chosen:
-                    assert isinstance(panel, tdl.Console)
+                    #assert isinstance(panel, tdl.Console)
                     panel.clear()
                     for x in range(WIDTH):
                         panel.draw_char(x, 0, chr(196))
                     for dchoice in tree.currentScreen.choicesList:
-                        assert isinstance(dchoice, dial.DialogChoice)
+                        #assert isinstance(dchoice, dial.DialogChoice)
                         ind = tree.currentScreen.choicesList.index(dchoice)
                         showInd = ind + 1
                         prefix = str(showInd) + ') '
