@@ -198,7 +198,7 @@ def deleteSaves():
         os.makedirs(absDirPath)
         print('Created save folder')
     os.chdir(absDirPath)
-    saves = [save for save in os.listdir(absDirPath) if (save.endswith(".bak") or save.endswith(".dat") or save.endswith(".dir") or save.startswith("map"))]
+    saves = [save for save in os.listdir(absDirPath) if ((save.endswith(".bak") or save.endswith(".dat") or save.endswith(".dir") or save.startswith("map")) and not save.startswith('nemesis'))]
     for save in saves:
         os.remove(save)
         print("Deleted " + str(save))
@@ -2573,8 +2573,8 @@ class Item:
         print("Pic Height = ", picHeight)
         lData = attributes["layer_data"]
         
-        width = picWidth + 12
-        desc = self.fullDescription(width)
+        width = picWidth + 15
+        desc = self.fullDescription(width - 2)
         descriptionHeight = len(desc)
         if desc == '':
             descriptionHeight = 0
@@ -2620,7 +2620,7 @@ class Item:
             
             window.draw_str(1, 1, self.owner.name.capitalize() + ':', fg = colors.yellow, bg = None)
             for i, line in enumerate(desc):
-                window.draw_str(1, int(picHeight) + 5 +i, desc[i], fg = colors.white)
+                window.draw_str(1, int(picHeight) + 5 + i, desc[i], fg = colors.white)
 
             y = descriptionHeight + picHeight + 6
             letterIndex = ord('a')
