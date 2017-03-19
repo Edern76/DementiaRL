@@ -6052,7 +6052,7 @@ def nextLevel(boss = False, changeBranch = None, fixedMap = None):
 def playGame():
     actions = 1
     while not tdl.event.isWindowClosed():
-    global FOV_recompute, DEBUG, actions
+        global FOV_recompute, DEBUG, actions
         Update()
         checkLevelUp()
         tdl.flush()
