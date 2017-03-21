@@ -126,6 +126,7 @@ BOSS_FOV_ALGO = 'BASIC'
 BOSS_SIGHT_RADIUS = 60
 bossDungeonsAppeared = {'gluttony': False}
 lastHitter = None
+nemesisList = []
 
 # - Spells -
 LIGHTNING_DAMAGE = 40
@@ -210,12 +211,16 @@ relPicklePath = "save\\equipment"
 relAssetPath = "assets"
 relSoundPath = "assets\\sound"
 relAsciiPath = "assets\\ascii"
+relMetaPath = "metasave\\meta"
+relMetaDirPath = "metasave"
 absDirPath = os.path.join(curDir, relDirPath)
 absFilePath = os.path.join(curDir, relPath)
 absPicklePath = os.path.join(curDir, relPicklePath)
 absAssetPath = os.path.join(curDir, relAssetPath)
 absSoundPath = os.path.join(curDir, relSoundPath)
 absAsciiPath = os.path.join(curDir, relAsciiPath)
+absMetaPath = os.path.join(curDir, relMetaPath)
+absMetaDirPath = os.path.join(curDir, relMetaDirPath)
 
 stairCooldown = 0
 pathfinder = None
@@ -1369,6 +1374,12 @@ def closestMonster(max_range):
                 closestEnemy = object
                 closestDistance = dist
     return closestEnemy
+
+class Nemesis:
+    def __init__(self, nemesisObject, branch, level):
+        self.nemesisObject = nemesisObject
+        self.branch = branch
+        self.level = level
 
 class GameObject:
     "A generic object, represented by a character"
@@ -4045,7 +4056,42 @@ def secretRoom():
         print("created secret room at x ", entryX, " y ", entryY, " in quarter ", quarter)
 
 def makeMap():
-    global myMap, stairs, objects, upStairs, bossDungeonsAppeared, color_dark_wall, color_light_wall, color_dark_ground, color_light_ground, color_dark_gravel, color_light_gravel, townStairs, gluttonyStairs, stairs, upStairs
+    global myMap, stairs, objects, upStairs, bossDungeonsAppeared, color_dark_wall, color_light_wall, color_dark_ground, color_light_ground, color_dark_gravel, color_light_gravel, townStairs, gluttonyStairs, stairs, upStairs, nemesisList
+    
+    nemesis = None
+    found = False
+    
+    os.chdir(absMetaDirPath)
+    for file in os.listdir(absMetaDirPath):
+        print(file)
+        if file == "meta.bak":
+            found = True
+            break 
+    
+    #if not os.path.exists(absMetaPath):
+    if not found:
+        file = shelve.open(absMetaPath, "c")
+        print('found no nemesis file')
+    else:
+        print('found nemesis file')
+        file = shelve.open(absMetaPath, "r")
+        try:
+            nemesisList = file['nemesis']
+            for nemesis in nemesisList:
+                print(nemesis.branch, currentBranch.shortName)
+                print(nemesis.level, dungeonLevel)
+                if nemesis.branch == currentBranch.shortName and nemesis.level == dungeonLevel:
+                    dice = randint(1, 100)
+                    target = int(5 + (dungeonLevel * dungeonLevel) / 10)
+                    print(dice, target)
+                    if dice <= target:
+                        break
+                    nemesis = None
+        except KeyError:
+            print("========WARNING========")
+            print('No nemesis in file')
+            print("=======================")
+    file.close()
     
     stairs = None
     upStairs = None
@@ -4112,6 +4158,17 @@ def makeMap():
     objects.append(stairs)
     stairs.sendToBack()
     
+    if nemesis is not None:
+        randRoom = randint(0, len(rooms) - 1)
+        room = rooms[randRoom]
+        x = randint(room.x1 + 1, room.x2)
+        y = randint(room.y1 + 1, room.y2)
+        nemesisMonster = nemesis.nemesisObject
+        nemesisMonster.x = x
+        nemesisMonster.y = y
+        objects.append(nemesisMonster)
+        print('created nemesis', nemesisMonster.name, x, y)
+    
     branches = []
     for (branch, level) in currentBranch.branchesTo:
         branches.append(branch)
@@ -4171,7 +4228,8 @@ def makeMap():
     if not dBr.gluttonyDungeon in branches:
         global gluttonyStairs
         print('Wrong branch for gluttony stairs')
-        gluttonyStairs = None           
+        gluttonyStairs = None
+         
 def makeBossLevel():
     global myMap, objects, upStairs, rooms, numberRooms
     myMap = [[Tile(True, wall = True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
@@ -5223,12 +5281,29 @@ def lootItem(object, x, y):
     else:
         message(str(object.Item.amount) + object.pName + ' fall from the dead body!', colors.dark_sky)
 
+def turnIntoNemesis():
+    global lastHitter, nemesisList
+    nemesis = None
+    if lastHitter == 'darksoul':
+        fightComp = Fighter(hp=60, armor=3, power=12, accuracy=50, evasion=15, xp=70, deathFunction=monsterDeath, armorPenetration=3)
+        objComp = GameObject(0, 0, 'P', nameGen.nemesisName(race = player.Player.race, classe = player.Player.classes), color = colors.dark_gray, blocks=True, Fighter=fightComp, AI = BasicMonster)
+        nemesis = Nemesis(objComp, currentBranch.shortName, dungeonLevel)
+        print('created', objComp.name)
+    if nemesis is not None:
+        nemesisList.append(nemesis)
+        print('added nemesis to list')
+    
+    file = shelve.open(absMetaPath, "w")
+    file['nemesis'] = nemesisList
+    file.close()
+
 def playerDeath(player):
     global gameState
     message('You died!', colors.red)
     gameState = 'dead'
     player.char = '%'
     player.color = colors.dark_red
+    turnIntoNemesis()
     deleteSaves()
     deathMenu()
  
