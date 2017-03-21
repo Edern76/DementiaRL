@@ -3531,7 +3531,7 @@ def shoot():
                                                     message('You critically hit ' + monsterTarget.name + ' for ' + str(damage) + ' damage !', colors.darker_green)
                                                 else:
                                                     message('You hit ' + monsterTarget.name + ' for ' + str(damage) + ' damage !', colors.dark_green)
-                                                monsterTarget.Fighter.takeDamage(damage, player.owner.name)
+                                                monsterTarget.Fighter.takeDamage(damage, player.name)
                                         else:
                                             message('You missed ' + monsterTarget.name + '!', colors.grey)
                                     else:
@@ -5279,7 +5279,7 @@ def lootItem(object, x, y):
     if object.Item and object.Item.amount <= 1:
         message('A ' + object.name + ' falls from the dead body!', colors.dark_sky)
     else:
-        message(str(object.Item.amount) + object.pName + ' fall from the dead body!', colors.dark_sky)
+        message(str(object.Item.amount) + ' ' + object.pName + ' fall from the dead body!', colors.dark_sky)
 
 def turnIntoNemesis():
     global lastHitter, nemesisList
