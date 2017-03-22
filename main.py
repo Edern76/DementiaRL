@@ -83,6 +83,7 @@ BAR_WIDTH = 20
 
 PANEL_HEIGHT = 10
 CON_HEIGHT = HEIGHT - PANEL_HEIGHT
+MID_CON_HEIGHT = int(CON_HEIGHT // 2)
 PANEL_Y = HEIGHT - PANEL_HEIGHT
 
 MSG_X = BAR_WIDTH + 10
@@ -3367,6 +3368,9 @@ def getInput():
                 else:
                     FOV_recompute = True
                     return 'didnt-take-turn'
+        elif userInput.keychar == '?':
+            controlBox()
+            return 'didnt-take-turn'
         elif userInput.keychar == 'c':
             FOV_recompute = True
             chat()
@@ -3720,9 +3724,12 @@ def isBlocked(x, y): #With this function, making a check such as myMap[x][y].blo
     if myMap[x][y].blocked:
         return True #If the Tile is already set as blocking, there's no point in making further checks
     
-    for object in objects: #As all statements starting with this, ignore PyDev warning. However, please note that objects refers to the list of objects that we created and IS NOT defined by default in any library used (so don't call it out of the blue), contrary to object.
-        if object.blocks and object.x == x and object.y == y: #With this, we're checking every single object created, which might lead to performance issue. Fixing this could be one of many possible improvements, but this isn't a priority at the moment. 
-            return True
+    for object in objects:
+        try: #As all statements starting with this, ignore PyDev warning. However, please note that objects refers to the list of objects that we created and IS NOT defined by default in any library used (so don't call it out of the blue), contrary to object.
+            if object.blocks and object.x == x and object.y == y: #With this, we're checking every single object created, which might lead to performance issue. Fixing this could be one of many possible improvements, but this isn't a priority at the moment. 
+                return True
+        except AttributeError:
+            print(objects)
     
     return False
 
@@ -5649,6 +5656,51 @@ def temporaryBox(text, color = colors.white):
     y = MID_HEIGHT - int(height/2)
     root.blit(window, x, y, width, height, 0, 0)
     tdl.flush()
+    
+def controlBox():
+    global FOV_recompute
+    FOV_recompute = True
+    Update()
+    width = WIDTH - 40
+    height = CON_HEIGHT - 20
+    window = tdl.Console(width, height)
+    assert isinstance(window, tdl.Console)
+    
+    window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
+    window.clear()
+    
+    for k in range(width):
+        window.draw_char(k, 0, chr(196))
+    window.draw_char(0, 0, chr(218))
+    window.draw_char(k, 0, chr(191))
+    kMax = k
+    for l in range(height):
+        if l > 0:
+            window.draw_char(0, l, chr(179))
+            window.draw_char(kMax, l, chr(179))
+    lMax = l
+    for m in range(width):
+        window.draw_char(m, lMax, chr(196))
+    window.draw_char(0, lMax, chr(192))
+    window.draw_char(kMax, lMax, chr(217))
+    
+    def displayControl(x, y, control, description):
+        formattedControl = control + ' : '
+        window.draw_str(x, y, formattedControl, fg = colors.green)
+        ty = y + len(control)
+        window.draw_str(x + len(formattedControl), y, description, fg = colors.white)
+        
+    displayControl(1, 1, 'Arrow keys / Numpad', 'Move / Attack')
+    displayControl(1, 3, 'I', 'Inventory')
+    displayControl(1, 4, 'E', 'Equipment')
+    displayControl(1, 5, 'x', 'Fire ranged weapon')
+    displayControl(1, 6, 'Space', 'Pick up object')
+    displayControl(1, 7, 'c', 'Chat with NPC')
+    x = MID_WIDTH - int(width/2)
+    y = MID_CON_HEIGHT - int(height/2)
+    root.blit(window, x, y, width, height, 0, 0)
+    tdl.flush()
+    tdl.event.key_wait()
 
 def mainMenu():
     global player
@@ -5719,15 +5771,26 @@ def mainMenu():
                 if not error:
                     playGame()
             elif index == 2:
-                pass
-                #Credits
+                credits()
             elif index == 3:
                 raise SystemExit("Chose Quit on the main menu")
         tdl.flush()
     
 def credits():
     centerX, centerY = MID_WIDTH, MID_HEIGHT
-    #drawCentered(cons, y, text, fg, bg)
+    root.clear()
+    toPrint = dial.formatText(dial.creditText, WIDTH - 40)
+    inY = (HEIGHT // 2) - (len(toPrint) // 2)
+    
+    for line in toPrint:
+        if line != 'BREAK':
+            drawCentered(root, y = inY, text = line)
+        inY += 1
+    
+    drawCentered(root, y = inY + 5, text = 'Press any key to continue', fg = colors.green)
+    
+    tdl.flush()
+    tdl.event.key_wait()
 #_____________ GUI _______________
 
 def initializeFOV():
