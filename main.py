@@ -2231,15 +2231,15 @@ class Player:
             self.owner.color = (120, 0, 0)
     
     def takeControl(self, target):
-        player.Fighter.hp = target.Fighter.hp
-        player.Fighter.armor = target.Fighter.armor
-        player.Fighter.power = target.Fighter.power
-        player.Fighter.accuracy = target.Fighter.accuracy
-        player.Fighter.evasion = target.Fighter.evasion
-        player.Fighter.maxMP = target.Fighter.maxMP
-        player.Fighter.critical = target.Fighter.critical
+        player.Fighter.hp = int(target.Fighter.hp)
+        player.Fighter.armor = int(target.Fighter.armor)
+        player.Fighter.power = int(target.Fighter.power)
+        player.Fighter.accuracy = int(target.Fighter.accuracy)
+        player.Fighter.evasion = int(target.Fighter.evasion)
+        player.Fighter.maxMP = int(target.Fighter.maxMP)
+        player.Fighter.critical = int(target.Fighter.critical)
         
-        player.x, player.y = target.x, target.y
+        player.x, player.y = int(target.x), int(target.y)
         message('You take control of ' + target.name + '!', colors.darker_han)
         objects.remove(target)
         self.inHost = True
