@@ -1656,6 +1656,7 @@ class Fighter: #All NPCs, enemies and the player
                 else:
                     xp = self.xp
                 player.Fighter.xp += xp
+                player.Player.baseScore += xp
     
     def onAttack(self, target):
         if self.buffsOnAttack is not None:
@@ -2205,6 +2206,7 @@ class Player:
         
         self.hasDiscoveredTown = False
         self.money = 0
+        self.baseScore = 0
         if DEBUG:
             print('Player component initialized')
         
@@ -3494,10 +3496,14 @@ def shoot():
     weapons = getEquippedInHands()
     if weapons is not None:
         for weapon in weapons:
+            if DEBUG:
+                print(weapon.name)
             if weapon.Equipment.ranged:
+                print('Found ranged weapon')
                 if weapon.Equipment.ammo is not None:
                     ammo = weapon.Equipment.ammo
                     for object in inventory:
+                        print(object.name)
                         foundAmmo = False
                         if object.name == ammo:
                             message('Choose a target for your ' + weapon.name + '.', colors.cyan)
@@ -4062,20 +4068,25 @@ def secretRoom():
         myMap[x][y].wall = False
         print("created secret room at x ", entryX, " y ", entryY, " in quarter ", quarter)
 
+def checkFile(file, folder):
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+    os.chdir(folder)
+    for f in os.listdir(folder):
+        print(f)
+        if f == file:
+            return True
+            break 
+    return False
+
 def makeMap():
     global myMap, stairs, objects, upStairs, bossDungeonsAppeared, color_dark_wall, color_light_wall, color_dark_ground, color_light_ground, color_dark_gravel, color_light_gravel, townStairs, gluttonyStairs, stairs, upStairs, nemesisList
     
     nemesis = None
     found = False
     
-    os.chdir(absMetaDirPath)
-    for file in os.listdir(absMetaDirPath):
-        print(file)
-        if file == "meta.bak":
-            found = True
-            break 
-    
-    #if not os.path.exists(absMetaPath):
+    found = checkFile('meta.bak', absMetaDirPath)
+
     if not found:
         file = shelve.open(absMetaPath, "c")
         print('found no nemesis file')
@@ -5304,6 +5315,105 @@ def turnIntoNemesis():
     file['nemesis'] = nemesisList
     file.close()
 
+class HighScore:
+    def __init__(self, name, race, pClass, level, dLevel, dBranch, killer, score):
+        self.name = name
+        self.pClass = pClass
+        self.level = level
+        self.dLevel = dLevel
+        self.dBranch = dBranch
+        self.killer = killer
+        self.score = score
+    
+    def __lt__(self, other):
+        return self.score < other.score
+    def __le__(self, other):
+        return self.score <= other.score
+    def __eq__(self, other):
+        return self.score == other.score
+    def __ge__(self, other):
+        return self.score >= other.score
+    def __gt__(self, other):
+        return self.score > other.score
+    def __ne__(self, other):
+        return self.score != other.score
+    
+    def sName(self):
+        return '{} the level {} {} {}'.format(self.name, self.race, self.pClass)
+    def sDeath(self):
+        return 'Died on level {} of branch {} killed by {}'.format(self.dLevel, self.dBranch, self.killer)
+    def sScore(self):
+        return 'Scored {} points'
+    
+def placeScore(current, first = True):
+    file = shelve.open(absMetaPath, "c")
+    try:
+        scoreList = file['scores']
+        for loop in range(5):
+            if len(scoreList) >= loop + 1:
+                high = scoreList[loop]
+            else:
+                print('Score list shorter than {} ({})'.format(loop, len(scoreList)))
+                scoreList.append(current)
+                print('Appended score')
+                if first:
+                    file['scores'] = scoreList
+                    file.close()
+                    print('Saved score list')
+                return 'short'
+            print(high.name, high.score)
+            if current > high:
+                prevInd = loop
+                scoreList[prevInd] = current
+                print('Replaced score number {} (points : {}) by new high score ({})'.format(prevInd, high.score, current.score))
+                placeScore(high, False)
+                if first:
+                    file['scores'] = scoreList
+                    file.close()
+                    print('Saved score list')
+                return 'done'
+        print("Couldn't place score {}".format(current.score))
+        return 'tooLow'
+    except KeyError:
+        print("========WARNING========")
+        print('No highscore in file')
+        print("=======================")
+        return 'noHigh'
+
+def getHighScore():
+    def computeHighScore():
+        return player.Player.baseScore + (player.Player.money // 10)
+    
+    curHigh = HighScore(player.name, player.Player.race, player.Player.classes, player.level, dungeonLevel, currentBranch.name, lastHitter, computeHighScore())
+    '''
+    file = shelve.open(absMetaPath, "c")
+    try:
+        scoreList = file['scores']
+        for high in scoreList:
+            print(high.name, high.score)
+            if curHigh > high:
+                prevInd = scoreList.index(high)
+                scoreList[prevInd] = curHigh
+                inserted = True
+                print('Replaced score number {} (points : {}) by new high score ({})'.format(prevInd, high.score, curHigh.score))
+                break
+    except KeyError:
+        print("========WARNING========")
+        print('No highscore in file')
+        print("=======================")
+        scoreList = []
+    '''
+    status = placeScore(curHigh)
+    print(status)
+    '''
+    if len(scoreList) <= 5 and status != 'done':
+        scoreList.append(curHigh)
+        inserted = True
+        print('Appended score')
+    file['scores'] = scoreList
+    file.close()
+    '''
+
 def playerDeath(player):
     global gameState
     message('You died!', colors.red)
@@ -5311,11 +5421,13 @@ def playerDeath(player):
     player.char = '%'
     player.color = colors.dark_red
     turnIntoNemesis()
+    getHighScore()
     deleteSaves()
     deathMenu()
- 
+
+    
 def monsterDeath(monster):
-    message(monster.name.capitalize() + ' is dead! You gain ' + str(monster.Fighter.xp) + ' XP.', colors.dark_sky)
+    message(monster.name.capitalize() + ' is dead! You gain ' + str(monster.Fighter.xp) + ' XP.', colors.dark_sky) #TO-DO (PRIORITY) : Fix it so it shows only if you actually gained XP on kill
     
     if monster.Fighter.lootFunction is not None:
         itemIndex = 0
@@ -6466,7 +6578,24 @@ def playGame():
         if gameState == 'playing' and playerAction != 'didnt-take-turn':
             for object in objects:
                 if object.AI:
-                    object.AI.takeTurn()
+                    try:
+                        object.AI.takeTurn()
+                    except TypeError as error:
+                        print("==================WARNING===================")
+                        print(type(error))
+                        print(error.args)
+                        print(object.name)
+                        try:
+                            message('CRITICAL AI ERROR SEE CONSOLE FOR DETAILS', colors.red)
+                        except Exception as error:
+                            print("==================WARNING===================")
+                            print("COULDNT PRINT MESSAGE")
+                            print(type(error))
+                            print(error.args)
+                            print(object.name)
+                            print("============================================")
+                        print("============================================")
+                        
                 
                 if object.Fighter and object.Fighter.baseShootCooldown > 0 and object.Fighter is not None:
                     object.Fighter.curShootCooldown -= 1
