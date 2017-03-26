@@ -1869,6 +1869,8 @@ class BasicMonster: #Basic monsters' AI
                                 diagPathState = checkDiagonals(monster, player)
                             elif diagPathState is None or monster.distanceTo(player) > 15:
                                 monster.move(randint(-1, 1), randint(-1, 1)) #wandering
+        elif not 'frozen' in convertBuffsToNames(self.owner.Fighter):
+            monster.move(randint(-1, 1), randint(-1, 1)) #wandering
 
 class FastMonster:
     def __init__(self, speed):
@@ -1930,7 +1932,8 @@ class FastMonster:
                                     diagPathState = checkDiagonals(monster, player)
                                 elif diagPathState is None or monster.distanceTo(player) > 15:
                                     monster.move(randint(-1, 1), randint(-1, 1)) #wandering
-
+            elif not 'frozen' in convertBuffsToNames(self.owner.Fighter):
+                monster.move(randint(-1, 1), randint(-1, 1)) #wandering
 class Fleeing:
     def takeTurn(self):
         monster = self.owner
@@ -5304,15 +5307,17 @@ def lootItem(object, x, y):
     object.sendToBack()
     if object.Item and object.Item.amount <= 1:
         message('A ' + object.name + ' falls from the dead body!', colors.dark_sky)
-    else:
+    elif object.Item:
         message(str(object.Item.amount) + ' ' + object.pName + ' fall from the dead body!', colors.dark_sky)
+    else:
+        message('A ' + object.name + ' falls from the dead body!', colors.dark_sky)
 
 def turnIntoNemesis():
     global lastHitter, nemesisList
     nemesis = None
     if lastHitter == 'darksoul':
         fightComp = Fighter(hp=60, armor=3, power=12, accuracy=50, evasion=15, xp=70, deathFunction=monsterDeath, armorPenetration=3)
-        objComp = GameObject(0, 0, 'P', nameGen.nemesisName(race = player.Player.race, classe = player.Player.classes), color = colors.dark_gray, blocks=True, Fighter=fightComp, AI = BasicMonster)
+        objComp = GameObject(0, 0, 'P', nameGen.nemesisName(race = player.Player.race, classe = player.Player.classes), color = colors.dark_gray, blocks=True, Fighter=fightComp, AI = BasicMonster())
         nemesis = Nemesis(objComp, currentBranch.shortName, dungeonLevel)
         print('created', objComp.name)
     if nemesis is not None:
@@ -6686,7 +6691,7 @@ def playGame():
                         object.Player.timeOutsideLeft -= 1
                         message('You only have {} turns left!'.format(object.Player.timeOutsideLeft), colors.red)
                         if object.Player.timeOutsideLeft <= 0:
-                            object.Fighter.hp = 0
+                            object.Fighter.takeDamage(999, 'the lack of host')
                 
                 x = object.x
                 y = object.y
