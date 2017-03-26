@@ -1075,7 +1075,7 @@ def characterCreation():
     tree = Trait('Rootling', 'Rootlings, also called treants, are rare, sentient plants. They begin their life as a simple twig, but, with time, might become gigantic oaks.', type = 'race', str=(-3, 0), dex=(-2, 0), vit=(-4, 0), will=(-3, 0))
     wolf = Trait('Werewolf', 'Werewolves are a martyred and despised race. Very tough to kill, they are naturally stronger than basic humans and unconogreably shapeshift more or less regularly. However, older werewolves are used to these transformations and can even use them to their interests.', type = 'race', allowsSelection=[wild], str=(2, 0), dex=(1, 0), vit=(-2, 0), will=(-4, 0))
     devourer = Trait('Devourer', 'Devourers are strange, dreaded creatures from another dimension. Few have arrived in ours and even fewer have been described. These animals, half mantis, half lizard, are only born to kill and consume. Some of their breeds can even, after consuming anything - even a weapon - grow an organic replica of it.', type = 'race', vit = (-2, 0), will = (-10, 0))
-    virus = Trait('Virus ', 'Viruses are the physically weakest race, but do not base their success on their own bodies. Indeed, they are able to infect another race, making it their host and fully controllable by the virus. What is more, the virus own physical attributes, instead of applying to it directly, rather modifies the host metabolism, potentially making it stronger or tougher. However, this take-over is very harmful for the host, who will eventually die. The virus must then find a new host to continue living.', type = 'race', ev = (999, 0), str=(-9, 0), dex=(-9, 0), vit=(-9, 0), will=(-9, 0))
+    virus = Trait('Virus ', 'Viruses are the physically weakest race, but do not base their success on their own bodies. Indeed, they are able to infect another race, making it their host and fully controllable by the virus. What is more, the virus own physical attributes, instead of applying to it directly, rather modifies the host metabolism, potentially making it stronger or tougher. However, this take-over is very harmful for the host, who will eventually die. The virus must then find a new host to continue living.', type = 'race', ev = (999, 0))
     races = [human, mino, insect, cat, rept, demon, tree, wolf, devourer, virus]
     allTraits.extend(races)
     
@@ -1295,34 +1295,42 @@ def characterCreation():
 
         #adding choice bonus
         if key.keychar.upper() == 'ENTER':
+            error = False
             if index == maxIndex - 1:
                 if raceSelected and classSelected:
                     print(createdCharacter)
                     return createdCharacter, allTraits
+                else:
+                    playWavSound('error.wav', True)
+                    error = True
             if index == maxIndex:
                 return 'cancelled', 'cancelled'
 
-            trait = allTraits[index]
-            if trait.type == 'race':
-                if not raceSelected:
-                    trait.applyBonus()
-            if trait.type == 'attribute':
-                if attributesPoints < 10:
-                    trait.applyBonus()
-            if trait.type == 'trait':
-                if traitsPoints < 2:
-                    trait.applyBonus()
-            if trait.type == 'class':
-                if not classSelected:
-                    trait.applyBonus()
-            if trait.type == 'skill':
-                if skillsPoints < 2:
-                    trait.applyBonus()
+            if not error:
+                trait = allTraits[index]
+                if trait.type == 'race':
+                    if not raceSelected:
+                        trait.applyBonus()
+                if trait.type == 'attribute':
+                    if attributesPoints < 10:
+                        trait.applyBonus()
+                if trait.type == 'trait':
+                    if traitsPoints < 2:
+                        trait.applyBonus()
+                if trait.type == 'class':
+                    if not classSelected:
+                        trait.applyBonus()
+                if trait.type == 'skill':
+                    if skillsPoints < 2:
+                        trait.applyBonus()
 
         #removing choice bonus
         if key.keychar.upper() == 'BACKSPACE':
-            trait = allTraits[index]
-            trait.removeBonus()
+            if index != maxIndex and index != maxIndex - 1:
+                trait = allTraits[index]
+                trait.removeBonus()
+            else:
+                playWavSound('error.wav', True)
         if index > maxIndex:
             index = 0
         if index < 0:
@@ -2194,7 +2202,7 @@ class Player:
             self.shapeshifted = True
         
         if self.race == 'Virus ':
-            self.HOST_DEATH = 1500
+            self.HOST_DEATH = 500
             self.hostDeath = 0
             self.inHost = False
             self.timeOutsideLeft = 50
@@ -2209,8 +2217,7 @@ class Player:
         self.baseScore = 0
         if DEBUG:
             print('Player component initialized')
-        
-        
+
     @property
     def maxWeight(self):
         return self.baseMaxWeight + 3 * self.strength
@@ -2231,13 +2238,14 @@ class Player:
             self.owner.color = (120, 0, 0)
     
     def takeControl(self, target):
-        player.Fighter.hp = int(target.Fighter.hp)
-        player.Fighter.armor = int(target.Fighter.armor)
-        player.Fighter.power = int(target.Fighter.power)
-        player.Fighter.accuracy = int(target.Fighter.accuracy)
-        player.Fighter.evasion = int(target.Fighter.evasion)
-        player.Fighter.maxMP = int(target.Fighter.maxMP)
-        player.Fighter.critical = int(target.Fighter.critical)
+        player.Fighter.noVitHP = int(target.Fighter.hp)
+        player.Fighter.baseArmor = int(target.Fighter.armor)
+        player.Fighter.noStrengthPower = int(target.Fighter.power)
+        player.Fighter.noDexAccuracy = int(target.Fighter.accuracy)
+        player.Fighter.noDexEvasion = int(target.Fighter.evasion)
+        player.Fighter.noWillMP = int(target.Fighter.maxMP)
+        player.Fighter.baseCritical = int(target.Fighter.critical)
+        player.Fighter.baseArmorPenetration = int(target.Fighter.armorPenetration)
         
         player.x, player.y = int(target.x), int(target.y)
         message('You take control of ' + target.name + '!', colors.darker_han)
@@ -5458,7 +5466,11 @@ def zombieDeath(monster):
 
 #_____________ GUI _______________
 def renderBar(cons, x, y, totalWidth, name, value, maximum, barColor, backColor):
-    barWidth = int(float(value) / maximum * totalWidth) #Width of the bar is proportional to the ratio of the current value over the maximum value
+    if maximum == 0:
+        trueMax = 1
+    else:
+        trueMax = maximum
+    barWidth = int(float(value) / trueMax * totalWidth) #Width of the bar is proportional to the ratio of the current value over the maximum value
     cons.draw_rect(x, y, totalWidth, 1, None, bg = backColor)#Background of the bar
     
     if barWidth > 0:
@@ -6663,6 +6675,18 @@ def playGame():
                         if object.Player.shapeshift == 'human':
                             human.applyBuff()
                             object.Player.shapeshifted = False
+                
+                if object.Player and object.Player.race == 'Virus ':
+                    if object.Player.inHost:
+                        object.Player.hostDeath -= 1
+                        if object.Player.hostDeath <= 0:
+                            message('Your host has died! You must quickly find another one!', colors.red)
+                            object.Player.inHost = False
+                    else:
+                        object.Player.timeOutsideLeft -= 1
+                        message('You only have {} turns left!'.format(object.Player.timeOutsideLeft), colors.red)
+                        if object.Player.timeOutsideLeft <= 0:
+                            object.Fighter.hp = 0
                 
                 x = object.x
                 y = object.y
