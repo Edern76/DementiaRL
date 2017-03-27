@@ -1688,6 +1688,10 @@ class Fighter: #All NPCs, enemies and the player
             if MP:
                 target.Fighter.MP -= self.leechAmount
                 castRegenMana(self.leechAmount//2, caster = self.owner)
+        if self.owner == player:
+            for equipment in equipmentList:
+                if equipment.Equipment.enchant and equipment.Equipment.enchant.functionOnAttack:
+                    equipment.Equipment.enchant.functionOnAttack(target)
 
     def toHit(self, target):
         attack = randint(1, 100)
@@ -1757,15 +1761,11 @@ class Fighter: #All NPCs, enemies and the player
                         else:
                             message('You attack ' + target.name + ' for ' + str(damage) + ' hit points.', colors.dark_green)
                         target.Fighter.takeDamage(damage, self.owner.name)
-                        weapons = getEquippedInHands()
-                        if weapons:
-                            for weapon in weapons:
-                                if weapon is not None:
-                                    if weapon.Equipment.burning:
-                                        applyBurn(target, chance = 75)
                     
                     else:
                         message('You attack ' + target.name + ' but it has no effect!', colors.grey)
+            self.onAttack(target)
+        
         else:
             if not self.owner.Player:
                 if target == player:
@@ -1784,8 +1784,6 @@ class Fighter: #All NPCs, enemies and the player
                     print('found slow weapon')
                     player.Player.attackedSlowly = True
                     player.Player.slowAttackCooldown = 1
-        
-        self.onAttack(target)
         
     def heal(self, amount):
         self.hp += amount
@@ -2672,30 +2670,124 @@ class Item:
             elif keyChar.upper() == "ESCAPE":
                 return "cancelled"
         return None
+
+class Enchantment:
+    def __init__(self, name, functionOnAttack = None, buffOnOwner = None, buffOnTarget = None, damageOnOwner = 0, damageOnTarget = 0, pow = 0, acc = 0, evas = 0, arm = 0, hp = 0, mp = 0, crit = 0, ap = 0, str = 0, dex = 0, vit = 0, will = 0):
+        self.name = name
+        self.functionOnAttack = functionOnAttack
+        self.buffOnOwner = buffOnOwner
+        self.buffOnTarget = buffOnTarget
+        self.damageOnOwner = damageOnOwner
+        self.damageOnTarget = damageOnTarget
+        self.pow = pow
+        self.acc = acc
+        self.evas = evas
+        self.arm = arm
+        self.hp = hp
+        self.mp = mp
+        self.crit = crit
+        self.ap = ap
+        self.str = str
+        self.dex = dex
+        self.vit = vit
+        self.will = will
     
 class Equipment:
-    def __init__(self, slot, type, powerBonus=0, armorBonus=0, maxHP_Bonus=0, accuracyBonus=0, evasionBonus=0, criticalBonus = 0, maxMP_Bonus = 0, burning = False, ranged = False, rangedPower = 0, maxRange = 0, ammo = None, meleeWeapon = False, armorPenetrationBonus = 0, slow = False):
+    def __init__(self, slot, type, powerBonus=0, armorBonus=0, maxHP_Bonus=0, accuracyBonus=0, evasionBonus=0, criticalBonus = 0, maxMP_Bonus = 0, strengthBonus = 0, dexterityBonus = 0, vitalityBonus = 0, willpowerBonus = 0, ranged = False, rangedPower = 0, maxRange = 0, ammo = None, meleeWeapon = False, armorPenetrationBonus = 0, slow = False, enchant = None):
         self.slot = slot
         self.type = type
         self.basePowerBonus = powerBonus
-        self.armorBonus = armorBonus
-        self.maxHP_Bonus = maxHP_Bonus
-        self.accuracyBonus = accuracyBonus
-        self.evasionBonus = evasionBonus
-        self.criticalBonus = criticalBonus
-        self.maxMP_Bonus = maxMP_Bonus
+        self.baseArmorBonus = armorBonus
+        self.baseMaxHP_Bonus = maxHP_Bonus
+        self.baseAccuracyBonus = accuracyBonus
+        self.baseEvasionBonus = evasionBonus
+        self.baseCriticalBonus = criticalBonus
+        self.baseMaxMP_Bonus = maxMP_Bonus
         self.isEquipped = False
         self.curSlot = None
-        self.armorPenetrationBonus = armorPenetrationBonus
+        self.baseArmorPenetrationBonus = armorPenetrationBonus
+        self.baseStrengthBonus = strengthBonus
+        self.baseDexterityBonus = dexterityBonus
+        self.baseVitalityBonus = vitalityBonus
+        self.baseWillpowerBonus = willpowerBonus
         
-        self.burning = burning
         self.ranged = ranged
         self.baseRangedPower = rangedPower
         self.maxRange = maxRange
         self.ammo = ammo
         self.meleeWeapon = meleeWeapon
         self.slow = slow
- 
+        self.enchant = enchant
+
+    @property
+    def powerBonus(self):
+        if self.type == 'light weapon':
+            bonus = (20 * player.Player.getTrait('skill', 'Light weapons').amount) / 100
+            return int(self.basePowerBonus * bonus + self.basePowerBonus + self.enchant.pow)
+        elif self.type == 'heavy weapon':
+            bonus = (20 * player.Player.getTrait('skill', 'Heavy weapons').amount) / 100
+            return int(self.basePowerBonus * bonus + self.basePowerBonus + self.enchant.pow)
+        elif self.type == 'throwing weapon':
+            bonus = (20 * player.Player.getTrait('skill', 'Throwing weapons').amount) / 100
+            return int(self.basePowerBonus * bonus + self.basePowerBonus + self.enchant.pow)
+        else:
+            return self.basePowerBonus + self.enchant.pow
+    
+    @property
+    def rangedPower(self):
+        if self.type == 'missile weapon':
+            bonus = (20 * player.Player.getTrait('skill', 'Missile weapons').amount) / 100
+            return int(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.dexterity + self.enchant.pow)
+        elif self.type == 'throwing weapon':
+            bonus = (20 * player.Player.getTrait('skill', 'Throwing weapons').amount) / 100
+            return int(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.strength + self.enchant.pow)
+        else:
+            return self.baseRangedPower + self.enchant.pow
+    
+    @property
+    def accuracyBonus(self):
+        return self.baseAccuracyBonus + self.enchant.acc
+    
+    @property
+    def evasionBonus(self):
+        return self.baseEvasionBonus + self.enchant.evas
+    
+    @property
+    def armorBonus(self):
+        return self.baseArmorBonus + self.enchant.arm
+    
+    @property
+    def maxHP_Bonus(self):
+        return self.baseMaxHP_Bonus + self.enchant.hp
+    
+    @property
+    def maxMP_Bonus(self):
+        return self.baseMaxMP_Bonus + self.enchant.mp
+    
+    @property
+    def criticalBonus(self):
+        return self.baseCriticalBonus + self.enchant.crit
+    
+    @property
+    def armorPenetrationBonus(self):
+        return self.baseArmorPenetrationBonus + self.enchant.ap
+    
+    @property
+    def strengthBonus(self):
+        return self.baseStrengthBonus + self.enchant.str
+    
+    @property
+    def dexterityBonus(self):
+        return self.baseDexterityBonus + self.enchant.dex
+    
+    @property
+    def vitalityBonus(self):
+        return self.baseVitalityBonus + self.enchant.vit
+    
+    @property
+    def willpowerBonus(self):
+        return self.baseWillpowerBonus + self.enchant.will
+
     def toggleEquip(self):
         if self.isEquipped:
             self.unequip()
@@ -2807,6 +2899,9 @@ class Equipment:
             if self.maxMP_Bonus != 0:
                 player.Fighter.MP += self.maxMP_Bonus
             
+            if self.enchant and self.enchant.buffOnTarget:
+                player.Fighter.buffsOnAttack.extend(self.enchant.buffOnTarget)
+            
             if not silent:
                 if handed:
                     self.curSlot = handSlot
@@ -2830,31 +2925,10 @@ class Equipment:
             player.Fighter.hp -= self.maxHP_Bonus
         if self.maxMP_Bonus != 0:
             player.Fighter.MP -= self.maxMP_Bonus
-
-    @property
-    def powerBonus(self):
-        if self.type == 'light weapon':
-            bonus = (20 * player.Player.getTrait('skill', 'Light weapons').amount) / 100
-            return int(self.basePowerBonus * bonus + self.basePowerBonus)
-        elif self.type == 'heavy weapon':
-            bonus = (20 * player.Player.getTrait('skill', 'Heavy weapons').amount) / 100
-            return int(self.basePowerBonus * bonus + self.basePowerBonus)
-        elif self.type == 'throwing weapon':
-            bonus = (20 * player.Player.getTrait('skill', 'Throwing weapons').amount) / 100
-            return int(self.basePowerBonus * bonus + self.basePowerBonus)
-        else:
-            return self.basePowerBonus
-    
-    @property
-    def rangedPower(self):
-        if self.type == 'missile weapon':
-            bonus = (20 * player.Player.getTrait('skill', 'Missile weapons').amount) / 100
-            return int(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.dexterity)
-        elif self.type == 'throwing weapon':
-            bonus = (20 * player.Player.getTrait('skill', 'Throwing weapons').amount) / 100
-            return int(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.strength)
-        else:
-            return self.baseRangedPower
+        
+        if self.enchant and self.enchant.buffOnTarget:
+            for enchantment in self.enchant.buffOnTarget:
+                player.Fighter.buffsOnAttack.remove(enchantment)
 
 class Money(Item):
     def __init__(self, moneyAmount):
@@ -4743,14 +4817,14 @@ def createSword(x, y):
             pic = 'sharpShortSword.xp'
         else:
             pic = 'sharpGreatSword.xp'
-    burningChances = {'yes' : 20, 'no': 80}
+    burningChances = {'yes' : 1120, 'no': 80}
     burningChoice = randomChoice(burningChances)
+    burning = None
     if burningChoice == 'yes':
+        burning = Enchantment('burning', functionOnAttack=applyBurn)
         name = 'burning ' + name
-        burningSword = True
-    else:
-        burningSword = False
-    equipmentComponent = Equipment(slot=slot, type = type, powerBonus = swordPow, burning = burningSword, meleeWeapon=True, slow= slowness)
+
+    equipmentComponent = Equipment(slot=slot, type = type, powerBonus = swordPow, meleeWeapon=True, slow= slowness, enchant=burning)
     sword = GameObject(x, y, char, name, color, Equipment = equipmentComponent, Item = Item(weight=weight, pic = pic))
     return sword
 
@@ -4800,12 +4874,11 @@ def createAxe(x, y):
             pic = 'sharpAxe.xp'
     burningChances = {'yes' : 20, 'no': 80}
     burningChoice = randomChoice(burningChances)
+    burning = None
     if burningChoice == 'yes':
+        burning = Enchantment('burning', functionOnAttack=applyBurn)
         name = 'burning ' + name
-        burningAxe = True
-    else:
-        burningAxe = False
-    equipmentComponent = Equipment(slot=slot, type = type, powerBonus = axePow, burning = burningAxe, meleeWeapon=True, armorPenetrationBonus=armorPenetration, slow = slow)
+    equipmentComponent = Equipment(slot=slot, type = type, powerBonus = axePow, meleeWeapon=True, armorPenetrationBonus=armorPenetration, slow = slow, enchant=burning)
     axe = GameObject(x, y, char, name, color, Equipment = equipmentComponent, Item = Item(weight=weight, pic = pic))
     return axe
 
@@ -4847,12 +4920,11 @@ def createHammer(x, y):
         color = colors.light_sky
     burningChances = {'yes' : 20, 'no': 80}
     burningChoice = randomChoice(burningChances)
+    burning = None
     if burningChoice == 'yes':
+        burning = Enchantment('burning', functionOnAttack=applyBurn)
         name = 'burning ' + name
-        burningHammer = True
-    else:
-        burningHammer = False
-    equipmentComponent = Equipment(slot=slot, type = type, powerBonus = hammerPow, criticalBonus=critBonus, burning = burningHammer, meleeWeapon=True, slow = slow)
+    equipmentComponent = Equipment(slot=slot, type = type, powerBonus = hammerPow, criticalBonus=critBonus, meleeWeapon=True, slow = slow, enchant = burning)
     hammer = GameObject(x, y, char, name, color, Equipment = equipmentComponent, Item = Item(weight=weight, pic = pic))
     return hammer
 
@@ -4877,12 +4949,11 @@ def createMace(x, y):
         color = colors.light_sky
     burningChances = {'yes' : 20, 'no': 80}
     burningChoice = randomChoice(burningChances)
+    burning = None
     if burningChoice == 'yes':
+        burning = Enchantment('burning', functionOnAttack=applyBurn)
         name = 'burning ' + name
-        burningMace = True
-    else:
-        burningMace = False
-    equipmentComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus = macePow, accuracyBonus=hitBonus, burning = burningMace, meleeWeapon=True)
+    equipmentComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus = macePow, accuracyBonus=hitBonus, meleeWeapon=True, enchant=burning)
     mace = GameObject(x, y, '-', name, color, Equipment = equipmentComponent, Item = Item(weight=weight, pic = pic))
     return mace
 
@@ -6364,7 +6435,7 @@ def newGame():
     message('Zargothrox says : Prepare to get lost in the Realm of Madness !', colors.dark_red)
     gameState = 'playing'
     
-    equipmentComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus=3, burning = False, meleeWeapon=True)
+    equipmentComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus=3, meleeWeapon=True)
     object = GameObject(0, 0, '-', 'dagger', colors.light_sky, Equipment=equipmentComponent, Item=Item(weight = 0.8, pic = 'dagger.xp'), darkColor = colors.darker_sky)
     inventory.append(object)
     object.alwaysVisible = True
