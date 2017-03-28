@@ -5459,6 +5459,7 @@ def turnIntoNemesis():
 class HighScore:
     def __init__(self, name, race, pClass, level, dLevel, dBranch, killer, score):
         self.name = name
+        self.race = race
         self.pClass = pClass
         self.level = level
         self.dLevel = dLevel
@@ -5479,47 +5480,108 @@ class HighScore:
     def __ne__(self, other):
         return self.score != other.score
     
+
     def sName(self):
-        return '{} the level {} {} {}'.format(self.name, self.race, self.pClass)
+        text = '{} the level {} {} {}'.format(self.name, self.level, self.race, self.pClass)
+        return text
+
     def sDeath(self):
-        return 'Died on level {} of branch {} killed by {}'.format(self.dLevel, self.dBranch, self.killer)
+        text = 'Died on level {} of branch {} killed by {}'.format(self.dLevel, self.dBranch, self.killer)
+        return text
     def sScore(self):
-        return 'Scored {} points'
+        text = 'Scored {} points'.format(self.score)
+        return text
     
 def placeScore(current, first = True):
     file = shelve.open(absMetaPath, "c")
     try:
         scoreList = file['scores']
-        for loop in range(5):
-            if len(scoreList) >= loop + 1:
-                high = scoreList[loop]
-            else:
-                print('Score list shorter than {} ({})'.format(loop, len(scoreList)))
-                scoreList.append(current)
-                print('Appended score')
-                if first:
-                    file['scores'] = scoreList
-                    file.close()
-                    print('Saved score list')
-                return 'short'
-            print(high.name, high.score)
-            if current > high:
-                prevInd = loop
-                scoreList[prevInd] = current
-                print('Replaced score number {} (points : {}) by new high score ({})'.format(prevInd, high.score, current.score))
-                placeScore(high, False)
-                if first:
-                    file['scores'] = scoreList
-                    file.close()
-                    print('Saved score list')
-                return 'done'
-        print("Couldn't place score {}".format(current.score))
-        return 'tooLow'
     except KeyError:
         print("========WARNING========")
         print('No highscore in file')
         print("=======================")
-        return 'noHigh'
+        scoreList = []
+    '''    
+    for loop in range(5):
+        if loop + 1:
+            high = deepcopy(scoreList[loop])
+        else:
+            print('Score list shorter than {} ({})'.format(loop, len(scoreList)))
+            scoreList.append(current)
+            print('Appended score')
+            file['scores'] = scoreList
+            file.close()
+            print('Saved score list')
+            return 'short'
+        print(high.name, high.score)
+        if current > high:
+            prevInd = loop
+            scoreList[prevInd] = current
+            print('Replaced score number {} (points : {}) by new high score ({})'.format(prevInd, high.score, current.score))
+            placeScore(high, False)
+            #nudgeDown(high, prevInd)
+            print('After nudging')
+            file['scores'] = scoreList
+            file.close()
+            print('Saved score list')
+            return 'done'
+    print("Couldn't place score {}".format(current.score))
+    return 'tooLow'
+    '''
+    scoreList.append(current)
+    scoreList.sort()
+    scoreList.reverse()
+    if len(scoreList) > 5:
+        del scoreList[5]
+    file['scores'] = scoreList
+    file.close()
+    print('Saved score list')
+    return 'done'
+    
+
+def nudgeDown(score, curIndex):
+    file = shelve.open(absMetaPath, "c")
+    try:
+        scoreList = file['scores']
+    except KeyError:
+        print("========WARNING========")
+        print('No highscore in file')
+        print("Couldnt nudge")
+        print("=======================")
+        return 'fail'
+    normal = curIndex
+    lower = curIndex + 1
+    print('Starting nudging')
+    if not lower > 5:
+        print('Entering nudging if loop')
+        if lower > len(scoreList) - 1:
+            print('Need to append score !')
+            leaderboard()
+            print('Lower = {}'.format(lower))
+            print('Max Ind = {}'.format(len(scoreList) - 1))
+            scoreList.append(score)
+            file['scores'] = scoreList
+            print('BEFORE SYNCING')
+            file.sync()
+            print('Saved nudging down')
+            file.close()
+        else:
+            print('No need to append')
+            print(scoreList[lower])
+            previous = deepcopy(scoreList[lower])
+            print('Done deepcopying')
+            scoreList[lower] = score
+            print('Nudged down score {} to {}'.format(normal, lower))
+            file['scores'] = scoreList
+            print('BEFORE SYNCING')
+            file.sync()
+            print('Saved nudging down')
+            file.close()
+            nudgeDown(previous, lower)
+        
+    else:
+        print('Done nudging down')
+    
 
 def getHighScore():
     def computeHighScore():
@@ -5961,7 +6023,7 @@ def controlBox():
 
 def mainMenu():
     global player
-    choices = ['New Game', 'Continue', 'About', 'Quit']
+    choices = ['New Game', 'Continue', 'Leaderboard' ,'About', 'Quit']
     index = 0
 
     while not tdl.event.isWindowClosed():
@@ -5980,6 +6042,7 @@ def mainMenu():
         drawCentered(cons = root, y = 45, text = choices[1], fg  = colors.white, bg = None)
         drawCentered(cons = root, y = 46, text = choices[2], fg = colors.white, bg = None)
         drawCentered(cons = root, y = 47, text = choices[3], fg = colors.white, bg = None)
+        drawCentered(cons = root, y = 48, text = choices[4], fg = colors.white, bg = None)
         drawCentered(cons = root, y = 44 + index, text=choices[index], fg = colors.black, bg = colors.white)
         tdl.flush()
         key = tdl.event.key_wait()
@@ -6028,12 +6091,14 @@ def mainMenu():
                 if not error:
                     playGame()
             elif index == 2:
-                credits()
+                leaderboard()
             elif index == 3:
+                gameCredits()
+            elif index == 4:
                 raise SystemExit("Chose Quit on the main menu")
         tdl.flush()
     
-def credits():
+def gameCredits():
     centerX, centerY = MID_WIDTH, MID_HEIGHT
     root.clear()
     toPrint = dial.formatText(dial.creditText, WIDTH - 40)
@@ -6048,6 +6113,25 @@ def credits():
     
     tdl.flush()
     tdl.event.key_wait()
+
+def leaderboard():
+    file = shelve.open(absMetaPath, "c")
+    try:
+        scoreList = file['scores']
+        scoreList.sort()
+        scoreList.reverse()
+        for score in scoreList:
+            print(score.sName())
+            print(score.sDeath())
+            print(score.sScore())
+            print()
+        file['scores'] = scoreList
+        file.sync()
+        file.close()
+    except KeyError:
+        print('No high scores')
+
+
 #_____________ GUI _______________
 
 def initializeFOV():
