@@ -457,6 +457,7 @@ class Buff: #also (and mainly) used for debuffs
     def __init__(self, name, color, owner = None, cooldown = 20, showCooldown = True, showBuff = True, applyFunction = None, continuousFunction = None, removeFunction = None):
         self.name = name
         self.color = color
+        self.baseCooldown = cooldown
         self.curCooldown = cooldown
         self.applyFunction = applyFunction
         self.continuousFunction = continuousFunction
@@ -465,21 +466,26 @@ class Buff: #also (and mainly) used for debuffs
         self.showCooldown = showCooldown
         self.showBuff = showBuff
     
-    def applyBuff(self):
-        if not self.name in convertBuffsToNames(self.owner.Fighter):
+    def applyBuff(self, target):
+        print(self.name, target.name)
+        if not self.name in convertBuffsToNames(target.Fighter):
+            self.curCooldown = self.baseCooldown
+            self.owner = target
             if self.showBuff:
                 message(self.owner.name.capitalize() + ' is now ' + self.name + '!', self.color)
             if self.applyFunction is not None:
-                self.applyFunction()
+                self.applyFunction(self.owner.Fighter)
             self.owner.Fighter.buffList.append(self)
         else:
             bIndex = convertBuffsToNames(self.owner.Fighter).index(self.name)
-            self.owner.Fighter.buffList[bIndex].curCooldown += self.curCooldown
+            target.Fighter.buffList[bIndex].curCooldown += self.baseCooldown
     
     def removeBuff(self):
         if self.removeFunction is not None:
-            self.removeFunction()
+            self.removeFunction(self.owner.Fighter)
         self.owner.Fighter.buffList.remove(self)
+        if self.owner.Fighter.buffList is None:
+            self.owner.Fighter.buffList = []
         if self.showBuff:
             message(self.owner.name.capitalize() + ' is no longer ' + self.name + '.', self.color)
     
@@ -489,7 +495,7 @@ class Buff: #also (and mainly) used for debuffs
             self.removeBuff()
         else:
             if self.continuousFunction is not None:
-                self.continuousFunction()
+                self.continuousFunction(self.owner.Fighter)
 #_________ BUFFS ___________
 
 #_____________SPELLS_____________
@@ -647,12 +653,12 @@ def castFreeze(caster = None, monsterTarget = None):
         target = targetMonster(maxRange = None)
     else:
         target = monsterTarget
-    frozen = Buff('frozen', colors.light_violet, owner = target, cooldown = 4)
+    frozen = Buff('frozen', colors.light_violet, cooldown = 4)
     if target is None:
         message('Invalid target.', colors.red)
         return 'cancelled'
     if not 'frozen' in convertBuffsToNames(target.Fighter):
-        frozen.applyBuff()
+        frozen.applyBuff(target)
     else:
         message("The " + target.name + " is already frozen.")
         return 'cancelled'
@@ -764,8 +770,8 @@ def castArmageddon(radius = 4, damage = 80, caster = None, monsterTarget = None)
 def castEnrage(enrageTurns, caster = None, monsterTarget = None):
     if caster is None or caster == player:
         caster = player
-    enraged = Buff('enraged', colors.dark_red, owner = caster, cooldown = enrageTurns, applyFunction = lambda: modifyFighterStats(caster.Fighter, pow = 10), removeFunction = lambda: setFighterStatsBack(caster.Fighter))
-    enraged.applyBuff()
+    enraged = Buff('enraged', colors.dark_red, cooldown = enrageTurns, applyFunction = lambda fighter: modifyFighterStats(fighter, pow = 10), removeFunction = lambda fighter: setFighterStatsBack(fighter))
+    enraged.applyBuff(caster)
 
 def castRessurect(range = 4, caster = None, monsterTarget = None):
     if caster is None or caster == player:
@@ -839,18 +845,24 @@ def castDrawRectangle(caster = None, monsterTarget = None):
             return 'cancelled'
     else:
         return 'cancelled'
-    
+
+def castEnvenom(caster = None, monsterTarget = None):
+    poisoned = Buff('poisoned', colors.purple, owner = None, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10))
+    for equipment in equipmentList:
+        if equipment.Equipment.meleeWeapon or equipment.Equipment.ranged:
+            equipment.Equipment.enchant = Enchantment('envenomed', buffOnTarget=[poisoned])
 
 fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 1, arg2 = 12, arg3 = 4)
 heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 20)
 darkPact = Spell(ressourceCost = DARK_PACT_DAMAGE, cooldown = 8, useFunction = castDarkRitual, name = "Dark ritual", ressource = 'HP', type = "Occult", magicLevel = 2, arg1 = 5, arg2 = DARK_PACT_DAMAGE)
-enrage = Spell(ressourceCost = 5, cooldown = 30, useFunction = castEnrage, name = 'Enrage', ressource = 'MP', type = 'Strength', magicLevel = 0, arg1 = 10)
+enrage = Spell(ressourceCost = 5, cooldown = 30, useFunction = castEnrage, name = 'Enrage', ressource = 'MP', type = 'Class', magicLevel = 0, arg1 = 10)
 lightning = Spell(ressourceCost = 10, cooldown = 7, useFunction = castLightning, name = 'Lightning bolt', ressource = 'MP', type = 'Magic', magicLevel = 3)
 confuse = Spell(ressourceCost = 5, cooldown = 4, useFunction = castConfuse, name = 'Confusion', ressource = 'MP', type = 'Magic', magicLevel = 1)
 ice = Spell(ressourceCost = 9, cooldown = 5, useFunction = castFreeze, name = 'Ice bolt', ressource = 'MP', type = 'Magic', magicLevel = 2)
 ressurect = Spell(ressourceCost = 10, cooldown = 15, useFunction=castRessurect, name = "Dark ressurection", ressource = 'MP', type = "Occult", arg1 = 4)
 placeTag = Spell(ressourceCost = 0, cooldown = 0, useFunction=castPlaceTag, name = 'DEBUG : Place tag', ressource = 'MP', type = 'Occult')
 drawRect = Spell(ressourceCost = 0, cooldown = 0, useFunction=castDrawRectangle, name = 'DEBUG : Draw Rectangle', ressource = 'MP', type = 'Occult')
+envenom = Spell(ressourceCost= 3, cooldown = 20, useFunction=castEnvenom, name = 'Envenom weapons', ressource='MP', type = 'Racial')
 
 spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect])
 #_____________SPELLS_____________
@@ -1061,7 +1073,7 @@ def characterCreation():
     horns = Trait('Horned', 'Your horns are very large and can be used in combats', type = 'trait', selectable = False)
     carapace = Trait('Chitin carapace', 'Your natural exoskeleton is very resistant', type = 'trait', arm=(2, 0), selectable = False)
     silence = Trait('Silent walk', 'Your paws are very soft, allowing you to be very sneaky', type = 'trait', selectable = False)
-    venom = Trait('Venomous glands', 'You are able to envenom your weapons', type = 'trait', selectable = False)
+    venom = Trait('Venomous glands', 'You are able to envenom your weapons', type = 'trait', selectable = False, spells = [envenom])
     mimesis = Trait('Mimesis', 'You can mimic your environment, making it very hard to see you', type = 'trait', selectable = False)
     wild = Trait('Wild instincts', 'Your natural transformation is even more deadly', type = 'trait', selectable = False)
     optionTraits = [fastLearn, rage, horns, carapace, silence, venom, mimesis, wild]
@@ -1667,15 +1679,17 @@ class Fighter: #All NPCs, enemies and the player
                 player.Player.baseScore += xp
     
     def onAttack(self, target):
+        print('on attck function:', self.owner.name, target.name)
         if self.buffsOnAttack is not None:
             for buff in self.buffsOnAttack:
+                print('buff in buffsOnAttack:', buff.name)
                 dice = randint(1, 100)
                 if dice <= buff[0]:
                     if buff[1] == 'burning':
                         applyBurn(target, 100)
                     if buff[1] == 'poisoned':
-                        poisoned = Buff('poisoned', colors.purple, owner = player, cooldown=randint(5, 10), continuousFunction=lambda: randomDamage('poison', player.Fighter, chance = 100, minDamage=1, maxDamage=10))
-                        poisoned.applyBuff()
+                        poisoned = Buff('poisoned', colors.purple, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10))
+                        poisoned.applyBuff(target)
         if self.leechRessource is not None:
             hunger = self.leechRessource == 'hunger'
             HP = self.leechRessource == 'HP'
@@ -1689,9 +1703,16 @@ class Fighter: #All NPCs, enemies and the player
                 target.Fighter.MP -= self.leechAmount
                 castRegenMana(self.leechAmount//2, caster = self.owner)
         if self.owner == player:
+            print('attacker is player')
             for equipment in equipmentList:
+                print(equipment.name)
                 if equipment.Equipment.enchant and equipment.Equipment.enchant.functionOnAttack:
                     equipment.Equipment.enchant.functionOnAttack(target)
+            
+                if equipment.Equipment.enchant and equipment.Equipment.enchant.buffOnTarget:
+                    for buff in equipment.Equipment.enchant.buffOnTarget:
+                        print('equipment has buff:', buff.name, 'on :', target.name)
+                        buff.applyBuff(target)
 
     def toHit(self, target):
         attack = randint(1, 100)
@@ -2672,7 +2693,7 @@ class Item:
         return None
 
 class Enchantment:
-    def __init__(self, name, functionOnAttack = None, buffOnOwner = None, buffOnTarget = None, damageOnOwner = 0, damageOnTarget = 0, pow = 0, acc = 0, evas = 0, arm = 0, hp = 0, mp = 0, crit = 0, ap = 0, str = 0, dex = 0, vit = 0, will = 0):
+    def __init__(self, name, functionOnAttack = None, buffOnOwner = [], buffOnTarget = [], damageOnOwner = 0, damageOnTarget = 0, pow = 0, acc = 0, evas = 0, arm = 0, hp = 0, mp = 0, crit = 0, ap = 0, str = 0, dex = 0, vit = 0, will = 0):
         self.name = name
         self.functionOnAttack = functionOnAttack
         self.buffOnOwner = buffOnOwner
@@ -2723,70 +2744,113 @@ class Equipment:
     def powerBonus(self):
         if self.type == 'light weapon':
             bonus = (20 * player.Player.getTrait('skill', 'Light weapons').amount) / 100
-            return int(self.basePowerBonus * bonus + self.basePowerBonus + self.enchant.pow)
         elif self.type == 'heavy weapon':
             bonus = (20 * player.Player.getTrait('skill', 'Heavy weapons').amount) / 100
-            return int(self.basePowerBonus * bonus + self.basePowerBonus + self.enchant.pow)
         elif self.type == 'throwing weapon':
             bonus = (20 * player.Player.getTrait('skill', 'Throwing weapons').amount) / 100
+        else:
+            bonus = 0
+        if self.enchant:
             return int(self.basePowerBonus * bonus + self.basePowerBonus + self.enchant.pow)
         else:
-            return self.basePowerBonus + self.enchant.pow
+            return int(self.basePowerBonus * bonus + self.basePowerBonus)
     
     @property
     def rangedPower(self):
         if self.type == 'missile weapon':
             bonus = (20 * player.Player.getTrait('skill', 'Missile weapons').amount) / 100
-            return int(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.dexterity + self.enchant.pow)
+            if self.enchant:
+                return int(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.dexterity + self.enchant.pow)
+            else:
+                return int(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.dexterity)
         elif self.type == 'throwing weapon':
             bonus = (20 * player.Player.getTrait('skill', 'Throwing weapons').amount) / 100
-            return int(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.strength + self.enchant.pow)
+            if self.enchant:
+                return int(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.strength + self.enchant.pow)
+            else:
+                int(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.strength)
         else:
-            return self.baseRangedPower + self.enchant.pow
+            if self.enchant:
+                return self.baseRangedPower + self.enchant.pow
+            else:
+                return self.baseRangedPower
     
     @property
     def accuracyBonus(self):
-        return self.baseAccuracyBonus + self.enchant.acc
+        if self.enchant:
+            return self.baseAccuracyBonus + self.enchant.acc
+        else:
+            return self.baseAccuracyBonus
     
     @property
     def evasionBonus(self):
-        return self.baseEvasionBonus + self.enchant.evas
+        if self.enchant:
+            return self.baseEvasionBonus + self.enchant.evas
+        else:
+            return self.baseEvasionBonus
     
     @property
     def armorBonus(self):
-        return self.baseArmorBonus + self.enchant.arm
+        if self.enchant:
+            return self.baseArmorBonus + self.enchant.arm
+        else:
+            return self.baseArmorBonus
     
     @property
     def maxHP_Bonus(self):
-        return self.baseMaxHP_Bonus + self.enchant.hp
+        if self.enchant:
+            return self.baseMaxHP_Bonus + self.enchant.hp
+        else:
+            return self.baseMaxHP_Bonus
     
     @property
     def maxMP_Bonus(self):
-        return self.baseMaxMP_Bonus + self.enchant.mp
+        if self.enchant:
+            return self.baseMaxMP_Bonus + self.enchant.mp
+        else:
+            return self.baseMaxMP_Bonus
     
     @property
     def criticalBonus(self):
-        return self.baseCriticalBonus + self.enchant.crit
+        if self.enchant:
+            return self.baseCriticalBonus + self.enchant.crit
+        else:
+            return self.baseCriticalBonus
     
     @property
     def armorPenetrationBonus(self):
-        return self.baseArmorPenetrationBonus + self.enchant.ap
+        if self.enchant:
+            return self.baseArmorPenetrationBonus + self.enchant.ap
+        else:
+            return self.baseArmorPenetrationBonus
     
     @property
     def strengthBonus(self):
-        return self.baseStrengthBonus + self.enchant.str
+        if self.enchant:
+            return self.baseStrengthBonus + self.enchant.str
+        else:
+            return self.baseStrengthBonus
     
     @property
     def dexterityBonus(self):
-        return self.baseDexterityBonus + self.enchant.dex
+        if self.enchant:
+            return self.baseDexterityBonus + self.enchant.dex
+        else:
+            return self.baseDexterityBonus
     
     @property
     def vitalityBonus(self):
-        return self.baseVitalityBonus + self.enchant.vit
+        if self.enchant:
+            return self.baseVitalityBonus + self.enchant.vit
+        else:
+            return self.baseVitalityBonus
     
     @property
     def willpowerBonus(self):
-        return self.baseWillpowerBonus + self.enchant.will
+        if self.enchant:
+            return self.baseWillpowerBonus + self.enchant.will
+        else:
+            return self.baseWillpowerBonus
 
     def toggleEquip(self):
         if self.isEquipped:
@@ -2899,9 +2963,6 @@ class Equipment:
             if self.maxMP_Bonus != 0:
                 player.Fighter.MP += self.maxMP_Bonus
             
-            if self.enchant and self.enchant.buffOnTarget:
-                player.Fighter.buffsOnAttack.extend(self.enchant.buffOnTarget)
-            
             if not silent:
                 if handed:
                     self.curSlot = handSlot
@@ -2925,10 +2986,6 @@ class Equipment:
             player.Fighter.hp -= self.maxHP_Bonus
         if self.maxMP_Bonus != 0:
             player.Fighter.MP -= self.maxMP_Bonus
-        
-        if self.enchant and self.enchant.buffOnTarget:
-            for enchantment in self.enchant.buffOnTarget:
-                player.Fighter.buffsOnAttack.remove(enchantment)
 
 class Money(Item):
     def __init__(self, moneyAmount):
@@ -3092,8 +3149,8 @@ def badPieEffect():
         satiateHunger(randint(30, 80))
     if dice > 70:
         message("This had a very strange aftertaste...", colors.red)
-        poisoned = Buff('poisoned', colors.purple, owner = player, cooldown=randint(5, 10), continuousFunction=lambda: randomDamage('poison', player.Fighter, chance = 100, minDamage=1, maxDamage=10))
-        poisoned.applyBuff()
+        poisoned = Buff('poisoned', colors.purple, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10))
+        poisoned.applyBuff(player)
 
 badPie = GameObject(None, None, ',', "awful pie", colors.dark_fuchsia, Item = Item(useFunction = lambda : badPieEffect(), weight = 0.4, stackable=True, amount = 1, description = "This pie looks barely edible. Whoever baked it deserves the title of the worst baker of all this world.", itemtype = 'food'), blocks = False, pName = "awful pies") # TO-DO : Once we find the name of the world, change description
 badPieChoice = ShopChoice(gObject = badPie, price = 100, stock = 20)
@@ -3871,10 +3928,10 @@ def castPlaceBoss():
             return 'cancelled'
 
 def applyBurn(target, chance = 70):
-    burning = Buff('burning', colors.flame, owner = target, cooldown= randint(3, 6), continuousFunction=lambda: randomDamage('fire', target.Fighter, chance = 100, minDamage=1, maxDamage=3, dmgMessage = 'You take {} damage from burning !'))
+    burning = Buff('burning', colors.flame, cooldown= randint(3, 6), continuousFunction=lambda fighter: randomDamage('fire', fighter, chance = 100, minDamage=1, maxDamage=3, dmgMessage = 'You take {} damage from burning !'))
     if target.Fighter and randint(1, 100) <= chance and not 'burning' in convertBuffsToNames(target.Fighter):
         if not 'frozen' in convertBuffsToNames(target.Fighter):
-            burning.applyBuff()
+            burning.applyBuff(target)
         else:
             for buff in target.Fighter.buffList:
                 if buff.name == 'frozen':
@@ -5253,14 +5310,14 @@ def placeObjects(room, first = False):
                 elif foodChoice == 'rMeat':
                     def rMeatDebuff(amount, text):
                         if not 'poisoned' in convertBuffsToNames(player.Fighter):
-                            poisoned = Buff('poisoned', colors.purple, owner = player, cooldown=randint(5, 10), continuousFunction=lambda: randomDamage('poison', player.Fighter, chance = 100, minDamage=1, maxDamage=10))
+                            poisoned = Buff('poisoned', colors.purple, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10))
                             satiateHunger(amount, text)
                             dice = randint(1, 100)
                             if DEBUG:
                                 message('Rancid meat dice : {}'.format(dice), colors.purple)
                             if dice <= 90:
                                 message("You don't feel very good...", colors.red)
-                                poisoned.applyBuff()
+                                poisoned.applyBuff(player)
                         else:
                             message("You really don't want to take the risk of being in worse condition than you currently are.", colors.red)
                             return 'cancelled'
@@ -5273,13 +5330,13 @@ def placeObjects(room, first = False):
                         satiateHunger(amount, text)
                         if choice == 'poison':
                             message("This had a very strange aftertaste...", colors.red)
-                            poisoned = Buff('poisoned', colors.purple, owner = player, cooldown=randint(5, 10), continuousFunction=lambda: randomDamage('poison', player.Fighter, chance = 100, minDamage=1, maxDamage=10))
-                            poisoned.applyBuff()
+                            poisoned = Buff('poisoned', colors.purple, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10))
+                            poisoned.applyBuff(player)
                         elif choice == 'freeze':
                             if not 'burning' in convertBuffsToNames(player.Fighter):
                                 message("This pie is so cold that you can feel it's coldness as it is going down your throat. Wait, actually it's your whole body that is freezing !", colors.red)
-                                frozen = Buff('frozen', colors.light_violet, owner = player, cooldown = 4)
-                                frozen.applyBuff()
+                                frozen = Buff('frozen', colors.light_violet, cooldown = 4)
+                                frozen.applyBuff(player)
                             else:
                                 message("For a moment, you feel like you're burning a bit less, but it's probably just your imagination. Or your senses going numb because of your imminent death. Or both.")
                         elif choice == 'burn':
@@ -5287,8 +5344,8 @@ def placeObjects(room, first = False):
                             applyBurn(player, 100)
                         elif choice == 'confuse':
                             message("You feel funny...", colors.red)
-                            confused = Buff('confused', colors.white, owner = player, cooldown = randint(2,8))
-                            confused.applyBuff()
+                            confused = Buff('confused', colors.white, cooldown = randint(2,8))
+                            confused.applyBuff(player)
                         else:
                             message("This didn't taste as bad as you'd expect.")
                                 
@@ -6733,7 +6790,7 @@ def playGame():
                                 player.Fighter.healCountdown= 25 - player.Player.vitality
 
                 if object.Player and object.Player.race == 'Werewolf':
-                    def shapeshift(fromWolf = False, fromHuman = True):
+                    def shapeshift(fighter, fromWolf = False, fromHuman = True):
                         if fromWolf:
                             player.Player.shapeshift = 'human'
                             object.Player.shapeshifted = True
@@ -6741,15 +6798,15 @@ def playGame():
                             player.Player.shapeshift = 'wolf'
                             object.Player.shapeshifted = True
 
-                    human = Buff('human', colors.lightest_yellow, owner = player, cooldown = player.Player.human, showBuff = False, applyFunction = lambda: setFighterStatsBack(player.Fighter), removeFunction = lambda: shapeshift())
-                    wolf = Buff('in wolf form', colors.amber, owner = player, cooldown = player.Player.wolf, applyFunction = lambda: modifyFighterStats(player.Fighter, str = 5, dex = 3, vit = 4, will = -5), removeFunction = lambda: shapeshift(fromHuman=False, fromWolf=True))
+                    human = Buff('human', colors.lightest_yellow, cooldown = player.Player.human, showBuff = False, applyFunction = lambda fighter: setFighterStatsBack(fighter), removeFunction = lambda fighter: shapeshift(fighter))
+                    wolf = Buff('in wolf form', colors.amber, cooldown = player.Player.wolf, applyFunction = lambda fighter: modifyFighterStats(fighter, str = 5, dex = 3, vit = 4, will = -5), removeFunction = lambda fighter: shapeshift(fighter, fromHuman=False, fromWolf=True))
                     if object.Player.shapeshifted:
                         if object.Player.shapeshift == 'wolf':
                             message('You feel your wild instincts overwhelming you! You have turned into your wolf form!', colors.amber)
-                            wolf.applyBuff()
+                            wolf.applyBuff(player)
                             object.Player.shapeshifted = False
                         if object.Player.shapeshift == 'human':
-                            human.applyBuff()
+                            human.applyBuff(player)
                             object.Player.shapeshifted = False
                 
                 if object.Player and object.Player.race == 'Virus ':
@@ -6803,8 +6860,8 @@ def playGame():
                 player.Player.hunger = 0
             if player.Player.hunger <= BASE_HUNGER // 10:
                 if not player.Player.hungerStatus == 'starving':
-                    starving = Buff('starving', colors.red, owner = player, cooldown = 99999, showCooldown = False, continuousFunction = lambda: randomDamage('starvation', player.Fighter, chance = 33, minDamage = 1, maxDamage = 1, dmgMessage = 'You are starving!', dmgColor = colors.red, msgPlayerOnly = True))
-                    starving.applyBuff()
+                    starving = Buff('starving', colors.red, cooldown = 99999, showCooldown = False, continuousFunction = lambda fighter: randomDamage('starvation', fighter, chance = 33, minDamage = 1, maxDamage = 1, dmgMessage = 'You are starving!', dmgColor = colors.red, msgPlayerOnly = True))
+                    starving.applyBuff(player)
                     player.Player.hungerStatus = "starving"
                 #starveDamage = randint(0, 2)
                 #if starveDamage == 0:
