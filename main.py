@@ -1682,7 +1682,6 @@ class Fighter: #All NPCs, enemies and the player
         print('on attck function:', self.owner.name, target.name)
         if self.buffsOnAttack is not None:
             for buff in self.buffsOnAttack:
-                print('buff in buffsOnAttack:', buff.name)
                 dice = randint(1, 100)
                 if dice <= buff[0]:
                     if buff[1] == 'burning':
@@ -5980,8 +5979,8 @@ def controlBox():
     global FOV_recompute
     FOV_recompute = True
     Update()
-    width = WIDTH - 40
-    height = CON_HEIGHT - 20
+    width = 45
+    height = 27
     window = tdl.Console(width, height)
     assert isinstance(window, tdl.Console)
     
@@ -6010,11 +6009,18 @@ def controlBox():
         window.draw_str(x + len(formattedControl), y, description, fg = colors.white)
         
     displayControl(1, 1, 'Arrow keys / Numpad', 'Move / Attack')
-    displayControl(1, 3, 'I', 'Inventory')
-    displayControl(1, 4, 'E', 'Equipment')
-    displayControl(1, 5, 'x', 'Fire ranged weapon')
-    displayControl(1, 6, 'Space', 'Pick up object')
-    displayControl(1, 7, 'c', 'Chat with NPC')
+    displayControl(1, 3, 'x', 'Fire ranged weapon')
+    displayControl(1, 5, 'z', 'Use spells or abilities')
+    displayControl(1, 7, 'I', 'Inventory')
+    displayControl(1, 9, 'E', 'Equipment')
+    displayControl(1, 11, 'd', 'Drop objects')
+    displayControl(1, 13, 'Space', 'Pick up object')
+    displayControl(1, 15, 'c', 'Chat with NPC')
+    displayControl(1, 17, 'C', 'Display character informations')
+    displayControl(1, 19, 'l', 'Enter look mode')
+    displayControl(1, 21, 'L', 'Display message log')
+    displayControl(1, 23, '>', 'Climb up stairs')
+    displayControl(1, 25, '<', 'Climb down stairs')
     x = MID_WIDTH - int(width/2)
     y = MID_CON_HEIGHT - int(height/2)
     root.blit(window, x, y, width, height, 0, 0)
@@ -6225,6 +6231,7 @@ def Update():
                 buffText = buff.name.capitalize()
             panel.draw_str(BUFF_X, buffY, buffText, buff.color)
             buffY += 1
+    root.draw_str(WIDTH-8, 1, '?: Help', colors.green)
     # Look code
     if gameState == 'looking' and lookCursor != None:
         global lookCursor
