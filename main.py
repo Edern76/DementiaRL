@@ -2,6 +2,7 @@ import colors, math, textwrap, time, os, sys, code, gzip, pathlib, traceback #Co
 import tdlib as tdl
 import code.dialog as dial
 import simpleaudio as sa
+import threading
 import dill #THIS IS NOT AN UNUSED IMPORT. Importing this changes the behavior of the pickle module (and the shelve module too), so as we can actually save lambda expressions. EDIT : It might actually be useless to import it here, since we import it in the dilledShelve module, but it freaking finally works perfectly fine so we're not touching this.
 from tdl import *
 from random import randint, choice
@@ -44,6 +45,13 @@ sys.excepthook = notCloseImmediatelyAfterCrash #We call the above defined functi
 
 #NEVER SET AN EVASION VALUE AT ZERO, SET IT AT ONE INSTEAD#
 
+class MusicThread(threading.Thread):
+    def __init__(self, musicName = 'Bumpy_Roots.wav'):
+        self.musicName = musicName
+        threading.Thread.__init__(self)
+    
+    def run(self):
+        playWavSound(self.musicName, forceStop=True)
 #_____________ CONSTANTS __________________
 MOVEMENT_KEYS = {
                  #Standard arrows
@@ -128,6 +136,7 @@ BOSS_SIGHT_RADIUS = 60
 bossDungeonsAppeared = {'gluttony': False}
 lastHitter = None
 nemesisList = []
+currentMusic = 'Dusty_Feelings.wav'
 
 # - Spells -
 LIGHTNING_DAMAGE = 40
@@ -1282,28 +1291,28 @@ def characterCreation():
         key = tdl.event.key_wait()
         if key.keychar.upper() == 'DOWN':
             index += 1
-            playWavSound('selectClic.wav', True)
+            playWavSound('selectClic.wav')
         if key.keychar.upper() == 'UP':
             index -= 1
-            playWavSound('selectClic.wav', True)
+            playWavSound('selectClic.wav')
         if key.keychar.upper() == 'RIGHT' and (leftIndexMin <= index <= leftIndexMax):
             if (leftIndexMin <= index <= leftIndexMax):
                 if rightIndexMin <= index + len(attributes) + len(traits) + len(races) <= rightIndexMax:
                     index += len(attributes) + len(traits) + len(races)
                 else:
                     index = rightIndexMax
-                playWavSound('selectClic.wav', True)
+                playWavSound('selectClic.wav')
             else:
-                playWavSound('error.wav', True)
+                playWavSound('error.wav')
         if key.keychar.upper() == 'LEFT':
             if (rightIndexMin <= index <= rightIndexMax):
                 if leftIndexMin <= index - (len(attributes) + len(traits) + len(races)) <= leftIndexMax:
                     index -= (len(attributes) + len(traits) + len(races))
                 else:
                     index = leftIndexMax
-                playWavSound('selectClic.wav', True)
+                playWavSound('selectClic.wav')
             else:
-                playWavSound('error.wav', True)
+                playWavSound('error.wav',)
 
         #adding choice bonus
         if key.keychar.upper() == 'ENTER':
@@ -1313,7 +1322,7 @@ def characterCreation():
                     print(createdCharacter)
                     return createdCharacter, allTraits
                 else:
-                    playWavSound('error.wav', True)
+                    playWavSound('error.wav')
                     error = True
             if index == maxIndex:
                 return 'cancelled', 'cancelled'
@@ -1342,7 +1351,7 @@ def characterCreation():
                 trait = allTraits[index]
                 trait.removeBonus()
             else:
-                playWavSound('error.wav', True)
+                playWavSound('error.wav')
         if index > maxIndex:
             index = 0
         if index < 0:
@@ -1377,7 +1386,7 @@ def enterName(race):
             if len(name) < 16:
                 letters.append(key.keychar)
             else:
-                playWavSound('error.wav', forceStop = True)
+                playWavSound('error.wav')
         elif key.keychar.upper() == 'BACKSPACE':
             letters.pop()
         elif key.keychar.upper() == 'ESCAPE':
@@ -3124,12 +3133,12 @@ class Shop:
                 selectedIndex -= 1
                 if selectedIndex < 0:
                     selectedIndex = len(self.choicesList) - 1
-                playWavSound('selectClic.wav', True)
+                playWavSound('selectClic.wav')
             elif actualKey in ('DOWN', 'KP2'):
                 selectedIndex += 1
                 if selectedIndex > len(self.choicesList) - 1 :
                     selectedIndex = 0
-                playWavSound('selectClic.wav', True)
+                playWavSound('selectClic.wav')
             elif actualKey == 'ENTER':
                 state = self.choicesList[selectedIndex].buy()
 
@@ -5980,7 +5989,7 @@ def controlBox():
     FOV_recompute = True
     Update()
     width = 45
-    height = 27
+    height = 29
     window = tdl.Console(width, height)
     assert isinstance(window, tdl.Console)
     
@@ -6011,16 +6020,17 @@ def controlBox():
     displayControl(1, 1, 'Arrow keys / Numpad', 'Move / Attack')
     displayControl(1, 3, 'x', 'Fire ranged weapon')
     displayControl(1, 5, 'z', 'Use spells or abilities')
-    displayControl(1, 7, 'I', 'Inventory')
-    displayControl(1, 9, 'E', 'Equipment')
+    displayControl(1, 7, 'I', 'Open inventory')
+    displayControl(1, 9, 'E', 'Open equipment menu')
     displayControl(1, 11, 'd', 'Drop objects')
-    displayControl(1, 13, 'Space', 'Pick up object')
-    displayControl(1, 15, 'c', 'Chat with NPC')
-    displayControl(1, 17, 'C', 'Display character informations')
-    displayControl(1, 19, 'l', 'Enter look mode')
-    displayControl(1, 21, 'L', 'Display message log')
-    displayControl(1, 23, '>', 'Climb up stairs')
-    displayControl(1, 25, '<', 'Climb down stairs')
+    displayControl(1, 13, 'e', 'Open eat menu')
+    displayControl(1, 15, 'Space', 'Pick up object')
+    displayControl(1, 17, 'c', 'Chat with NPC')
+    displayControl(1, 19, 'C', 'Display character informations')
+    displayControl(1, 21, 'l', 'Enter look mode')
+    displayControl(1, 23, 'L', 'Display message log')
+    displayControl(1, 25, '>', 'Climb up stairs')
+    displayControl(1, 27, '<', 'Climb down stairs')
     x = MID_WIDTH - int(width/2)
     y = MID_CON_HEIGHT - int(height/2)
     root.blit(window, x, y, width, height, 0, 0)
@@ -6028,9 +6038,12 @@ def controlBox():
     tdl.event.key_wait()
 
 def mainMenu():
-    global player
+    global player, currentMusic
     choices = ['New Game', 'Continue', 'Leaderboard' ,'About', 'Quit']
     index = 0
+    currentMusic = 'Dusty_Feelings.wav'
+    music = MusicThread(currentMusic)
+    music.run()
 
     while not tdl.event.isWindowClosed():
         root.clear()
@@ -6054,10 +6067,10 @@ def mainMenu():
         key = tdl.event.key_wait()
         if key.keychar.upper() == "DOWN":
             index += 1
-            playWavSound('selectClic.wav', True)
+            playWavSound('selectClic.wav')
         elif key.keychar.upper() == "UP":
             index -= 1
-            playWavSound('selectClic.wav', True)
+            playWavSound('selectClic.wav')
         if index < 0:
             index = len(choices) - 1
         if index > len(choices) - 1:
@@ -6309,12 +6322,12 @@ def chat():
                         selectedIndex -= 1
                         if selectedIndex < 0:
                             selectedIndex = len(tree.currentScreen.choicesList) - 1
-                        playWavSound('selectClic.wav', True)
+                        playWavSound('selectClic.wav')
                     elif actualKey in ('DOWN', 'KP2'):
                         selectedIndex += 1
                         if selectedIndex > len(tree.currentScreen.choicesList) - 1 :
                             selectedIndex = 0
-                        playWavSound('selectClic.wav', True)
+                        playWavSound('selectClic.wav')
                     elif actualKey == 'ENTER':
                         state = tree.currentScreen.choicesList[selectedIndex].select()
                         chosen = True
@@ -6725,7 +6738,15 @@ def loadLevel(level, save = True, branch = currentBranch):
     initializeFOV()
 
 def nextLevel(boss = False, changeBranch = None, fixedMap = None):
-    global dungeonLevel, currentBranch
+    global dungeonLevel, currentBranch, currentMusic
+    if boss:
+        currentMusic = 'Hoxton_Princess.wav'
+        music = MusicThread(currentMusic)
+        music.run()
+    elif currentMusic != 'Bumpy_Roots.wav':
+        currentMusic = 'Bumpy_Roots.wav'
+        music = MusicThread(currentMusic)
+        music.run()
     returned = "borked"
     changeToCurrent = False
     while returned != "completed":
@@ -6784,6 +6805,10 @@ def nextLevel(boss = False, changeBranch = None, fixedMap = None):
     initializeFOV()
 
 def playGame():
+    global currentMusic
+    currentMusic = 'Bumpy_Roots.wav'
+    music = MusicThread(currentMusic)
+    music.run()
     actions = 1
     while not tdl.event.isWindowClosed():
         global FOV_recompute, DEBUG, actions

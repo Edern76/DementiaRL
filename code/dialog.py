@@ -27,7 +27,7 @@ def formatText(text, w):
     
     return outputText
 
-creditText = "Created by Erwan CASTIONI and Gawein LE GOFF. \n \n Using a modified version of the TDL module by Kyle Stewart and a modified version of the XpLoader module by Sean Hagar \n Made with Python 3. \n \n Special thanks to Francesco V. who launched the game once."
+creditText = "Created by Erwan CASTIONI and Gawein LE GOFF. \n \n Using a modified version of the TDL module by Kyle Stewart and a modified version of the XpLoader module by Sean Hagar \n Made with Python 3. \n \n Music from Jukedeck - create your own at http://jukedeck.com \n \n Special thanks to Francesco V. who launched the game once."
 
 class DialogTree:
     def __init__(self, screenList, name, origScreen):
