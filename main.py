@@ -1282,17 +1282,17 @@ def characterCreation():
         key = tdl.event.key_wait()
         if key.keychar.upper() == 'DOWN':
             index += 1
-            playWavSound('select.wav', True)
+            playWavSound('selectClic.wav', True)
         if key.keychar.upper() == 'UP':
             index -= 1
-            playWavSound('select.wav', True)
+            playWavSound('selectClic.wav', True)
         if key.keychar.upper() == 'RIGHT' and (leftIndexMin <= index <= leftIndexMax):
             if (leftIndexMin <= index <= leftIndexMax):
                 if rightIndexMin <= index + len(attributes) + len(traits) + len(races) <= rightIndexMax:
                     index += len(attributes) + len(traits) + len(races)
                 else:
                     index = rightIndexMax
-                playWavSound('select.wav', True)
+                playWavSound('selectClic.wav', True)
             else:
                 playWavSound('error.wav', True)
         if key.keychar.upper() == 'LEFT':
@@ -1301,7 +1301,7 @@ def characterCreation():
                     index -= (len(attributes) + len(traits) + len(races))
                 else:
                     index = leftIndexMax
-                playWavSound('select.wav', True)
+                playWavSound('selectClic.wav', True)
             else:
                 playWavSound('error.wav', True)
 
@@ -3124,12 +3124,12 @@ class Shop:
                 selectedIndex -= 1
                 if selectedIndex < 0:
                     selectedIndex = len(self.choicesList) - 1
-                playWavSound('select.wav', True)
+                playWavSound('selectClic.wav', True)
             elif actualKey in ('DOWN', 'KP2'):
                 selectedIndex += 1
                 if selectedIndex > len(self.choicesList) - 1 :
                     selectedIndex = 0
-                playWavSound('select.wav', True)
+                playWavSound('selectClic.wav', True)
             elif actualKey == 'ENTER':
                 state = self.choicesList[selectedIndex].buy()
 
@@ -6054,10 +6054,10 @@ def mainMenu():
         key = tdl.event.key_wait()
         if key.keychar.upper() == "DOWN":
             index += 1
-            playWavSound('select.wav', True)
+            playWavSound('selectClic.wav', True)
         elif key.keychar.upper() == "UP":
             index -= 1
-            playWavSound('select.wav', True)
+            playWavSound('selectClic.wav', True)
         if index < 0:
             index = len(choices) - 1
         if index > len(choices) - 1:
@@ -6309,12 +6309,12 @@ def chat():
                         selectedIndex -= 1
                         if selectedIndex < 0:
                             selectedIndex = len(tree.currentScreen.choicesList) - 1
-                        playWavSound('select.wav', True)
+                        playWavSound('selectClic.wav', True)
                     elif actualKey in ('DOWN', 'KP2'):
                         selectedIndex += 1
                         if selectedIndex > len(tree.currentScreen.choicesList) - 1 :
                             selectedIndex = 0
-                        playWavSound('select.wav', True)
+                        playWavSound('selectClic.wav', True)
                     elif actualKey == 'ENTER':
                         state = tree.currentScreen.choicesList[selectedIndex].select()
                         chosen = True
