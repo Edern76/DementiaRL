@@ -5971,6 +5971,7 @@ def deathMenu():
             if index == 0:
                 mainMenu()
             else:
+                stopProcess()
                 quitGame('Quit game from the death menu.')
 
 def temporaryBox(text, color = colors.white):
