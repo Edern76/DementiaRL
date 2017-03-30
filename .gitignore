@@ -50,6 +50,7 @@ build
 save
 __pycache__
 code/__pycache__
+assets/sounds
 *.pyc
 code/__pycache__/charGen.cpython-35.pyc
 code/__pycache__/constants.cpython-35.pyc
@@ -61,3 +62,4 @@ rectangles.txt
 metasave/meta.bak
 metasave/meta.dat
 metasave/meta.dir
+*.wav
