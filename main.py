@@ -1,8 +1,9 @@
 import colors, math, textwrap, time, os, sys, code, gzip, pathlib, traceback #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
 import tdlib as tdl
 import code.dialog as dial
+import music as mus
 import simpleaudio as sa
-import threading
+import threading, multiprocessing
 import dill #THIS IS NOT AN UNUSED IMPORT. Importing this changes the behavior of the pickle module (and the shelve module too), so as we can actually save lambda expressions. EDIT : It might actually be useless to import it here, since we import it in the dilledShelve module, but it freaking finally works perfectly fine so we're not touching this.
 from tdl import *
 from random import randint, choice
@@ -17,6 +18,8 @@ import code.dunbranches as dBr
 import code.dilledShelve as shelve
 from code.dunbranches import gluttonyDungeon
 from code.custom_except import UnusableMethodException
+from music import playWavSound
+from multiprocessing import freeze_support
 
 def notCloseImmediatelyAfterCrash(exc_type, exc_value, tb):
     '''
@@ -48,10 +51,20 @@ sys.excepthook = notCloseImmediatelyAfterCrash #We call the above defined functi
 class MusicThread(threading.Thread):
     def __init__(self, musicName = 'Bumpy_Roots.wav'):
         self.musicName = musicName
+        self.playObj = None
         threading.Thread.__init__(self)
+        self.daemon = True
     
     def run(self):
-        playWavSound(self.musicName, forceStop=True)
+        while True:
+            if self.playObj is None or not self.playObj.is_playing():
+                self.playObj = playWavSound(self.musicName, forceStop=True)
+
+def runMusic(musicName):
+    playObj = None
+    while True:
+        if playObj is None or not playObj.is_playing():
+            playObj = playWavSound(musicName, forceStop=True)
 #_____________ CONSTANTS __________________
 MOVEMENT_KEYS = {
                  #Standard arrows
@@ -113,9 +126,14 @@ DEATH_SCREEN_HEIGHT = 10
 # - GUI Constants -
 
 # - Consoles -
-root = tdl.init(WIDTH, HEIGHT, 'Dementia')
-con = tdl.Console(WIDTH, HEIGHT)
-panel = tdl.Console(WIDTH, PANEL_HEIGHT)
+if __name__ == '__main__':
+    root = tdl.init(WIDTH, HEIGHT, 'Dementia')
+    con = tdl.Console(WIDTH, HEIGHT)
+    panel = tdl.Console(WIDTH, PANEL_HEIGHT)
+else:
+    root = None
+    con = None
+    panel = None
 # - Consoles
 
 FOV_recompute = True
@@ -183,6 +201,7 @@ inventory = [] #Player inventory
 equipmentList = [] #Player equipment
 activeSounds = []
 spells = [] #List of all spells in the game
+activeProcess = []
 ########
 # These need to be globals because otherwise Python will flip out when we try to look for some kind of stairs in the object lists.
 stairs = None
@@ -243,13 +262,6 @@ def animStep(waitTime = .125):
     tdl.flush()
     time.sleep(waitTime)
     
-def playWavSound(sound, forceStop = False):
-    if forceStop:
-        sa.stop_all()
-    soundPath = os.path.join(absSoundPath, sound)
-    waveObj = sa.WaveObject.from_wave_file(soundPath)
-    waveObj.play()
-    #TO-DO : Add an ear-rape prevention system, such as allowing sounds to be played every X milliseconds.
 
 #_____________MENU_______________
 def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp, noItemMessage = None):
@@ -3189,6 +3201,10 @@ def quitGame(message, backToMainMenu = False):
         mainMenu()
     else:
         raise SystemExit(str(message))
+    
+def stopProcess():
+    for process in activeProcess:
+        process.terminate()
 
 def getInput():
     global FOV_recompute
@@ -6038,85 +6054,98 @@ def controlBox():
     tdl.event.key_wait()
 
 def mainMenu():
-    global player, currentMusic
-    choices = ['New Game', 'Continue', 'Leaderboard' ,'About', 'Quit']
-    index = 0
-    currentMusic = 'Dusty_Feelings.wav'
-    music = MusicThread(currentMusic)
-    music.run()
-
-    while not tdl.event.isWindowClosed():
-        root.clear()
-        asciiFile = os.path.join(absAsciiPath, 'logo.xp')
-        xpRawString = gzip.open(asciiFile, "r").read()
-        convertedString = xpRawString
-        attributes = xpL.load_xp_string(convertedString)
-        picHeight = int(attributes["height"])
-        picWidth = int(attributes["width"])
-        lData = attributes["layer_data"]
-        layerInd = int(0)
-        for layerInd in range(len(lData)):
-            xpL.load_layer_to_console(root, lData[layerInd], WIDTH//2 - picWidth//2, 15)
-        drawCentered(cons = root, y = 44, text = choices[0], fg = colors.white, bg = None)
-        drawCentered(cons = root, y = 45, text = choices[1], fg  = colors.white, bg = None)
-        drawCentered(cons = root, y = 46, text = choices[2], fg = colors.white, bg = None)
-        drawCentered(cons = root, y = 47, text = choices[3], fg = colors.white, bg = None)
-        drawCentered(cons = root, y = 48, text = choices[4], fg = colors.white, bg = None)
-        drawCentered(cons = root, y = 44 + index, text=choices[index], fg = colors.black, bg = colors.white)
-        tdl.flush()
-        key = tdl.event.key_wait()
-        if key.keychar.upper() == "DOWN":
-            index += 1
-            playWavSound('selectClic.wav')
-        elif key.keychar.upper() == "UP":
-            index -= 1
-            playWavSound('selectClic.wav')
-        if index < 0:
-            index = len(choices) - 1
-        if index > len(choices) - 1:
-            index = 0
-        if key.keychar.upper() == "ENTER":
-            if index == 0:
-                (playerComponent, allTraits) = characterCreation()
-                if playerComponent != 'cancelled':
-                    for trait in allTraits:
-                        if trait.type == 'race' and trait.selected:
-                            chosenRace = trait.name
-                    for trait in allTraits:
-                        if trait.type == 'class' and trait.selected:
-                            chosenClass = trait.name
-                    name = enterName(chosenRace)
-                    LvlUp = {'pow': createdCharacter['powLvl'], 'acc': createdCharacter['accLvl'], 'ev': createdCharacter['evLvl'], 'arm': createdCharacter['armLvl'], 'hp': createdCharacter['hpLvl'], 'mp': createdCharacter['mpLvl'], 'crit': createdCharacter['critLvl'], 'str': createdCharacter['strLvl'], 'dex': createdCharacter['dexLvl'], 'vit': createdCharacter['vitLvl'], 'will': createdCharacter['willLvl'], 'ap': createdCharacter['apLvl']}
-                    playComp = Player(name, playerComponent['str'], playerComponent['dex'], playerComponent['vit'], playerComponent['will'], playerComponent['load'], chosenRace, chosenClass, allTraits, LvlUp)
-                    playFight = Fighter(hp = playerComponent['hp'], power= playerComponent['pow'], armor= playerComponent['arm'], deathFunction=playerDeath, xp=0, evasion = playerComponent['ev'], accuracy = playerComponent['acc'], maxMP= playerComponent['mp'], knownSpells=playerComponent['spells'], critical = playerComponent['crit'], armorPenetration = playerComponent['ap'])
-                    player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = name, color = (0, 210, 0))
-                    player.level = 1
-                    player.Fighter.hp = player.Fighter.baseMaxHP
-                    player.Fighter.MP = player.Fighter.baseMaxMP
-
-                    newGame()
-                    playGame()
-                else:
-                    mainMenu()
-            elif index == 1:
-                error = False
-                try:
-                    loadGame()
-                except:
-                    msgBox("\n No saved game to load.\n", 26, False, False)
-                    error = True
-                    key = None
-                    continue
-                if not error:
-                    playGame()
-            elif index == 2:
-                leaderboard()
-            elif index == 3:
-                gameCredits()
-            elif index == 4:
-                raise SystemExit("Chose Quit on the main menu")
-        tdl.flush()
+    if __name__ == '__main__':
+        global player, currentMusic, activeProcess
+        choices = ['New Game', 'Continue', 'Leaderboard' ,'About', 'Quit']
+        index = 0
+        currentMusic = str('Dusty_Feelings.wav')
+        '''
+        #music = MusicThread(target = self.run, musicName= currentMusic)
+        music = threading.Thread(target = lambda : runMusic(currentMusic))
+        music.setDaemon(True)
+        music.run()
+        '''
+        stopProcess()
+        music = multiprocessing.Process(target = mus.runMusic, args = (currentMusic,))
+        music.start()
+        activeProcess.append(music)
+        
     
+        while not tdl.event.isWindowClosed():
+            root.clear()
+            asciiFile = os.path.join(absAsciiPath, 'logo.xp')
+            xpRawString = gzip.open(asciiFile, "r").read()
+            convertedString = xpRawString
+            attributes = xpL.load_xp_string(convertedString)
+            picHeight = int(attributes["height"])
+            picWidth = int(attributes["width"])
+            lData = attributes["layer_data"]
+            layerInd = int(0)
+            for layerInd in range(len(lData)):
+                xpL.load_layer_to_console(root, lData[layerInd], WIDTH//2 - picWidth//2, 15)
+            drawCentered(cons = root, y = 44, text = choices[0], fg = colors.white, bg = None)
+            drawCentered(cons = root, y = 45, text = choices[1], fg  = colors.white, bg = None)
+            drawCentered(cons = root, y = 46, text = choices[2], fg = colors.white, bg = None)
+            drawCentered(cons = root, y = 47, text = choices[3], fg = colors.white, bg = None)
+            drawCentered(cons = root, y = 48, text = choices[4], fg = colors.white, bg = None)
+            drawCentered(cons = root, y = 44 + index, text=choices[index], fg = colors.black, bg = colors.white)
+            tdl.flush()
+            key = tdl.event.key_wait()
+            if key.keychar.upper() == "DOWN":
+                index += 1
+                playWavSound('selectClic.wav')
+            elif key.keychar.upper() == "UP":
+                index -= 1
+                playWavSound('selectClic.wav')
+            if index < 0:
+                index = len(choices) - 1
+            if index > len(choices) - 1:
+                index = 0
+            if key.keychar.upper() == "ENTER":
+                if index == 0:
+                    (playerComponent, allTraits) = characterCreation()
+                    if playerComponent != 'cancelled':
+                        for trait in allTraits:
+                            if trait.type == 'race' and trait.selected:
+                                chosenRace = trait.name
+                        for trait in allTraits:
+                            if trait.type == 'class' and trait.selected:
+                                chosenClass = trait.name
+                        name = enterName(chosenRace)
+                        LvlUp = {'pow': createdCharacter['powLvl'], 'acc': createdCharacter['accLvl'], 'ev': createdCharacter['evLvl'], 'arm': createdCharacter['armLvl'], 'hp': createdCharacter['hpLvl'], 'mp': createdCharacter['mpLvl'], 'crit': createdCharacter['critLvl'], 'str': createdCharacter['strLvl'], 'dex': createdCharacter['dexLvl'], 'vit': createdCharacter['vitLvl'], 'will': createdCharacter['willLvl'], 'ap': createdCharacter['apLvl']}
+                        playComp = Player(name, playerComponent['str'], playerComponent['dex'], playerComponent['vit'], playerComponent['will'], playerComponent['load'], chosenRace, chosenClass, allTraits, LvlUp)
+                        playFight = Fighter(hp = playerComponent['hp'], power= playerComponent['pow'], armor= playerComponent['arm'], deathFunction=playerDeath, xp=0, evasion = playerComponent['ev'], accuracy = playerComponent['acc'], maxMP= playerComponent['mp'], knownSpells=playerComponent['spells'], critical = playerComponent['crit'], armorPenetration = playerComponent['ap'])
+                        player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = name, color = (0, 210, 0))
+                        player.level = 1
+                        player.Fighter.hp = player.Fighter.baseMaxHP
+                        player.Fighter.MP = player.Fighter.baseMaxMP
+    
+                        newGame()
+                        playGame()
+                    else:
+                        mainMenu()
+                elif index == 1:
+                    error = False
+                    try:
+                        loadGame()
+                    except:
+                        msgBox("\n No saved game to load.\n", 26, False, False)
+                        error = True
+                        key = None
+                        continue
+                    if not error:
+                        playGame()
+                elif index == 2:
+                    leaderboard()
+                elif index == 3:
+                    gameCredits()
+                elif index == 4:
+                    stopProcess()
+                    raise SystemExit("Chose Quit on the main menu")
+            tdl.flush()
+        stopProcess()    
+    else:
+        print('Not main SO WE ARENT DOING FUCKING ANYTHING AND NOT FUCKING UP THE WHOLE PROGRAM BY OPENING INFINITE INSTANCES OF IT')
 def gameCredits():
     centerX, centerY = MID_WIDTH, MID_HEIGHT
     root.clear()
@@ -6741,12 +6770,16 @@ def nextLevel(boss = False, changeBranch = None, fixedMap = None):
     global dungeonLevel, currentBranch, currentMusic
     if boss:
         currentMusic = 'Hoxton_Princess.wav'
-        music = MusicThread(currentMusic)
-        music.run()
+        stopProcess()
+        music = multiprocessing.Process(target = mus.runMusic, args = (currentMusic,))
+        music.start()
+        activeProcess.append(music)
     elif currentMusic != 'Bumpy_Roots.wav':
         currentMusic = 'Bumpy_Roots.wav'
-        music = MusicThread(currentMusic)
-        music.run()
+        stopProcess()
+        music = multiprocessing.Process(target = mus.runMusic, args = (currentMusic,))
+        music.start()
+        activeProcess.append(music)
     returned = "borked"
     changeToCurrent = False
     while returned != "completed":
@@ -6807,8 +6840,10 @@ def nextLevel(boss = False, changeBranch = None, fixedMap = None):
 def playGame():
     global currentMusic
     currentMusic = 'Bumpy_Roots.wav'
-    music = MusicThread(currentMusic)
-    music.run()
+    stopProcess()
+    music = multiprocessing.Process(target = mus.runMusic, args = (currentMusic,))
+    music.start()
+    activeProcess.append(music)
     actions = 1
     while not tdl.event.isWindowClosed():
         global FOV_recompute, DEBUG, actions
@@ -7010,4 +7045,6 @@ def playGame():
     DEBUG = False
     quitGame('Window has been closed')
     
-mainMenu()
+if __name__ == '__main__':
+    freeze_support()
+    mainMenu()
