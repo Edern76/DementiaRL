@@ -154,7 +154,7 @@ BOSS_SIGHT_RADIUS = 60
 bossDungeonsAppeared = {'gluttony': False}
 lastHitter = None
 nemesisList = []
-currentMusic = 'Dusty_Feelings.wav'
+currentMusic = 'No_Music.wav'
 
 # - Spells -
 LIGHTNING_DAMAGE = 40
@@ -5643,14 +5643,20 @@ def getHighScore():
 
 def playerDeath(player):
     global gameState
-    message('You died!', colors.red)
-    gameState = 'dead'
-    player.char = '%'
-    player.color = colors.dark_red
-    turnIntoNemesis()
-    getHighScore()
-    deleteSaves()
-    deathMenu()
+    if player.Player.race == 'Virus ' and player.Player.inHost:
+        player.Player.inHost = False
+        player.Player.timeOutsideLeft = 50
+        setFighterStatsBack(player.Fighter)
+        player.Fighter.hp = player.Fighter.BASE_MAX_HP
+    else:
+        message('You died!', colors.red)
+        gameState = 'dead'
+        player.char = '%'
+        player.color = colors.dark_red
+        turnIntoNemesis()
+        getHighScore()
+        deleteSaves()
+        deathMenu()
 
     
 def monsterDeath(monster):
@@ -6054,6 +6060,7 @@ def controlBox():
     tdl.event.key_wait()
 
 def mainMenu():
+
     if __name__ == '__main__':
         global player, currentMusic, activeProcess
         choices = ['New Game', 'Continue', 'Leaderboard' ,'About', 'Quit']
@@ -6069,8 +6076,89 @@ def mainMenu():
         music = multiprocessing.Process(target = mus.runMusic, args = (currentMusic,))
         music.start()
         activeProcess.append(music)
+        '''   
+        =======
+            global player, currentMusic
+            choices = ['New Game', 'Continue', 'Leaderboard' ,'About', 'Quit']
+            index = 0
+            if currentMusic != 'Dusty_Feelings.wav':
+                currentMusic = 'Dusty_Feelings.wav'
+                music = MusicThread(currentMusic)
+                music.run()
         
-    
+            while not tdl.event.isWindowClosed():
+                root.clear()
+                asciiFile = os.path.join(absAsciiPath, 'logo.xp')
+                xpRawString = gzip.open(asciiFile, "r").read()
+                convertedString = xpRawString
+                attributes = xpL.load_xp_string(convertedString)
+                picHeight = int(attributes["height"])
+                picWidth = int(attributes["width"])
+                lData = attributes["layer_data"]
+                layerInd = int(0)
+                for layerInd in range(len(lData)):
+                    xpL.load_layer_to_console(root, lData[layerInd], WIDTH//2 - picWidth//2, 15)
+                drawCentered(cons = root, y = 44, text = choices[0], fg = colors.white, bg = None)
+                drawCentered(cons = root, y = 45, text = choices[1], fg  = colors.white, bg = None)
+                drawCentered(cons = root, y = 46, text = choices[2], fg = colors.white, bg = None)
+                drawCentered(cons = root, y = 47, text = choices[3], fg = colors.white, bg = None)
+                drawCentered(cons = root, y = 48, text = choices[4], fg = colors.white, bg = None)
+                drawCentered(cons = root, y = 44 + index, text=choices[index], fg = colors.black, bg = colors.white)
+                tdl.flush()
+                key = tdl.event.key_wait()
+                if key.keychar.upper() == "DOWN":
+                    index += 1
+                    playWavSound('selectClic.wav')
+                elif key.keychar.upper() == "UP":
+                    index -= 1
+                    playWavSound('selectClic.wav')
+                if index < 0:
+                    index = len(choices) - 1
+                if index > len(choices) - 1:
+                    index = 0
+                if key.keychar.upper() == "ENTER":
+                    if index == 0:
+                        (playerComponent, allTraits) = characterCreation()
+                        if playerComponent != 'cancelled':
+                            for trait in allTraits:
+                                if trait.type == 'race' and trait.selected:
+                                    chosenRace = trait.name
+                            for trait in allTraits:
+                                if trait.type == 'class' and trait.selected:
+                                    chosenClass = trait.name
+                            name = enterName(chosenRace)
+                            LvlUp = {'pow': createdCharacter['powLvl'], 'acc': createdCharacter['accLvl'], 'ev': createdCharacter['evLvl'], 'arm': createdCharacter['armLvl'], 'hp': createdCharacter['hpLvl'], 'mp': createdCharacter['mpLvl'], 'crit': createdCharacter['critLvl'], 'str': createdCharacter['strLvl'], 'dex': createdCharacter['dexLvl'], 'vit': createdCharacter['vitLvl'], 'will': createdCharacter['willLvl'], 'ap': createdCharacter['apLvl']}
+                            playComp = Player(name, playerComponent['str'], playerComponent['dex'], playerComponent['vit'], playerComponent['will'], playerComponent['load'], chosenRace, chosenClass, allTraits, LvlUp)
+                            playFight = Fighter(hp = playerComponent['hp'], power= playerComponent['pow'], armor= playerComponent['arm'], deathFunction=playerDeath, xp=0, evasion = playerComponent['ev'], accuracy = playerComponent['acc'], maxMP= playerComponent['mp'], knownSpells=playerComponent['spells'], critical = playerComponent['crit'], armorPenetration = playerComponent['ap'])
+                            player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = name, color = (0, 210, 0))
+                            player.level = 1
+                            player.Fighter.hp = player.Fighter.baseMaxHP
+                            player.Fighter.MP = player.Fighter.baseMaxMP
+        
+                            newGame()
+                            playGame()
+                        else:
+                            mainMenu()
+                    elif index == 1:
+                        error = False
+                        try:
+                            loadGame()
+                        except:
+                            msgBox("\n No saved game to load.\n", 26, False, False)
+                            error = True
+                            key = None
+                            continue
+                        if not error:
+                            playGame()
+                    elif index == 2:
+                        leaderboard()
+                    elif index == 3:
+                        gameCredits()
+                    elif index == 4:
+                        raise SystemExit("Chose Quit on the main menu")
+                tdl.flush()
+        >>>>>>> origin/secondary
+        '''
         while not tdl.event.isWindowClosed():
             root.clear()
             asciiFile = os.path.join(absAsciiPath, 'logo.xp')
@@ -6966,6 +7054,7 @@ def playGame():
                         if object.Player.hostDeath <= 0:
                             message('Your host has died! You must quickly find another one!', colors.red)
                             object.Player.inHost = False
+                            object.Player.timeOutsideLeft = 50
                     else:
                         object.Player.timeOutsideLeft -= 1
                         message('You only have {} turns left!'.format(object.Player.timeOutsideLeft), colors.red)
