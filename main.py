@@ -136,7 +136,7 @@ BOSS_SIGHT_RADIUS = 60
 bossDungeonsAppeared = {'gluttony': False}
 lastHitter = None
 nemesisList = []
-currentMusic = 'Dusty_Feelings.wav'
+currentMusic = 'No_Music.wav'
 
 # - Spells -
 LIGHTNING_DAMAGE = 40
@@ -5627,14 +5627,20 @@ def getHighScore():
 
 def playerDeath(player):
     global gameState
-    message('You died!', colors.red)
-    gameState = 'dead'
-    player.char = '%'
-    player.color = colors.dark_red
-    turnIntoNemesis()
-    getHighScore()
-    deleteSaves()
-    deathMenu()
+    if player.Player.race == 'Virus ' and player.Player.inHost:
+        player.Player.inHost = False
+        player.Player.timeOutsideLeft = 50
+        setFighterStatsBack(player.Fighter)
+        player.Fighter.hp = player.Fighter.BASE_MAX_HP
+    else:
+        message('You died!', colors.red)
+        gameState = 'dead'
+        player.char = '%'
+        player.color = colors.dark_red
+        turnIntoNemesis()
+        getHighScore()
+        deleteSaves()
+        deathMenu()
 
     
 def monsterDeath(monster):
@@ -6041,9 +6047,10 @@ def mainMenu():
     global player, currentMusic
     choices = ['New Game', 'Continue', 'Leaderboard' ,'About', 'Quit']
     index = 0
-    currentMusic = 'Dusty_Feelings.wav'
-    music = MusicThread(currentMusic)
-    music.run()
+    if currentMusic != 'Dusty_Feelings.wav':
+        currentMusic = 'Dusty_Feelings.wav'
+        music = MusicThread(currentMusic)
+        music.run()
 
     while not tdl.event.isWindowClosed():
         root.clear()
@@ -6931,6 +6938,7 @@ def playGame():
                         if object.Player.hostDeath <= 0:
                             message('Your host has died! You must quickly find another one!', colors.red)
                             object.Player.inHost = False
+                            object.Player.timeOutsideLeft = 50
                     else:
                         object.Player.timeOutsideLeft -= 1
                         message('You only have {} turns left!'.format(object.Player.timeOutsideLeft), colors.red)
