@@ -2280,17 +2280,19 @@ class Player:
             self.owner.color = (120, 0, 0)
     
     def takeControl(self, target):
-        player.Fighter.noVitHP = int(target.Fighter.hp)
-        player.Fighter.baseArmor = int(target.Fighter.armor)
-        player.Fighter.noStrengthPower = int(target.Fighter.power)
-        player.Fighter.noDexAccuracy = int(target.Fighter.accuracy)
-        player.Fighter.noDexEvasion = int(target.Fighter.evasion)
-        player.Fighter.noWillMP = int(target.Fighter.maxMP)
-        player.Fighter.baseCritical = int(target.Fighter.critical)
-        player.Fighter.baseArmorPenetration = int(target.Fighter.armorPenetration)
+        player.Fighter.noVitHP = int(target.Fighter.BASE_MAX_HP)
+        player.Fighter.hp = int(target.Fighter.hp) + 5 * self.BASE_VITALITY
+        player.Fighter.baseArmor = int(target.Fighter.BASE_ARMOR)
+        player.Fighter.noStrengthPower = int(target.Fighter.BASE_POWER)
+        player.Fighter.noDexAccuracy = int(target.Fighter.BASE_ACCURACY)
+        player.Fighter.noDexEvasion = int(target.Fighter.BASE_EVASION)
+        player.Fighter.noWillMP = int(target.Fighter.BASE_MAX_MP)
+        player.Fighter.MP = int(target.Fighter.MP)
+        player.Fighter.baseCritical = int(target.Fighter.BASE_CRITICAL)
+        player.Fighter.baseArmorPenetration = int(target.Fighter.BASE_ARMOR_PENETRATION)
         
         player.x, player.y = int(target.x), int(target.y)
-        message('You take control of ' + target.name + '!', colors.darker_han)
+        message('You take control of ' + target.name + '!', colors.han)
         objects.remove(target)
         self.inHost = True
         self.hostDeath = self.HOST_DEATH
@@ -5648,6 +5650,7 @@ def playerDeath(player):
         player.Player.timeOutsideLeft = 50
         setFighterStatsBack(player.Fighter)
         player.Fighter.hp = player.Fighter.BASE_MAX_HP
+        message('Your host was killed!', colors.red)
     else:
         message('You died!', colors.red)
         gameState = 'dead'
@@ -5693,13 +5696,17 @@ def zombieDeath(monster):
 def renderBar(cons, x, y, totalWidth, name, value, maximum, barColor, backColor):
     if maximum == 0:
         trueMax = 1
+        alwaysFull = True
     else:
         trueMax = maximum
+        alwaysFull = False
     barWidth = int(float(value) / trueMax * totalWidth) #Width of the bar is proportional to the ratio of the current value over the maximum value
     cons.draw_rect(x, y, totalWidth, 1, None, bg = backColor)#Background of the bar
     
-    if barWidth > 0:
+    if barWidth > 0 and not alwaysFull:
         cons.draw_rect(x, y, barWidth, 1, None, bg = barColor)#The actual bar
+    elif alwaysFull:
+        cons.draw_rect(x, y, totalWidth, 1, None, bg = barColor)
         
     text = name + ': ' + str(value) + '/' + str(maximum)
     xCentered = x + (totalWidth - len(text))//2
