@@ -114,7 +114,7 @@ MSG_HEIGHT = PANEL_HEIGHT - 1
 BUFF_WIDTH = 30
 BUFF_X = WIDTH - 35
 
-INVENTORY_WIDTH = 90
+INVENTORY_WIDTH = 70
 
 LEVEL_SCREEN_WIDTH = 40
 
@@ -264,7 +264,7 @@ def animStep(waitTime = .125):
     
 
 #_____________MENU_______________
-def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp, noItemMessage = None):
+def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp, selectedIndex, noItemMessage = None, displayItem = False):
     window.clear()
     for i, line in enumerate(headerWrapped):
         window.draw_str(1, 1+i, headerWrapped[i], fg = colors.yellow)
@@ -272,6 +272,7 @@ def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxP
         window.draw_str(10, y - 2, str(page + 1) + '/' + str(maxPages + 1), fg = colors.yellow)
     letterIndex = ord('a')
     counter = 0
+    pageIndex = 0
     for k in range(width):
         window.draw_char(k, 0, chr(196))
     window.draw_char(0, 0, chr(218))
@@ -293,20 +294,26 @@ def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxP
         for optionText in options:
             if counter >= page * 26 and counter < (page + 1) * 26:
                 text = '(' + chr(letterIndex) + ') ' + optionText
+                if selectedIndex == pageIndex:
+                    window.draw_str(1, y, text, fg = colors.black, bg = colors.white)
+                else:
+                    window.draw_str(1, y, text, bg=None)
                 letterIndex += 1
-                window.draw_str(1, y, text, bg=None)
                 y += 1
+                pageIndex += 1
             counter += 1
     else:
         window.draw_str(1, y, options[0], bg = None, fg = colors.red)
-        
-    x = MID_WIDTH - int(width/2)
+    if displayItem:
+        x = MID_WIDTH - int(width/2) - 15
+    else:
+        x = MID_WIDTH - int(width/2)
     y = MID_HEIGHT - int(height/2)
     root.blit(window, x, y, width, height, 0, 0)
 
     tdl.flush()
 
-def menu(header, options, width, noItemMessage = None, inGame = True, adjustHeight = True, needsInput = True):
+def menu(header, options, width, usedList = None, noItemMessage = None, inGame = True, adjustHeight = True, needsInput = True, displayItem = False):
     global menuWindows, FOV_recompute
     page = 0
     pagesDisp = True
@@ -338,14 +345,23 @@ def menu(header, options, width, noItemMessage = None, inGame = True, adjustHeig
     menuWindows.append(window)
     window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
     y = headerHeight + 2 + pagesDispHeight
-    drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp, noItemMessage)
+    drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp, noItemMessage, displayItem)
+    
+    if displayItem and usedList:
+        item = usedList[0].Item
+        item.displayItem(posX = MID_WIDTH + width//2 - 15)
     
     if needsInput:
         choseOrQuit = False
+        index = 0
         while not choseOrQuit:
+            if page == maxPages:
+                maxIndex = len(options) - maxPages * 26 - 1
+            else:
+                maxIndex = 25
             choseOrQuit = True
             arrow = False
-            drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp, noItemMessage)
+            drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp, index, noItemMessage, displayItem)
             key = tdl.event.key_wait()
             keyChar = key.keychar
             if keyChar == '':
@@ -358,16 +374,34 @@ def menu(header, options, width, noItemMessage = None, inGame = True, adjustHeig
                 page -= 1
                 choseOrQuit = False
                 arrow = True
+            elif keyChar == 'UP':
+                choseOrQuit = False
+                index -= 1
+                arrow = True
+            elif keyChar == 'DOWN':
+                choseOrQuit = False
+                index += 1
+                arrow = True
             if page > maxPages:
                 page = 0
             if page < 0:
                 page = maxPages
+            if index < 0:
+                index = maxIndex
+            if index > maxIndex:
+                index = 0
+            
+            if displayItem and usedList:
+                item = usedList[index + page * 26].Item
+                item.displayItem(posX = MID_WIDTH + width//2 - 15)
             
             if not arrow:
-                if keyChar in 'abcdefghijklmnopqrstuvwsyz':
+                if keyChar in 'abcdefghijklmnopqrstuvwxyz':
                     index = ord(keyChar) - ord('a')
                     if index >= 0 and index < len(options):
                         return index + page * 26
+                elif keyChar.upper() == 'ENTER':
+                    return index + page * 26
                 elif keyChar.upper() == "ESCAPE":
                     return "cancelled"
     else:
@@ -2628,6 +2662,62 @@ class Item:
         fullDesc.extend(equipmentStats)
         return fullDesc
     
+    def displayItem(self, posX = 0):
+        global FOV_recompute, menuWindows
+        asciiFile = os.path.join(absAsciiPath, self.pic)
+        xpRawString = gzip.open(asciiFile, "r").read()
+        convertedString = xpRawString
+        attributes = xpL.load_xp_string(convertedString)
+        picWidth = int(attributes["width"])
+        picHeight = int(attributes["height"])
+        print("Pic Height = ", picHeight)
+        lData = attributes["layer_data"]
+        
+        width = picWidth + 15
+        desc = self.fullDescription(width - 2)
+        descriptionHeight = len(desc)
+        if desc == '':
+            descriptionHeight = 0
+        height = descriptionHeight + 6 + int(picHeight) + 1
+        window = tdl.Console(width, height)
+        window.clear()
+
+        for k in range(width):
+            window.draw_char(k, 0, chr(196))
+        window.draw_char(0, 0, chr(218))
+        window.draw_char(k, 0, chr(191))
+        kMax = k
+        for l in range(height):
+            if l > 0:
+                window.draw_char(0, l, chr(179))
+                window.draw_char(kMax, l, chr(179))
+        lMax = l
+        for m in range(width):
+            window.draw_char(m, lMax, chr(196))
+        window.draw_char(0, lMax, chr(192))
+        window.draw_char(kMax, lMax, chr(217))
+        startY = 4
+        startX = 3
+        layerInd = int(0)
+        for layerInd in range(len(lData)):
+            xpL.load_layer_to_console(window, lData[layerInd], startY, startX)
+        #for line in self.pic:
+            #x = 2
+            #for char in line:
+                #window.draw_char(x, y, char[0], char[1], char[2])
+                #x += 1
+            #y += 1
+        
+        window.draw_str(1, 1, self.owner.name.capitalize() + ':', fg = colors.yellow, bg = None)
+        for i, line in enumerate(desc):
+            window.draw_str(1, int(picHeight) + 5 + i, desc[i], fg = colors.white)
+        posY = MID_HEIGHT - height//2
+        root.blit(window, posX, posY, width, height, 0, 0)
+        
+        menuWindows.append(window)
+        FOV_recompute = True
+        tdl.flush()
+    
     def display(self, options):
         global menuWindows, FOV_recompute
         asciiFile = os.path.join(absAsciiPath, self.pic)
@@ -2653,6 +2743,7 @@ class Item:
                 tdl.flush()
         window = tdl.Console(width, height)
         window.clear()
+        menuWindows.append(window)
         
         choseOrQuit = False
         while not choseOrQuit:
@@ -2683,7 +2774,6 @@ class Item:
                     #x += 1
                 #y += 1
             
-            
             window.draw_str(1, 1, self.owner.name.capitalize() + ':', fg = colors.yellow, bg = None)
             for i, line in enumerate(desc):
                 window.draw_str(1, int(picHeight) + 5 + i, desc[i], fg = colors.white)
@@ -2697,10 +2787,10 @@ class Item:
                 window.draw_str(1, y, text, bg=None)
                 y += 1
                 counter += 1
-                
-            x = MID_WIDTH - int(width/2)
-            y = MID_HEIGHT - int(height/2)
-            root.blit(window, x, y, width, height, 0, 0)
+
+            posX = MID_WIDTH - int(width/2)
+            posY = MID_HEIGHT - int(height/2)
+            root.blit(window, posX, posY, width, height, 0, 0)
         
             tdl.flush()
             
@@ -5823,7 +5913,7 @@ def inventoryMenu(header, invList = None, noItemMessage = 'Inventory is empty'):
                 if item.Item.stackable:
                     text = text + ' (' + str(item.Item.amount) + ')'
                 options.append(text)
-        index = menu(header, options, INVENTORY_WIDTH, noItemMessage)
+        index = menu(header, options, INVENTORY_WIDTH, invList, noItemMessage, displayItem=True)
         if index is None or len(invList) == 0 or index == "cancelled":
             return None
         else:
