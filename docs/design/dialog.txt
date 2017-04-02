@@ -28,8 +28,8 @@ Intro line : {PLACEHOLDER}
 Dialog choices : 
   1) What do you think about stairs ?
 	- ID : stairs
-	- Answer : 'No... No.... Not again.... NOT AGAIN ! \n
-	  *He seems to have lost all bounds with the reality as he repeats the same words over and over. It would be better to leave him alone for now*'
+	- Answer : 'No... No.... Not again.... NOT AGAIN !' \n
+	  *He seems to have lost all bounds with the reality as he repeats the same words over and over. It would be better to leave him alone for now*
 	- Choices :		
 	 	1) (End conversation)
 			-ID : End
@@ -38,7 +38,7 @@ Dialog choices :
 	- ID : debug
 	- Answer : 'I hate bugs more than anything in this world. So, I used to walk down the everchanging corridors of this darned place, and to splat any bugs that entered my vision, ignoring the other abominations which roam this site 
 	- Choices :
-		1) It seemed you were quite effective, since I didn't see any bug around them.
+		1) It seemed you were quite effective, since I didn't see any bug around there.
 			- ID : bugs
 			- Answer : 'It's not because you haven't seen them that they're not here. They're everywhere, all around us, and they will always be.'
 			- Choices :
@@ -46,12 +46,12 @@ Dialog choices :
 					- ID : Back
 		2) Why did you ignore the monsters around you ? They are way more dangerous than mere insects.
 			- ID : dangerous
-			- Answer : 'That's where you're wrong. Bugs are way more powerful than any monster you'll encounter, and they can't be killed by swords or magic. They are the ones you should be afraid of.
+			- Answer : 'That's where you're wrong. Bugs are way more powerful than any monster you'll encounter, and they can't be killed by swords or magic. They are the ones you should be afraid of.'
 				1) (Back)
 					- ID : Back
 		3) You used to ? Why did you stopped ?
 			- ID : stop
-			- Answer : 'Because I have grown old, in case you couldn't tell. Age made me too weak for such a task, it was time for me to get remplaced by people more competent than I am.
+			- Answer : 'Because I have grown old, in case you couldn't tell. Age made me too weak for such a task, it was time for me to get replaced by people more competent than I am.'
 
 		4) (Back)
 			- ID : Back

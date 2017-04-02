@@ -1,10 +1,15 @@
-import colors, math, textwrap, time, os, sys, code, gzip, pathlib, traceback #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
+import colors, math, textwrap, time, os, sys, code, gzip, pathlib, traceback, ffmpy #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
 import tdlib as tdl
+import code.dialog as dial
+import music as mus
 import simpleaudio as sa
-import dill #THIS IS NOT AN UNUSED IMPORT. Importing this changes the behavior of the pickle module (and the shelve module too), so as we can actually save lambda expressions
+import threading, multiprocessing
+import dill #THIS IS NOT AN UNUSED IMPORT. Importing this changes the behavior of the pickle module (and the shelve module too), so as we can actually save lambda expressions. EDIT : It might actually be useless to import it here, since we import it in the dilledShelve module, but it freaking finally works perfectly fine so we're not touching this.
 from tdl import *
 from random import randint, choice
 from math import *
+from code.custom_except import *
+from copy import copy, deepcopy
 from os import makedirs
 from code.constants import MAX_HIGH_CULTIST_MINIONS
 import code.nameGen as nameGen
@@ -12,22 +17,28 @@ import code.xpLoaderPy3 as xpL
 import code.dunbranches as dBr
 import code.dilledShelve as shelve
 from code.dunbranches import gluttonyDungeon
+from code.custom_except import UnusableMethodException
+from music import playWavSound
+from multiprocessing import freeze_support
 
 def notCloseImmediatelyAfterCrash(exc_type, exc_value, tb):
-    traceback.print_exception(exc_type, exc_value, tb)
+    '''
+    Does exactly what it says on the tin : prevents the console from closing immediately after crash
+    '''
+    traceback.print_exception(exc_type, exc_value, tb) #Print the error message
     try:
-        root.__del__()
+        root.__del__() #Delete the game window
     except Exception as error:
         print('Cannot delete window')
         print('Problem = ' + str(type(error)))
         print('Details = ' + str(error.args))
-    if getattr(sys, 'frozen', False):
-        input('Press Enter to exit')
+    if getattr(sys, 'frozen', False): #If we are running the frozen binaries, then we prevent the console from immediately closing
+        input('Press Enter to exit') #Prevent stuff from executing further until we press Enter
     else:
-        pass
-    os._exit(-1)
+        pass #If we are not running the frozen binaries, we close the program immediately, since we can read the error log in IDLE/PyDev/WhateverIDEYouAreUsing's console.
+    os._exit(-1) #Exit the program
     
-sys.excepthook = notCloseImmediatelyAfterCrash
+sys.excepthook = notCloseImmediatelyAfterCrash #We call the above defined function each time the program encounters an unhandled exception. Don't try to change this function to a simple 'pass' so as to 'fix all crashes'. This would make so a lot of stuff would break and we wouldn't know when it did break or what caused it to break.
 # Naming conventions :
 # MY_CONSTANT
 # myVariable
@@ -35,8 +46,29 @@ sys.excepthook = notCloseImmediatelyAfterCrash
 # MyClass
 # Not dramatic if you forget about this (it happens to me too), but it makes reading code easier
 
-#NEVER SET AN EVASION VALUE AT ZERO, SET IT AT ONE INSTEAD#
+class MusicThread(threading.Thread):
+    def __init__(self, musicName = 'Bumpy_Roots.wav'):
+        self.musicName = musicName
+        self.playObj = None
+        threading.Thread.__init__(self)
+        self.daemon = True
+    
+    def run(self):
+        while True:
+            if self.playObj is None or not self.playObj.is_playing():
+                self.playObj = playWavSound(self.musicName, forceStop=True)
 
+def runMusic(musicName):
+    playObj = None
+    while True:
+        if playObj is None or not playObj.is_playing():
+            playObj = playWavSound(musicName, forceStop=True)
+            
+class NamedConsole(tdl.Console):
+    def __init__(self, name, width, height, type = 'noType'):
+        self.name = name
+        self.type = type
+        tdl.Console.__init__(self, width, height)
 #_____________ CONSTANTS __________________
 MOVEMENT_KEYS = {
                  #Standard arrows
@@ -66,7 +98,7 @@ MOVEMENT_KEYS = {
                  
                  }
 
-WIDTH, HEIGHT, LIMIT = 170, 95, 20
+WIDTH, HEIGHT, LIMIT = 150, 80, 20
 MAP_WIDTH, MAP_HEIGHT = 140, 60
 MID_MAP_WIDTH, MID_MAP_HEIGHT = MAP_WIDTH//2, MAP_HEIGHT//2
 MID_WIDTH, MID_HEIGHT = int(WIDTH/2), int(HEIGHT/2)
@@ -75,6 +107,8 @@ MID_WIDTH, MID_HEIGHT = int(WIDTH/2), int(HEIGHT/2)
 BAR_WIDTH = 20
 
 PANEL_HEIGHT = 10
+CON_HEIGHT = HEIGHT - PANEL_HEIGHT
+MID_CON_HEIGHT = int(CON_HEIGHT // 2)
 PANEL_Y = HEIGHT - PANEL_HEIGHT
 
 MSG_X = BAR_WIDTH + 10
@@ -84,18 +118,26 @@ MSG_HEIGHT = PANEL_HEIGHT - 1
 BUFF_WIDTH = 30
 BUFF_X = WIDTH - 35
 
-INVENTORY_WIDTH = 90
+INVENTORY_WIDTH = 70
 
 LEVEL_SCREEN_WIDTH = 40
 
 CHARACTER_SCREEN_WIDTH = 50
-CHARACTER_SCREEN_HEIGHT = 20
+CHARACTER_SCREEN_HEIGHT = 21
+
+DEATH_SCREEN_WIDTH = 25
+DEATH_SCREEN_HEIGHT = 10
 # - GUI Constants -
 
 # - Consoles -
-root = tdl.init(WIDTH, HEIGHT, 'Dementia')
-con = tdl.Console(WIDTH, HEIGHT)
-panel = tdl.Console(WIDTH, PANEL_HEIGHT)
+if __name__ == '__main__':
+    root = tdl.init(WIDTH, HEIGHT, 'Dementia')
+    con = NamedConsole('con', WIDTH, HEIGHT)
+    panel = NamedConsole('panel', WIDTH, PANEL_HEIGHT)
+else:
+    root = None
+    con = None
+    panel = None
 # - Consoles
 
 FOV_recompute = True
@@ -114,6 +156,9 @@ boss_FOV_recompute = True
 BOSS_FOV_ALGO = 'BASIC'
 BOSS_SIGHT_RADIUS = 60
 bossDungeonsAppeared = {'gluttony': False}
+lastHitter = None
+nemesisList = []
+currentMusic = 'No_Music.wav'
 
 # - Spells -
 LIGHTNING_DAMAGE = 40
@@ -160,6 +205,7 @@ inventory = [] #Player inventory
 equipmentList = [] #Player equipment
 activeSounds = []
 spells = [] #List of all spells in the game
+activeProcess = []
 ########
 # These need to be globals because otherwise Python will flip out when we try to look for some kind of stairs in the object lists.
 stairs = None
@@ -186,7 +232,7 @@ def deleteSaves():
         os.makedirs(absDirPath)
         print('Created save folder')
     os.chdir(absDirPath)
-    saves = [save for save in os.listdir(absDirPath) if (save.endswith(".bak") or save.endswith(".dat") or save.endswith(".dir") or save.startswith("map"))]
+    saves = [save for save in os.listdir(absDirPath) if ((save.endswith(".bak") or save.endswith(".dat") or save.endswith(".dir") or save.startswith("map")) and not save.startswith('nemesis'))]
     for save in saves:
         os.remove(save)
         print("Deleted " + str(save))
@@ -198,17 +244,48 @@ relPicklePath = "save\\equipment"
 relAssetPath = "assets"
 relSoundPath = "assets\\sound"
 relAsciiPath = "assets\\ascii"
+relMusicPath = 'assets\\music'
+relMetaPath = "metasave\\meta"
+relMetaDirPath = "metasave"
+relCodePath = "code"
 absDirPath = os.path.join(curDir, relDirPath)
 absFilePath = os.path.join(curDir, relPath)
 absPicklePath = os.path.join(curDir, relPicklePath)
 absAssetPath = os.path.join(curDir, relAssetPath)
 absSoundPath = os.path.join(curDir, relSoundPath)
+absMusicPath = os.path.join(curDir, relMusicPath)
 absAsciiPath = os.path.join(curDir, relAsciiPath)
+absMetaPath = os.path.join(curDir, relMetaPath)
+absMetaDirPath = os.path.join(curDir, relMetaDirPath)
+absCodePath = os.path.join(curDir, relCodePath)
 
 stairCooldown = 0
 pathfinder = None
 pathToTargetTile = []
 
+def convertMusics():
+    musicList = ['Bumpy_Roots', 'Dusty_Feelings', 'Hoxton_Princess']
+    executablePath = os.path.join(absCodePath, 'ffmpeg.exe')
+    for music in musicList:
+        mp3Music = music + '.mp3'
+        wavMusic = music + '.wav'
+        mp3Path = os.path.join(absMusicPath, mp3Music)
+        wavPath = os.path.join(absSoundPath, wavMusic)
+        if os.path.exists(wavPath):
+            print('MUSIC_CHK : Found {}'.format(wavPath))
+        else:
+            print('MUSIC_CHK_WAR : Didnt found {}'.format(wavPath))
+            if os.path.exists(mp3Path):
+                print('MUSIC_CONV : Converting {} to wav'.format(mp3Path))
+                ff = ffmpy.FFmpeg(inputs = {mp3Path : None}, outputs= {wavPath : None}, executable= executablePath)
+                ff.run()
+                print('MUSIC_CONV : Created {}'.format(wavPath))
+            else:
+                print('MUSIC_CONV_ERR : Path {} doesnt exists, skipping...'.format(mp3Path))
+        print()
+        
+        
+        
 def animStep(waitTime = .125):
     global FOV_recompute
     FOV_recompute = True
@@ -216,16 +293,9 @@ def animStep(waitTime = .125):
     tdl.flush()
     time.sleep(waitTime)
     
-def playWavSound(sound, forceStop = False):
-    if forceStop:
-        sa.stop_all()
-    soundPath = os.path.join(absSoundPath, sound)
-    waveObj = sa.WaveObject.from_wave_file(soundPath)
-    waveObj.play()
-    #TO-DO : Add an ear-rape prevention system, such as allowing sounds to be played every X milliseconds.
 
 #_____________MENU_______________
-def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp, noItemMessage = None):
+def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp, selectedIndex, noItemMessage = None, displayItem = False):
     window.clear()
     for i, line in enumerate(headerWrapped):
         window.draw_str(1, 1+i, headerWrapped[i], fg = colors.yellow)
@@ -233,6 +303,7 @@ def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxP
         window.draw_str(10, y - 2, str(page + 1) + '/' + str(maxPages + 1), fg = colors.yellow)
     letterIndex = ord('a')
     counter = 0
+    pageIndex = 0
     for k in range(width):
         window.draw_char(k, 0, chr(196))
     window.draw_char(0, 0, chr(218))
@@ -254,26 +325,36 @@ def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxP
         for optionText in options:
             if counter >= page * 26 and counter < (page + 1) * 26:
                 text = '(' + chr(letterIndex) + ') ' + optionText
+                if selectedIndex == pageIndex:
+                    window.draw_str(1, y, text, fg = colors.black, bg = colors.white)
+                else:
+                    window.draw_str(1, y, text, bg=None)
                 letterIndex += 1
-                window.draw_str(1, y, text, bg=None)
                 y += 1
+                pageIndex += 1
             counter += 1
     else:
         window.draw_str(1, y, options[0], bg = None, fg = colors.red)
-        
-    x = MID_WIDTH - int(width/2)
+    if displayItem:
+        x = MID_WIDTH - int(width/2) - 15
+    else:
+        x = MID_WIDTH - int(width/2)
     y = MID_HEIGHT - int(height/2)
     root.blit(window, x, y, width, height, 0, 0)
+    
+    if not displayItem:
+        tdl.flush()
 
-    tdl.flush()
-
-def menu(header, options, width, noItemMessage = None, inGame = True, adjustHeight = True):
+def menu(header, options, width, usedList = None, noItemMessage = None, inGame = True, adjustHeight = True, needsInput = True, displayItem = False, name = 'noName'):
     global menuWindows, FOV_recompute
     page = 0
     pagesDisp = True
     maxPages = len(options)//26
     if maxPages < 1:
         pagesDisp = False
+    pagesDispHeight = 0
+    if pagesDisp:
+        pagesDispHeight = 1
     headerWrapped = textwrap.wrap(header, width)
     headerHeight = len(headerWrapped)
     if adjustHeight:
@@ -283,58 +364,123 @@ def menu(header, options, width, noItemMessage = None, inGame = True, adjustHeig
     if header == "":
         headerHeight = 0
     if len(options) > 26:
-        height = 26 + headerHeight + toAdd
+        height = 26 + headerHeight + toAdd + pagesDispHeight
     else:
-        height = len(options) + headerHeight + toAdd
+        height = len(options) + headerHeight + toAdd + pagesDispHeight
     if menuWindows and inGame:
         for mWindow in menuWindows:
             mWindow.clear()
         FOV_recompute = True
         Update()
         tdl.flush()
-    window = tdl.Console(width, height)
+    window = NamedConsole(name, width, height, 'menu')
     menuWindows.append(window)
     window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
-    y = headerHeight + 2
-    drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp, noItemMessage)
-
-    choseOrQuit = False
-    while not choseOrQuit:
-        choseOrQuit = True
-        arrow = False
-        drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp, noItemMessage)
-        key = tdl.event.key_wait()
-        keyChar = key.keychar
-        if keyChar == '':
-            keyChar = ' '
-        elif keyChar == 'RIGHT':
-            page += 1
-            choseOrQuit = False
-            arrow = True
-        elif keyChar == 'LEFT':
-            page -= 1
-            choseOrQuit = False
-            arrow = True
-        if page > maxPages:
-            page = 0
-        if page < 0:
-            page = maxPages
-        
-        if not arrow:
-            if keyChar in 'abcdefghijklmnopqrstuvwsyz':
-                index = ord(keyChar) - ord('a')
-                if index >= 0 and index < len(options):
+    y = headerHeight + 2 + pagesDispHeight
+    drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp, noItemMessage, displayItem)
+    print('Not loop menu option draw')
+    
+    if displayItem and usedList:
+        item = usedList[0].Item
+        item.displayItem(posX = MID_WIDTH + width//2 - 15)
+    print('Not loop item disp')
+    tdl.flush()
+    
+    if needsInput:
+        choseOrQuit = False
+        index = 0
+        while not choseOrQuit:
+            if page == maxPages:
+                maxIndex = len(options) - maxPages * 26 - 1
+            else:
+                maxIndex = 25
+            choseOrQuit = True
+            arrow = False
+            drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp, index, noItemMessage, displayItem)
+            tdl.flush()
+            print('Loop menu option disp')
+            key = tdl.event.key_wait()
+            keyChar = key.keychar
+            if keyChar == '':
+                keyChar = ' '
+            elif keyChar == 'RIGHT':
+                page += 1
+                choseOrQuit = False
+                arrow = True
+            elif keyChar == 'LEFT':
+                page -= 1
+                choseOrQuit = False
+                arrow = True
+            elif keyChar == 'UP':
+                choseOrQuit = False
+                index -= 1
+                arrow = True
+            elif keyChar == 'DOWN':
+                choseOrQuit = False
+                index += 1
+                arrow = True
+            if page > maxPages:
+                page = 0
+            if page < 0:
+                page = maxPages
+            if index < 0:
+                index = maxIndex
+            if index > maxIndex:
+                index = 0
+            
+            if displayItem and usedList:
+                item = usedList[index + page * 26].Item
+                item.displayItem(posX = MID_WIDTH + width//2 - 15)
+            print('Loop item disp')
+            tdl.flush()
+            
+            if not arrow:
+                if keyChar in 'abcdefghijklmnopqrstuvwxyz':
+                    index = ord(keyChar) - ord('a')
+                    if index >= 0 and index < len(options):
+                        return index + page * 26
+                elif keyChar.upper() == 'ENTER':
+                    if menuWindows and inGame:
+                        for mWindow in menuWindows:
+                            mWindow.clear()
+                            ind = menuWindows.index(mWindow)
+                            del menuWindows[ind]
                     return index + page * 26
-            elif keyChar.upper() == "ESCAPE":
-                return "cancelled"
+                elif keyChar.upper() == "ESCAPE":
+                    print('Cancelled')
+                    return "cancelled"
+    else:
+        pass
     return None
 
-def msgBox(text, width = 50, inGame = True, adjustHeight = True):
-    menu(text, [], width, None, inGame, adjustHeight)
+def msgBox(text, width = 50, inGame = True, adjustHeight = True, adjustWidth = False, needsInput = True):
+    if adjustWidth:
+        textLength = len(text)
+        width = textLength + 2
+    menu(text, [], width, None, inGame, adjustHeight, needsInput)
 
 def drawCentered (cons = con , y = 1, text = "Lorem Ipsum", fg = None, bg = None):
     xCentered = (WIDTH - len(text))//2
     cons.draw_str(xCentered, y, text, fg, bg)
+
+def getCenterFilled(text = 'Lorem Ipsum'):
+    xCentered = (WIDTH - len(text))//2
+    newText = ''
+    passNb = 0
+    while passNb != 2:
+        for x in range(xCentered):
+            newText += ' '
+        if passNb == 0:
+            newText += text
+        passNb += 1
+    return newText
+
+def getRightFilled(text = 'Lorem Ipsum'):
+    newText = str(text)
+    remaining = WIDTH - len(newText)
+    for loop in range(remaining):
+        newText += ' '
+    return newText
 
 def drawCenteredOnX(cons = con, x = 1, y = 1, text = "Lorem Ipsum", fg = None, bg = None):
     centeredOnX = x - (len(text)//2)
@@ -349,74 +495,99 @@ def convertBuffsToNames(fighter):
     return names
 
 def modifyFighterStats(fighter = None, pow = 0, acc = 0, evas = 0, arm = 0, hp = 0, mp = 0, crit = 0, ap = 0, str = 0, dex = 0, vit = 0, will = 0):
+    hpDiff = fighter.baseMaxHP - fighter.hp
+    print(fighter.baseMaxHP, fighter.hp, hpDiff)
+    mpDiff = fighter.baseMaxMP - fighter.MP
     if fighter.owner == player:
         player.Player.strength += str
         player.Player.dexterity += dex
         player.Player.vitality += vit
+        print(player.Player.BASE_VITALITY, player.Player.vitality, vit)
         player.Player.willpower += will
-        player.Player.updatePlayerStats()
-    fighter.basePower += pow
-    fighter.baseAccuracy += acc
-    fighter.baseEvasion += evas
+    fighter.noStrengthPower += pow
+    fighter.noDexAccuracy += acc
+    fighter.noDexEvasion += evas
     fighter.baseArmor += arm
-    fighter.baseMaxHP += hp
-    fighter.hp += hp
-    fighter.baseMaxMP += mp
-    fighter.MP += mp
+    
+    print(fighter.noVitHP, fighter.hp)
+    fighter.noVitHP += hp
+    fighter.hp = fighter.baseMaxHP - hpDiff
+    print(fighter.noVitHP, fighter.hp, fighter.baseMaxHP, hp)
+    fighter.noWillMP += mp
+    fighter.MP = fighter.baseMaxMP - mpDiff
     fighter.baseCritical += crit
     fighter.baseArmorPenetration += ap
 
 def setFighterStatsBack(fighter = None):
-    fighter.basePower = fighter.BASE_POWER
-    fighter.baseAccuracy = fighter.BASE_ACCURACY
-    fighter.baseEvasion = fighter.BASE_EVASION
-    fighter.baseArmor = fighter.BASE_ARMOR
-    fighter.hp -= fighter.baseMaxHP - fighter.BASE_MAX_HP
-    fighter.baseMaxHP = fighter.BASE_MAX_HP
-    fighter.MP -= fighter.baseMaxMP - fighter.BASE_MAX_MP
-    fighter.baseMaxMP = fighter.BASE_MAX_MP
-    fighter.baseCritical = fighter.BASE_CRITICAL
-    fighter.baseArmorPenetration = fighter.BASE_ARMOR_PENETRATION
+    hpDiff = fighter.baseMaxHP - fighter.hp
+    print(fighter.baseMaxHP, fighter.hp, hpDiff, fighter.noVitHP)
+    mpDiff = fighter.baseMaxMP - fighter.MP
+    print(player.Player.vitality, player.Player.BASE_VITALITY)
     if fighter.owner == player:
         player.Player.strength = player.Player.BASE_STRENGTH
         player.Player.dexterity = player.Player.BASE_DEXTERITY
         player.Player.vitality = player.Player.BASE_VITALITY
+        print(player.Player.vitality)
         player.Player.willpower = player.Player.BASE_WILLPOWER
-        player.Player.updatePlayerStats()
+    fighter.noStrengthPower = fighter.BASE_POWER
+    fighter.noDexAccuracy = fighter.BASE_ACCURACY
+    fighter.noDexEvasion = fighter.BASE_EVASION
+    fighter.baseArmor = fighter.BASE_ARMOR
 
-def randomDamage(fighter = None, chance = 33, minDamage = 1, maxDamage = 1, dmgMessage = None, dmgColor = colors.red, msgPlayerOnly = True):
+    fighter.noVitHP = fighter.BASE_MAX_HP
+    print(fighter.noVitHP, fighter.BASE_MAX_HP, fighter.hp)
+    fighter.hp = fighter.baseMaxHP - hpDiff
+    print(fighter.hp, fighter.baseMaxHP)
+
+    fighter.noWillMP = fighter.BASE_MAX_MP
+    fighter.MP = fighter.baseMaxMP - mpDiff
+
+    fighter.baseCritical = fighter.BASE_CRITICAL
+    fighter.baseArmorPenetration = fighter.BASE_ARMOR_PENETRATION
+
+def randomDamage(name, fighter = None, chance = 33, minDamage = 1, maxDamage = 1, dmgMessage = None, dmgColor = colors.red, msgPlayerOnly = True):
     dice = randint(1, 100)
     if dice <= chance:
         damage = randint(minDamage, maxDamage)
-        fighter.takeDamage(damage)
-        if (dmgMessage is not None) and (fighter == player or (not msgPlayerOnly)):
+        fighter.takeDamage(damage, name)
+        if (dmgMessage is not None) and (fighter == player.Fighter or (not msgPlayerOnly)):
             message(dmgMessage.format(damage), dmgColor)
 
 class Buff: #also (and mainly) used for debuffs
-    def __init__(self, name, color, owner = None, cooldown = 20, applyFunction = None, continuousFunction = None, removeFunction = None):
+    def __init__(self, name, color, owner = None, cooldown = 20, showCooldown = True, showBuff = True, applyFunction = None, continuousFunction = None, removeFunction = None):
         self.name = name
         self.color = color
+        self.baseCooldown = cooldown
         self.curCooldown = cooldown
         self.applyFunction = applyFunction
         self.continuousFunction = continuousFunction
         self.removeFunction = removeFunction
         self.owner = owner
+        self.showCooldown = showCooldown
+        self.showBuff = showBuff
     
-    def applyBuff(self):
-        if not self.name in convertBuffsToNames(self.owner.Fighter):
-            message(self.owner.name.capitalize() + ' is now ' + self.name + '!', self.color)
+    def applyBuff(self, target):
+        print(self.name, target.name)
+        if not self.name in convertBuffsToNames(target.Fighter):
+            self.curCooldown = self.baseCooldown
+            self.owner = target
+            if self.showBuff:
+                message(self.owner.name.capitalize() + ' is now ' + self.name + '!', self.color)
             if self.applyFunction is not None:
-                self.applyFunction()
+                self.applyFunction(self.owner.Fighter)
             self.owner.Fighter.buffList.append(self)
         else:
             bIndex = convertBuffsToNames(self.owner.Fighter).index(self.name)
-            self.owner.Fighter.buffList[bIndex].curCooldown += self.curCooldown
+            target.Fighter.buffList[bIndex].curCooldown += self.baseCooldown
     
     def removeBuff(self):
         if self.removeFunction is not None:
-            self.removeFunction()
+            self.removeFunction(self.owner.Fighter)
         self.owner.Fighter.buffList.remove(self)
-        message(self.owner.name.capitalize() + ' is no longer ' + self.name + '.', self.color)
+        if self.owner.Fighter.buffList is None:
+            self.owner.Fighter.buffList = []
+        if self.showBuff:
+            message(self.owner.name.capitalize() + ' is no longer ' + self.name + '.', self.color)
     
     def passTurn(self):
         self.curCooldown -= 1
@@ -424,7 +595,7 @@ class Buff: #also (and mainly) used for debuffs
             self.removeBuff()
         else:
             if self.continuousFunction is not None:
-                self.continuousFunction()
+                self.continuousFunction(self.owner.Fighter)
 #_________ BUFFS ___________
 
 #_____________SPELLS_____________
@@ -445,9 +616,9 @@ class Spell:
 
     def updateSpellStats(self):
         if self.name == 'Fireball':
-            self.arg1 = FIREBALL_SPELL_BASE_RADIUS + player.Player.actualPerSkills[4]
-            self.arg2 = FIREBALL_SPELL_BASE_DAMAGE * player.Player.actualPerSkills[4]
-            self.arg3 = FIREBALL_SPELL_BASE_RANGE + player.Player.actualPerSkills[4] 
+            self.arg1 = FIREBALL_SPELL_BASE_RADIUS + player.Player.getTrait('skill', 'Magic ').amount
+            self.arg2 = FIREBALL_SPELL_BASE_DAMAGE * player.Player.getTrait('skill', 'Magic ').amount
+            self.arg3 = FIREBALL_SPELL_BASE_RANGE + player.Player.getTrait('skill', 'Magic ').amount
 
     def cast(self, caster = player, target = player):
         global FOV_recompute
@@ -468,7 +639,7 @@ class Spell:
                 if self.ressource == 'MP':
                     caster.Fighter.MP -= self.ressourceCost
                 elif self.ressource == 'HP':
-                    caster.Fighter.takeDamage(self.ressourceCost)
+                    caster.Fighter.takeDamage(self.ressourceCost, 'your spell')
                 return 'used'
             else:
                 return 'cancelled'
@@ -481,7 +652,7 @@ class Spell:
                 if self.ressource == 'MP':
                     caster.Fighter.MP -= self.ressourceCost
                 elif self.ressource == 'HP':
-                    caster.Fighter.takeDamage(self.ressourceCost)
+                    caster.Fighter.takeDamage(self.ressourceCost, 'your spell')
                 return 'used'
             else:
                 return 'cancelled'
@@ -494,7 +665,7 @@ class Spell:
                 if self.ressource == 'MP':
                     caster.Fighter.MP -= self.ressourceCost
                 elif self.ressource == 'HP':
-                    caster.Fighter.takeDamage(self.ressourceCost)
+                    caster.Fighter.takeDamage(self.ressourceCost, 'your spell')
                 return 'used'
             else:
                 return 'cancelled'
@@ -507,7 +678,7 @@ class Spell:
                 if self.ressource == 'MP':
                     caster.Fighter.MP -= self.ressourceCost
                 elif self.ressource == 'HP':
-                    caster.Fighter.takeDamage(self.ressourceCost)
+                    caster.Fighter.takeDamage(self.ressourceCost, 'your spell')
                 return 'used'
             else:
                 return 'cancelled'
@@ -561,7 +732,7 @@ def castLightning(caster = None, monsterTarget = player):
         message(caster.name.capitalize() + "'s magic fizzles: there is no enemy near enough to strike", colors.red)
         return 'cancelled'
     message('A lightning bolt strikes the ' + target.name + ' with a heavy thunder ! It is shocked and suffers ' + str(LIGHTNING_DAMAGE) + ' shock damage.', colors.light_blue)
-    target.Fighter.takeDamage(LIGHTNING_DAMAGE)
+    target.Fighter.takeDamage(LIGHTNING_DAMAGE, caster.name + "'s lightning spell")
 
 def castConfuse(caster = None, monsterTarget = None):
     if caster is None or caster == player:
@@ -582,12 +753,12 @@ def castFreeze(caster = None, monsterTarget = None):
         target = targetMonster(maxRange = None)
     else:
         target = monsterTarget
-    frozen = Buff('frozen', colors.light_violet, owner = target, cooldown = 4)
+    frozen = Buff('frozen', colors.light_violet, cooldown = 4)
     if target is None:
         message('Invalid target.', colors.red)
         return 'cancelled'
     if not 'frozen' in convertBuffsToNames(target.Fighter):
-        frozen.applyBuff()
+        frozen.applyBuff(target)
     else:
         message("The " + target.name + " is already frozen.")
         return 'cancelled'
@@ -625,7 +796,7 @@ def castFireball(radius = 3, damage = 24, range = 4, caster = None, monsterTarge
                     message('The {} gets burned for {} damage !'.format(obj.name, damage), colors.light_blue)
                 else:
                     message('You get burned for {} damage !'.format(damage), colors.orange)
-                obj.Fighter.takeDamage(damage)
+                obj.Fighter.takeDamage(damage, caster.name + "'s fireball spell")
                 applyBurn(obj)
         #for x in range(targetX - radmax, targetX + radmax):
             #for y in range(targetY - radmax, targetY + radmax):
@@ -688,7 +859,7 @@ def castArmageddon(radius = 4, damage = 80, caster = None, monsterTarget = None)
                                     message('The {} gets smited for {} damage !'.format(obj.name, damage), colors.light_blue)
                                 else:
                                     message('You get smited for {} damage !'.format(damage), colors.orange)        
-                                obj.Fighter.takeDamage(damage)
+                                obj.Fighter.takeDamage(damage, caster.name + "'s armaggedon spell")
                             except AttributeError: #If it tries to access a non-existing object (aka outside of the map)
                                 continue
             except IndexError: #If an IndexError is encountered (aka if the function tries to access a tile outside of the map), execute code below except
@@ -699,8 +870,8 @@ def castArmageddon(radius = 4, damage = 80, caster = None, monsterTarget = None)
 def castEnrage(enrageTurns, caster = None, monsterTarget = None):
     if caster is None or caster == player:
         caster = player
-    enraged = Buff('enraged', colors.dark_red, owner = caster, cooldown = enrageTurns, applyFunction = lambda: modifyFighterStats(caster.Fighter, pow = 10), removeFunction = lambda: setFighterStatsBack(caster.Fighter))
-    enraged.applyBuff()
+    enraged = Buff('enraged', colors.dark_red, cooldown = enrageTurns, applyFunction = lambda fighter: modifyFighterStats(fighter, pow = 10), removeFunction = lambda fighter: setFighterStatsBack(fighter))
+    enraged.applyBuff(caster)
 
 def castRessurect(range = 4, caster = None, monsterTarget = None):
     if caster is None or caster == player:
@@ -774,246 +945,324 @@ def castDrawRectangle(caster = None, monsterTarget = None):
             return 'cancelled'
     else:
         return 'cancelled'
-    
+
+def castEnvenom(caster = None, monsterTarget = None):
+    poisoned = Buff('poisoned', colors.purple, owner = None, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10))
+    for equipment in equipmentList:
+        if equipment.Equipment.meleeWeapon or equipment.Equipment.ranged:
+            equipment.Equipment.enchant = Enchantment('envenomed', buffOnTarget=[poisoned])
 
 fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 1, arg2 = 12, arg3 = 4)
 heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 20)
 darkPact = Spell(ressourceCost = DARK_PACT_DAMAGE, cooldown = 8, useFunction = castDarkRitual, name = "Dark ritual", ressource = 'HP', type = "Occult", magicLevel = 2, arg1 = 5, arg2 = DARK_PACT_DAMAGE)
-enrage = Spell(ressourceCost = 5, cooldown = 30, useFunction = castEnrage, name = 'Enrage', ressource = 'MP', type = 'Strength', magicLevel = 0, arg1 = 10)
+enrage = Spell(ressourceCost = 5, cooldown = 30, useFunction = castEnrage, name = 'Enrage', ressource = 'MP', type = 'Class', magicLevel = 0, arg1 = 10)
 lightning = Spell(ressourceCost = 10, cooldown = 7, useFunction = castLightning, name = 'Lightning bolt', ressource = 'MP', type = 'Magic', magicLevel = 3)
 confuse = Spell(ressourceCost = 5, cooldown = 4, useFunction = castConfuse, name = 'Confusion', ressource = 'MP', type = 'Magic', magicLevel = 1)
 ice = Spell(ressourceCost = 9, cooldown = 5, useFunction = castFreeze, name = 'Ice bolt', ressource = 'MP', type = 'Magic', magicLevel = 2)
 ressurect = Spell(ressourceCost = 10, cooldown = 15, useFunction=castRessurect, name = "Dark ressurection", ressource = 'MP', type = "Occult", arg1 = 4)
 placeTag = Spell(ressourceCost = 0, cooldown = 0, useFunction=castPlaceTag, name = 'DEBUG : Place tag', ressource = 'MP', type = 'Occult')
 drawRect = Spell(ressourceCost = 0, cooldown = 0, useFunction=castDrawRectangle, name = 'DEBUG : Draw Rectangle', ressource = 'MP', type = 'Occult')
+envenom = Spell(ressourceCost= 3, cooldown = 20, useFunction=castEnvenom, name = 'Envenom weapons', ressource='MP', type = 'Racial')
 
 spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect])
 #_____________SPELLS_____________
 
 #______________CHARACTER GENERATION____________
-def initializeCharCreation():
-    global power, accuracy, evasion, armor, maxHP, maxMP, critical, strength, dexterity, vitality, willpower, startingSpells, baseMaxLoad, ap
+createdCharacter = {'pow': 0, 'acc': 20, 'ev': 0, 'arm': 0, 'hp': 0, 'mp': 0, 'crit': 0, 'str': 0, 'dex': 0, 'vit': 0, 'will': 0, 'ap': 0, 
+                    'powLvl': 0, 'accLvl': 0, 'evLvl': 0, 'armLvl': 0, 'hpLvl': 0, 'mpLvl': 0, 'critLvl': 0, 'strLvl': 0, 'dexLvl': 0, 'vitLvl': 0, 'willLvl': 0, 'apLvl': 0,
+                    'spells': [], 'load': 45.0}
+
+class Trait():
+    '''
+    Actually used for everything in the character creation, from race to skills etc
+    '''
+    def __init__(self, name, description, type, x = 0, y = 0, underCursor = False, selectable = True, selected = False, allowsSelection = [], amount = 0, maxAmount = 1, pow = (0, 0), acc = (0, 0), ev = (0, 0), arm = (0, 0), hp = (0, 0), mp = (0, 0), crit = (0, 0), str = (0, 0), dex = (0, 0), vit = (0, 0), will = (0, 0), spells = None, load = 0, ap = (0, 0)):
+        self.name = name
+        self.desc = description
+        self.type = type
+        self.x = x
+        self.y = y
+        self.underCursor = underCursor
+        self.selectable = selectable
+        self.selected = selected
+        self.allowsSelection = allowsSelection
+        self.amount = amount
+        self.maxAmount = maxAmount
+        self.pow, self.powPerLvl = pow
+        self.acc, self.accPerLvl = acc
+        self.ev, self.evPerLvl = ev
+        self.arm, self.armPerLvl = arm
+        self.hp, self.hpPerLvl = hp
+        self.mp, self.mpPerLvl = mp
+        self.crit, self.critPerLvl = crit
+        self.str, self.strPerLvl = str
+        self.dex, self.dexPerLvl = dex
+        self.vit, self.vitPerLvl = vit
+        self.will,self.willPerLvl = will
+        self.ap, self.apPerLvl = ap
+        self.load = load
+        self.spells = spells
+        
+    def description(self):
+        wrappedText = textwrap.wrap(self.desc, 25)
+        line = 0
+        for lines in wrappedText:
+            line += 1
+            drawCentered(cons = root, y = 35 + line, text = lines, fg = colors.white, bg = None)
     
-    BASE_POWER = 0
-    BASE_ACCURACY = 20
-    BASE_EVASION = 0
-    BASE_ARMOR = 0
-    BASE_MAXHP = 0
-    BASE_MAXMP = 0
-    BASE_CRITICAL = 5
-    BASE_STRENGTH = 0
-    BASE_DEXTERITY = 0
-    BASE_VITALITY = 0
-    BASE_WILLPOWER = 0
-    BASE_AP = 0
+    def applyBonus(self, charCreation = True):
+        if charCreation:
+            global createdCharacter
+            if self.amount < self.maxAmount:
+                createdCharacter['pow'] += self.pow
+                createdCharacter['acc'] += self.acc
+                createdCharacter['ev'] += self.ev
+                createdCharacter['arm'] += self.arm
+                createdCharacter['hp'] += self.hp
+                createdCharacter['mp'] += self.mp
+                createdCharacter['crit'] += self.crit
+                createdCharacter['str'] += self.str
+                createdCharacter['dex'] += self.dex
+                createdCharacter['vit'] += self.vit
+                createdCharacter['will'] += self.will
+                createdCharacter['ap'] += self.ap
+                if self.spells is not None:
+                    createdCharacter['spells'].extend(self.spells)
+                createdCharacter['load'] += self.load
+                createdCharacter['powLvl'] += self.powPerLvl
+                createdCharacter['accLvl'] += self.accPerLvl
+                createdCharacter['evLvl'] += self.evPerLvl
+                createdCharacter['armLvl'] += self.armPerLvl
+                createdCharacter['hpLvl'] += self.hpPerLvl
+                createdCharacter['mpLvl'] += self.mpPerLvl
+                createdCharacter['critLvl'] += self.critPerLvl
+                createdCharacter['strLvl'] += self.strPerLvl
+                createdCharacter['dexLvl'] += self.dexPerLvl
+                createdCharacter['vitLvl'] += self.vitPerLvl
+                createdCharacter['willLvl'] += self.willPerLvl
+                createdCharacter['apLvl'] += self.apPerLvl
+                self.amount += 1
+                self.selected = True
+                for trait in self.allowsSelection:
+                    trait.selectable = True
+        else:
+            player.Fighter.noStrengthPower += self.pow
+            player.Fighter.BASE_POWER += self.pow
+            player.Fighter.noDexAccuracy += self.acc
+            player.Fighter.BASE_ACCURACY += self.acc
+            player.Fighter.noDexEvasion += self.ev
+            player.Fighter.BASE_EVASION += self.ev
+            player.Fighter.baseArmor += self.arm
+            player.Fighter.BASE_ARMOR += self.arm
+            player.Fighter.noVitHP += self.hp
+            player.Fighter.hp += self.hp
+            player.Fighter.BASE_MAX_HP += self.hp
+            player.Fighter.noWillMP += self.mp
+            player.Fighter.MP += self.mp
+            player.Fighter.BASE_MAX_MP += self.mp
+            player.Fighter.baseCritical += self.crit
+            player.Fighter.BASE_CRITICAL += self.crit
+            player.Player.strength += self.str
+            player.Player.BASE_STRENGTH += self.str
+            player.Player.dexterity += self.dex
+            player.Player.BASE_DEXTERITY += self.dex
+            player.Player.vitality += self.vit
+            player.Player.BASE_VITALITY += self.vit
+            player.Player.willpower += self.will
+            player.Player.BASE_WILLPOWER += self.will
+            player.Fighter.baseArmorPenetration += self.ap
+            player.Fighter.BASE_ARMOR_PENETRATION += self.ap
+            if self.spells is not None:
+                player.Player.knownSpells.extend(self.spells)
+            player.Player.baseMaxWeight += self.load
+            self.amount += 1
+            self.selected = True
+            for trait in self.allowsSelection:
+                trait.selectable = True
     
-    power = BASE_POWER
-    accuracy = BASE_ACCURACY
-    evasion = BASE_EVASION
-    armor = BASE_ARMOR
-    maxHP = BASE_MAXHP
-    maxMP = BASE_MAXMP
-    critical = BASE_CRITICAL
-    ap = BASE_AP
+    def removeBonus(self):
+        global createdCharacter
+        if self.amount > 0:
+            createdCharacter['pow'] -= self.pow
+            createdCharacter['acc'] -= self.acc
+            createdCharacter['ev'] -= self.ev
+            createdCharacter['arm'] -= self.arm
+            createdCharacter['hp'] -= self.hp
+            createdCharacter['mp'] -= self.mp
+            createdCharacter['crit'] -= self.crit
+            createdCharacter['str'] -= self.str
+            createdCharacter['dex'] -= self.dex
+            createdCharacter['vit'] -= self.vit
+            createdCharacter['will'] -= self.will
+            createdCharacter['ap'] -= self.ap
+            if self.spells is not None:
+                for spell in self.spells:
+                    createdCharacter['spells'].remove(spell)
+            createdCharacter['load'] -= self.load
+            createdCharacter['powLvl'] -= self.powPerLvl
+            createdCharacter['accLvl'] -= self.accPerLvl
+            createdCharacter['evLvl'] -= self.evPerLvl
+            createdCharacter['armLvl'] -= self.armPerLvl
+            createdCharacter['hpLvl'] -= self.hpPerLvl
+            createdCharacter['mpLvl'] -= self.mpPerLvl
+            createdCharacter['critLvl'] -= self.critPerLvl
+            createdCharacter['strLvl'] -= self.strPerLvl
+            createdCharacter['dexLvl'] -= self.dexPerLvl
+            createdCharacter['vitLvl'] -= self.vitPerLvl
+            createdCharacter['willLvl'] -= self.willPerLvl
+            createdCharacter['apLvl'] -= self.apPerLvl
+            self.amount -= 1
+            if self.amount <= 0:
+                self.selected = False
+                for trait in self.allowsSelection:
+                    trait.selectable = False
+                    if trait.selected: 
+                        trait.amount = 0
+                        trait.selected = False
     
-    strength = BASE_STRENGTH
-    dexterity = BASE_DEXTERITY
-    vitality = BASE_VITALITY
-    willpower = BASE_WILLPOWER
+    def addTraitToPlayer(self):
+        if self.type == 'skill':
+            player.Player.skills.append(self)
+        elif self.type == 'trait':
+            player.Player.traits.append(self)
+        player.Player.allTraits.append(self)
+        self.selected = True
     
-    baseMaxLoad = 45.0
-
-    startingSpells = []
-
-def description(text):
-    wrappedText = textwrap.wrap(text, 25)
-    line = 0
-    for lines in wrappedText:
-        line += 1
-        drawCentered(cons = root, y = 35 + line, text = lines, fg = colors.white, bg = None)
-
-def applyBonus(list, chosenList):
-    global power, accuracy, evasion, armor, maxHP, maxMP, critical, strength, dexterity, vitality, willpower, ap
-    power += list[chosenList][0]
-    accuracy += list[chosenList][1]
-    evasion += list[chosenList][2]
-    armor += list[chosenList][3]
-    maxHP += list[chosenList][4]
-    maxMP += list[chosenList][5]
-    critical += list[chosenList][6]
-    strength += list[chosenList][7]
-    dexterity += list[chosenList][8]
-    vitality += list[chosenList][9]
-    willpower += list[chosenList][10]
-    ap += list[chosenList][11]
-
-def removeBonus(list, chosenList):
-    global power, accuracy, evasion, armor, maxHP, maxMP, critical, strength, dexterity, vitality, willpower, ap
-    power -= list[chosenList][0]
-    accuracy -= list[chosenList][1]
-    evasion -= list[chosenList][2]
-    armor -= list[chosenList][3]
-    maxHP -= list[chosenList][4]
-    maxMP -= list[chosenList][5]
-    critical -= list[chosenList][6]
-    strength -= list[chosenList][7]
-    dexterity -= list[chosenList][8]
-    vitality -= list[chosenList][9]
-    willpower -= list[chosenList][10]
-    ap -= list[chosenList][11]
-
-#Bonus template: [power, accuracy, evasion, armor, maxHP, maxMP, critical, strength, dexterity, vitality, willpower, armor penetration]
+    def drawTrait(self, cons = root):
+        if not self.underCursor:
+            if self.selected:
+                drawCenteredOnX(cons, self.x, self.y, self.name, fg = colors.yellow, bg = None)
+            elif not self.selectable:
+                drawCenteredOnX(cons, self.x, self.y, self.name, fg = colors.grey, bg = None)
+            else:
+                drawCenteredOnX(cons, self.x, self.y, self.name, fg = colors.white, bg = None)
+        else:
+            if self.selected:
+                drawCenteredOnX(cons, self.x, self.y, self.name, fg = colors.black, bg = colors.yellow)
+            elif not self.selectable:
+                drawCenteredOnX(cons, self.x, self.y, self.name, fg = colors.black, bg = colors.grey)
+            else:
+                drawCenteredOnX(cons, self.x, self.y, self.name, fg = colors.black, bg = colors.white)
+            self.description()
+        
+        if self.name == 'Strength':
+            drawCenteredOnX(cons, self.x - 10, y = self.y, text = str(10 + createdCharacter['str']), fg = colors.white, bg = None)
+        if self.name == 'Dexterity':
+            drawCenteredOnX(cons, self.x - 10, y = self.y, text = str(10 + createdCharacter['dex']), fg = colors.white, bg = None)
+        if self.name == 'Constitution':
+            drawCenteredOnX(cons, self.x - 10, y = self.y, text = str(10 + createdCharacter['vit']), fg = colors.white, bg = None)
+        if self.name == 'Willpower':
+            drawCenteredOnX(cons, self.x - 10, y = self.y, text = str(10 + createdCharacter['will']), fg = colors.white, bg = None)
 
 def characterCreation():
-    initializeCharCreation()
-    baseMaxLoad = 45.0
+    global createdCharacter
+    createdCharacter = {'pow': 0, 'acc': 20, 'ev': 0, 'arm': 0, 'hp': 0, 'mp': 0, 'crit': 0, 'str': 0, 'dex': 0, 'vit': 0, 'will': 0, 'ap': 0, 
+                    'powLvl': 0, 'accLvl': 0, 'evLvl': 0, 'armLvl': 0, 'hpLvl': 0, 'mpLvl': 0, 'critLvl': 0, 'strLvl': 0, 'dexLvl': 0, 'vitLvl': 0, 'willLvl': 0, 'apLvl': 0,
+                    'spells': [], 'load': 45.0}
+    allTraits = []
+    LEFT_X = (WIDTH // 4)
+    RIGHT_X = WIDTH - (WIDTH // 4)
+    RACE_Y = 11
+    ATTRIBUTE_Y = 36
+    TRAIT_Y = 48
+    CLASS_Y = 11
+    SKILL_Y = 36
     
-    races = ['Human', 'Minotaur', 'Insectoid', 'Felis', 'Reptilian', 'Demon spawn', 'Rootling', 'Werewolf', 'Devourer', 'Virus ']
-    racesDescription = ['Humans are the most common race. They have no special characteristic, and are neither better or worse at anything. However, they are good learners and gain experience faster.',
-                        'Minotaurs, whose muscular bodies are topped with a taurine head, are tougher and stronger than humans, but are way less smart. They are uncontrollable and, when angered, can become a wrecking ball of muscles and thorns.',
-                        'Insectoids are a rare race of bipedal insects which are stronger than human but, more importantly, very good at arcane arts. They come in all kinds of forms, from the slender mantis to the bulky beetle.',
-                        'Felis, kinds of humanoid cats, are sneaky thieves and assassins. They usually move silently and can see in the dark.',
-                        'Reptilians are very agile but absurdly weak. Their scaled skin, however, sometimes provides them with natural camouflage, and they might use their natural venom on their daggers or arrows to make them even more deadly.',
-                        'Demon spawns, a very uncommon breed of a human and a demon, are cursed with the heritage of  their demonic parents, which will make them grow disturbing mutations as they grow older and stronger.',
-                        'Rootlings, also called treants, are rare, sentient plants. They begin their life as a simple twig, but, with time, might become gigantic oaks.',
-                        'Werewolves are a martyred and despised race. Very tough to kill, they are naturally stronger than basic humans and unconogreably shapeshift more or less regularly. However, older werewolves are used to these transformations and can even use them to their interests.',
-                        'Devourers are strange, dreaded creatures from another dimension. Few have arrived in ours and even fewer have been described. These animals, half mantis, half lizard, are only born to kill and consume. Some of their breeds can even, after consuming anything - even a weapon - grow an organic replica of it.',
-                        'Viruses are the physically weakest race, but do not base their success on their own bodies. Indeed, they are able to infect another race, making it their host and fully controllable by the virus. What is more, the virus own physical attributes, instead of applying to it directly, rather modifies the host metabolism, potentially making it stronger or tougher. However, this take-over is very harmful for the host, who will eventually die. The virus must then find a new host to continue living.']
-    racesBonus = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], #Human
-                  [0, 0, 0, 0, 0, 0, 0, 5, -4, 4, -3, 0], #Minotaur
-                  [0, 0, 0, 0, 0, 0, 0, 1, -1, -2, 2, 0], #Insectoid
-                  [0, 0, 0, 0, 0, 0, 0, 0, 2, 0, -2, 0], #Felis
-                  [0, 0, 10, 0, 0, 0, 0, -4, 2, 0, 0, 0], #Reptilian
-                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], #Demon Spawn
-                  [0, 0, 0, 0, 0, 0, 0, -3, -2, -4, -3, 0], #Rootling
-                  [0, 0, 0, 0, 0, 0, 0, 2, 1, -2, -4, 0], #Werewolf
-                  [0, 0, 0, 0, 0, 0, 0, 1, 0, -2, -10, 0], #Devourer
-                  [0, 0, 999, 0, 0, 0, 0, -9, -9, -9, -9, 0]] #Virus
-    MAX_RACES = 1
-    actualRaces = 0
-    selectedRaces = [False, False, False, False, False, False, False, False, False, False]
-    chosenRace = None
-                    #after 10: 'Fast learner', 'Rage', 'Horned', 'Chitin carapace', 'Silent walk', 'Venomous glands', 'Mimesis', 'Wild instincts'
-    selectableTraitsPerRaces = [[True, True, True, True, True, True, True, True, True, True, True, False, False, False, False, False, False, False],
-                                [True, True, True, True, True, True, True, True, True, True, False, True, True, False, False, False, False, False],
-                                [True, True, True, True, True, True, True, True, True, True, False, False, False, True, False, False, False, False],
-                                [True, True, True, True, True, True, True, True, True, True, False, False, False, False, True, False, False, False],
-                                [True, True, True, True, True, True, True, True, True, True, False, False, False, False, False, True, True, False],
-                                [True, True, True, True, True, True, True, True, True, True, False, False, False, False, False, False, False, False],
-                                [True, True, True, True, True, True, True, True, True, True, False, False, False, False, False, False, False, False],
-                                [True, True, True, True, True, True, True, True, True, True, False, False, False, False, False, False, False, True],
-                                [True, True, True, True, True, True, True, True, True, True, False, False, False, False, False, False, False, False],
-                                [True, True, True, True, True, True, True, True, True, True, False, False, False, False, False, False, False, False]]
+    fastLearn = Trait('Fast learner', 'You are very smart and learn from your wins or losses very fast', type = 'trait', selectable = False)
+    rage = Trait('Rage', 'When low on health, you will lose all control', type = 'trait', selectable = False)
+    horns = Trait('Horned', 'Your horns are very large and can be used in combats', type = 'trait', selectable = False)
+    carapace = Trait('Chitin carapace', 'Your natural exoskeleton is very resistant', type = 'trait', arm=(2, 0), selectable = False)
+    silence = Trait('Silent walk', 'Your paws are very soft, allowing you to be very sneaky', type = 'trait', selectable = False)
+    venom = Trait('Venomous glands', 'You are able to envenom your weapons', type = 'trait', selectable = False, spells = [envenom])
+    mimesis = Trait('Mimesis', 'You can mimic your environment, making it very hard to see you', type = 'trait', selectable = False)
+    wild = Trait('Wild instincts', 'Your natural transformation is even more deadly', type = 'trait', selectable = False)
+    optionTraits = [fastLearn, rage, horns, carapace, silence, venom, mimesis, wild]
     
-    classes = ['Knight', 'Barbarian', 'Rogue', 'Mage ', 'Necromancer']
-    classesDescription = ['A warrior who wears armor and yields shields',
-                          'A brutal fighter who is mighty strong',
-                          'A rogue who is stealthy and backstabby (probably has a french accent)',
-                          'A wizard who zaps everything',
-                          'A master of the occult arts who has the ability to raise and control the dead.']
-    classesBonus = [[0, 0, 0, 1, 120, 30, 0, 0, 0, 0, 0, 0], #Knight
-                    [0, 0, 0, 0, 160, 30, 0, 1, 0, 0, 0, 0], #Barbarian
-                    [0, 8, 10, 0, 90, 40, 3, 0, 0, 0, 0, 0], #Rogue
-                    [0, 0, 0, 0, 70, 50, 0, 0, 0, 0, 2, 0], #Mage
-                    [0, 0, 0, 0, 100, 15, 0, 0, 0, 0, 0, 0]] #Necromancer
-    classesLevelUp = [[0, 0, 0, 1, 14, 3, 0, 0, 0, 0, 0, 0],
-                      [0, 0, 0, 0, 20, 3, 0, 1, 0, 0, 0, 0],
-                      [0, 2, 1, 0, 10, 5, 0, 0, 0, 0, 0, 0],
-                      [0, 0, 0, 0, 6, 7, 0, 0, 0, 0, 0, 0],
-                      [0, 0, 0, 0, 4, 1, 0, 0, 0, 0, 0, 0]]
-    MAX_CLASSES = 1
-    actualClasses = 0
-    selectedClasses = [False, False, False, False, False]
-    levelUpStats = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    classesSpells = [[], [enrage], [], [fireball], [darkPact, ressurect]]
-    chosenClass = None
+    human = Trait('Human', 'Humans are the most common race. They have no special characteristic, and are neither better or worse at anything. However, they are good learners and gain experience faster.', type = 'race', allowsSelection=[fastLearn])
+    mino = Trait('Minotaur', 'Minotaurs, whose muscular bodies are topped with a taurine head, are tougher and stronger than humans, but are way less smart. They are uncontrollable and, when angered, can become a wrecking ball of muscles and thorns.', type= 'race', allowsSelection=[rage, horns], str=(5, 0), dex=(-4, 0), vit=(4, 0), will=(-3, 0))
+    insect = Trait('Insectoid', 'Insectoids are a rare race of bipedal insects which are stronger than human but, more importantly, very good at arcane arts. They come in all kinds of forms, from the slender mantis to the bulky beetle.', type = 'race', allowsSelection=[carapace], str=(1, 0), dex=(-1, 0), vit=(-2, 0), will=(2, 0))
+    cat = Trait('Felis', 'Felis, kinds of humanoid cats, are sneaky thieves and assassins. They usually move silently and can see in the dark.', type ='race', allowsSelection=[silence], str = (2, 0), vit = (-2, 0))
+    rept = Trait('Reptilian', 'Reptilians are very agile but absurdly weak. Their scaled skin, however, sometimes provides them with natural camouflage, and they might use their natural venom on their daggers or arrows to make them even more deadly.', type = 'race', allowsSelection=[venom, mimesis], ev=(20, 0), str=(-4, 0), dex=(2, 0))
+    demon = Trait('Demon Spawn', 'Demon spawns, a very uncommon breed of a human and a demon, are cursed with the heritage of  their demonic parents, which will make them grow disturbing mutations as they grow older and stronger.', type = 'race')
+    tree = Trait('Rootling', 'Rootlings, also called treants, are rare, sentient plants. They begin their life as a simple twig, but, with time, might become gigantic oaks.', type = 'race', str=(-3, 0), dex=(-2, 0), vit=(-4, 0), will=(-3, 0))
+    wolf = Trait('Werewolf', 'Werewolves are a martyred and despised race. Very tough to kill, they are naturally stronger than basic humans and unconogreably shapeshift more or less regularly. However, older werewolves are used to these transformations and can even use them to their interests.', type = 'race', allowsSelection=[wild], str=(2, 0), dex=(1, 0), vit=(-2, 0), will=(-4, 0))
+    devourer = Trait('Devourer', 'Devourers are strange, dreaded creatures from another dimension. Few have arrived in ours and even fewer have been described. These animals, half mantis, half lizard, are only born to kill and consume. Some of their breeds can even, after consuming anything - even a weapon - grow an organic replica of it.', type = 'race', vit = (-2, 0), will = (-10, 0))
+    virus = Trait('Virus ', 'Viruses are the physically weakest race, but do not base their success on their own bodies. Indeed, they are able to infect another race, making it their host and fully controllable by the virus. What is more, the virus own physical attributes, instead of applying to it directly, rather modifies the host metabolism, potentially making it stronger or tougher. However, this take-over is very harmful for the host, who will eventually die. The virus must then find a new host to continue living.', type = 'race', ev = (999, 0))
+    races = [human, mino, insect, cat, rept, demon, tree, wolf, devourer, virus]
+    allTraits.extend(races)
+    
+    counter = 0
+    for race in races:
+        race.x = LEFT_X
+        race.y = RACE_Y + counter
+        counter += 1
+    
+    stren = Trait('Strength', 'Strength augments the power of your attacks', type = 'attribute', maxAmount=5, str=(1, 0))
+    dex = Trait('Dexterity', 'Dexterity augments your accuracy and your evasion', type = 'attribute', maxAmount=5, dex=(1, 0))
+    const = Trait('Constitution', 'Constitution augments your maximum health and your regeneration rate.', type = 'attribute', maxAmount=5, vit=(1, 0))
+    will = Trait('Willpower', 'Willpower augments your energy and the rate at which you regain it.', type = 'attribute', maxAmount=5, will=(1, 0))
+    attributes = [stren, dex, const, will]
+    allTraits.extend(attributes)
+    
+    counter = 0
+    for attribute in attributes:
+        attribute.x = LEFT_X
+        attribute.y = ATTRIBUTE_Y + counter
+        counter += 1
 
-    attributes = ['Strength', 'Dexterity', 'Constitution', 'Willpower']
-    attributesDescription = ['Strength augments the power of your attacks',
-                             'Dexterity augments your accuracy and your evasion',
-                             'Constitution augments your maximum health',
-                             'Willpower augments your energy']
-    attributesBonus = [[0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0], #strength
-                       [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], #dex
-                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0], #vitality
-                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]] #willpower
-    MAX_ATTRIBUTES_POINTS = 10
-    MAX_PER_ATTRIBUTES = 5
-    actualAttributesPoints = 0
-    actualPerAttributes = [0, 0, 0, 0]
-    selectedAttributes = [False, False, False, False]
+    aggressive = Trait('Aggressive', 'Your anger is uncontrollable', type = 'trait')
+    aura = Trait('Aura', 'You are surrounded by a potent aura', type = 'trait', mp=(20, 0))
+    evasive = Trait('Evasive', 'You are aware of how to stay out of trouble', type = 'trait', ev=(10, 0))
+    healthy = Trait('Healthy', 'You are healthy', type = 'trait', vit=(2, 0))
+    muscular = Trait('Muscular', 'You are very strong', type = 'trait', str=(2, 0))
+    natArmor = Trait('Natural armor', 'Your skin is rock-hard', type = 'trait', arm = (1, 0))
+    mind = Trait('Strong mind', 'Your mind is fast and potent', type = 'trait', will=(2, 0))
+    agile = Trait('Agile', 'You have incredible reflexes', type = 'trait', dex=(2, 0))
+    training = Trait('Martial training', 'You are trained to master all weapons', type = 'trait', acc=(7, 0))
+    tough = Trait('Tough', 'You can endure harm better', type = 'trait', hp=(40, 0))
+    traits = [aggressive, aura, evasive, healthy, muscular, natArmor, mind, agile, training, tough]
+    traits.extend(optionTraits)
+    allTraits.extend(traits)
     
-    traits = ['Aggressive', 'Aura', 'Evasive', 'Healthy', 'Muscular', 'Natural armor', 'Strong mind', 'Agile', 'Martial training', 'Tough',
-              'Fast learner', 'Rage', 'Horned', 'Chitin carapace', 'Silent walk', 'Venomous glands', 'Mimesis', 'Wild instincts']
-    traitsDescription = ['Your anger is uncontrollable',
-                         'You are surrounded by a potent aura',
-                         'You are aware of how to stay out of trouble',
-                         'You are healthy',
-                         'You are very strong',
-                         'Your skin is rock-hard',
-                         'Your mind is fast and potent',
-                         'You have incredible reflexes',
-                         'You are trained to master all weapons',
-                         'You can endure harm better',
-                         'You are very smart and learn from your wins or losses very fast',
-                         'When low on health, you will lose all control',
-                         'Your horns are very large and can be used in combats',
-                         'Your natural exoskeleton is very resistant',
-                         'Your paws are very soft, allowing you to be very sneaky',
-                         'You are able to envenom your weapons',
-                         'You can mimic your environment, making it very hard to see you',
-                         'Your natural transformation is even more deadly']
-    traitsBonus= [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 0, 20, 0, 0, 0, 0, 0, 0],
-                  [0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0],
-                  [0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0],
-                  [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0],
-                  [0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0],
-                  [0, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 40, 0, 0, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],]
-    MAX_TRAITS = 2
-    actualTraits = 0
-    selectedTraits = [False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False]
-    selectableTraits = [True, True, True, True, True, True, True, True, True, True, False, False, False, False, False, False, False, False]
+    counter = 0
+    for trait in traits:
+        trait.x = LEFT_X
+        trait.y = TRAIT_Y + counter
+        counter += 1
+
+    knight = Trait('Knight', 'A warrior who wears armor and wields shields', type ='class', arm=(1, 1), hp=(120, 14), mp=(30, 3))
+    barb = Trait('Barbarian', 'A brutal fighter who is mighty strong', type = 'class', hp=(160, 20), mp=(30, 3), str=(1, 1), spells=[enrage])
+    rogue = Trait('Rogue', 'A rogue who is stealthy and backstabby (probably has a french accent)', type = 'class', acc=(8, 4), ev=(10, 2), hp=(90, 10), mp=(40, 5), crit=(3, 0))
+    mage = Trait('Mage ', 'A wizard who zaps everything', type ='class', hp=(70, 6), mp=(50, 7), will=(2, 0), spells=[fireball])
+    necro = Trait('Necromancer', 'A master of the occult arts who has the ability to raise and control the dead.', type = 'class', hp=(100, 4), mp=(15, 1), spells=[darkPact, ressurect])
+    classes = [knight, barb, rogue, mage, necro]
+    allTraits.extend(classes)
     
-    skills = ['Light weapons', 'Heavy weapons', 'Missile weapons', 'Throwing weapons', 'Magic ', 'Armor wielding', 'Athletics', 'Concentration', 'Dodge ', 'Critical ', 'Accuracy']
-    skillsDescription = ['+20% damage per skillpoints with light weapons',
-                         '+20% damage per skillpoints with heavy weapons',
-                         '+20% damage per skillpoints with missile weapons',
-                         '+20% damage per skillpoints with throwing weapons',
-                         'Magic ',
-                         'Armor wielding',
-                         '+20 HP and maximum HP per skillpoints',
-                         '+20 MP and maximum MP per skillpoints',
-                         '+3 evasion per skillpoints',
-                         '+3 critical chance par skillpoints ',
-                         '+10 accuracy per skillpoints']
-    skillsBonus = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], #light
-                   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], #heavy
-                   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], #missile
-                   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], #throwing
-                   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], #magic
-                   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], #armor
-                   [0, 0, 0, 0, 20, 0, 0, 0, 0, 0, 0, 0], #athletics
-                   [0, 0, 0, 0, 0, 20, 0, 0, 0, 0, 0, 0], #concentration
-                   [0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0], #dodge
-                   [0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0], #crit
-                   [0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]] #accuracy
-    MAX_SKILLS = 2
-    MAX_PER_SKILLS = 1
-    actualSkills = 0
-    actualPerSkills = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    selectedSkills = [False, False, False, False, False, False, False, False, False, False, False]
+    counter = 0
+    for classe in classes:
+        classe.x = RIGHT_X
+        classe.y = CLASS_Y + counter
+        counter += 1
+
+    light = Trait('Light weapons', '+20% damage per skillpoints with light weapons', type = 'skill')
+    heavy = Trait('Heavy weapons', '+20% damage per skillpoints with heavy weapons', type = 'skill')
+    missile = Trait('Missile weapons', '+20% damage per skillpoints with missile weapons', type = 'skill')
+    throw = Trait('Throwing weapons', '+20% damage per skillpoints with throwing weapons', type = 'skill')
+    magic = Trait('Magic ', 'Magic ', type = 'skill')
+    armorWield = Trait('Armor wielding', 'Armor wielding', type = 'skill')
+    athletics = Trait('Athletics', '+20 HP and maximum HP per skillpoints', type = 'skill', hp = (20, 0))
+    concentration = Trait('Concentration', '+20 MP and maximum MP per skillpoints', type = 'skill', mp = (20, 0))
+    dodge = Trait('Dodge', '+3 evasion per skillpoints', type = 'skill', ev=(3, 0))
+    crit = Trait('Critical', '+3 critical chance par skillpoints ', type ='skill', crit=(3, 0))
+    accuracy = Trait('Accuracy', '+10 accuracy per skillpoints', type = 'skill', acc=(10, 0))
+    skills = [light, heavy, missile, throw, magic, armorWield, athletics, concentration, dodge, crit, accuracy]
+    allTraits.extend(skills)
+    
+    counter = 0
+    for skill in skills:
+        skill.x = RIGHT_X
+        skill.y = SKILL_Y + counter
+        counter += 1
     
     #index
     index = 0
@@ -1021,279 +1270,185 @@ def characterCreation():
     leftIndexMax = leftIndexMin + len(attributes) + len(traits) + len(races) - 1
     rightIndexMin = leftIndexMax + 1
     rightIndexMax = rightIndexMin + len(skills) + len(classes) - 1
-    maxIndex = len(races) + len(classes) + len(attributes) + len(traits) + len(skills) + 1
+    maxIndex = len(allTraits) + 1
     
     while not tdl.event.isWindowClosed():
         root.clear()
+        
+        raceSelected = False
+        for race in races:
+            if race.selected:
+                raceSelected = True
+                break
+        print(raceSelected)
+        
+        attributesPoints = 0
+        for attribute in attributes:
+            attributesPoints += attribute.amount
+        print(attributesPoints)
+
+        traitsPoints = 0
+        for trait in traits:
+            traitsPoints += trait.amount
+        print(traitsPoints)
+        
+        classSelected = False
+        for classe in classes:
+            if classe.selected:
+                classSelected = True
+                break
+        print(classSelected)
+        
+        skillsPoints = 0
+        for skill in skills:
+            skillsPoints += skill.amount
+        print(skillsPoints)
+        
         drawCentered(cons = root, y = 6, text = '--- CHARACTER CREATION ---', fg = colors.darker_red, bg = None)
         
-        # Race, attributes and traits
-        leftX = (WIDTH // 4)
+        drawCenteredOnX(cons = root, x = LEFT_X, y = 9, text = '-- RACE --', fg = colors.darker_red, bg = None)
         
-        drawCenteredOnX(cons = root, x = leftX, y = 9, text = '-- RACE --', fg = colors.darker_red, bg = None)
-        for choice in range(len(races)):
-            if selectedRaces[choice]:
-                drawCenteredOnX(cons = root, x = leftX, y = 11 + choice, text = races[choice], fg = colors.yellow, bg = None)
-            else:
-                drawCenteredOnX(cons = root, x = leftX, y = 11 + choice, text = races[choice], fg = colors.white, bg = None)
-        
-        drawCenteredOnX(cons = root, x = leftX, y = 33, text = '-- ATTRIBUTES --', fg = colors.darker_red, bg = None)
-        drawCenteredOnX(cons = root, x = leftX, y = 34, text = str(actualAttributesPoints) + '/' + str(MAX_ATTRIBUTES_POINTS), fg = colors.dark_red, bg = None)
-        totalAttributes = [strength, dexterity, vitality, willpower]
-        for choice in range(len(attributes)):
-            if selectedAttributes[choice]:
-                drawCenteredOnX(cons = root, x = leftX, y = 36 + choice, text = attributes[choice], fg = colors.yellow, bg = None)
-            else:
-                drawCenteredOnX(cons = root, x = leftX, y = 36 + choice, text = attributes[choice], fg = colors.white, bg = None)
-            drawCenteredOnX(cons = root, x = leftX - 10, y = 36 + choice, text = str(10 + totalAttributes[choice]), fg = colors.white, bg = None)
+        drawCenteredOnX(cons = root, x = LEFT_X, y = 33, text = '-- ATTRIBUTES --', fg = colors.darker_red, bg = None)
+        drawCenteredOnX(cons = root, x = LEFT_X, y = 34, text = str(attributesPoints) + '/10', fg = colors.dark_red, bg = None)
 
-        drawCenteredOnX(cons = root, x = leftX, y = 45, text = '-- TRAITS --', fg = colors.darker_red, bg = None)
-        drawCenteredOnX(cons = root, x = leftX, y = 46, text = str(actualTraits) + '/' + str(MAX_TRAITS), fg = colors.dark_red, bg = None)
-        for choice in range(len(traits)):
-            if selectedTraits[choice]:
-                drawCenteredOnX(cons = root, x = leftX, y = 48 + choice, text = traits[choice], fg = colors.yellow, bg = None)
-            elif not selectableTraits[choice]:
-                drawCenteredOnX(cons = root, x = leftX, y = 48 + choice, text = traits[choice], fg = colors.grey, bg = None)
-            else:
-                drawCenteredOnX(cons = root, x = leftX, y = 48 + choice, text = traits[choice], fg = colors.white, bg = None)
+        drawCenteredOnX(cons = root, x = LEFT_X, y = 45, text = '-- TRAITS --', fg = colors.darker_red, bg = None)
+        drawCenteredOnX(cons = root, x = LEFT_X, y = 46, text = str(traitsPoints) + '/2', fg = colors.dark_red, bg = None)
         
-        # Classes and skills
-        rightX = WIDTH - (WIDTH // 4)
+        drawCenteredOnX(cons = root, x = RIGHT_X, y = 9, text = '-- CLASS --', fg = colors.darker_red, bg = None)
         
-        drawCenteredOnX(cons = root, x = rightX, y = 9, text = '-- CLASS --', fg = colors.darker_red, bg = None)
-        for choice in range(len(classes)):
-            if selectedClasses[choice]:
-                drawCenteredOnX(cons = root, x = rightX, y = 11 + choice, text = classes[choice], fg = colors.yellow, bg = None)
-            else:
-                drawCenteredOnX(cons = root, x = rightX, y = 11 + choice, text = classes[choice], fg = colors.white, bg = None)
-        
-        drawCenteredOnX(cons = root, x = rightX, y = 33, text = '-- SKILLS --', fg = colors.darker_red, bg = None)
-        drawCenteredOnX(cons = root, x = rightX, y = 34, text = str(actualSkills) + '/' + str(MAX_SKILLS), fg = colors.dark_red, bg = None)
-        for choice in range(len(skills)):
-            if selectedSkills[choice]:
-                drawCenteredOnX(cons = root, x = rightX, y = 36 + choice, text = skills[choice], fg = colors.yellow, bg = None)
-            else:
-                drawCenteredOnX(cons = root, x = rightX, y = 36 + choice, text = skills[choice], fg = colors.white, bg = None)
+        drawCenteredOnX(cons = root, x = RIGHT_X, y = 33, text = '-- SKILLS --', fg = colors.darker_red, bg = None)
+        drawCenteredOnX(cons = root, x = RIGHT_X, y = 34, text = str(skillsPoints) + '/2', fg = colors.dark_red, bg = None)
         
         drawCentered(cons = root, y = 33, text = '-- DESCRIPTION --', fg = colors.darker_red, bg = None)
-        drawCentered(cons = root, y = 90, text = 'Start Game', fg = colors.white, bg = None)
-        drawCentered(cons = root, y = 91, text = 'Cancel', fg = colors.white, bg = None)
+        drawCentered(cons = root, y = 70, text = 'Start Game', fg = colors.white, bg = None)
+        drawCentered(cons = root, y = 71, text = 'Cancel', fg = colors.white, bg = None)
 
         #Displaying stats
         eightScreen = WIDTH//5
         
-        text = 'Power: ' + str(power + strength)
-        drawCenteredOnX(cons = root, x = eightScreen * 1, y = 82, text = text, fg = colors.white, bg = None)
+        text = 'Power: ' + str(createdCharacter['pow'] + createdCharacter['str'])
+        drawCenteredOnX(cons = root, x = eightScreen * 1, y = 74, text = text, fg = colors.white, bg = None)
         X = eightScreen * 1 + ((len(text) + 1)// 2)
-        root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[0] + levelUpStats[7]) + '/lvl', fg = colors.yellow, bg = None)
+        root.draw_str(x = X, y = 74, string = ' + ' + str(createdCharacter['powLvl'] + createdCharacter['strLvl']) + '/lvl', fg = colors.yellow, bg = None)
         
-        text = 'Accuracy: ' + str(accuracy + 2 * dexterity)
-        drawCenteredOnX(cons = root, x = eightScreen * 2, y = 82, text = text, fg = colors.white, bg = None)
+        text = 'Accuracy: ' + str(createdCharacter['acc'] + 2 * createdCharacter['dex'])
+        drawCenteredOnX(cons = root, x = eightScreen * 2, y = 74, text = text, fg = colors.white, bg = None)
         X = eightScreen * 2 + ((len(text) + 1)// 2)
-        root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[1] + 2 * levelUpStats[8]) + '/lvl', fg = colors.yellow, bg = None)
+        root.draw_str(x = X, y = 74, string = ' + ' + str(createdCharacter['accLvl'] + createdCharacter['dexLvl']) + '/lvl', fg = colors.yellow, bg = None)
         
-        text = 'Evasion: ' + str(evasion + dexterity)
-        drawCenteredOnX(cons = root, x = eightScreen * 3, y = 82, text = text, fg = colors.white, bg = None)
+        text = 'Evasion: ' + str(createdCharacter['ev'] + createdCharacter['dex'])
+        drawCenteredOnX(cons = root, x = eightScreen * 3, y = 74, text = text, fg = colors.white, bg = None)
         X = eightScreen * 3 + ((len(text) + 1)// 2)
-        root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[2] + levelUpStats[8]) + '/lvl', fg = colors.yellow, bg = None)
+        root.draw_str(x = X, y = 74, string = ' + ' + str(createdCharacter['evLvl'] + createdCharacter['dexLvl']) + '/lvl', fg = colors.yellow, bg = None)
         
-        text = 'Armor: ' + str(armor)
-        drawCenteredOnX(cons = root, x = eightScreen * 4, y = 82, text = text, fg = colors.white, bg = None)
+        text = 'Armor: ' + str(createdCharacter['arm'])
+        drawCenteredOnX(cons = root, x = eightScreen * 4, y = 74, text = text, fg = colors.white, bg = None)
         X = eightScreen * 4 + ((len(text) + 1)// 2)
-        root.draw_str(x = X, y = 82, string = ' + ' + str(levelUpStats[3]) + '/lvl', fg = colors.yellow, bg = None)
+        root.draw_str(x = X, y = 74, string = ' + ' + str(createdCharacter['armLvl']) + '/lvl', fg = colors.yellow, bg = None)
         
-        text = 'Max HP: ' + str(maxHP + 5 * vitality)
-        drawCenteredOnX(cons = root, x = eightScreen * 1, y = 84, text = text, fg = colors.white, bg = None)
+        text = 'Max HP: ' + str(createdCharacter['hp'] + 5 * createdCharacter['vit'])
+        drawCenteredOnX(cons = root, x = eightScreen * 1, y = 76, text = text, fg = colors.white, bg = None)
         X = eightScreen * 1 + ((len(text) + 1)// 2)
-        root.draw_str(x = X, y = 84, string = ' + ' + str(levelUpStats[4] + 5 * levelUpStats[9]) + '/lvl', fg = colors.yellow, bg = None)
+        root.draw_str(x = X, y = 76, string = ' + ' + str(createdCharacter['hpLvl'] + 5 * createdCharacter['vitLvl']) + '/lvl', fg = colors.yellow, bg = None)
         
-        text = 'Max MP: ' + str(maxMP + 5 * willpower)
-        drawCenteredOnX(cons = root, x = eightScreen * 2, y = 84, text = text, fg = colors.white, bg = None)
+        text = 'Max MP: ' + str(createdCharacter['mp'] + 5 * createdCharacter['will'])
+        drawCenteredOnX(cons = root, x = eightScreen * 2, y = 76, text = text, fg = colors.white, bg = None)
         X = eightScreen * 2 + ((len(text) + 1)// 2)
-        root.draw_str(x = X, y = 84, string = ' + ' + str(levelUpStats[5] + 5 * levelUpStats[10]) + '/lvl', fg = colors.yellow, bg = None)
+        root.draw_str(x = X, y = 76, string = ' + ' + str(createdCharacter['mpLvl'] + 5 * createdCharacter['willLvl']) + '/lvl', fg = colors.yellow, bg = None)
         
-        text = 'Critical: ' + str(critical) + '%'
-        drawCenteredOnX(cons = root, x = eightScreen * 3, y = 84, text = text, fg = colors.white, bg = None)
+        text = 'Critical: ' + str(createdCharacter['crit']) + '%'
+        drawCenteredOnX(cons = root, x = eightScreen * 3, y = 76, text = text, fg = colors.white, bg = None)
         X = eightScreen * 3 + ((len(text) + 1)// 2)
-        root.draw_str(x = X, y = 84, string = ' + ' + str(levelUpStats[6]) + '/lvl', fg = colors.yellow, bg = None)
+        root.draw_str(x = X, y = 76, string = ' + ' + str(createdCharacter['critLvl']) + '/lvl', fg = colors.yellow, bg = None)
         
-        text = 'Max load: ' + str(baseMaxLoad + 3 * strength) + ' kg'
-        drawCenteredOnX(cons = root, x = eightScreen * 4, y = 84, text = text, fg = colors.white, bg = None)
+        text = 'Max load: ' + str(createdCharacter['load'] + 3 * createdCharacter['str']) + ' kg'
+        drawCenteredOnX(cons = root, x = eightScreen * 4, y = 76, text = text, fg = colors.white, bg = None)
         X = eightScreen * 4 + ((len(text) + 1)// 2)
-        root.draw_str(x = X, y = 84, string = ' + ' + str(3 * levelUpStats[7]) + '/lvl', fg = colors.yellow, bg = None)
-        
-        # Selection
-        if leftIndexMin <= index <= leftIndexMax:
-            if index + 1 <= len(races):
-                previousListLen = 0
-                drawCenteredOnX(cons = root, x = leftX, y = 11 + index, text = races[index - previousListLen], fg = colors.black, bg = colors.white)
-                description(racesDescription[index - previousListLen])
-            elif index + 1 <= len(races) + len(attributes):
-                previousListLen = len(races)
-                drawCenteredOnX(cons = root, x = leftX, y = 36 - previousListLen + index, text = attributes[index - previousListLen], fg = colors.black, bg = colors.white)
-                description(attributesDescription[index - previousListLen])
-            else:
-                previousListLen = len(races) + len(attributes)
-                if selectableTraits[index - previousListLen]:
-                    drawCenteredOnX(cons = root, x = leftX, y = 48 - previousListLen + index, text = traits[index - previousListLen], fg = colors.black, bg = colors.white)
-                else:
-                    drawCenteredOnX(cons = root, x = leftX, y = 48 - previousListLen + index, text = traits[index - previousListLen], fg = colors.black, bg = colors.grey)
-                description(traitsDescription[index - previousListLen])
+        root.draw_str(x = X, y = 76, string = ' + ' + str(3 * createdCharacter['strLvl']) + '/lvl', fg = colors.yellow, bg = None)
 
-        if rightIndexMin <= index <= rightIndexMax:
-            if index + 1 <= len(races) + len(attributes) + len(traits) + len(classes):
-                previousListLen = len(races) + len(attributes) + len(traits)
-                drawCenteredOnX(cons = root, x = rightX, y = 11 - previousListLen + index, text = classes[index - previousListLen], fg = colors.black, bg = colors.white)
-                description(classesDescription[index - previousListLen])
+        for trait in allTraits:
+            if index == allTraits.index(trait):
+                trait.underCursor = True
             else:
-                previousListLen = len(races) + len(classes) + len(attributes) + len(traits)
-                drawCenteredOnX(cons = root, x = rightX, y = 36 - previousListLen + index, text = skills[index - previousListLen], fg = colors.black, bg = colors.white)
-                description(skillsDescription[index - previousListLen])
+                trait.underCursor = False
+            trait.drawTrait()
         if index == maxIndex - 1:
-            drawCentered(cons = root, y = 90, text = 'Start Game', fg = colors.black, bg = colors.white)
+            drawCentered(cons = root, y = 70, text = 'Start Game', fg = colors.black, bg = colors.white)
         if index == maxIndex:
-            drawCentered(cons = root, y = 91, text = 'Cancel', fg = colors.black, bg = colors.white)
+            drawCentered(cons = root, y = 71, text = 'Cancel', fg = colors.black, bg = colors.white)
 
         tdl.flush()
 
         key = tdl.event.key_wait()
         if key.keychar.upper() == 'DOWN':
             index += 1
-            playWavSound('select.wav', True)
+            playWavSound('selectClic.wav')
         if key.keychar.upper() == 'UP':
             index -= 1
-            playWavSound('select.wav', True)
+            playWavSound('selectClic.wav')
         if key.keychar.upper() == 'RIGHT' and (leftIndexMin <= index <= leftIndexMax):
             if (leftIndexMin <= index <= leftIndexMax):
                 if rightIndexMin <= index + len(attributes) + len(traits) + len(races) <= rightIndexMax:
                     index += len(attributes) + len(traits) + len(races)
                 else:
                     index = rightIndexMax
-                playWavSound('select.wav', True)
+                playWavSound('selectClic.wav')
             else:
-                playWavSound('error.wav', True)
+                playWavSound('error.wav')
         if key.keychar.upper() == 'LEFT':
             if (rightIndexMin <= index <= rightIndexMax):
                 if leftIndexMin <= index - (len(attributes) + len(traits) + len(races)) <= leftIndexMax:
                     index -= (len(attributes) + len(traits) + len(races))
                 else:
                     index = leftIndexMax
-                playWavSound('select.wav', True)
+                playWavSound('selectClic.wav')
             else:
-                playWavSound('error.wav', True)
+                playWavSound('error.wav',)
 
         #adding choice bonus
         if key.keychar.upper() == 'ENTER':
-            if leftIndexMin <= index <= leftIndexMax:
-                if index + 1 <= len(races):
-                    if actualRaces < MAX_RACES:
-                        previousListLen = 0
-                        selectedRaces[index] = True
-                        applyBonus(racesBonus, index)
-                        actualRaces += 1
-                        chosenRace = races[index]
-                        selectableTraits = selectableTraitsPerRaces[index]
-                        if selectedRaces[4]:
-                            baseMaxLoad = 60.0
-                elif index + 1 <= len(races) + len(attributes):
-                    if actualAttributesPoints < MAX_ATTRIBUTES_POINTS:
-                        previousListLen = len(races)
-                        if actualPerAttributes[index - previousListLen] < MAX_PER_ATTRIBUTES:
-                            applyBonus(attributesBonus, index - previousListLen)
-                            selectedAttributes[index - previousListLen] = True
-                            actualAttributesPoints += 1
-                            actualPerAttributes[index - previousListLen] +=1
-                else:
-                    if actualTraits < MAX_TRAITS:
-                        previousListLen = len(races) + len(attributes)
-                        if not selectedTraits[index - previousListLen] and selectableTraits[index - previousListLen]:
-                            selectedTraits[index - previousListLen] = True
-                            applyBonus(traitsBonus, index - previousListLen)
-                            actualTraits += 1
-
-            if rightIndexMin <= index <= rightIndexMax:
-                if index + 1 <= len(races) + len(attributes) + len(traits) + len(classes):
-                    if actualClasses < MAX_CLASSES:
-                        previousListLen = len(races) + len(attributes) + len(traits)
-                        selectedClasses[index - previousListLen] = True
-                        applyBonus(classesBonus, index - previousListLen)
-                        levelUpStats = classesLevelUp[index - previousListLen]
-                        actualClasses += 1
-                        startingSpells = classesSpells[index - previousListLen]
-                        chosenClass = classes[index - previousListLen]
-                else:
-                    if actualSkills < MAX_SKILLS:
-                        previousListLen = len(races) + len(classes) + len(attributes) + len(traits)
-                        if actualPerSkills[index - previousListLen] < MAX_PER_SKILLS:
-                            applyBonus(skillsBonus, index - previousListLen)
-                            selectedSkills[index - previousListLen] = True
-                            actualSkills += 1
-                            actualPerSkills[index - previousListLen] += 1
-
+            error = False
             if index == maxIndex - 1:
-                if actualClasses > 0 and actualRaces > 0:
-                    createdCharacter = [power, accuracy, evasion, armor, maxHP, maxMP, critical, strength, dexterity, vitality, willpower, ap]
-                    return createdCharacter, levelUpStats, actualPerSkills, skillsBonus, startingSpells, chosenRace, chosenClass, selectedTraits
+                if raceSelected and classSelected:
+                    print(createdCharacter)
+                    return createdCharacter, allTraits
+                else:
+                    playWavSound('error.wav')
+                    error = True
             if index == maxIndex:
-                return 'cancelled', 'cancelled', 'cancelled', 'cancelled', 'cancelled', 'cancelled', 'cancelled', 'cancelled'
+                return 'cancelled', 'cancelled'
+
+            if not error:
+                trait = allTraits[index]
+                if trait.type == 'race':
+                    if not raceSelected:
+                        trait.applyBonus()
+                if trait.type == 'attribute':
+                    if attributesPoints < 10:
+                        trait.applyBonus()
+                if trait.type == 'trait':
+                    if traitsPoints < 2:
+                        trait.applyBonus()
+                if trait.type == 'class':
+                    if not classSelected:
+                        trait.applyBonus()
+                if trait.type == 'skill':
+                    if skillsPoints < 2:
+                        trait.applyBonus()
+
         #removing choice bonus
         if key.keychar.upper() == 'BACKSPACE':
-            if leftIndexMin <= index <= leftIndexMax:
-                if index + 1 <= len(races):
-                    if actualRaces > 0:
-                        previousListLen = 0
-                        if selectedRaces[index - previousListLen]:
-                            if selectedRaces[4]:
-                                baseMaxLoad = 45.0
-                            selectedRaces[index - previousListLen] = False
-                            removeBonus(racesBonus, index)
-                            actualRaces -= 1
-                            selectableTraits = [True, True, True, True, True, True, True, True, True, True, False, False, False, False, False, False, False, False]
-                            traitIndex = 0
-                            for trait in selectedTraits:
-                                if trait and not selectableTraits[traitIndex]:
-                                    selectedTraits[traitIndex] = False
-                                    removeBonus(traitsBonus, traitIndex)
-                                    actualTraits -= 1
-                                traitIndex += 1
-                elif index + 1 <= len(races) + len(attributes):
-                    if actualAttributesPoints > 0:
-                        previousListLen = len(races)
-                        if actualPerAttributes[index - previousListLen] > 0:
-                            removeBonus(attributesBonus, index - previousListLen)
-                            actualAttributesPoints -= 1
-                            actualPerAttributes[index - previousListLen] -=1
-                            if actualPerAttributes[index - previousListLen] == 0:
-                                selectedAttributes[index - previousListLen] = False
-                else:
-                    if actualTraits > 0:
-                        previousListLen = len(races) + len(attributes)
-                        if selectedTraits[index - previousListLen]:
-                            selectedTraits[index - previousListLen] = False
-                            removeBonus(traitsBonus, index - previousListLen)
-                            actualTraits -= 1
-            if rightIndexMin <= index <= rightIndexMax:
-                if index + 1 <= len(races) + len(attributes) + len(traits) + len(classes):
-                    if actualClasses > 0:
-                        previousListLen = len(races) + len(attributes) + len(traits)
-                        if selectedClasses[index-previousListLen]:
-                            selectedClasses[index - previousListLen] = False
-                            removeBonus(classesBonus, index - previousListLen)
-                            levelUpStats = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-                            actualClasses -= 1
-                            startingSpells = []
-                else:
-                    if actualSkills > 0:
-                        previousListLen = len(races) + len(classes) + len(attributes) + len(traits)
-                        if actualPerSkills[index - previousListLen] > 0:
-                            removeBonus(skillsBonus, index - previousListLen)
-                            selectedSkills[index - previousListLen] = False
-                            actualSkills -= 1
-                            actualPerSkills[index - previousListLen] -= 1
+            if index != maxIndex and index != maxIndex - 1:
+                trait = allTraits[index]
+                trait.removeBonus()
+            else:
+                playWavSound('error.wav')
         if index > maxIndex:
             index = 0
         if index < 0:
             index = maxIndex
+        
+        tdl.flush()
     
 def enterName(race):
     letters = []
@@ -1322,7 +1477,7 @@ def enterName(race):
             if len(name) < 16:
                 letters.append(key.keychar)
             else:
-                playWavSound('error.wav', forceStop = True)
+                playWavSound('error.wav')
         elif key.keychar.upper() == 'BACKSPACE':
             letters.pop()
         elif key.keychar.upper() == 'ESCAPE':
@@ -1341,9 +1496,15 @@ def closestMonster(max_range):
                 closestDistance = dist
     return closestEnemy
 
+class Nemesis:
+    def __init__(self, nemesisObject, branch, level):
+        self.nemesisObject = nemesisObject
+        self.branch = branch
+        self.level = level
+
 class GameObject:
     "A generic object, represented by a character"
-    def __init__(self, x, y, char, name, color = colors.white, blocks = False, Fighter = None, AI = None, Player = None, Ghost = False, Item = None, alwaysVisible = False, darkColor = None, Equipment = None, pName = None, Essence = None):
+    def __init__(self, x, y, char, name, color = colors.white, blocks = False, Fighter = None, AI = None, Player = None, Ghost = False, Item = None, alwaysVisible = False, darkColor = None, Equipment = None, pName = None, Essence = None, socialComp = None, shopComp = None):
         self.x = x
         self.y = y
         self.char = char
@@ -1375,6 +1536,9 @@ class GameObject:
         self.lastTargetX = None
         self.lastTargetY = None
         self.pluralName = pName
+        self.pName = self.pluralName
+        self.socialComp = socialComp
+        self.shopComp = shopComp
 
     def moveTowards(self, target_x, target_y):
         dx = target_x - self.x
@@ -1462,21 +1626,24 @@ class GameObject:
                 print(self.name + " found no Astar path")
         else:
             return "fail"
+        
+    def duplicate(self):
+        return deepcopy(self)
 
 class Fighter: #All NPCs, enemies and the player
-    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = 0, shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = None):
-        self.baseMaxHP = hp
+    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = [0], shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = None):
+        self.noVitHP = hp
         self.BASE_MAX_HP = hp
         self.hp = hp
         self.baseArmor = armor
         self.BASE_ARMOR = armor
-        self.basePower = power
+        self.noStrengthPower = power
         self.BASE_POWER = power
         self.deathFunction = deathFunction
         self.xp = xp
-        self.baseAccuracy = accuracy
+        self.noDexAccuracy = accuracy
         self.BASE_ACCURACY = accuracy
-        self.baseEvasion = evasion
+        self.noDexEvasion = evasion
         self.BASE_EVASION = evasion
         self.baseCritical = critical
         self.BASE_CRITICAL = critical
@@ -1501,8 +1668,8 @@ class Fighter: #All NPCs, enemies and the player
         
         self.acidified = False
         self.acidifiedCooldown = 0
-        
-        self.baseMaxMP = maxMP
+
+        self.noWillMP = maxMP
         self.MP = maxMP
         self.BASE_MAX_MP = maxMP
         
@@ -1516,6 +1683,42 @@ class Fighter: #All NPCs, enemies and the player
         self.spellsOnCooldown = []
         
         self.transferDamage = transferDamage
+
+    @property
+    def basePower(self):
+        bonus = 0
+        if self.owner == player:
+            bonus = player.Player.strength
+        return self.noStrengthPower + bonus
+    
+    @property
+    def baseMaxHP(self):
+        bonus = 0
+        if self.owner == player:
+            bonus = 5 * player.Player.vitality
+        return self.noVitHP + bonus
+    
+    @property
+    def baseAccuracy(self):
+        bonus = 0
+        if self.owner == player:
+            bonus = 2 * player.Player.dexterity
+        return self.noDexAccuracy + bonus
+    
+    @property
+    def baseEvasion(self):
+        bonus = 0
+        if self.owner == player:
+            bonus = player.Player.dexterity
+        return self.noDexEvasion + bonus
+    
+    @property
+    def baseMaxMP(self):
+        bonus = 0
+        if self.owner == player:
+            bonus = 5 * player.Player.willpower
+        return self.noWillMP + bonus
+
 
     @property
     def power(self):
@@ -1557,7 +1760,9 @@ class Fighter: #All NPCs, enemies and the player
         bonus = sum(equipment.armorPenetrationBonus for equipment in getAllEquipped(self.owner))
         return self.baseArmorPenetration + bonus
         
-    def takeDamage(self, damage):
+    def takeDamage(self, damage, damageSource):
+        global lastHitter
+        lastHitter = damageSource
         if damage > 0:
             self.hp -= damage
             self.updateDamageText()
@@ -1571,8 +1776,10 @@ class Fighter: #All NPCs, enemies and the player
                 else:
                     xp = self.xp
                 player.Fighter.xp += xp
+                player.Player.baseScore += xp
     
     def onAttack(self, target):
+        print('on attck function:', self.owner.name, target.name)
         if self.buffsOnAttack is not None:
             for buff in self.buffsOnAttack:
                 dice = randint(1, 100)
@@ -1580,8 +1787,8 @@ class Fighter: #All NPCs, enemies and the player
                     if buff[1] == 'burning':
                         applyBurn(target, 100)
                     if buff[1] == 'poisoned':
-                        poisoned = Buff('poisoned', colors.purple, owner = player, cooldown=randint(5, 10), continuousFunction=lambda: randomDamage(player.Fighter, chance = 100, minDamage=1, maxDamage=10))
-                        poisoned.applyBuff()
+                        poisoned = Buff('poisoned', colors.purple, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10))
+                        poisoned.applyBuff(target)
         if self.leechRessource is not None:
             hunger = self.leechRessource == 'hunger'
             HP = self.leechRessource == 'HP'
@@ -1594,6 +1801,17 @@ class Fighter: #All NPCs, enemies and the player
             if MP:
                 target.Fighter.MP -= self.leechAmount
                 castRegenMana(self.leechAmount//2, caster = self.owner)
+        if self.owner == player:
+            print('attacker is player')
+            for equipment in equipmentList:
+                print(equipment.name)
+                if equipment.Equipment.enchant and equipment.Equipment.enchant.functionOnAttack:
+                    equipment.Equipment.enchant.functionOnAttack(target)
+            
+                if equipment.Equipment.enchant and equipment.Equipment.enchant.buffOnTarget:
+                    for buff in equipment.Equipment.enchant.buffOnTarget:
+                        print('equipment has buff:', buff.name, 'on :', target.name)
+                        buff.applyBuff(target)
 
     def toHit(self, target):
         attack = randint(1, 100)
@@ -1607,7 +1825,7 @@ class Fighter: #All NPCs, enemies and the player
             hitRatio = 95
 
         if DEBUG:
-            message(self.owner.name.capitalize() + ' rolled a ' + str(attack) + ' (target ' + str(hitRatio) + ')', colors.violet)
+            message(self.owner.name.capitalize() + ' rolled a ' + str(attack) + ' (target ' + str(hitRatio) + ': ' + str(BASE_HIT_CHANCE) + ' + ' + str(self.accuracy) + ' - ' + str(target.Fighter.evasion) + ')', colors.violet)
 
         if attack <= hitRatio:
             hit = True
@@ -1624,13 +1842,13 @@ class Fighter: #All NPCs, enemies and the player
             penetratedArmor = target.Fighter.armor - self.armorPenetration
             if penetratedArmor < 0:
                 penetratedArmor = 0
-            if criticalHit: 
-                if self.owner.Player and self.owner.Player.traits[0]:
+            if criticalHit:
+                if self.owner.Player and player.Player.getTrait('trait', 'Aggressive').selected:
                     damage = (randint(self.power - 2, self.power + 2) + 4  - penetratedArmor) * 3
                 else:
                     damage = (randint(self.power - 2, self.power + 2) - penetratedArmor) * 3
             else:
-                if self.owner.Player and self.owner.Player.traits[0]:
+                if self.owner.Player and player.Player.getTrait('trait', 'Aggressive').selected:
                     damage = randint(self.power - 2, self.power + 2) + 4 - penetratedArmor
                 else:
                     damage = randint(self.power - 2, self.power + 2) - penetratedArmor
@@ -1652,7 +1870,7 @@ class Fighter: #All NPCs, enemies and the player
                                 message(self.owner.name.capitalize() + ' critically hits '+ target.name +' for ' + str(damage) + ' hit points!')
                             else:
                                 message(self.owner.name.capitalize() + ' attacks '+ target.name + ' for ' + str(damage) + ' hit points.')
-                        target.Fighter.takeDamage(damage)
+                        target.Fighter.takeDamage(damage, self.owner.name)
                     else:
                         if target == player:
                             message(self.owner.name.capitalize() + ' attacks you but it has no effect !')
@@ -1662,16 +1880,12 @@ class Fighter: #All NPCs, enemies and the player
                             message('You critically hit ' + target.name + ' for ' + str(damage) + ' hit points!', colors.darker_green)
                         else:
                             message('You attack ' + target.name + ' for ' + str(damage) + ' hit points.', colors.dark_green)
-                        target.Fighter.takeDamage(damage)
-                        weapons = getEquippedInHands()
-                        if weapons:
-                            for weapon in weapons:
-                                if weapon is not None:
-                                    if weapon.Equipment.burning:
-                                        applyBurn(target, chance = 75)
+                        target.Fighter.takeDamage(damage, self.owner.name)
                     
                     else:
                         message('You attack ' + target.name + ' but it has no effect!', colors.grey)
+            self.onAttack(target)
+        
         else:
             if not self.owner.Player:
                 if target == player:
@@ -1690,8 +1904,6 @@ class Fighter: #All NPCs, enemies and the player
                     print('found slow weapon')
                     player.Player.attackedSlowly = True
                     player.Player.slowAttackCooldown = 1
-        
-        self.onAttack(target)
         
     def heal(self, amount):
         self.hp += amount
@@ -1775,6 +1987,8 @@ class BasicMonster: #Basic monsters' AI
                                 diagPathState = checkDiagonals(monster, player)
                             elif diagPathState is None or monster.distanceTo(player) > 15:
                                 monster.move(randint(-1, 1), randint(-1, 1)) #wandering
+        elif not 'frozen' in convertBuffsToNames(self.owner.Fighter):
+            monster.move(randint(-1, 1), randint(-1, 1)) #wandering
 
 class FastMonster:
     def __init__(self, speed):
@@ -1836,7 +2050,8 @@ class FastMonster:
                                     diagPathState = checkDiagonals(monster, player)
                                 elif diagPathState is None or monster.distanceTo(player) > 15:
                                     monster.move(randint(-1, 1), randint(-1, 1)) #wandering
-
+            elif not 'frozen' in convertBuffsToNames(self.owner.Fighter):
+                monster.move(randint(-1, 1), randint(-1, 1)) #wandering
 class Fleeing:
     def takeTurn(self):
         monster = self.owner
@@ -2064,8 +2279,9 @@ class Spellcaster():
             FOV_recompute = True
 
 class Player:
-    def __init__(self, name, strength, dexterity, vitality, willpower, actualPerSkills, levelUpStats, skillsBonus, race, classes, traits, baseHunger = BASE_HUNGER):
+    def __init__(self, name, strength, dexterity, vitality, willpower, load, race, classes, allTraits, levelUpStats, baseHunger = BASE_HUNGER, speed = 'average', speedChance = 5):
         self.name = name
+
         self.strength = strength
         self.BASE_STRENGTH = strength
         self.dexterity = dexterity
@@ -2074,30 +2290,40 @@ class Player:
         self.BASE_VITALITY = vitality
         self.willpower = willpower
         self.BASE_WILLPOWER = willpower
-        self.baseMaxWeight = 45.0
-        self.maxWeight = self.baseMaxWeight
-        self.actualPerSkills = actualPerSkills
-        self.levelUpStats = levelUpStats
-        self.skillsBonus = skillsBonus
+        self.baseMaxWeight = load
+
         self.race = race
         self.classes = classes
-        self.traits = traits
+        self.allTraits = allTraits
+        self.levelUpStats = levelUpStats
         self.burdened = False
         self.hunger = baseHunger
         self.hungerStatus = "full"
-        self.dualWield = False
         self.attackedSlowly = False
         self.slowAttackCooldown = 0
+        self.speed = speed #or 'slow' or 'fast'
+        self.speedChance = speedChance
+
+        self.skills = []
+        for skill in self.allTraits:
+            if skill.type == 'skill':
+                self.skills.append(skill)
+                skill.maxAmount = 5
+        self.traits = []
+        for trait in self.allTraits:
+            if trait.type == 'trait':
+                self.traits.append(trait)
+        
+        self.essences = {'Gluttony': 0, 'Wrath': 0, 'Lust': 0, 'Pride': 0, 'Envy': 0, 'Greed': 0, 'Sloth': 0}
         
         if self.race == 'Werewolf':
-            self.transformCooldown = 150
-            self.transformCurCooldown = self.transformCooldown
-            self.transformed = False
-            self.transformMaxTurns = 30
-            self.transformationTime = 0
+            self.human = 150
+            self.wolf = 30
+            self.shapeshift = 'human'
+            self.shapeshifted = True
         
         if self.race == 'Virus ':
-            self.HOST_DEATH = 1500
+            self.HOST_DEATH = 500
             self.hostDeath = 0
             self.inHost = False
             self.timeOutsideLeft = 50
@@ -2107,10 +2333,15 @@ class Player:
             self.mutationsGotten = []
             self.mutationLevel = [2]
         
+        self.hasDiscoveredTown = False
+        self.money = 0
+        self.baseScore = 0
         if DEBUG:
             print('Player component initialized')
-        
-        self.hasDiscoveredTown = False
+
+    @property
+    def maxWeight(self):
+        return self.baseMaxWeight + 3 * self.strength
         
     def changeColor(self):
         self.hpRatio = ((self.owner.Fighter.hp / self.owner.Fighter.maxHP) * 100)
@@ -2127,53 +2358,185 @@ class Player:
         elif self.hpRatio == 0:
             self.owner.color = (120, 0, 0)
     
-    def bonusPlayerStats(self):
-        #[power, accuracy, evasion, armor, maxHP, maxMP, critical]
-        power = self.strength
-        accuracy = 2 * self.dexterity
-        evasion = self.dexterity
-        maxHP = 5 * self.vitality
-        maxMP = 5 * self.willpower
-        return power, accuracy, evasion, maxHP, maxMP
-
-    def updatePlayerStats(self):
-        power, accuracy, evasion, maxHP, maxMP = self.bonusPlayerStats()
-        object = self.owner
-        object.Fighter.basePower = object.Fighter.BASE_POWER + power
-        object.Fighter.baseAccuracy = object.Fighter.BASE_ACCURACY + accuracy
-        object.Fighter.baseEvasion = object.Fighter.BASE_EVASION + evasion
-        self.maxWeight = self.baseMaxWeight + 3 * power
-        
-        hpDiff = object.Fighter.baseMaxHP - object.Fighter.hp
-        mpDiff = object.Fighter.baseMaxMP - object.Fighter.MP
-        
-        object.Fighter.baseMaxHP = object.Fighter.BASE_MAX_HP + maxHP
-        object.Fighter.hp = object.Fighter.baseMaxHP - hpDiff
-        object.Fighter.baseMaxMP = object.Fighter.BASE_MAX_MP + maxMP
-        object.Fighter.MP = object.Fighter.baseMaxMP - mpDiff
-    
     def takeControl(self, target):
-        player.Fighter.hp = target.Fighter.hp
-        player.Fighter.armor = target.Fighter.armor
-        player.Fighter.power = target.Fighter.power
-        player.Fighter.accuracy = target.Fighter.accuracy
-        player.Fighter.evasion = target.Fighter.evasion
-        player.Fighter.maxMP = target.Fighter.maxMP
-        player.Fighter.critical = target.Fighter.critical
+        player.Fighter.noVitHP = int(target.Fighter.BASE_MAX_HP)
+        player.Fighter.hp = int(target.Fighter.hp) + 5 * self.BASE_VITALITY
+        player.Fighter.baseArmor = int(target.Fighter.BASE_ARMOR)
+        player.Fighter.noStrengthPower = int(target.Fighter.BASE_POWER)
+        player.Fighter.noDexAccuracy = int(target.Fighter.BASE_ACCURACY)
+        player.Fighter.noDexEvasion = int(target.Fighter.BASE_EVASION)
+        player.Fighter.noWillMP = int(target.Fighter.BASE_MAX_MP)
+        player.Fighter.MP = int(target.Fighter.MP)
+        player.Fighter.baseCritical = int(target.Fighter.BASE_CRITICAL)
+        player.Fighter.baseArmorPenetration = int(target.Fighter.BASE_ARMOR_PENETRATION)
         
-        player.x, player.y = target.x, target.y
-        message('You take control of ' + target.name + '!', colors.darker_han)
+        player.x, player.y = int(target.x), int(target.y)
+        message('You take control of ' + target.name + '!', colors.han)
         objects.remove(target)
         self.inHost = True
         self.hostDeath = self.HOST_DEATH
+    
+    def getTrait(self, searchedType, name):
+        for trait in self.allTraits:
+            if trait.type == searchedType and trait.name == name:
+                return trait
+        return 'not found'
+
+def displayCharacter():
+    levelUp_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
+    
+    width = CHARACTER_SCREEN_WIDTH
+    height = CHARACTER_SCREEN_HEIGHT
+    window = NamedConsole('displayCharacter', width, height)
+    window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
+    window.clear()
+    page = 1
+
+    while not tdl.event.isWindowClosed():
+        MAX_PAGE = 3
+        for k in range(width):
+            window.draw_char(k, 0, chr(196))
+        window.draw_char(0, 0, chr(218))
+        window.draw_char(k, 0, chr(191))
+        kMax = k
+        for l in range(height):
+            if l > 0:
+                window.draw_char(0, l, chr(179))
+                window.draw_char(kMax, l, chr(179))
+        lMax = l
+        for m in range(width):
+            window.draw_char(m, lMax, chr(196))
+        window.draw_char(0, lMax, chr(192))
+        window.draw_char(kMax, lMax, chr(217))
+        if page == 1:
+            window.draw_str(5, 1, player.Player.race + ' ' + player.Player.classes, fg = colors.yellow)
+            window.draw_str(width - 1, 1, '>', colors.green)
+            renderBar(window, 1, 3, BAR_WIDTH, 'EXP', player.Fighter.xp, levelUp_xp, colors.desaturated_cyan, colors.dark_gray)
+            renderBar(window, 1, 5, BAR_WIDTH, 'Hunger', player.Player.hunger, BASE_HUNGER, colors.desaturated_lime, colors.dark_gray)
+            window.draw_str(1, 7, 'HP: ' + str(player.Fighter.hp) + '/' + str(player.Fighter.maxHP))
+            window.draw_str(20, 7, 'MP: ' + str(player.Fighter.MP) + '/' + str(player.Fighter.maxMP))
+            window.draw_str(1, 9, 'Armor: ' + str(player.Fighter.armor))
+            window.draw_str(13, 9, 'Accuracy: ' + str(player.Fighter.accuracy))
+            window.draw_str(30, 9, 'Evasion: ' + str(player.Fighter.evasion))
+            window.draw_str(1, 11, 'Strength: ' + str(player.Player.strength + 10))
+            window.draw_str(1, 13, 'Dexterity: ' + str(player.Player.dexterity + 10))
+            window.draw_str(1, 15, 'Vitality: ' + str(player.Player.vitality + 10))
+            window.draw_str(1, 17, 'Willpower: ' + str(player.Player.willpower + 10))
+            window.draw_str(1, 19, 'Current load: ' + str(getAllWeights(player)))
+            window.draw_str(20, 19, 'Max load: ' + str(player.Player.maxWeight))
+        elif page == 2:
+            window.draw_str(5, 1, 'Traits:', fg = colors.yellow)
+            window.draw_str(0, 1, '<', colors.green)
+            window.draw_str(width - 1, 1, '>', colors.green)
+            y = 3
+            x = 1
+            for trait in player.Player.traits:
+                if y > height - 2:
+                    y = 3
+                    x = width // 2
+                if trait.selected:
+                    window.draw_str(x, y, trait.name)
+                    y += 2
+        else:
+            window.draw_str(5, 1, 'Absorbed Essences:', fg = colors.yellow)
+            window.draw_str(0, 1, '<', colors.green)
+            y = 3
+            index = 0
+            values = list(player.Player.essences.values())
+            sins = list(player.Player.essences.keys())
+            for sin in sins:
+                if values[index] != 0:
+                    window.draw_str(1, y, sin + ': ' + str(values[index]))
+                    y += 2
+                index += 1
+
+        x = MID_WIDTH - int(width/2)
+        y = MID_HEIGHT - int(height/2)
+        root.blit(window, x, y, width, height, 0, 0)
+        tdl.flush()
+        
+        key = tdl.event.key_wait()
+        keyChar = key.keychar
+        if key.keychar.upper() == 'RIGHT':
+            window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
+            window.clear()
+            page += 1
+        if key.keychar.upper() == 'LEFT':
+            window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
+            window.clear()
+            page -= 1
+        if page < 1:
+            page = 1
+        if page > MAX_PAGE:
+            page = MAX_PAGE
+
+        if keyChar == 'ESCAPE':
+            break
 
 class Essence:
-    def __init(self, sin = None, color = None):
+    def __init__(self, sin = None, color = None, strength = 'minor', affectedStats = None):
         self.sin = sin
         self.color = color
+        self.strength = strength
+        self.affectedStats = affectedStats
     
-    #def absorb(self):
-        
+    def absorb(self):
+        if self.strength == 'minor':
+            bonus = 1
+        else:
+            bonus = 3
+        player.Player.essences[self.sin] += bonus
+        message('You absorbed a ' + self.strength + ' essence of ' + self.sin + '!', self.color)
+        objects.remove(self.owner)
+        if self.affectedStats is not None:
+            for stat, boost in self.affectedStats:
+                if stat == 'vitality':
+                    player.Player.BASE_VITALITY += boost
+                    player.Player.vitality += boost
+                if stat == 'strength':
+                    player.Player.strength += boost
+                    player.Player.BASE_STRENGTH += boost
+                if stat == 'willpower':
+                    player.Player.BASE_WILLPOWER += boost
+                    player.Player.willpower += boost
+                if stat == 'dexterity':
+                    player.Player.BASE_DEXTERITY += boost
+                    player.Player.dexterity += boost
+                if stat == 'power':
+                    player.Fighter.noStrengthPower += boost
+                    player.Fighter.BASE_POWER += boost
+                if stat == 'accuracy':
+                    player.Fighter.noDexAccuracy += boost
+                    player.Fighter.BASE_ACCURACY += boost
+                if stat == 'evasion':
+                    player.Fighter.noDexEvasion += boost
+                    player.Fighter.BASE_EVASION += boost
+                if stat == 'armor':
+                    player.Fighter.baseArmor += boost
+                    player.Fighter.BASE_ARMOR += boost
+                if stat == 'HP':
+                    player.Fighter.noVitHP += boost
+                    player.Fighter.hp += boost
+                    player.Fighter.BASE_MAX_HP += boost
+                if stat == 'mp':
+                    player.Fighter.noWillMP += boost
+                    player.Fighter.MP += boost
+                    player.Fighter.BASE_MAX_MP += boost
+                if stat == 'critical':
+                    player.Fighter.baseCritical += boost
+                    player.Fighter.BASE_CRITICAL += boost
+                if stat == 'slow':
+                    if player.Player.speed == 'fast':
+                        player.Player.speed = 'average'
+                    else:
+                        player.Player.speed = 'slow'
+                    player.Player.speedChance += boost
+                if stat == 'fast':
+                    if player.Player.speed == 'slow':
+                        player.Player.speed = 'average'
+                    else:
+                        player.Player.speed = 'slow'
+                    player.Player.speedChance += boost
 
 class Item:
     def __init__(self, useFunction = None,  arg1 = None, arg2 = None, arg3 = None, stackable = False, amount = 1, weight = 0, description = 'Placeholder.', pic = 'trollMace.xp', itemtype = None):
@@ -2188,31 +2551,35 @@ class Item:
         self.pic = pic
         self.type = itemtype
 
-    def pickUp(self):
+    def pickUp(self, silent = False, inObjects = True):
         if not self.stackable:
             #if len(inventory)>=26:
                 #message('Your bag already feels really heavy, you cannot pick up ' + self.owner.name + '.', colors.red)
             #else:
             inventory.append(self.owner)
-            objects.remove(self.owner)
-            message('You picked up a ' + self.owner.name + '!', colors.green)
+            if inObjects:
+                objects.remove(self.owner)
+            if not silent:
+                message('You picked up a ' + self.owner.name + '!', colors.green)
             equipment = self.owner.Equipment
             if equipment:
                 handed = equipment.slot == 'one handed' or equipment.slot == 'two handed'
                 if not handed and getEquippedInSlot(equipment.slot) is None:
-                    equipment.equip()
+                    equipment.equip(silent)
         else:
             itemFound = False
             for item in inventory:
                 if item.name == self.owner.name:
-                    if self.amount == 1:
-                        message('You picked up a' + ' ' + self.owner.name + ' !', colors.green)
-                    elif self.owner.pluralName is None:
-                        message('You picked up ' + str(self.amount) + ' ' + self.owner.name + 's !', colors.green)
-                    else:
-                        message('You picked up ' + str(self.amount) + ' ' + self.owner.pluralName + ' !', colors.green)
+                    if not silent:
+                        if self.amount == 1:
+                            message('You picked up a' + ' ' + self.owner.name + ' !', colors.green)
+                        elif self.owner.pluralName is None:
+                            message('You picked up ' + str(self.amount) + ' ' + self.owner.name + 's !', colors.green)
+                        else:
+                            message('You picked up ' + str(self.amount) + ' ' + self.owner.pluralName + ' !', colors.green)
                     item.Item.amount += self.amount
-                    objects.remove(self.owner)
+                    if inObjects:
+                        objects.remove(self.owner)
                     #if DEBUG:
                         #print("Amount of " + self.owner.name + " equals " + str(self.amount))
                     itemFound = True
@@ -2222,13 +2589,15 @@ class Item:
                     #message('Your bag already feels really heavy, you cannot pick up ' + str(self.amount) + self.owner.name + 's.', colors.red)
                 #else:
                 inventory.append(self.owner)
-                objects.remove(self.owner)
-                if self.amount == 1:
-                    message('You picked up a' + ' ' + self.owner.name + ' !', colors.green)
-                elif self.owner.pluralName is None:
-                    message('You picked up ' + str(self.amount) + ' ' + self.owner.name + 's !', colors.green)
-                else:
-                    message('You picked up ' + str(self.amount) + ' ' + self.owner.pluralName + ' !', colors.green)
+                if inObjects:
+                    objects.remove(self.owner)
+                if not silent:
+                    if self.amount == 1:
+                        message('You picked up a' + ' ' + self.owner.name + ' !', colors.green)
+                    elif self.owner.pluralName is None:
+                        message('You picked up ' + str(self.amount) + ' ' + self.owner.name + 's !', colors.green)
+                    else:
+                        message('You picked up ' + str(self.amount) + ' ' + self.owner.pluralName + ' !', colors.green)
 
     def use(self):
         if self.owner.Equipment:
@@ -2338,6 +2707,77 @@ class Item:
         fullDesc.extend(equipmentStats)
         return fullDesc
     
+    def displayItem(self, posX = 0):
+        global FOV_recompute, menuWindows
+        asciiFile = os.path.join(absAsciiPath, self.pic)
+        xpRawString = gzip.open(asciiFile, "r").read()
+        convertedString = xpRawString
+        attributes = xpL.load_xp_string(convertedString)
+        picWidth = int(attributes["width"])
+        picHeight = int(attributes["height"])
+        print("Pic Height = ", picHeight)
+        lData = attributes["layer_data"]
+        
+        width = picWidth + 15
+        desc = self.fullDescription(width - 2)
+        descriptionHeight = len(desc)
+        if desc == '':
+            descriptionHeight = 0
+        height = descriptionHeight + 6 + int(picHeight) + 1
+        
+        if menuWindows:
+            for mWindow in menuWindows:
+                if not mWindow.name == 'inventory' and not mWindow.type == 'menu':
+                    mWindow.clear()
+                    print('CLEARED {} WINDOW OF TYPE {}'.format(mWindow.name, mWindow.type))
+                    if mWindow.name == 'displayItemInInventory':
+                        ind = menuWindows.index(mWindow)
+                        del menuWindows[ind]
+                        print('Deleted')
+                FOV_recompute = True
+                Update()
+                tdl.flush()
+        window = NamedConsole('displayItemInInventory', width, height)
+        print('Created disp window')
+        window.clear()
+        menuWindows.append(window)
+
+        for k in range(width):
+            window.draw_char(k, 0, chr(196))
+        window.draw_char(0, 0, chr(218))
+        window.draw_char(k, 0, chr(191))
+        kMax = k
+        for l in range(height):
+            if l > 0:
+                window.draw_char(0, l, chr(179))
+                window.draw_char(kMax, l, chr(179))
+        lMax = l
+        for m in range(width):
+            window.draw_char(m, lMax, chr(196))
+        window.draw_char(0, lMax, chr(192))
+        window.draw_char(kMax, lMax, chr(217))
+        startY = 4
+        startX = 3
+        layerInd = int(0)
+        for layerInd in range(len(lData)):
+            xpL.load_layer_to_console(window, lData[layerInd], startY, startX)
+        #for line in self.pic:
+            #x = 2
+            #for char in line:
+                #window.draw_char(x, y, char[0], char[1], char[2])
+                #x += 1
+            #y += 1
+        
+        window.draw_str(1, 1, self.owner.name.capitalize() + ':', fg = colors.yellow, bg = None)
+        for i, line in enumerate(desc):
+            window.draw_str(1, int(picHeight) + 5 + i, desc[i], fg = colors.white)
+        posY = MID_HEIGHT - height//2
+        root.blit(window, posX, posY, width, height, 0, 0)
+        
+        menuWindows.append(window)
+        FOV_recompute = True
+        tdl.flush()
+    
     def display(self, options):
         global menuWindows, FOV_recompute
         asciiFile = os.path.join(absAsciiPath, self.pic)
@@ -2349,8 +2789,8 @@ class Item:
         print("Pic Height = ", picHeight)
         lData = attributes["layer_data"]
         
-        width = picWidth + 16
-        desc = self.fullDescription(width)
+        width = picWidth + 15
+        desc = self.fullDescription(width - 2)
         descriptionHeight = len(desc)
         if desc == '':
             descriptionHeight = 0
@@ -2361,15 +2801,29 @@ class Item:
                 FOV_recompute = True
                 Update()
                 tdl.flush()
-        window = tdl.Console(width, height)
+        window = NamedConsole('displayItemSelected', width, height)
         window.clear()
+        menuWindows.append(window)
         
         choseOrQuit = False
         while not choseOrQuit:
             choseOrQuit = True
-            
-            startY = 3
-            startX = 2
+            for k in range(width):
+                window.draw_char(k, 0, chr(196))
+            window.draw_char(0, 0, chr(218))
+            window.draw_char(k, 0, chr(191))
+            kMax = k
+            for l in range(height):
+                if l > 0:
+                    window.draw_char(0, l, chr(179))
+                    window.draw_char(kMax, l, chr(179))
+            lMax = l
+            for m in range(width):
+                window.draw_char(m, lMax, chr(196))
+            window.draw_char(0, lMax, chr(192))
+            window.draw_char(kMax, lMax, chr(217))
+            startY = 4
+            startX = 3
             layerInd = int(0)
             for layerInd in range(len(lData)):
                 xpL.load_layer_to_console(window, lData[layerInd], startY, startX)
@@ -2380,24 +2834,23 @@ class Item:
                     #x += 1
                 #y += 1
             
-            
-            window.draw_str(0, 0, self.owner.name.capitalize() + ':', fg = colors.yellow, bg = None)
+            window.draw_str(1, 1, self.owner.name.capitalize() + ':', fg = colors.yellow, bg = None)
             for i, line in enumerate(desc):
-                window.draw_str(0, int(picHeight) + 4 +i, desc[i], fg = colors.white)
+                window.draw_str(1, int(picHeight) + 5 + i, desc[i], fg = colors.white)
 
-            y = descriptionHeight + picHeight + 5
+            y = descriptionHeight + picHeight + 6
             letterIndex = ord('a')
             counter = 0
             for optionText in options:
                 text = '(' + chr(letterIndex) + ') ' + optionText
                 letterIndex += 1
-                window.draw_str(0, y, text, bg=None)
+                window.draw_str(1, y, text, bg=None)
                 y += 1
                 counter += 1
-                
-            x = MID_WIDTH - int(width/2)
-            y = MID_HEIGHT - int(height/2)
-            root.blit(window, x, y, width, height, 0, 0)
+
+            posX = MID_WIDTH - int(width/2)
+            posY = MID_HEIGHT - int(height/2)
+            root.blit(window, posX, posY, width, height, 0, 0)
         
             tdl.flush()
             
@@ -2411,6 +2864,482 @@ class Item:
                 return "cancelled"
         return None
 
+class Enchantment:
+    def __init__(self, name, functionOnAttack = None, buffOnOwner = [], buffOnTarget = [], damageOnOwner = 0, damageOnTarget = 0, pow = 0, acc = 0, evas = 0, arm = 0, hp = 0, mp = 0, crit = 0, ap = 0, str = 0, dex = 0, vit = 0, will = 0):
+        self.name = name
+        self.functionOnAttack = functionOnAttack
+        self.buffOnOwner = buffOnOwner
+        self.buffOnTarget = buffOnTarget
+        self.damageOnOwner = damageOnOwner
+        self.damageOnTarget = damageOnTarget
+        self.pow = pow
+        self.acc = acc
+        self.evas = evas
+        self.arm = arm
+        self.hp = hp
+        self.mp = mp
+        self.crit = crit
+        self.ap = ap
+        self.str = str
+        self.dex = dex
+        self.vit = vit
+        self.will = will
+    
+class Equipment:
+    def __init__(self, slot, type, powerBonus=0, armorBonus=0, maxHP_Bonus=0, accuracyBonus=0, evasionBonus=0, criticalBonus = 0, maxMP_Bonus = 0, strengthBonus = 0, dexterityBonus = 0, vitalityBonus = 0, willpowerBonus = 0, ranged = False, rangedPower = 0, maxRange = 0, ammo = None, meleeWeapon = False, armorPenetrationBonus = 0, slow = False, enchant = None):
+        self.slot = slot
+        self.type = type
+        self.basePowerBonus = powerBonus
+        self.baseArmorBonus = armorBonus
+        self.baseMaxHP_Bonus = maxHP_Bonus
+        self.baseAccuracyBonus = accuracyBonus
+        self.baseEvasionBonus = evasionBonus
+        self.baseCriticalBonus = criticalBonus
+        self.baseMaxMP_Bonus = maxMP_Bonus
+        self.isEquipped = False
+        self.curSlot = None
+        self.baseArmorPenetrationBonus = armorPenetrationBonus
+        self.baseStrengthBonus = strengthBonus
+        self.baseDexterityBonus = dexterityBonus
+        self.baseVitalityBonus = vitalityBonus
+        self.baseWillpowerBonus = willpowerBonus
+        
+        self.ranged = ranged
+        self.baseRangedPower = rangedPower
+        self.maxRange = maxRange
+        self.ammo = ammo
+        self.meleeWeapon = meleeWeapon
+        self.slow = slow
+        self.enchant = enchant
+
+    @property
+    def powerBonus(self):
+        if self.type == 'light weapon':
+            bonus = (20 * player.Player.getTrait('skill', 'Light weapons').amount) / 100
+        elif self.type == 'heavy weapon':
+            bonus = (20 * player.Player.getTrait('skill', 'Heavy weapons').amount) / 100
+        elif self.type == 'throwing weapon':
+            bonus = (20 * player.Player.getTrait('skill', 'Throwing weapons').amount) / 100
+        else:
+            bonus = 0
+        if self.enchant:
+            return int(self.basePowerBonus * bonus + self.basePowerBonus + self.enchant.pow)
+        else:
+            return int(self.basePowerBonus * bonus + self.basePowerBonus)
+    
+    @property
+    def rangedPower(self):
+        if self.type == 'missile weapon':
+            bonus = (20 * player.Player.getTrait('skill', 'Missile weapons').amount) / 100
+            if self.enchant:
+                return int(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.dexterity + self.enchant.pow)
+            else:
+                return int(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.dexterity)
+        elif self.type == 'throwing weapon':
+            bonus = (20 * player.Player.getTrait('skill', 'Throwing weapons').amount) / 100
+            if self.enchant:
+                return int(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.strength + self.enchant.pow)
+            else:
+                int(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.strength)
+        else:
+            if self.enchant:
+                return self.baseRangedPower + self.enchant.pow
+            else:
+                return self.baseRangedPower
+    
+    @property
+    def accuracyBonus(self):
+        if self.enchant:
+            return self.baseAccuracyBonus + self.enchant.acc
+        else:
+            return self.baseAccuracyBonus
+    
+    @property
+    def evasionBonus(self):
+        if self.enchant:
+            return self.baseEvasionBonus + self.enchant.evas
+        else:
+            return self.baseEvasionBonus
+    
+    @property
+    def armorBonus(self):
+        if self.enchant:
+            return self.baseArmorBonus + self.enchant.arm
+        else:
+            return self.baseArmorBonus
+    
+    @property
+    def maxHP_Bonus(self):
+        if self.enchant:
+            return self.baseMaxHP_Bonus + self.enchant.hp
+        else:
+            return self.baseMaxHP_Bonus
+    
+    @property
+    def maxMP_Bonus(self):
+        if self.enchant:
+            return self.baseMaxMP_Bonus + self.enchant.mp
+        else:
+            return self.baseMaxMP_Bonus
+    
+    @property
+    def criticalBonus(self):
+        if self.enchant:
+            return self.baseCriticalBonus + self.enchant.crit
+        else:
+            return self.baseCriticalBonus
+    
+    @property
+    def armorPenetrationBonus(self):
+        if self.enchant:
+            return self.baseArmorPenetrationBonus + self.enchant.ap
+        else:
+            return self.baseArmorPenetrationBonus
+    
+    @property
+    def strengthBonus(self):
+        if self.enchant:
+            return self.baseStrengthBonus + self.enchant.str
+        else:
+            return self.baseStrengthBonus
+    
+    @property
+    def dexterityBonus(self):
+        if self.enchant:
+            return self.baseDexterityBonus + self.enchant.dex
+        else:
+            return self.baseDexterityBonus
+    
+    @property
+    def vitalityBonus(self):
+        if self.enchant:
+            return self.baseVitalityBonus + self.enchant.vit
+        else:
+            return self.baseVitalityBonus
+    
+    @property
+    def willpowerBonus(self):
+        if self.enchant:
+            return self.baseWillpowerBonus + self.enchant.will
+        else:
+            return self.baseWillpowerBonus
+
+    def toggleEquip(self):
+        if self.isEquipped:
+            self.unequip()
+        else:
+            self.equip()
+
+    def equip(self, silent = False):
+        extra = False
+        handSlot = None
+        oldEquipment = None
+        global FOV_recompute
+        
+        handed = self.slot == 'one handed' or self.slot == 'two handed'
+        
+        if self.slot == 'one handed':
+            inHands = getEquippedInHands()
+            rightText = "right hand"
+            leftText = "left hand"
+            extra = False
+            if player.Player.race == 'Demon spawn':
+                if 'extra limb' in player.Player.mutationsGotten:
+                    extraText = "extra arm"
+                    extra = True
+            for object in equipmentList:
+                if object.Equipment.curSlot == "right hand":
+                    rightText = rightText + " (" + object.name + ")"
+                if object.Equipment.curSlot == "left hand":
+                    leftText = leftText + " (" + object.name + ")"
+                if object.Equipment.curSlot == 'both hands':
+                    rightText = rightText + " (" + object.name + ")"
+                    leftText = leftText + " (" + object.name + ")"
+                if extra and object.Equipment.curSlot == 'extra arm':
+                    extraText = extraText + ' (' + object.name + ')'
+            if extra:
+                handList = [rightText, leftText, extraText]
+            else:
+                handList = [rightText, leftText]
+            handIndex = menu('What slot do you want to equip this ' + self.owner.name + ' in?', handList, 60)
+            if handIndex == 0:
+                handSlot = 'right hand'
+            elif handIndex == 1:
+                handSlot = 'left hand'
+            elif extra and handIndex == 2:
+                handSlot = 'extra arm'
+            else:
+                return None
+        elif self.slot == 'two handed':
+            handSlot = 'both hands'
+
+        rightEquipment = None
+        leftEquipment = None
+        extraEquipment = None
+        if handed:
+            if self.meleeWeapon and handSlot == 'right hand':
+                leftEquipment = getEquippedInSlot('left hand', hand = True)
+                extraEquipment = getEquippedInSlot('extra arm', hand = True)
+            elif self.meleeWeapon and handSlot == 'left hand':
+                rightEquipment = getEquippedInSlot('right hand', hand = True)
+                extraEquipment = getEquippedInSlot('extra arm', hand = True)
+            elif extra and self.meleeWeapon and handSlot == 'extra arm':
+                leftEquipment = getEquippedInSlot('left hand', hand = True)
+                rightEquipment = getEquippedInSlot('right hand', hand = True)
+        rightIsWeapon = rightEquipment and rightEquipment.meleeWeapon
+        leftIsWeapon = leftEquipment and leftEquipment.meleeWeapon
+        extraIsWeapon = extraEquipment and extraEquipment.meleeWeapon
+
+        possible = True
+        if rightIsWeapon or leftIsWeapon or extraIsWeapon:
+            if player.Player.getTrait('trait', 'Dual wield') == 'not found':
+                message('You cannot wield two weapons at the same time!', colors.yellow)
+                possible = False
+            else:
+                if self.type == 'light weapon':
+                    if rightIsWeapon and not rightEquipment.type == 'light weapon' or leftIsWeapon and not leftEquipment.type == 'light weapon' or rightIsWeapon and not rightEquipment.type == 'light weapon':
+                        message('You can only wield several light weapons.', colors.yellow)
+                        possible = False
+        if possible:
+            if not handed:
+                oldEquipment = getEquippedInSlot(self.slot)
+                if oldEquipment is not None:
+                    oldEquipment.unequip()
+            else:
+                rightEquipment = None
+                leftEquipment = None
+                bothEquipment = None
+        
+                if self.slot == 'one handed':
+                    bothEquipment = getEquippedInSlot('both hands', hand = True)
+                    oldEquipment = getEquippedInSlot(handSlot, hand = True)
+                if self.slot == 'two handed':
+                    rightEquipment = getEquippedInSlot('right hand', hand = True)
+                    leftEquipment = getEquippedInSlot('left hand', hand = True)
+                    bothEquipment = getEquippedInSlot('both hands', hand = True)
+    
+                if bothEquipment is not None:
+                    bothEquipment.unequip()
+                if rightEquipment is not None:
+                    rightEquipment.unequip()
+                if leftEquipment is not None:
+                    leftEquipment.unequip()
+                if oldEquipment is not None:
+                    oldEquipment.unequip()
+    
+            inventory.remove(self.owner)
+            equipmentList.append(self.owner)
+            self.isEquipped = True
+            if self.maxHP_Bonus != 0:
+                player.Fighter.hp += self.maxHP_Bonus
+            if self.maxMP_Bonus != 0:
+                player.Fighter.MP += self.maxMP_Bonus
+            
+            if not silent:
+                if handed:
+                    self.curSlot = handSlot
+                    message('Equipped ' + self.owner.name + ' on ' + self.curSlot + '.', colors.light_green)
+                else:
+                    message('Equipped ' + self.owner.name + ' on ' + self.slot + '.', colors.light_green)
+ 
+    def unequip(self):
+        handed = self.slot == 'one handed' or self.slot == 'two handed'
+
+        if not self.isEquipped: return
+        self.isEquipped = False
+        equipmentList.remove(self.owner)
+        inventory.append(self.owner)
+        if handed:
+            message('Unequipped ' + self.owner.name + ' from ' + self.curSlot + '.', colors.light_yellow)
+            self.curSlot = None
+        else:
+            message('Unequipped ' + self.owner.name + ' from ' + self.slot + '.', colors.light_yellow)
+        if self.maxHP_Bonus != 0:
+            player.Fighter.hp -= self.maxHP_Bonus
+        if self.maxMP_Bonus != 0:
+            player.Fighter.MP -= self.maxMP_Bonus
+
+class Money(Item):
+    def __init__(self, moneyAmount):
+        self.amount = moneyAmount
+        self.stackable = True
+        Item.__init__(self, amount = self.amount, stackable = self.stackable)
+        
+    def pickUp(self):
+        player.Player.money += self.amount
+        objects.remove(self.owner)
+        message('You pick up ' + str(self.amount) + ' gold pieces !')
+    
+    def use(self):
+        raise UnusableMethodException("Cannot 'use' a money item.")
+    
+    def drop(self):
+        raise UnusableMethodException("Cannot 'drop' a money item.")
+    
+    def fullDescription(self):
+        raise UnusableMethodException("Cannot 'fullDescript' a money item.")
+    
+    def display(self):
+        raise UnusableMethodException("Cannot 'display' a money item.")
+
+class ShopChoice:
+    def __init__(self, gObject, itemComp = None, price = 0, stock = 0):
+        self.object = gObject
+        #assert isinstance(self.object, GameObject)
+        if not self.object.Item:
+            if itemComp:
+                self.itemComp = itemComp
+                print('Found itemComp without issues')
+            else:
+                print('========================================')
+                print('===============WARNING !================')
+                print('Assigning None itemComponent to ' + self.object.name)
+                print('This is likely to cause issues !')
+                print('========================================')
+                print('========================================')
+            self.object.Item = self.itemComp
+        else:
+            self.itemComp = self.object.Item
+            print('Found already existing item component')
+        self.price = price
+        self.stock = stock
+    
+    def buy(self):
+        if player.Player.money >= self.price:
+            if self.stock > 0:
+                player.Player.money -= self.price
+                self.stock -= 1
+                newObject = self.object.duplicate()
+                newObject.Item.pickUp(silent = True, inObjects = False)
+                return 'OK'
+            else:
+                return 'OOS' # Out of stock
+        else:
+            return 'NEM' #Not enough money
+    
+    def formatName(self):
+        o = self.object
+        i = o.Item
+        '''
+        if i != self.itemComp:
+            raise NotEqualToExpectedValueException('ItemComp is different from the Item component of the actual object')
+        '''
+        if self.stock > 1:
+            if o.pName:
+                name = str(self.stock) + ' ' + o.pName
+            else:
+                name = str(self.stock) + ' ' + o.name + 's'
+        else:
+            name = 'A ' + str(o.name) #TO-DO : Insert here check for other pronouns ('an', 'the', None, etc)
+        
+        name = getRightFilled(name)
+        priceText = str(self.price) + 'g'
+        priceLength = len(priceText)
+        lastNameCharacter = len(name) - 1
+        startPrice = lastNameCharacter - priceLength
+        name = name[:startPrice] + priceText
+        return name
+
+class Shop:
+    def __init__(self, choicesList, welcomeText = 'Welcome to my shop ! What can I do for you ?'):
+        self.choicesList = choicesList
+        self.welcomeText = welcomeText
+        
+    def browse(self):
+        root.clear()
+        state = 'starting'
+        selectedIndex = 0
+        while state != 'END':
+            con.clear()
+            con.draw_str(0, 1, 'ITEM')
+            con.draw_str(WIDTH - len('PRICE') - 1, 1, 'PRICE')
+            y = 2
+            for choice in self.choicesList:
+                ind = self.choicesList.index(choice)
+                if choice.stock > 0:
+                    toDraw = choice.formatName()
+                    foreground = colors.white
+                else:
+                    toDraw = getCenterFilled('OUT OF STOCK')
+                    foreground = colors.light_gray
+                if ind == selectedIndex:
+                    background = colors.dark_azure
+                else:
+                    background = Ellipsis
+                con.draw_str(0, y, toDraw, fg = foreground, bg = background)
+                y += 1
+            panel.clear()
+            for x in range(WIDTH):
+                panel.draw_char(x, 0, chr(196))
+            moneyText = 'Money : ' + str(player.Player.money)
+            startMoneyX = WIDTH - len(moneyText)
+            panel.draw_str(startMoneyX, 1, moneyText)
+            centerY = PANEL_HEIGHT // 2
+            if state == 'OK':
+                pMessage = 'Thanks for your purchase ! What else can I do for you ?'
+            elif state == 'OOS':
+                pMessage = "I'm sorry but this item is out of stock."
+            elif state == 'NEM':
+                pMessage = "Sorry but you can't afford this"
+            elif state == 'END':
+                pMessage = "Farewell. (you shouldn't see this message)"
+            else:
+                pMessage = self.welcomeText
+            drawCentered(panel, y = centerY, text = pMessage, fg = Ellipsis, bg = Ellipsis)
+            root.blit(con, 0, 0, WIDTH, HEIGHT, 0, 0)
+            root.blit(panel, 0, PANEL_Y, WIDTH, PANEL_HEIGHT, 0, 0)
+            tdl.flush()
+            key = tdl.event.key_wait()
+            actualKey = key.keychar.upper()
+            if actualKey == 'ESCAPE':
+                state = 'END'
+            elif actualKey in ('UP', 'KP8'):
+                selectedIndex -= 1
+                if selectedIndex < 0:
+                    selectedIndex = len(self.choicesList) - 1
+                playWavSound('selectClic.wav')
+            elif actualKey in ('DOWN', 'KP2'):
+                selectedIndex += 1
+                if selectedIndex > len(self.choicesList) - 1 :
+                    selectedIndex = 0
+                playWavSound('selectClic.wav')
+            elif actualKey == 'ENTER':
+                state = self.choicesList[selectedIndex].buy()
+
+def vomit(amount = 30):
+    message('You throw up !', colors.darker_lime)
+    player.Player.hunger -= amount
+    if player.Player.hunger < 0:
+        player.Player.hunger = 0
+
+def badPieEffect():
+    message('This tasted awful !', colors.red)
+    dice = randint(1, 100)
+    if dice > 40:
+        vomit()
+    else:
+        satiateHunger(randint(30, 80))
+    if dice > 70:
+        message("This had a very strange aftertaste...", colors.red)
+        poisoned = Buff('poisoned', colors.purple, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10))
+        poisoned.applyBuff(player)
+
+badPie = GameObject(None, None, ',', "awful pie", colors.dark_fuchsia, Item = Item(useFunction = lambda : badPieEffect(), weight = 0.4, stackable=True, amount = 1, description = "This pie looks barely edible. Whoever baked it deserves the title of the worst baker of all this world.", itemtype = 'food'), blocks = False, pName = "awful pies") # TO-DO : Once we find the name of the world, change description
+badPieChoice = ShopChoice(gObject = badPie, price = 100, stock = 20)
+
+salad = GameObject(None, None, ',', "'herb salad", colors.green, Item = Item(useFunction = lambda : satiateHunger(40, 'the herb salad'), weight = 0.05, stackable=True, amount = 1, description = "A salad made out of the herbs that grow all arount this place. Oddly enough, this looks like it won't make you die of poisoning as soon as you eat it.", itemtype = 'food'), blocks = False, pName = "herb salads")
+saladChoice = ShopChoice(gObject = salad, price = 120, stock = 10)
+
+bread = GameObject(None, None, ',', "slice of bread", colors.yellow, Item = Item(useFunction= lambda : satiateHunger(20, 'the slice of bread'), weight = 0.2, stackable=True, amount = 1, description = "This has probably been lying on the ground for ages, but you'll have to deal with it if you don't want to starve.", itemtype = 'food'), blocks = False, pName = "slices of bread")
+breadChoice = ShopChoice(gObject = bread, price = 40, stock = 5) #The amount of stock will make sense once we have a restock system implemented (you have to bake more bread to get more, and since the NPC cannot leave the town because monsters there are limited ressources, so you can't bake a lot of it in one go)
+
+cSwordEquip = Equipment(slot = 'one handed', type = 'light weapon', powerBonus = 2, criticalBonus = 1, meleeWeapon = True)
+cSwordItem = Item(weight= 0.6, description= "A sword made out of candy. Barely qualifies as a weapon.")
+cSword = GameObject(None, None, char = '/', name = 'candy sword', color = colors.pink, Item = cSwordItem, Equipment = cSwordEquip, blocks = False)
+cSwordChoice = ShopChoice(gObject = cSword, price = 400, stock = 1)
+
+ayethShopChoices = [badPieChoice, saladChoice, breadChoice, cSwordChoice]
+ayethShop = Shop(choicesList=ayethShopChoices)
 
 def quitGame(message, backToMainMenu = False):
     global objects
@@ -2424,6 +3353,10 @@ def quitGame(message, backToMainMenu = False):
         mainMenu()
     else:
         raise SystemExit(str(message))
+    
+def stopProcess():
+    for process in activeProcess:
+        process.terminate()
 
 def getInput():
     global FOV_recompute
@@ -2453,7 +3386,7 @@ def getInput():
             return 'didnt-take-turn'
         '''
     elif userInput.keychar.upper() == 'F2' and gameState != 'looking':
-        player.Fighter.takeDamage(1)
+        player.Fighter.takeDamage(1, 'debug damage')
         FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'F1':
@@ -2480,7 +3413,6 @@ def getInput():
     elif userInput.keychar.upper() == 'F5' and DEBUG and not tdl.event.isWindowClosed(): #Don't know if tdl.event.isWindowClosed() is necessary here but added it just to be sure
         player.Player.vitality += 1000
         player.Player.BASE_VITALITY += 1000
-        player.Player.updatePlayerStats()
         player.Fighter.hp = player.Fighter.maxHP
         message('Healed player and increased their maximum HP value by 1000', colors.purple)
         FOV_recompute = True
@@ -2505,7 +3437,7 @@ def getInput():
         FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'F11' and DEBUG and not tdl.event.isWindowClosed(): #For some reason, Bad Things (tm) happen if you don't perform a tdl.event.isWindowClosed() check here. Yeah, don't ask why.
-        learnSpell(ressurect)
+        player.Player.money += 100
         FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'F12' and DEBUG and not tdl.event.isWindowClosed():
@@ -2567,41 +3499,8 @@ def getInput():
         return 'didnt-take-turn'
     elif userInput.keychar == 'L':
         displayLog(50)
-    elif userInput.keychar.upper() == 'C':
-        levelUp_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
-        
-        width = CHARACTER_SCREEN_WIDTH
-        height = CHARACTER_SCREEN_HEIGHT
-        window = tdl.Console(width, height)
-        window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
-        window.clear()
-
-        while not tdl.event.isWindowClosed():
-            window.draw_str(5, 1, player.Player.race + ' ' + player.Player.classes, fg = colors.yellow)
-            renderBar(window, 1, 3, BAR_WIDTH, 'EXP', player.Fighter.xp, levelUp_xp, colors.desaturated_cyan, colors.dark_gray)
-            renderBar(window, 1, 5, BAR_WIDTH, 'Hunger', player.Player.hunger, BASE_HUNGER, colors.desaturated_lime, colors.dark_gray)
-            window.draw_str(1, 7, 'HP: ' + str(player.Fighter.hp) + '/' + str(player.Fighter.maxHP))
-            window.draw_str(20, 7, 'MP: ' + str(player.Fighter.MP) + '/' + str(player.Fighter.maxMP))
-            window.draw_str(1, 9, 'Armor: ' + str(player.Fighter.armor))
-            window.draw_str(13, 9, 'Accuracy: ' + str(player.Fighter.accuracy))
-            window.draw_str(30, 9, 'Evasion: ' + str(player.Fighter.evasion))
-            window.draw_str(1, 11, 'Strength: ' + str(player.Player.strength + 10))
-            window.draw_str(1, 13, 'Dexterity: ' + str(player.Player.dexterity + 10))
-            window.draw_str(1, 15, 'Vitality: ' + str(player.Player.vitality + 10))
-            window.draw_str(1, 17, 'Willpower: ' + str(player.Player.willpower + 10))
-            window.draw_str(1, 19, 'Current load: ' + str(getAllWeights(player)))
-            window.draw_str(20, 19, 'Max load: ' + str(player.Player.maxWeight))
-
-            x = MID_WIDTH - int(width/2)
-            y = MID_HEIGHT - int(height/2)
-            root.blit(window, x, y, width, height, 0, 0)
-            tdl.flush()
-            
-            key = tdl.event.key_wait()
-            keyChar = key.keychar
-            
-            if keyChar == 'ESCAPE':
-                break
+    elif userInput.keychar == 'C':
+        displayCharacter()
         
     elif userInput.keychar == 'd' and gameState == 'playing':
         chosenItem = inventoryMenu('Press the key next to an item to drop it, or press any other key to cancel.')
@@ -2615,7 +3514,7 @@ def getInput():
                 message('No spell chosen', colors.violet)
             return 'didnt-take-turn'
         else:
-            if chosenSpell.magicLevel > player.Player.actualPerSkills[4]:
+            if chosenSpell.magicLevel > player.Player.getTrait(searchedType = 'skill', name = 'Magic ').amount:
                 FOV_recompute = True
                 message('Your arcane knowledge is not high enough to cast ' + chosenSpell.name + '.')
                 return 'didnt-take-turn'
@@ -2655,77 +3554,83 @@ def getInput():
             FOV_recompute = True #Don't ask why, but it's needed here to recompute FOV, despite not moving, or else Bad Things (trademark) happen.
         elif userInput.keychar.upper()== 'SPACE':
             for object in objects:
-                if object.x == player.x and object.y == player.y and object.Item is not None:
-                    object.Item.pickUp()
-                    break
+                if object.x == player.x and object.y == player.y:
+                    if object.Item is not None:
+                        object.Item.pickUp()
+                        break
+                    elif object.Essence is not None:
+                        object.Essence.absorb()
+                        break
                 
         elif userInput.keychar.upper() == '<':
             print('You pressed the freaking climb up key')
             if dungeonLevel > 1 or currentBranch.name != 'Main':
-                saveLevel(dungeonLevel)
-                for object in objects:
-                    if upStairs.x == player.x and upStairs.y == player.y:
-                        print(currentBranch.name)
-                        if stairCooldown == 0:
-                            global stairCooldown, dungeonLevel
-                            saveLevel(dungeonLevel)
-                            chosen = False
-                            stairCooldown = 2
-                            if DEBUG:
-                                message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
-                            if dungeonLevel == 1 and currentBranch.name != 'Main':
-                                if not chosen:
-                                    chosen = True
-                                    print('Returning to origin branch')
-                                    loadLevel(currentBranch.origDepth, save = False, branch = currentBranch.origBranch)
-                                else:
-                                    print('WHY THE HECK IS THE CODE EXECUTING THIS FFS ?')
+                #saveLevel(dungeonLevel)
+                if upStairs.x == player.x and upStairs.y == player.y:
+                    print(currentBranch.name)
+                    if stairCooldown == 0:
+                        global stairCooldown, dungeonLevel
+                        temporaryBox('Loading...')
+                        saveLevel(dungeonLevel)
+                        chosen = False
+                        stairCooldown = 2
+                        if DEBUG:
+                            message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
+                        if dungeonLevel == 1 and currentBranch.name != 'Main':
+                            if not chosen:
+                                chosen = True
+                                print('Returning to origin branch')
+                                loadLevel(currentBranch.origDepth, save = False, branch = currentBranch.origBranch)
                             else:
-                                if not chosen:
-                                    chosen = True
-                                    toLoad = dungeonLevel - 1
-                                    loadLevel(toLoad, save = False)
-                                else:
-                                    print('Chosen was equal to true. If the code ever goes here, I fucking hate all of this.')
+                                print('WHY THE HECK IS THE CODE EXECUTING THIS FFS ?')
                         else:
-                            message("You're too tired to climb the stairs right now")
-                        return None
+                            if not chosen:
+                                chosen = True
+                                toLoad = dungeonLevel - 1
+                                loadLevel(toLoad, save = False)
+                            else:
+                                print('Chosen was equal to true. If the code ever goes here, I fucking hate all of this.')
+                    else:
+                        message("You're too tired to climb the stairs right now")
+                    return None
             FOV_recompute = True
         elif userInput.keychar.upper() == '>':
-            for object in objects:
-                if stairs.x == player.x and stairs.y == player.y:
-                    if stairCooldown == 0:
-                        global stairCooldown
-                        stairCooldown = 2
-                        boss = False
-                        if dungeonLevel + 1 in currentBranch.bossLevels:
-                            boss = True
-                        if DEBUG:
-                            message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
-                        nextLevel(boss)
-                    else:
-                        message("You're too tired to climb down the stairs right now")
-                elif object == gluttonyStairs and object.x == player.x and object.y == player.y:
-                    if stairCooldown == 0:
-                        global stairCooldown
-                        stairCooldown = 2
-                        boss = False
-                        if DEBUG:
-                            message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
-                        nextLevel(boss, changeBranch = dBr.gluttonyDungeon)
-                    else:
-                        message("You're too tired to climb down the stairs right now")
-                    return None
-                elif object == townStairs and object.x == player.x and object.y == player.y:
-                    if stairCooldown == 0:
-                        global stairCooldown
-                        stairCooldown = 2
-                        boss = False
-                        if DEBUG:
-                            message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
-                        nextLevel(boss, changeBranch = dBr.hiddenTown)
-                    else:
-                        message("You're too tired to climb down the stairs right now")
+            if stairs.x == player.x and stairs.y == player.y:
+                if stairCooldown == 0:
+                    global stairCooldown
+                    temporaryBox('Loading...')
+                    stairCooldown = 2
+                    boss = False
+                    if dungeonLevel + 1 in currentBranch.bossLevels:
+                        boss = True
+                    if DEBUG:
+                        message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
+                    nextLevel(boss)
+                else:
+                    message("You're too tired to climb down the stairs right now")
+            elif gluttonyStairs.x == player.x and gluttonyStairs.y == player.y:
+                if stairCooldown == 0:
+                    global stairCooldown
+                    temporaryBox('Loading...')
+                    stairCooldown = 2
+                    boss = False
+                    if DEBUG:
+                        message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
+                    nextLevel(boss, changeBranch = dBr.gluttonyDungeon)
+                else:
+                    message("You're too tired to climb down the stairs right now")
+                return None
+            elif townStairs.x == player.x and townStairs.y == player.y:
+                if stairCooldown == 0:
+                    global stairCooldown
+                    temporaryBox('Loading...')
+                    stairCooldown = 2
+                    boss = False
+                    if DEBUG:
+                        message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
+                    nextLevel(boss, changeBranch = dBr.hiddenTown)
+                else:
+                    message("You're too tired to climb down the stairs right now")
         elif userInput.keychar.upper() == 'I':
             choseOrQuit = False
             while not choseOrQuit:
@@ -2783,6 +3688,12 @@ def getInput():
                 else:
                     FOV_recompute = True
                     return 'didnt-take-turn'
+        elif userInput.keychar == '?':
+            controlBox()
+            return 'didnt-take-turn'
+        elif userInput.keychar == 'c':
+            FOV_recompute = True
+            chat()
         else:
             FOV_recompute = True
             return 'didnt-take-turn'
@@ -2903,10 +3814,14 @@ def shoot():
     weapons = getEquippedInHands()
     if weapons is not None:
         for weapon in weapons:
+            if DEBUG:
+                print(weapon.name)
             if weapon.Equipment.ranged:
+                print('Found ranged weapon')
                 if weapon.Equipment.ammo is not None:
                     ammo = weapon.Equipment.ammo
                     for object in inventory:
+                        print(object.name)
                         foundAmmo = False
                         if object.name == ammo:
                             message('Choose a target for your ' + weapon.name + '.', colors.cyan)
@@ -2931,7 +3846,7 @@ def shoot():
                                             penetratedArmor = monsterTarget.Fighter.armor - weapon.Equipment.armorPenetrationBonus
                                             if penetratedArmor < 0:
                                                 penetratedArmor = 0
-                                            if player.Player.traits[0]:
+                                            if player.Player.getTrait('trait', 'Aggressive').selected:
                                                 damage = randint(weapon.Equipment.rangedPower - 2, weapon.Equipment.rangedPower + 2) + 4 - penetratedArmor
                                             else:
                                                 damage = randint(weapon.Equipment.rangedPower - 2, weapon.Equipment.rangedPower + 2) - penetratedArmor
@@ -2944,7 +3859,7 @@ def shoot():
                                                     message('You critically hit ' + monsterTarget.name + ' for ' + str(damage) + ' damage !', colors.darker_green)
                                                 else:
                                                     message('You hit ' + monsterTarget.name + ' for ' + str(damage) + ' damage !', colors.dark_green)
-                                                monsterTarget.Fighter.takeDamage(damage)
+                                                monsterTarget.Fighter.takeDamage(damage, player.name)
                                         else:
                                             message('You missed ' + monsterTarget.name + '!', colors.grey)
                                     else:
@@ -2979,7 +3894,7 @@ def shoot():
                                     message('You critically hit ' + target.name + ' for ' + str(damage) + ' damage !', colors.darker_green)
                                 else:
                                     message('You hit ' + target.name + ' for ' + str(damage) + ' damage !', colors.dark_green)
-                                target.Fighter.takeDamage(damage)
+                                target.Fighter.takeDamage(damage, player.owner.name)
                         else:
                             message('You missed ' + target.name + '!', colors.grey)
             else:
@@ -3001,25 +3916,30 @@ def checkLevelUp():
         message('Your battle skills grow stronger! You reached level ' + str(player.level) + '!', colors.yellow)
         
         #applying Class specific stat boosts
-        player.Fighter.basePower += player.Player.levelUpStats[0]
-        player.Fighter.BASE_POWER += player.Player.levelUpStats[0]
-        player.Fighter.baseAccuracy += player.Player.levelUpStats[1]
-        player.Fighter.BASE_ACCURACY += player.Player.levelUpStats[1]
-        player.Fighter.baseEvasion += player.Player.levelUpStats[2]
-        player.Fighter.BASE_EVASION += player.Player.levelUpStats[2]
-        player.Fighter.baseArmor += player.Player.levelUpStats[3]
-        player.Fighter.BASE_ARMOR += player.Player.levelUpStats[3]
-        player.Fighter.baseMaxHP += player.Player.levelUpStats[4]
-        player.Fighter.hp += player.Player.levelUpStats[4]
-        player.Fighter.BASE_MAX_HP += player.Player.levelUpStats[4]
-        player.Fighter.baseMaxMP += player.Player.levelUpStats[5]
-        player.Fighter.MP += player.Player.levelUpStats[5]
-        player.Fighter.BASE_MAX_MP += player.Player.levelUpStats[5]
-        player.Fighter.baseCritical += player.Player.levelUpStats[6]
-        player.Player.strength += player.Player.levelUpStats[7]
-        player.Player.dexterity += player.Player.levelUpStats[8]
-        player.Player.vitality += player.Player.levelUpStats[9]
-        player.Player.willpower += player.Player.levelUpStats[10]
+        player.Fighter.noStrengthPower += player.Player.levelUpStats['pow']
+        player.Fighter.BASE_POWER += player.Player.levelUpStats['pow']
+        player.Fighter.noDexAccuracy += player.Player.levelUpStats['acc']
+        player.Fighter.BASE_ACCURACY += player.Player.levelUpStats['acc']
+        player.Fighter.noDexEvasion += player.Player.levelUpStats['ev']
+        player.Fighter.BASE_EVASION += player.Player.levelUpStats['ev']
+        player.Fighter.baseArmor += player.Player.levelUpStats['arm']
+        player.Fighter.BASE_ARMOR += player.Player.levelUpStats['arm']
+        player.Fighter.noVitHP += player.Player.levelUpStats['hp']
+        player.Fighter.hp += player.Player.levelUpStats['hp']
+        player.Fighter.BASE_MAX_HP += player.Player.levelUpStats['hp']
+        player.Fighter.noWillMP += player.Player.levelUpStats['mp']
+        player.Fighter.MP += player.Player.levelUpStats['mp']
+        player.Fighter.BASE_MAX_MP += player.Player.levelUpStats['mp']
+        player.Fighter.baseCritical += player.Player.levelUpStats['crit']
+        player.Fighter.BASE_CRITICAL += player.Player.levelUpStats['crit']
+        player.Player.strength += player.Player.levelUpStats['str']
+        player.Player.BASE_STRENGTH += player.Player.levelUpStats['str']
+        player.Player.dexterity += player.Player.levelUpStats['dex']
+        player.Player.BASE_DEXTERITY += player.Player.levelUpStats['dex']
+        player.Player.vitality += player.Player.levelUpStats['vit']
+        player.Player.BASE_VITALITY += player.Player.levelUpStats['vit']
+        player.Player.willpower += player.Player.levelUpStats['will']
+        player.Player.BASE_WILLPOWER += player.Player.levelUpStats['will']
         
         if player.Player.race == 'Demon spawn':
             if player.Player.possibleMutations and player.level in player.Player.mutationLevel:
@@ -3031,16 +3951,20 @@ def checkLevelUp():
                 mutation = randint(1, 4)
                 if mutation == 1:
                     player.Player.strength += 1
+                    player.Player.BASE_STRENGTH += 1
                     mutationName = 'strength'
                 elif mutation == 2:
                     player.Player.dexterity += 1
                     mutationName = 'dexterity'
+                    player.Player.BASE_DEXTERITY += 1
                 elif mutation == 1:
                     player.Player.vitality += 1
                     mutationName = 'vitality'
+                    player.Player.BASE_VITALITY += 1
                 else:
                     player.Player.willpower += 1
                     mutationName = 'willpower'
+                    player.Player.BASE_WILLPOWER += 1
                 message('You feel a strange power flowing through your body...You have gained ' + mutationName + '!', colors.yellow)
         
         if player.Player.race == 'Rootling':
@@ -3053,67 +3977,59 @@ def checkLevelUp():
                     player.Fighter.baseArmor += armorBonus
                     hpBonus = randint(5, 15)
                     player.Fighter.BASE_MAX_HP += hpBonus
-                    player.Fighter.baseMaxHP += hpBonus
+                    player.Fighter.noVitHP += hpBonus
                     player.Fighter.hp += hpBonus
                 elif choice == 1:
-                    player.Player.dexterity += randint(1, 2)
-                    player.Player.strength += randint(1, 2)
+                    dexBonus = randint(1, 2)
+                    player.Player.dexterity += dexBonus
+                    player.Player.BASE_DEXTERITY += dexBonus
+                    strBonus = randint(1, 2)
+                    player.Player.strength += strBonus
+                    player.Player.BASE_STRENGTH += strBonus
                 elif choice == 2:
-                    player.Player.willpower += randint(1, 2)
+                    willBonus = randint(1, 2)
+                    player.Player.willpower += willBonus
+                    player.Player.BASE_WILLPOWER += willBonus
                     mpBonus = randint(0, 10)
                     player.Fighter.BASE_MAX_MP += mpBonus
-                    player.Fighter.baseMaxMP += mpBonus
+                    player.Fighter.noWillMP += mpBonus
                     player.Fighter.MP += mpBonus
             message('You feel your wooden corpse thickening!', colors.celadon)
         
         choice = None
         while choice == None:
             choice = menu('Level up! Choose a skill to raise: \n',
-                ['Light Weapons (from ' + str(player.Player.actualPerSkills[0]) + ')',
-                 'Heavy Weapons (from ' + str(player.Player.actualPerSkills[1]) + ')',
-                 'Missile Weapons (from ' + str(player.Player.actualPerSkills[2]) + ')',
-                 'Throwing Weapons (from ' + str(player.Player.actualPerSkills[3]) + ')',
-                 'Magic (from ' + str(player.Player.actualPerSkills[4]) + ')',
-                 'Armor wielding (from ' + str(player.Player.actualPerSkills[5]) + ')',
-                 'Athletics (from ' + str(player.Player.actualPerSkills[6]) + ')',
-                 'Concentration (from ' + str(player.Player.actualPerSkills[7]) + ')',
-                 'Dodge (from ' + str(player.Player.actualPerSkills[8]) + ')',
-                 'Critical (from ' + str(player.Player.actualPerSkills[9]) + ')',
-                 'Accuracy (from ' + str(player.Player.actualPerSkills[10]) + ')',], LEVEL_SCREEN_WIDTH)
+                ['Light Weapons (from ' + str(player.Player.getTrait(searchedType = 'skill', name = 'Light weapons').amount) + ')',
+                 'Heavy Weapons (from ' + str(player.Player.getTrait(searchedType = 'skill', name = 'Heavy weapons').amount) + ')',
+                 'Missile Weapons (from ' + str(player.Player.getTrait(searchedType = 'skill', name = 'Missile weapons').amount) + ')',
+                 'Throwing Weapons (from ' + str(player.Player.getTrait(searchedType = 'skill', name = 'Throwing weapons').amount) + ')',
+                 'Magic (from ' + str(player.Player.getTrait(searchedType = 'skill', name = 'Magic ').amount) + ')',
+                 'Armor wielding (from ' + str(player.Player.getTrait(searchedType = 'skill', name = 'Armor wielding').amount) + ')',
+                 'Athletics (from ' + str(player.Player.getTrait(searchedType = 'skill', name = 'Athletics').amount) + ')',
+                 'Concentration (from ' + str(player.Player.getTrait(searchedType = 'skill', name = 'Concentration').amount) + ')',
+                 'Dodge (from ' + str(player.Player.getTrait(searchedType = 'skill', name = 'Dodge').amount) + ')',
+                 'Critical (from ' + str(player.Player.getTrait(searchedType = 'skill', name = 'Critical').amount) + ')',
+                 'Accuracy (from ' + str(player.Player.getTrait(searchedType = 'skill', name = 'Accuracy').amount) + ')',], LEVEL_SCREEN_WIDTH)
             if choice != None:
-                if player.Player.actualPerSkills[choice] < 5:
-                    player.Fighter.basePower += player.Player.skillsBonus[choice][0]
-                    player.Fighter.BASE_POWER += player.Player.skillsBonus[choice][0]
-                    player.Fighter.baseAccuracy += player.Player.skillsBonus[choice][1]
-                    player.Fighter.BASE_ACCURACY += player.Player.skillsBonus[choice][1]
-                    player.Fighter.baseEvasion += player.Player.skillsBonus[choice][2]
-                    player.Fighter.BASE_EVASION += player.Player.skillsBonus[choice][2]
-                    player.Fighter.baseArmor += player.Player.skillsBonus[choice][3]
-                    player.Fighter.BASE_ARMOR += player.Player.skillsBonus[choice][3]
-                    player.Fighter.baseMaxHP += player.Player.skillsBonus[choice][4]
-                    player.Fighter.hp += player.Player.skillsBonus[choice][4]
-                    player.Fighter.BASE_MAX_HP += player.Player.skillsBonus[choice][4]
-                    player.Fighter.baseMaxMP += player.Player.skillsBonus[choice][5]
-                    player.Fighter.MP += player.Player.skillsBonus[choice][5]
-                    player.Fighter.BASE_MAX_MP += player.Player.skillsBonus[choice][5]
-                    player.Fighter.baseCritical += player.Player.skillsBonus[choice][6]
-                    player.Player.strength += player.Player.skillsBonus[choice][7]
-                    player.Player.dexterity += player.Player.skillsBonus[choice][8]
-                    player.Player.vitality += player.Player.skillsBonus[choice][9]
-                    player.Player.willpower += player.Player.skillsBonus[choice][10]
-
-                    player.Player.actualPerSkills[choice] += 1
+                chosen = player.Player.skills[choice]
+                if chosen.amount < chosen.maxAmount:
+                    chosen.applyBonus(charCreation = False)
                     FOV_recompute = True
                     Update()
                     break
 
-                elif player.Player.actualPerSkills[choice] >= 5:
+                else:
                     choice = None
 
-        player.Player.updatePlayerStats()
-        if player.Player.actualPerSkills[0] >= 4 and not player.Player.dualWield:
+        if player.Player.getTrait('skill', 'Light weapons').amount >= 5 and player.Player.getTrait('trait', 'Dual wield') == 'not found':
             message('You are now proficient enough with light weapons to wield two at the same time!', colors.yellow)
-            player.Player.dualWield = True
+            dual = Trait('Dual wield', 'Allows to wield two lights weapons at the same time.', 'trait')
+            dual.addTraitToPlayer()
+        
+        if player.Player.getTrait('skill', 'Concentration').amount >= 5 and player.Player.getTrait('trait', 'Self aware') == 'not found':
+            message('Your meditation training is now so strong you can be really aware of your health state!', colors.yellow)
+            aware = Trait('Self aware', 'Allows to see the buffs and debuffs cooldowns.', 'trait')
+            aware.addTraitToPlayer()
 
 def isVisibleTile(x, y):
     global myMap
@@ -3132,9 +4048,12 @@ def isBlocked(x, y): #With this function, making a check such as myMap[x][y].blo
     if myMap[x][y].blocked:
         return True #If the Tile is already set as blocking, there's no point in making further checks
     
-    for object in objects: #As all statements starting with this, ignore PyDev warning. However, please note that objects refers to the list of objects that we created and IS NOT defined by default in any library used (so don't call it out of the blue), contrary to object.
-        if object.blocks and object.x == x and object.y == y: #With this, we're checking every single object created, which might lead to performance issue. Fixing this could be one of many possible improvements, but this isn't a priority at the moment. 
-            return True
+    for object in objects:
+        try: #As all statements starting with this, ignore PyDev warning. However, please note that objects refers to the list of objects that we created and IS NOT defined by default in any library used (so don't call it out of the blue), contrary to object.
+            if object.blocks and object.x == x and object.y == y: #With this, we're checking every single object created, which might lead to performance issue. Fixing this could be one of many possible improvements, but this isn't a priority at the moment. 
+                return True
+        except AttributeError:
+            print(objects)
     
     return False
 
@@ -3185,10 +4104,10 @@ def castPlaceBoss():
             return 'cancelled'
 
 def applyBurn(target, chance = 70):
-    burning = Buff('burning', colors.flame, owner = target, cooldown= randint(3, 6), continuousFunction=lambda: randomDamage(target.Fighter, chance = 100, minDamage=1, maxDamage=3, dmgMessage = 'You take {} damage from burning !'))
+    burning = Buff('burning', colors.flame, cooldown= randint(3, 6), continuousFunction=lambda fighter: randomDamage('fire', fighter, chance = 100, minDamage=1, maxDamage=3, dmgMessage = 'You take {} damage from burning !'))
     if target.Fighter and randint(1, 100) <= chance and not 'burning' in convertBuffsToNames(target.Fighter):
         if not 'frozen' in convertBuffsToNames(target.Fighter):
-            burning.applyBuff()
+            burning.applyBuff(target)
         else:
             for buff in target.Fighter.buffList:
                 if buff.name == 'frozen':
@@ -3220,7 +4139,7 @@ def monsterArmageddon(monsterName ,monsterX, monsterY, radius = 4, damage = 40, 
                                         message('The explosion deals {} damage to {} !'.format(damage, obj.name))
                                 else:
                                     message('The explosion deals {} damage to you !'.format(damage), colors.orange)        
-                                obj.Fighter.takeDamage(damage)
+                                obj.Fighter.takeDamage(damage, 'an explosion')
                             except AttributeError: #If it tries to access a non-existing object (aka outside of the map)
                                 continue
             except IndexError: #If an IndexError is encountered (aka if the function tries to access a tile outside of the map), execute code below except
@@ -3388,50 +4307,47 @@ def secretRoomTest(startingX, endX, startingY, endY):
     for x in range(startingX, endX):
         for y in range(startingY, endY):
             if not myMap[x][y].block_sight:
-                if myMap[x + 1][y].block_sight: #right of the current tile
-                    intersect = False
-                    for indexX in range(5):
-                        for indexY in range(5):
-                            if not myMap[x + 1 + indexX][y - 2 + indexY].block_sight or myMap[x + 1 + indexX][y - 2 + indexY].unbreakable:
-                                intersect = True
-                                break
-                        break
-                    if not intersect:
-                        print("right")
-                        return x + 1, y - 2, x + 1, y
-                if myMap[x - 1][y].block_sight: #left
-                    intersect = False
-                    for indexX in range(5):
-                        for indexY in range(5):
-                            if not myMap[x - 1 - indexX][y - 2 + indexY].block_sight or myMap[x - 1 - indexX][y - 2 + indexY].unbreakable:
-                                intersect = True
-                                break
-                        break
-                    if not intersect:
-                        print("left")
-                        return x - 5, y - 2, x - 1, y
-                if myMap[x][y + 1].block_sight: #under
-                    intersect = False
-                    for indexX in range(5):
-                        for indexY in range(5):
-                            if not myMap[x - 2 + indexX][y + 1 + indexY].block_sight or myMap[x - 2 + indexX][y + 1 + indexY].unbreakable:
-                                intersect = True
-                                break
-                        break
-                    if not intersect:
-                        print("under")
-                        return x - 2, y + 1, x, y + 1
-                if myMap[x][y - 1].block_sight: #above
-                    intersect = False
-                    for indexX in range(5):
-                        for indexY in range(5):
-                            if not myMap[x - 2 + indexX][y - 1 - indexY].block_sight or myMap[x - 2 + indexX][y - 1 - indexY].unbreakable:
-                                intersect = True
-                                break
-                        break
-                    if not intersect:
-                        print("above")
-                        return x - 2, y - 5, x, y - 1
+                if x >= 6 and x <= MAP_WIDTH - 6 and y >= 6 and y <= MAP_HEIGHT -6:
+                    if myMap[x + 1][y].wall: #right of the current tile
+                        intersect = False
+                        for indexX in range(5):
+                            for indexY in range(5):
+                                if not myMap[x + 1 + indexX][y - 2 + indexY].wall:
+                                    intersect = True
+                                    break
+                        if not intersect:
+                            print("right")
+                            return x + 1, y - 2, x + 1, y
+                    if myMap[x - 1][y].wall: #left
+                        intersect = False
+                        for indexX in range(5):
+                            for indexY in range(5):
+                                if not myMap[x - 1 - indexX][y - 2 + indexY].wall:
+                                    intersect = True
+                                    break
+                        if not intersect:
+                            print("left")
+                            return x - 5, y - 2, x - 1, y
+                    if myMap[x][y + 1].wall: #under
+                        intersect = False
+                        for indexX in range(5):
+                            for indexY in range(5):
+                                if not myMap[x - 2 + indexX][y + 1 + indexY].wall:
+                                    intersect = True
+                                    break
+                        if not intersect:
+                            print("under")
+                            return x - 2, y + 1, x, y + 1
+                    if myMap[x][y - 1].wall: #above
+                        intersect = False
+                        for indexX in range(5):
+                            for indexY in range(5):
+                                if not myMap[x - 2 + indexX][y - 1 - indexY].wall:
+                                    intersect = True
+                                    break
+                        if not intersect:
+                            print("above")
+                            return x - 2, y - 5, x, y - 1
 
 def secretRoom():
     global myMap
@@ -3470,8 +4386,48 @@ def secretRoom():
         myMap[x][y].wall = False
         print("created secret room at x ", entryX, " y ", entryY, " in quarter ", quarter)
 
+def checkFile(file, folder):
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+    os.chdir(folder)
+    for f in os.listdir(folder):
+        print(f)
+        if f == file:
+            return True
+            break 
+    return False
+
 def makeMap():
-    global myMap, stairs, objects, upStairs, bossDungeonsAppeared, color_dark_wall, color_light_wall, color_dark_ground, color_light_ground, color_dark_gravel, color_light_gravel, townStairs, gluttonyStairs, stairs, upStairs
+    global myMap, stairs, objects, upStairs, bossDungeonsAppeared, color_dark_wall, color_light_wall, color_dark_ground, color_light_ground, color_dark_gravel, color_light_gravel, townStairs, gluttonyStairs, stairs, upStairs, nemesisList
+    
+    nemesis = None
+    found = False
+    
+    found = checkFile('meta.bak', absMetaDirPath)
+
+    if not found:
+        file = shelve.open(absMetaPath, "c")
+        print('found no nemesis file')
+    else:
+        print('found nemesis file')
+        file = shelve.open(absMetaPath, "r")
+        try:
+            nemesisList = file['nemesis']
+            for nemesis in nemesisList:
+                print(nemesis.branch, currentBranch.shortName)
+                print(nemesis.level, dungeonLevel)
+                if nemesis.branch == currentBranch.shortName and nemesis.level == dungeonLevel:
+                    dice = randint(1, 100)
+                    target = int(5 + (dungeonLevel * dungeonLevel) / 10)
+                    print(dice, target)
+                    if dice <= target:
+                        break
+                    nemesis = None
+        except KeyError:
+            print("========WARNING========")
+            print('No nemesis in file')
+            print("=======================")
+    file.close()
     
     stairs = None
     upStairs = None
@@ -3538,6 +4494,17 @@ def makeMap():
     objects.append(stairs)
     stairs.sendToBack()
     
+    if nemesis is not None:
+        randRoom = randint(0, len(rooms) - 1)
+        room = rooms[randRoom]
+        x = randint(room.x1 + 1, room.x2)
+        y = randint(room.y1 + 1, room.y2)
+        nemesisMonster = nemesis.nemesisObject
+        nemesisMonster.x = x
+        nemesisMonster.y = y
+        objects.append(nemesisMonster)
+        print('created nemesis', nemesisMonster.name, x, y)
+    
     branches = []
     for (branch, level) in currentBranch.branchesTo:
         branches.append(branch)
@@ -3597,7 +4564,8 @@ def makeMap():
     if not dBr.gluttonyDungeon in branches:
         global gluttonyStairs
         print('Wrong branch for gluttony stairs')
-        gluttonyStairs = None           
+        gluttonyStairs = None
+         
 def makeBossLevel():
     global myMap, objects, upStairs, rooms, numberRooms
     myMap = [[Tile(True, wall = True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
@@ -3691,6 +4659,11 @@ def makeHiddenTown():
     upStairs = GameObject(int(player.x), int(player.y), '<', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor)
     objects.append(upStairs)
     upStairs.sendToBack()
+    
+    pukil = GameObject(25, 15, '@', 'Pukil the Debugger', colors.purple, blocks = True, socialComp = dial.pukTree)
+    ayeth = GameObject(25, 13, '@', 'Ayeth the Merchant', colors.pink, blocks = True, socialComp = dial.ayeTree, shopComp = ayethShop)
+    objects.append(pukil)
+    objects.append(ayeth)
     
     #Code above this must go at the end of the makeHiddenTown() function, no matter what kinds of additions you make to it
     for y in range(MAP_HEIGHT):
@@ -3838,13 +4811,13 @@ class Gluttony():
                             for fighter in objects:
                                 if (fighter.x == x and fighter.y == y) and not (fighter.x == object.x and fighter.y == object.y):
                                     if fighter.Fighter:
-                                        fighter.Fighter.takeDamage(2)
+                                        fighter.Fighter.takeDamage(2, "Gluttony's vomit")
                                         fighter.Fighter.acidify()
                                         message(fighter.name + " is touched by the vomit  splatters and suffers 2 damage!", color = colors.orange)
                 for fighter in objects:
                     if fighter.x == object.x and fighter.y == object.y:
                         if fighter.Fighter and not fighter == object:
-                            fighter.Fighter.takeDamage(15)
+                            fighter.Fighter.takeDamage(15, "Gluttony's vomit")
                             fighter.Fighter.acidify()
                             message(fighter.name + " is hit by Gluttony's vomit and suffers 15 damage!", color = colors.orange)
                 objects.remove(object)
@@ -3853,7 +4826,7 @@ class Gluttony():
 
         for object in objects:
             if object.name == "Gluttony's fat" and object.distanceTo(player) < 2:
-                player.Fighter.takeDamage(1)
+                player.Fighter.takeDamage(1, object.name)
                 message('The massive chunks of flesh around you start crushing you slowly! You lose 1 hit point.', colors.dark_orange)
                 break
 
@@ -4060,8 +5033,10 @@ def createSword(x, y):
     if qualityChoice == 'rusty':
         name = qualityChoice + ' ' + name
         swordPow -= 2
-        if sizeChoice != 'great ':
-            pic = 'rustySword.xp'
+        if sizeChoice == 'long':
+            pic = 'rustyLongSword.xp'
+        elif sizeChoice == 'short':
+            pic = 'rustyShortSword.xp'
         else:
             pic = 'rustyGreatSword.xp'
         color = colors.brass
@@ -4069,16 +5044,20 @@ def createSword(x, y):
         name = qualityChoice + ' ' + name
         swordPow += 2
         color = colors.light_sky
-        if sizeChoice == 'great sword':
+        if sizeChoice == 'long':
+            pic = 'sharpLongSword.xp'
+        elif sizeChoice == 'short':
+            pic = 'sharpShortSword.xp'
+        else:
             pic = 'sharpGreatSword.xp'
-    burningChances = {'yes' : 20, 'no': 80}
+    burningChances = {'yes' : 1120, 'no': 80}
     burningChoice = randomChoice(burningChances)
+    burning = None
     if burningChoice == 'yes':
+        burning = Enchantment('burning', functionOnAttack=applyBurn)
         name = 'burning ' + name
-        burningSword = True
-    else:
-        burningSword = False
-    equipmentComponent = Equipment(slot=slot, type = type, powerBonus = swordPow, burning = burningSword, meleeWeapon=True, slow= slowness)
+
+    equipmentComponent = Equipment(slot=slot, type = type, powerBonus = swordPow, meleeWeapon=True, slow= slowness, enchant=burning)
     sword = GameObject(x, y, char, name, color, Equipment = equipmentComponent, Item = Item(weight=weight, pic = pic))
     return sword
 
@@ -4128,12 +5107,11 @@ def createAxe(x, y):
             pic = 'sharpAxe.xp'
     burningChances = {'yes' : 20, 'no': 80}
     burningChoice = randomChoice(burningChances)
+    burning = None
     if burningChoice == 'yes':
+        burning = Enchantment('burning', functionOnAttack=applyBurn)
         name = 'burning ' + name
-        burningAxe = True
-    else:
-        burningAxe = False
-    equipmentComponent = Equipment(slot=slot, type = type, powerBonus = axePow, burning = burningAxe, meleeWeapon=True, armorPenetrationBonus=armorPenetration, slow = slow)
+    equipmentComponent = Equipment(slot=slot, type = type, powerBonus = axePow, meleeWeapon=True, armorPenetrationBonus=armorPenetration, slow = slow, enchant=burning)
     axe = GameObject(x, y, char, name, color, Equipment = equipmentComponent, Item = Item(weight=weight, pic = pic))
     return axe
 
@@ -4175,12 +5153,11 @@ def createHammer(x, y):
         color = colors.light_sky
     burningChances = {'yes' : 20, 'no': 80}
     burningChoice = randomChoice(burningChances)
+    burning = None
     if burningChoice == 'yes':
+        burning = Enchantment('burning', functionOnAttack=applyBurn)
         name = 'burning ' + name
-        burningHammer = True
-    else:
-        burningHammer = False
-    equipmentComponent = Equipment(slot=slot, type = type, powerBonus = hammerPow, criticalBonus=critBonus, burning = burningHammer, meleeWeapon=True, slow = slow)
+    equipmentComponent = Equipment(slot=slot, type = type, powerBonus = hammerPow, criticalBonus=critBonus, meleeWeapon=True, slow = slow, enchant = burning)
     hammer = GameObject(x, y, char, name, color, Equipment = equipmentComponent, Item = Item(weight=weight, pic = pic))
     return hammer
 
@@ -4205,12 +5182,11 @@ def createMace(x, y):
         color = colors.light_sky
     burningChances = {'yes' : 20, 'no': 80}
     burningChoice = randomChoice(burningChances)
+    burning = None
     if burningChoice == 'yes':
+        burning = Enchantment('burning', functionOnAttack=applyBurn)
         name = 'burning ' + name
-        burningMace = True
-    else:
-        burningMace = False
-    equipmentComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus = macePow, accuracyBonus=hitBonus, burning = burningMace, meleeWeapon=True)
+    equipmentComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus = macePow, accuracyBonus=hitBonus, meleeWeapon=True, enchant=burning)
     mace = GameObject(x, y, '-', name, color, Equipment = equipmentComponent, Item = Item(weight=weight, pic = pic))
     return mace
 
@@ -4255,15 +5231,15 @@ def createSpellbook(x, y):
     spellbookChances = currentBranch.spellbookChances
     spellbookChoice = randomChoice(spellbookChances)
     if spellbookChoice == "healSelf":
-        spellbook = GameObject(x, y, '=', 'spellbook of healing', colors.violet, Item = Item(useFunction = learnSpell, arg1 = heal, weight = 1.0), blocks = False)
+        spellbook = GameObject(x, y, '=', 'spellbook of healing', colors.violet, Item = Item(useFunction = learnSpell, arg1 = heal, weight = 1.0, pic = 'spellbook.xp'), blocks = False)
     elif spellbookChoice == "fireball":
-        spellbook = GameObject(x, y, '=', 'spellbook of fireball', colors.violet, Item = Item(useFunction = learnSpell, arg1 = fireball, weight = 1.0), blocks = False)
+        spellbook = GameObject(x, y, '=', 'spellbook of fireball', colors.violet, Item = Item(useFunction = learnSpell, arg1 = fireball, weight = 1.0, pic = 'spellbook.xp'), blocks = False)
     elif spellbookChoice == "lightning":
-        spellbook = GameObject(x, y, '=', 'spellbook of lightning bolt', colors.violet, Item = Item(useFunction = learnSpell, arg1 = lightning, weight = 1.0), blocks = False)
+        spellbook = GameObject(x, y, '=', 'spellbook of lightning bolt', colors.violet, Item = Item(useFunction = learnSpell, arg1 = lightning, weight = 1.0, pic = 'spellbook.xp'), blocks = False)
     elif spellbookChoice == "confuse":
-        spellbook = GameObject(x, y, '=', 'spellbook of confusion', colors.violet, Item = Item(useFunction = learnSpell, arg1 = confuse, weight = 1.0), blocks = False)
+        spellbook = GameObject(x, y, '=', 'spellbook of confusion', colors.violet, Item = Item(useFunction = learnSpell, arg1 = confuse, weight = 1.0, pic = 'spellbook.xp'), blocks = False)
     elif spellbookChoice == "ice":
-        spellbook = GameObject(x, y, '=', 'spellbook of ice bolt', colors.violet, Item = Item(useFunction = learnSpell, arg1 = ice, weight = 1.0), blocks = False)
+        spellbook = GameObject(x, y, '=', 'spellbook of ice bolt', colors.violet, Item = Item(useFunction = learnSpell, arg1 = ice, weight = 1.0, pic = 'spellbook.xp'), blocks = False)
     elif spellbookChoice == 'none':
         spellbook = None
     return spellbook
@@ -4273,7 +5249,8 @@ def createDarksoul(x, y, friendly = False, corpse = False):
         if not corpse:
             equipmentComponent = Equipment(slot='head', type = 'armor', armorBonus = 2)
             darksoulHelmet = GameObject(x = None, y = None, char = '[', name = 'darksoul helmet', color = colors.silver, Equipment = equipmentComponent, Item = Item(weight = 2.5, pic = 'darksoulHelmet.xp'))
-            lootOnDeath = [darksoulHelmet]
+            money = GameObject(x = None, y = None, char = '$', name = 'gold piece', color = colors.gold, Item=Money(randint(10, 50)), blocks = False, pName = 'gold pieces')
+            lootOnDeath = [darksoulHelmet, money]
             deathType = monsterDeath
             darksoulName = "darksoul"
             color = colors.dark_grey
@@ -4286,7 +5263,7 @@ def createDarksoul(x, y, friendly = False, corpse = False):
             AI_component = BasicMonster()
         else:
             AI_component = FriendlyMonster(friendlyTowards = player)
-        fighterComponent = Fighter(hp=30, armor=1, power=6, xp = 35, deathFunction = deathType, evasion = 25, accuracy = 10, lootFunction = lootOnDeath, lootRate = [30])
+        fighterComponent = Fighter(hp=30, armor=1, power=6, xp = 35, deathFunction = deathType, evasion = 25, accuracy = 10, lootFunction = lootOnDeath, lootRate = [30, 20])
         monster = GameObject(x, y, char = 'd', color = color, name = darksoulName, blocks = True, Fighter=fighterComponent, AI = AI_component)
         return monster
     else:
@@ -4335,9 +5312,11 @@ def createCultist(x,y):
         knifeEquipment = Equipment(slot = 'one handed', type = 'light weapon', powerBonus = 7, meleeWeapon = True)
         knife = GameObject(0, 0, '-', 'cultist knife', colors.desaturated_azure, Equipment = knifeEquipment, Item=Item(weight = 1.0))
         
-        spellbook = GameObject(x, y, '=', 'spellbook of arcane rituals', colors.violet, Item = Item(useFunction = learnSpell, arg1 = darkPact, weight = 1.0, description = "A spellbook full of arcane rituals and occult incantations. Such magic is easy to learn and to use, but comes at a great price."), blocks = False)
+        spellbook = GameObject(x, y, '=', 'spellbook of arcane rituals', colors.violet, Item = Item(useFunction = learnSpell, arg1 = darkPact, weight = 1.0, description = "A spellbook full of arcane rituals and occult incantations. Such magic is easy to learn and to use, but comes at a great price.", pic = 'spellbook.xp'), blocks = False)
         
-        fighterComponent = Fighter(hp = 20, armor = 2, power = 6, xp = 30, deathFunction = monsterDeath, accuracy = 18, evasion = 30, lootFunction = [robe, knife, spellbook], lootRate = [60, 20, 7])
+        money = GameObject(x = None, y = None, char = '$', name = 'gold piece', color = colors.gold, Item=Money(randint(20, 300)), blocks = False, pName = 'gold pieces')
+        
+        fighterComponent = Fighter(hp = 20, armor = 2, power = 6, xp = 30, deathFunction = monsterDeath, accuracy = 18, evasion = 30, lootFunction = [robe, knife, spellbook, money], lootRate = [60, 20, 7, 40])
         AI_component = BasicMonster()
         monster = GameObject(x, y, char = 'c', color = colors.desaturated_purple, name = 'cultist', blocks = True, Fighter = fighterComponent, AI = AI_component)
         return monster
@@ -4352,7 +5331,7 @@ def createHighCultist(x, y):
         flailEquipment = Equipment(slot = 'one handed', type = 'heavy weapon', powerBonus = 13, meleeWeapon = True)
         flail = GameObject(0, 0, '/', 'bloodsteel flail', colors.red, Equipment=flailEquipment, Item=Item(weight=5.5, pic = 'bloodsteelFlail.xp', description = "A heavy flail wielded by the high cultists and made of a heavy, blood-red metal."))
         
-        spellbook = GameObject(x, y, '=', 'spellbook of arcane rituals', colors.violet, Item = Item(useFunction = learnSpell, arg1 = darkPact, weight = 1.0, description = "A spellbook full of arcane rituals and occult incantations. Such magic is easy to learn and to use, but comes at a great price."), blocks = False)
+        spellbook = GameObject(x, y, '=', 'spellbook of arcane rituals', colors.violet, Item = Item(useFunction = learnSpell, arg1 = darkPact, weight = 1.0, description = "A spellbook full of arcane rituals and occult incantations. Such magic is easy to learn and to use, but comes at a great price.", pic = 'spellbook.xp'), blocks = False)
         
         fighterComponent = Fighter(hp = 40, armor = 2, power = 13, xp = 80, deathFunction = monsterDeath, accuracy = 20, evasion = 30, lootFunction = [robe, flail, spellbook], lootRate = [60, 25, 15])
         AI_component = BasicMonster()
@@ -4461,7 +5440,10 @@ def placeObjects(room, first = False):
                 highCultistHasAppeared = True
             
             elif monsterChoice == 'starveling':
-                fighterComponent = Fighter(hp=45, power=10, armor = 0, xp = 50, deathFunction = monsterDeath, evasion = 45, accuracy = 40, leechRessource='hunger', leechAmount=25)
+                affectedStats = [('vitality', 1), ('slow', 1)]
+                essenceComp = Essence('Gluttony', colors.darker_lime, affectedStats=affectedStats)
+                gluttEssence = GameObject(0, 0, '*', 'minor essence of Gluttony', colors.darker_lime, Essence=essenceComp)
+                fighterComponent = Fighter(hp=45, power=10, armor = 0, xp = 50, deathFunction = monsterDeath, evasion = 45, accuracy = 40, leechRessource='hunger', leechAmount=25, lootFunction=[gluttEssence], lootRate=[100])
                 monster = GameObject(x, y, char = 'S', color = colors.lightest_yellow, name = 'starveling', blocks = True, Fighter=fighterComponent, AI = BasicMonster())
                             
             else:
@@ -4491,7 +5473,7 @@ def placeObjects(room, first = False):
                 item = createWeapon(x, y)
             elif itemChoice == 'shield':
                 equipmentComponent = Equipment(slot = 'one handed', type = 'shield', armorBonus=3)
-                item = GameObject(x, y, '[', 'shield', colors.darker_orange, Equipment=equipmentComponent, Item=Item(weight = 3.0))
+                item = GameObject(x, y, '[', 'shield', colors.darker_orange, Equipment=equipmentComponent, Item=Item(weight = 3.0, pic = 'shield.xp'))
             elif itemChoice == 'spellbook':
                 item = createSpellbook(x, y)
             elif itemChoice == "food":
@@ -4504,14 +5486,14 @@ def placeObjects(room, first = False):
                 elif foodChoice == 'rMeat':
                     def rMeatDebuff(amount, text):
                         if not 'poisoned' in convertBuffsToNames(player.Fighter):
-                            poisoned = Buff('poisoned', colors.purple, owner = player, cooldown=randint(5, 10), continuousFunction=lambda: randomDamage(player.Fighter, chance = 100, minDamage=1, maxDamage=10))
+                            poisoned = Buff('poisoned', colors.purple, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10))
                             satiateHunger(amount, text)
                             dice = randint(1, 100)
                             if DEBUG:
                                 message('Rancid meat dice : {}'.format(dice), colors.purple)
                             if dice <= 90:
                                 message("You don't feel very good...", colors.red)
-                                poisoned.applyBuff()
+                                poisoned.applyBuff(player)
                         else:
                             message("You really don't want to take the risk of being in worse condition than you currently are.", colors.red)
                             return 'cancelled'
@@ -4524,13 +5506,13 @@ def placeObjects(room, first = False):
                         satiateHunger(amount, text)
                         if choice == 'poison':
                             message("This had a very strange aftertaste...", colors.red)
-                            poisoned = Buff('poisoned', colors.purple, owner = player, cooldown=randint(5, 10), continuousFunction=lambda: randomDamage(player.Fighter, chance = 100, minDamage=1, maxDamage=10))
-                            poisoned.applyBuff()
+                            poisoned = Buff('poisoned', colors.purple, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10))
+                            poisoned.applyBuff(player)
                         elif choice == 'freeze':
                             if not 'burning' in convertBuffsToNames(player.Fighter):
                                 message("This pie is so cold that you can feel it's coldness as it is going down your throat. Wait, actually it's your whole body that is freezing !", colors.red)
-                                frozen = Buff('frozen', colors.light_violet, owner = player, cooldown = 4)
-                                frozen.applyBuff()
+                                frozen = Buff('frozen', colors.light_violet, cooldown = 4)
+                                frozen.applyBuff(player)
                             else:
                                 message("For a moment, you feel like you're burning a bit less, but it's probably just your imagination. Or your senses going numb because of your imminent death. Or both.")
                         elif choice == 'burn':
@@ -4538,8 +5520,8 @@ def placeObjects(room, first = False):
                             applyBurn(player, 100)
                         elif choice == 'confuse':
                             message("You feel funny...", colors.red)
-                            confused = Buff('confused', colors.white, owner = player, cooldown = randint(2,8))
-                            confused.applyBuff()
+                            confused = Buff('confused', colors.white, cooldown = randint(2,8))
+                            confused.applyBuff(player)
                         else:
                             message("This didn't taste as bad as you'd expect.")
                                 
@@ -4570,187 +5552,6 @@ def placeObjects(room, first = False):
 #_____________ ROOM POPULATION + ITEMS GENERATION_______________
 
 #_____________ EQUIPMENT ________________
-class Equipment:
-    def __init__(self, slot, type, powerBonus=0, armorBonus=0, maxHP_Bonus=0, accuracyBonus=0, evasionBonus=0, criticalBonus = 0, maxMP_Bonus = 0, burning = False, ranged = False, rangedPower = 0, maxRange = 0, ammo = None, meleeWeapon = False, armorPenetrationBonus = 0, slow = False):
-        self.slot = slot
-        self.type = type
-        self.basePowerBonus = powerBonus
-        self.armorBonus = armorBonus
-        self.maxHP_Bonus = maxHP_Bonus
-        self.accuracyBonus = accuracyBonus
-        self.evasionBonus = evasionBonus
-        self.criticalBonus = criticalBonus
-        self.maxMP_Bonus = maxMP_Bonus
-        self.isEquipped = False
-        self.curSlot = None
-        self.armorPenetrationBonus = armorPenetrationBonus
-        
-        self.burning = burning
-        self.ranged = ranged
-        self.baseRangedPower = rangedPower
-        self.maxRange = maxRange
-        self.ammo = ammo
-        self.meleeWeapon = meleeWeapon
-        self.slow = slow
- 
-    def toggleEquip(self):
-        if self.isEquipped:
-            self.unequip()
-        else:
-            self.equip()
-
-    def equip(self):
-        extra = False
-        handSlot = None
-        oldEquipment = None
-        global FOV_recompute
-        
-        handed = self.slot == 'one handed' or self.slot == 'two handed'
-        
-        if self.slot == 'one handed':
-            inHands = getEquippedInHands()
-            rightText = "right hand"
-            leftText = "left hand"
-            extra = False
-            if player.Player.race == 'Demon spawn':
-                if 'extra limb' in player.Player.mutationsGotten:
-                    extraText = "extra arm"
-                    extra = True
-            for object in equipmentList:
-                if object.Equipment.curSlot == "right hand":
-                    rightText = rightText + " (" + object.name + ")"
-                if object.Equipment.curSlot == "left hand":
-                    leftText = leftText + " (" + object.name + ")"
-                if object.Equipment.curSlot == 'both hands':
-                    rightText = rightText + " (" + object.name + ")"
-                    leftText = leftText + " (" + object.name + ")"
-                if extra and object.Equipment.curSlot == 'extra arm':
-                    extraText = extraText + ' (' + object.name + ')'
-            if extra:
-                handList = [rightText, leftText, extraText]
-            else:
-                handList = [rightText, leftText]
-            handIndex = menu('What slot do you want to equip this ' + self.owner.name + ' in?', handList, 60)
-            if handIndex == 0:
-                handSlot = 'right hand'
-            elif handIndex == 1:
-                handSlot = 'left hand'
-            elif extra and handIndex == 2:
-                handSlot = 'extra arm'
-            else:
-                return None
-        elif self.slot == 'two handed':
-            handSlot = 'both hands'
-
-        rightEquipment = None
-        leftEquipment = None
-        extraEquipment = None
-        if handed:
-            if self.meleeWeapon and handSlot == 'right hand':
-                leftEquipment = getEquippedInSlot('left hand', hand = True)
-                extraEquipment = getEquippedInSlot('extra arm', hand = True)
-            elif self.meleeWeapon and handSlot == 'left hand':
-                rightEquipment = getEquippedInSlot('right hand', hand = True)
-                extraEquipment = getEquippedInSlot('extra arm', hand = True)
-            elif extra and self.meleeWeapon and handSlot == 'extra arm':
-                leftEquipment = getEquippedInSlot('left hand', hand = True)
-                rightEquipment = getEquippedInSlot('right hand', hand = True)
-        rightIsWeapon = rightEquipment and rightEquipment.meleeWeapon
-        leftIsWeapon = leftEquipment and leftEquipment.meleeWeapon
-        extraIsWeapon = extraEquipment and extraEquipment.meleeWeapon
-
-        possible = True
-        if rightIsWeapon or leftIsWeapon or extraIsWeapon:
-            if not player.Player.dualWield:
-                message('You cannot wield two weapons at the same time!', colors.yellow)
-                possible = False
-            else:
-                if self.type == 'light weapon':
-                    if rightIsWeapon and not rightEquipment.type == 'light weapon' or leftIsWeapon and not leftEquipment.type == 'light weapon' or rightIsWeapon and not rightEquipment.type == 'light weapon':
-                        message('You can only wield several light weapons.', colors.yellow)
-                        possible = False
-        if possible:
-            if not handed:
-                oldEquipment = getEquippedInSlot(self.slot)
-                if oldEquipment is not None:
-                    oldEquipment.unequip()
-            else:
-                rightEquipment = None
-                leftEquipment = None
-                bothEquipment = None
-        
-                if self.slot == 'one handed':
-                    bothEquipment = getEquippedInSlot('both hands', hand = True)
-                    oldEquipment = getEquippedInSlot(handSlot, hand = True)
-                if self.slot == 'two handed':
-                    rightEquipment = getEquippedInSlot('right hand', hand = True)
-                    leftEquipment = getEquippedInSlot('left hand', hand = True)
-                    bothEquipment = getEquippedInSlot('both hands', hand = True)
-    
-                if bothEquipment is not None:
-                    bothEquipment.unequip()
-                if rightEquipment is not None:
-                    rightEquipment.unequip()
-                if leftEquipment is not None:
-                    leftEquipment.unequip()
-                if oldEquipment is not None:
-                    oldEquipment.unequip()
-    
-            inventory.remove(self.owner)
-            equipmentList.append(self.owner)
-            self.isEquipped = True
-            if self.maxHP_Bonus != 0:
-                player.Fighter.hp += self.maxHP_Bonus
-            if self.maxMP_Bonus != 0:
-                player.Fighter.MP += self.maxMP_Bonus
-    
-            if handed:
-                self.curSlot = handSlot
-                message('Equipped ' + self.owner.name + ' on ' + self.curSlot + '.', colors.light_green)
-            else:
-                message('Equipped ' + self.owner.name + ' on ' + self.slot + '.', colors.light_green)
- 
-    def unequip(self):
-        handed = self.slot == 'one handed' or self.slot == 'two handed'
-
-        if not self.isEquipped: return
-        self.isEquipped = False
-        equipmentList.remove(self.owner)
-        inventory.append(self.owner)
-        if handed:
-            message('Unequipped ' + self.owner.name + ' from ' + self.curSlot + '.', colors.light_yellow)
-            self.curSlot = None
-        else:
-            message('Unequipped ' + self.owner.name + ' from ' + self.slot + '.', colors.light_yellow)
-        if self.maxHP_Bonus != 0:
-            player.Fighter.hp -= self.maxHP_Bonus
-        if self.maxMP_Bonus != 0:
-            player.Fighter.MP -= self.maxMP_Bonus
-
-    @property
-    def powerBonus(self):
-        if self.type == 'light weapon':
-            bonus = (20 * player.Player.actualPerSkills[0]) / 100
-            return int(self.basePowerBonus * bonus + self.basePowerBonus)
-        elif self.type == 'heavy weapon':
-            bonus = (20 * player.Player.actualPerSkills[1]) / 100
-            return int(self.basePowerBonus * bonus + self.basePowerBonus)
-        elif self.type == 'throwing weapon':
-            bonus = (20 * player.Player.actualPerSkills[3]) / 100
-            return int(self.basePowerBonus * bonus + self.basePowerBonus)
-        else:
-            return self.basePowerBonus
-    
-    @property
-    def rangedPower(self):
-        if self.type == 'missile weapon':
-            bonus = (20 * player.Player.actualPerSkills[2]) / 100
-            return int(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.dexterity)
-        elif self.type == 'throwing weapon':
-            bonus = (20 * player.Player.actualPerSkills[3]) / 100
-            return int(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.strength)
-        else:
-            return self.baseRangedPower
 
 def getEquippedInSlot(slot, hand = False):
     if not hand:
@@ -4780,6 +5581,7 @@ def getAllEquipped(object):  #returns a list of equipped items
     else:
         return []
 #_____________ EQUIPMENT ________________
+#EQUIPMENT CLASS WAS HERE, CUT PASTE AT THIS LINE IN CASE OF PROBLM
 
 def getAllWeights(object):
     if object == player:
@@ -4807,18 +5609,211 @@ def lootItem(object, x, y):
     object.x = x
     object.y = y
     object.sendToBack()
-    message('A ' + object.name + ' falls from the dead body !', colors.dark_sky)
+    if object.Item and object.Item.amount <= 1:
+        message('A ' + object.name + ' falls from the dead body!', colors.dark_sky)
+    elif object.Item:
+        message(str(object.Item.amount) + ' ' + object.pName + ' fall from the dead body!', colors.dark_sky)
+    else:
+        message('A ' + object.name + ' falls from the dead body!', colors.dark_sky)
+
+def turnIntoNemesis():
+    global lastHitter, nemesisList
+    nemesis = None
+    if lastHitter == 'darksoul':
+        fightComp = Fighter(hp=60, armor=3, power=12, accuracy=50, evasion=15, xp=70, deathFunction=monsterDeath, armorPenetration=3)
+        objComp = GameObject(0, 0, 'P', nameGen.nemesisName(race = player.Player.race, classe = player.Player.classes), color = colors.dark_gray, blocks=True, Fighter=fightComp, AI = BasicMonster())
+        nemesis = Nemesis(objComp, currentBranch.shortName, dungeonLevel)
+        print('created', objComp.name)
+    if nemesis is not None:
+        nemesisList.append(nemesis)
+        print('added nemesis to list')
+    
+    file = shelve.open(absMetaPath, "w")
+    file['nemesis'] = nemesisList
+    file.close()
+
+class HighScore:
+    def __init__(self, name, race, pClass, level, dLevel, dBranch, killer, score):
+        self.name = name
+        self.race = race
+        self.pClass = pClass
+        self.level = level
+        self.dLevel = dLevel
+        self.dBranch = dBranch
+        self.killer = killer
+        self.score = score
+    
+    def __lt__(self, other):
+        return self.score < other.score
+    def __le__(self, other):
+        return self.score <= other.score
+    def __eq__(self, other):
+        return self.score == other.score
+    def __ge__(self, other):
+        return self.score >= other.score
+    def __gt__(self, other):
+        return self.score > other.score
+    def __ne__(self, other):
+        return self.score != other.score
+    
+
+    def sName(self):
+        text = '{} the level {} {} {}'.format(self.name, self.level, self.race, self.pClass)
+        return text
+
+    def sDeath(self):
+        text = 'Died on level {} of branch {} killed by {}'.format(self.dLevel, self.dBranch, self.killer)
+        return text
+    def sScore(self):
+        text = 'Scored {} points'.format(self.score)
+        return text
+    
+def placeScore(current, first = True):
+    file = shelve.open(absMetaPath, "c")
+    try:
+        scoreList = file['scores']
+    except KeyError:
+        print("========WARNING========")
+        print('No highscore in file')
+        print("=======================")
+        scoreList = []
+    '''    
+    for loop in range(5):
+        if loop + 1:
+            high = deepcopy(scoreList[loop])
+        else:
+            print('Score list shorter than {} ({})'.format(loop, len(scoreList)))
+            scoreList.append(current)
+            print('Appended score')
+            file['scores'] = scoreList
+            file.close()
+            print('Saved score list')
+            return 'short'
+        print(high.name, high.score)
+        if current > high:
+            prevInd = loop
+            scoreList[prevInd] = current
+            print('Replaced score number {} (points : {}) by new high score ({})'.format(prevInd, high.score, current.score))
+            placeScore(high, False)
+            #nudgeDown(high, prevInd)
+            print('After nudging')
+            file['scores'] = scoreList
+            file.close()
+            print('Saved score list')
+            return 'done'
+    print("Couldn't place score {}".format(current.score))
+    return 'tooLow'
+    '''
+    scoreList.append(current)
+    scoreList.sort()
+    scoreList.reverse()
+    if len(scoreList) > 5:
+        del scoreList[5]
+    file['scores'] = scoreList
+    file.close()
+    print('Saved score list')
+    return 'done'
+    
+
+def nudgeDown(score, curIndex):
+    file = shelve.open(absMetaPath, "c")
+    try:
+        scoreList = file['scores']
+    except KeyError:
+        print("========WARNING========")
+        print('No highscore in file')
+        print("Couldnt nudge")
+        print("=======================")
+        return 'fail'
+    normal = curIndex
+    lower = curIndex + 1
+    print('Starting nudging')
+    if not lower > 5:
+        print('Entering nudging if loop')
+        if lower > len(scoreList) - 1:
+            print('Need to append score !')
+            leaderboard()
+            print('Lower = {}'.format(lower))
+            print('Max Ind = {}'.format(len(scoreList) - 1))
+            scoreList.append(score)
+            file['scores'] = scoreList
+            print('BEFORE SYNCING')
+            file.sync()
+            print('Saved nudging down')
+            file.close()
+        else:
+            print('No need to append')
+            print(scoreList[lower])
+            previous = deepcopy(scoreList[lower])
+            print('Done deepcopying')
+            scoreList[lower] = score
+            print('Nudged down score {} to {}'.format(normal, lower))
+            file['scores'] = scoreList
+            print('BEFORE SYNCING')
+            file.sync()
+            print('Saved nudging down')
+            file.close()
+            nudgeDown(previous, lower)
+        
+    else:
+        print('Done nudging down')
+    
+
+def getHighScore():
+    def computeHighScore():
+        return player.Player.baseScore + (player.Player.money // 10)
+    
+    curHigh = HighScore(player.name, player.Player.race, player.Player.classes, player.level, dungeonLevel, currentBranch.name, lastHitter, computeHighScore())
+    '''
+    file = shelve.open(absMetaPath, "c")
+    try:
+        scoreList = file['scores']
+        for high in scoreList:
+            print(high.name, high.score)
+            if curHigh > high:
+                prevInd = scoreList.index(high)
+                scoreList[prevInd] = curHigh
+                inserted = True
+                print('Replaced score number {} (points : {}) by new high score ({})'.format(prevInd, high.score, curHigh.score))
+                break
+    except KeyError:
+        print("========WARNING========")
+        print('No highscore in file')
+        print("=======================")
+        scoreList = []
+    '''
+    status = placeScore(curHigh)
+    print(status)
+    '''
+    if len(scoreList) <= 5 and status != 'done':
+        scoreList.append(curHigh)
+        inserted = True
+        print('Appended score')
+    file['scores'] = scoreList
+    file.close()
+    '''
 
 def playerDeath(player):
     global gameState
-    message('You died!', colors.red)
-    gameState = 'dead'
-    player.char = '%'
-    player.color = colors.dark_red
-    deleteSaves()
- 
+    if player.Player.race == 'Virus ' and player.Player.inHost:
+        player.Player.inHost = False
+        player.Player.timeOutsideLeft = 50
+        setFighterStatsBack(player.Fighter)
+        player.Fighter.hp = player.Fighter.BASE_MAX_HP
+        message('Your host was killed!', colors.red)
+    else:
+        message('You died!', colors.red)
+        gameState = 'dead'
+        player.char = '%'
+        player.color = colors.dark_red
+        turnIntoNemesis()
+        getHighScore()
+        deleteSaves()
+        deathMenu()
+
+    
 def monsterDeath(monster):
-    message(monster.name.capitalize() + ' is dead! You gain ' + str(monster.Fighter.xp) + ' XP.', colors.dark_sky)
+    message(monster.name.capitalize() + ' is dead! You gain ' + str(monster.Fighter.xp) + ' XP.', colors.dark_sky) #TO-DO (PRIORITY) : Fix it so it shows only if you actually gained XP on kill
     
     if monster.Fighter.lootFunction is not None:
         itemIndex = 0
@@ -4849,11 +5844,19 @@ def zombieDeath(monster):
 
 #_____________ GUI _______________
 def renderBar(cons, x, y, totalWidth, name, value, maximum, barColor, backColor):
-    barWidth = int(float(value) / maximum * totalWidth) #Width of the bar is proportional to the ratio of the current value over the maximum value
+    if maximum == 0:
+        trueMax = 1
+        alwaysFull = True
+    else:
+        trueMax = maximum
+        alwaysFull = False
+    barWidth = int(float(value) / trueMax * totalWidth) #Width of the bar is proportional to the ratio of the current value over the maximum value
     cons.draw_rect(x, y, totalWidth, 1, None, bg = backColor)#Background of the bar
     
-    if barWidth > 0:
+    if barWidth > 0 and not alwaysFull:
         cons.draw_rect(x, y, barWidth, 1, None, bg = barColor)#The actual bar
+    elif alwaysFull:
+        cons.draw_rect(x, y, totalWidth, 1, None, bg = barColor)
         
     text = name + ': ' + str(value) + '/' + str(maximum)
     xCentered = x + (totalWidth - len(text))//2
@@ -4879,7 +5882,7 @@ def displayLog(height):
         Update()
         tdl.flush()
     width = MSG_WIDTH + 2
-    window = tdl.Console(width, height)
+    window = NamedConsole('displayLog', width, height)
     menuWindows.append(window)
     upKeys = ['UP', 'KP8', 'PAGEUP', '^']
     downKeys = ['DOWN', 'KP2', 'PAGEDOWN', 'V']
@@ -4950,10 +5953,10 @@ def displayLog(height):
         elif key.keychar.upper() in exitKeys:
             quitted = True
 
-
 def inventoryMenu(header, invList = None, noItemMessage = 'Inventory is empty'):
     #show a menu with each item of the inventory as an option
     global inventory
+    displayItem = True
     if 'frozen' in convertBuffsToNames(player.Fighter):
         message('You cannot check your inventory right now !', colors.red)
         return None
@@ -4964,6 +5967,7 @@ def inventoryMenu(header, invList = None, noItemMessage = 'Inventory is empty'):
             invList = [object for object in inventory if object.Item and object.Item.type == "food"]
         if len(invList) == 0:
             options = [noItemMessage]
+            displayItem = False
         else:
             options = []
             for item in invList:
@@ -4971,7 +5975,7 @@ def inventoryMenu(header, invList = None, noItemMessage = 'Inventory is empty'):
                 if item.Item.stackable:
                     text = text + ' (' + str(item.Item.amount) + ')'
                 options.append(text)
-        index = menu(header, options, INVENTORY_WIDTH, noItemMessage)
+        index = menu(header, options, INVENTORY_WIDTH, invList, noItemMessage, displayItem=displayItem, name = 'inventory')
         if index is None or len(invList) == 0 or index == "cancelled":
             return None
         else:
@@ -4998,8 +6002,7 @@ def spellsMenu(header):
     '''
     borked = False
     if len(player.Fighter.knownSpells) == 0:
-        options = []
-        showableHeader = "You don't have any spells ready right now"
+        options = ["You don't have any spells ready right now"]
     else:
         player.Fighter.knownSpells = sortSpells(player.Fighter.knownSpells)
         options = []
@@ -5007,11 +6010,10 @@ def spellsMenu(header):
             for spell in player.Fighter.knownSpells:
                 text = spell.name
                 options.append(text)
-            showableHeader = header
         except TDLError:
             options = []
             borked = True
-    index = menu(showableHeader, options, INVENTORY_WIDTH)
+    index = menu(header, options, INVENTORY_WIDTH)
     if index is None or len(player.Fighter.knownSpells) == 0 or borked or index == "cancelled":
         global DEBUG
         if DEBUG:
@@ -5067,66 +6069,363 @@ def equipmentMenu(header):
         else:
             return equipmentList[index].Item
 
-def mainMenu():
-    global player
-    choices = ['New Game', 'Continue', 'About', 'Quit']
+def deathMenu():
+    global FOV_recompute
+    FOV_recompute = True
+    Update()
+    deathText = textwrap.wrap('You were killed by ' + lastHitter + '.', DEATH_SCREEN_WIDTH)
+    width = DEATH_SCREEN_WIDTH + 2
+    height = DEATH_SCREEN_HEIGHT + len(deathText)
+    window = NamedConsole('deathMenu', width, height)
+    window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
+    window.clear()
     index = 0
-    while not tdl.event.isWindowClosed():
-        root.clear()
-        drawCentered(cons =  root, y = 15, text = 'Dementia', fg = colors.white, bg = None)
-        drawCentered(cons = root, y = 44, text = choices[0], fg = colors.white, bg = None)
-        drawCentered(cons = root, y = 45, text = choices[1], fg  = colors.white, bg = None)
-        drawCentered(cons = root, y = 46, text = choices[2], fg = colors.white, bg = None)
-        drawCentered(cons = root, y = 47, text = choices[3], fg = colors.white, bg = None)
-        drawCentered(cons = root, y = 44 + index, text=choices[index], fg = colors.black, bg = colors.white)
-        tdl.flush()
-        key = tdl.event.key_wait()
-        if key.keychar.upper() == "DOWN":
-            index += 1
-            playWavSound('select.wav', True)
-        elif key.keychar.upper() == "UP":
-            index -= 1
-            playWavSound('select.wav', True)
-        if index < 0:
-            index = len(choices) - 1
-        if index > len(choices) - 1:
-            index = 0
-        if key.keychar.upper() == "ENTER":
-            if index == 0:
-                (playerComponent, levelUpStats, actualPerSkills, skillsBonus, startingSpells, chosenRace, chosenClass, chosenTraits) = characterCreation()
-                if playerComponent != 'cancelled':
-                    name = enterName(chosenRace)
-                    playComp = Player(name, playerComponent[7], playerComponent[8], playerComponent[9], playerComponent[10], actualPerSkills, levelUpStats, skillsBonus, chosenRace, chosenClass, chosenTraits)
-                    playFight = Fighter(hp = playerComponent[4], power= playerComponent[0], armor= playerComponent[3], deathFunction=playerDeath, xp=0, evasion = playerComponent[2], accuracy = playerComponent[1], maxMP= playerComponent[5], knownSpells=startingSpells, critical = playerComponent[6], armorPenetration = playerComponent[11])
-                    player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = name, color = (0, 210, 0))
-                    player.level = 1
-                    player.Player.updatePlayerStats()
 
-                    newGame()
-                    playGame()
-                else:
-                    mainMenu()
-            elif index == 1:
-                error = False
-                try:
-                    loadGame()
-                except:
-                    msgBox("\n No saved game to load.\n", 26, False, False)
-                    error = True
-                    key = None
-                    continue
-                if not error:
-                    playGame()
-            elif index == 2:
-                pass
-                #Credits
-            elif index == 3:
-                raise SystemExit("Chose Quit on the main menu")
+    while not tdl.event.isWindowClosed():
+        for k in range(width):
+            window.draw_char(k, 0, chr(196))
+        window.draw_char(0, 0, chr(218))
+        window.draw_char(k, 0, chr(191))
+        kMax = k
+        for l in range(height):
+            if l > 0:
+                window.draw_char(0, l, chr(179))
+                window.draw_char(kMax, l, chr(179))
+        lMax = l
+        for m in range(width):
+            window.draw_char(m, lMax, chr(196))
+        window.draw_char(0, lMax, chr(192))
+        window.draw_char(kMax, lMax, chr(217))
+        window.draw_str(8, 1, 'YOU DIED!', colors.red)
+        y = 3
+        for line in deathText:
+            window.draw_str(1, y, line, fg = colors.yellow)
+            y += 1
+        if index == 0:
+            window.draw_str(7, y + 2, 'Main menu', fg = colors.black, bg = colors.white)
+            window.draw_str(7, y + 4, 'Quit')
+        else:
+            window.draw_str(7, y + 2, 'Main menu')
+            window.draw_str(7, y + 4, 'Quit', fg = colors.black, bg = colors.white)
+
+        x = MID_WIDTH - int(width/2)
+        y = MID_HEIGHT - int(height/2)
+        root.blit(window, x, y, width, height, 0, 0)
         tdl.flush()
+        
+        key = tdl.event.key_wait()
+        keyChar = key.keychar
+        if key.keychar.upper() == 'DOWN':
+            index += 1
+        if key.keychar.upper() == 'UP':
+            index -= 1
+        if index <= 0:
+            index = 0
+        if index > 1:
+            index = 1
+
+        if keyChar == 'ENTER':
+            if index == 0:
+                mainMenu()
+            else:
+                stopProcess()
+                quitGame('Quit game from the death menu.')
+
+def temporaryBox(text, color = colors.white):
+    global FOV_recompute
+    FOV_recompute = True
+    Update()
+    width = len(text) + 2
+    height = 3
+    window = NamedConsole('temporaryBox', width, height)
+    assert isinstance(window, tdl.Console)
     
-def credits():
+    window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
+    window.clear()
+    
+    for k in range(width):
+        window.draw_char(k, 0, chr(196))
+    window.draw_char(0, 0, chr(218))
+    window.draw_char(k, 0, chr(191))
+    kMax = k
+    for l in range(height):
+        if l > 0:
+            window.draw_char(0, l, chr(179))
+            window.draw_char(kMax, l, chr(179))
+    lMax = l
+    for m in range(width):
+        window.draw_char(m, lMax, chr(196))
+    window.draw_char(0, lMax, chr(192))
+    window.draw_char(kMax, lMax, chr(217))
+    
+    window.draw_str(1, 1, text, fg = color)
+    x = MID_WIDTH - int(width/2)
+    y = MID_HEIGHT - int(height/2)
+    root.blit(window, x, y, width, height, 0, 0)
+    tdl.flush()
+    
+def controlBox():
+    global FOV_recompute
+    FOV_recompute = True
+    Update()
+    width = 45
+    height = 29
+    window = NamedConsole('controlBox', width, height)
+    assert isinstance(window, tdl.Console)
+    
+    window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
+    window.clear()
+    
+    for k in range(width):
+        window.draw_char(k, 0, chr(196))
+    window.draw_char(0, 0, chr(218))
+    window.draw_char(k, 0, chr(191))
+    kMax = k
+    for l in range(height):
+        if l > 0:
+            window.draw_char(0, l, chr(179))
+            window.draw_char(kMax, l, chr(179))
+    lMax = l
+    for m in range(width):
+        window.draw_char(m, lMax, chr(196))
+    window.draw_char(0, lMax, chr(192))
+    window.draw_char(kMax, lMax, chr(217))
+    
+    def displayControl(x, y, control, description):
+        formattedControl = control + ' : '
+        window.draw_str(x, y, formattedControl, fg = colors.green)
+        ty = y + len(control)
+        window.draw_str(x + len(formattedControl), y, description, fg = colors.white)
+        
+    displayControl(1, 1, 'Arrow keys / Numpad', 'Move / Attack')
+    displayControl(1, 3, 'x', 'Fire ranged weapon')
+    displayControl(1, 5, 'z', 'Use spells or abilities')
+    displayControl(1, 7, 'I', 'Open inventory')
+    displayControl(1, 9, 'E', 'Open equipment menu')
+    displayControl(1, 11, 'd', 'Drop objects')
+    displayControl(1, 13, 'e', 'Open eat menu')
+    displayControl(1, 15, 'Space', 'Pick up object')
+    displayControl(1, 17, 'c', 'Chat with NPC')
+    displayControl(1, 19, 'C', 'Display character informations')
+    displayControl(1, 21, 'l', 'Enter look mode')
+    displayControl(1, 23, 'L', 'Display message log')
+    displayControl(1, 25, '>', 'Climb up stairs')
+    displayControl(1, 27, '<', 'Climb down stairs')
+    x = MID_WIDTH - int(width/2)
+    y = MID_CON_HEIGHT - int(height/2)
+    root.blit(window, x, y, width, height, 0, 0)
+    tdl.flush()
+    tdl.event.key_wait()
+
+def mainMenu():
+
+    if __name__ == '__main__':
+        global player, currentMusic, activeProcess
+        choices = ['New Game', 'Continue', 'Leaderboard' ,'About', 'Quit']
+        index = 0
+        currentMusic = str('Dusty_Feelings.wav')
+        '''
+        #music = MusicThread(target = self.run, musicName= currentMusic)
+        music = threading.Thread(target = lambda : runMusic(currentMusic))
+        music.setDaemon(True)
+        music.run()
+        '''
+        stopProcess()
+        music = multiprocessing.Process(target = mus.runMusic, args = (currentMusic,))
+        music.start()
+        activeProcess.append(music)
+        '''   
+        =======
+            global player, currentMusic
+            choices = ['New Game', 'Continue', 'Leaderboard' ,'About', 'Quit']
+            index = 0
+            if currentMusic != 'Dusty_Feelings.wav':
+                currentMusic = 'Dusty_Feelings.wav'
+                music = MusicThread(currentMusic)
+                music.run()
+        
+            while not tdl.event.isWindowClosed():
+                root.clear()
+                asciiFile = os.path.join(absAsciiPath, 'logo.xp')
+                xpRawString = gzip.open(asciiFile, "r").read()
+                convertedString = xpRawString
+                attributes = xpL.load_xp_string(convertedString)
+                picHeight = int(attributes["height"])
+                picWidth = int(attributes["width"])
+                lData = attributes["layer_data"]
+                layerInd = int(0)
+                for layerInd in range(len(lData)):
+                    xpL.load_layer_to_console(root, lData[layerInd], WIDTH//2 - picWidth//2, 15)
+                drawCentered(cons = root, y = 44, text = choices[0], fg = colors.white, bg = None)
+                drawCentered(cons = root, y = 45, text = choices[1], fg  = colors.white, bg = None)
+                drawCentered(cons = root, y = 46, text = choices[2], fg = colors.white, bg = None)
+                drawCentered(cons = root, y = 47, text = choices[3], fg = colors.white, bg = None)
+                drawCentered(cons = root, y = 48, text = choices[4], fg = colors.white, bg = None)
+                drawCentered(cons = root, y = 44 + index, text=choices[index], fg = colors.black, bg = colors.white)
+                tdl.flush()
+                key = tdl.event.key_wait()
+                if key.keychar.upper() == "DOWN":
+                    index += 1
+                    playWavSound('selectClic.wav')
+                elif key.keychar.upper() == "UP":
+                    index -= 1
+                    playWavSound('selectClic.wav')
+                if index < 0:
+                    index = len(choices) - 1
+                if index > len(choices) - 1:
+                    index = 0
+                if key.keychar.upper() == "ENTER":
+                    if index == 0:
+                        (playerComponent, allTraits) = characterCreation()
+                        if playerComponent != 'cancelled':
+                            for trait in allTraits:
+                                if trait.type == 'race' and trait.selected:
+                                    chosenRace = trait.name
+                            for trait in allTraits:
+                                if trait.type == 'class' and trait.selected:
+                                    chosenClass = trait.name
+                            name = enterName(chosenRace)
+                            LvlUp = {'pow': createdCharacter['powLvl'], 'acc': createdCharacter['accLvl'], 'ev': createdCharacter['evLvl'], 'arm': createdCharacter['armLvl'], 'hp': createdCharacter['hpLvl'], 'mp': createdCharacter['mpLvl'], 'crit': createdCharacter['critLvl'], 'str': createdCharacter['strLvl'], 'dex': createdCharacter['dexLvl'], 'vit': createdCharacter['vitLvl'], 'will': createdCharacter['willLvl'], 'ap': createdCharacter['apLvl']}
+                            playComp = Player(name, playerComponent['str'], playerComponent['dex'], playerComponent['vit'], playerComponent['will'], playerComponent['load'], chosenRace, chosenClass, allTraits, LvlUp)
+                            playFight = Fighter(hp = playerComponent['hp'], power= playerComponent['pow'], armor= playerComponent['arm'], deathFunction=playerDeath, xp=0, evasion = playerComponent['ev'], accuracy = playerComponent['acc'], maxMP= playerComponent['mp'], knownSpells=playerComponent['spells'], critical = playerComponent['crit'], armorPenetration = playerComponent['ap'])
+                            player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = name, color = (0, 210, 0))
+                            player.level = 1
+                            player.Fighter.hp = player.Fighter.baseMaxHP
+                            player.Fighter.MP = player.Fighter.baseMaxMP
+        
+                            newGame()
+                            playGame()
+                        else:
+                            mainMenu()
+                    elif index == 1:
+                        error = False
+                        try:
+                            loadGame()
+                        except:
+                            msgBox("\n No saved game to load.\n", 26, False, False)
+                            error = True
+                            key = None
+                            continue
+                        if not error:
+                            playGame()
+                    elif index == 2:
+                        leaderboard()
+                    elif index == 3:
+                        gameCredits()
+                    elif index == 4:
+                        raise SystemExit("Chose Quit on the main menu")
+                tdl.flush()
+        >>>>>>> origin/secondary
+        '''
+        while not tdl.event.isWindowClosed():
+            root.clear()
+            asciiFile = os.path.join(absAsciiPath, 'logo.xp')
+            xpRawString = gzip.open(asciiFile, "r").read()
+            convertedString = xpRawString
+            attributes = xpL.load_xp_string(convertedString)
+            picHeight = int(attributes["height"])
+            picWidth = int(attributes["width"])
+            lData = attributes["layer_data"]
+            layerInd = int(0)
+            for layerInd in range(len(lData)):
+                xpL.load_layer_to_console(root, lData[layerInd], WIDTH//2 - picWidth//2, 15)
+            drawCentered(cons = root, y = 44, text = choices[0], fg = colors.white, bg = None)
+            drawCentered(cons = root, y = 45, text = choices[1], fg  = colors.white, bg = None)
+            drawCentered(cons = root, y = 46, text = choices[2], fg = colors.white, bg = None)
+            drawCentered(cons = root, y = 47, text = choices[3], fg = colors.white, bg = None)
+            drawCentered(cons = root, y = 48, text = choices[4], fg = colors.white, bg = None)
+            drawCentered(cons = root, y = 44 + index, text=choices[index], fg = colors.black, bg = colors.white)
+            tdl.flush()
+            key = tdl.event.key_wait()
+            if key.keychar.upper() == "DOWN":
+                index += 1
+                playWavSound('selectClic.wav')
+            elif key.keychar.upper() == "UP":
+                index -= 1
+                playWavSound('selectClic.wav')
+            if index < 0:
+                index = len(choices) - 1
+            if index > len(choices) - 1:
+                index = 0
+            if key.keychar.upper() == "ENTER":
+                if index == 0:
+                    (playerComponent, allTraits) = characterCreation()
+                    if playerComponent != 'cancelled':
+                        for trait in allTraits:
+                            if trait.type == 'race' and trait.selected:
+                                chosenRace = trait.name
+                        for trait in allTraits:
+                            if trait.type == 'class' and trait.selected:
+                                chosenClass = trait.name
+                        name = enterName(chosenRace)
+                        LvlUp = {'pow': createdCharacter['powLvl'], 'acc': createdCharacter['accLvl'], 'ev': createdCharacter['evLvl'], 'arm': createdCharacter['armLvl'], 'hp': createdCharacter['hpLvl'], 'mp': createdCharacter['mpLvl'], 'crit': createdCharacter['critLvl'], 'str': createdCharacter['strLvl'], 'dex': createdCharacter['dexLvl'], 'vit': createdCharacter['vitLvl'], 'will': createdCharacter['willLvl'], 'ap': createdCharacter['apLvl']}
+                        playComp = Player(name, playerComponent['str'], playerComponent['dex'], playerComponent['vit'], playerComponent['will'], playerComponent['load'], chosenRace, chosenClass, allTraits, LvlUp)
+                        playFight = Fighter(hp = playerComponent['hp'], power= playerComponent['pow'], armor= playerComponent['arm'], deathFunction=playerDeath, xp=0, evasion = playerComponent['ev'], accuracy = playerComponent['acc'], maxMP= playerComponent['mp'], knownSpells=playerComponent['spells'], critical = playerComponent['crit'], armorPenetration = playerComponent['ap'])
+                        player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = name, color = (0, 210, 0))
+                        player.level = 1
+                        player.Fighter.hp = player.Fighter.baseMaxHP
+                        player.Fighter.MP = player.Fighter.baseMaxMP
+    
+                        newGame()
+                        playGame()
+                    else:
+                        mainMenu()
+                elif index == 1:
+                    error = False
+                    try:
+                        loadGame()
+                    except:
+                        msgBox("\n No saved game to load.\n", 26, False, False)
+                        error = True
+                        key = None
+                        continue
+                    if not error:
+                        playGame()
+                elif index == 2:
+                    leaderboard()
+                elif index == 3:
+                    gameCredits()
+                elif index == 4:
+                    stopProcess()
+                    raise SystemExit("Chose Quit on the main menu")
+            tdl.flush()
+        stopProcess()    
+    else:
+        print('Not main SO WE ARENT DOING FUCKING ANYTHING AND NOT FUCKING UP THE WHOLE PROGRAM BY OPENING INFINITE INSTANCES OF IT')
+def gameCredits():
     centerX, centerY = MID_WIDTH, MID_HEIGHT
-    #drawCentered(cons, y, text, fg, bg)
+    root.clear()
+    toPrint = dial.formatText(dial.creditText, WIDTH - 40)
+    inY = (HEIGHT // 2) - (len(toPrint) // 2)
+    
+    for line in toPrint:
+        if line != 'BREAK':
+            drawCentered(root, y = inY, text = line)
+        inY += 1
+    
+    drawCentered(root, y = inY + 5, text = 'Press any key to continue', fg = colors.green)
+    
+    tdl.flush()
+    tdl.event.key_wait()
+
+def leaderboard():
+    file = shelve.open(absMetaPath, "c")
+    try:
+        scoreList = file['scores']
+        scoreList.sort()
+        scoreList.reverse()
+        for score in scoreList:
+            print(score.sName())
+            print(score.sDeath())
+            print(score.sScore())
+            print()
+        file['scores'] = scoreList
+        file.sync()
+        file.close()
+    except KeyError:
+        print('No high scores')
+
+
 #_____________ GUI _______________
 
 def initializeFOV():
@@ -5205,19 +6504,22 @@ def Update():
     # Draw GUI
     #panel.draw_str(1, 3, 'Dungeon level: ' + str(dungeonLevel), colors.white)
     panel.draw_str(1, 5, 'Player level: ' + str(player.level) + ' | Floor: ' + str(dungeonLevel), colors.white)
+    panel.draw_str(1, 7, 'Money: ' + str(player.Player.money))
     renderBar(panel, 1, 1, BAR_WIDTH, 'HP', player.Fighter.hp, player.Fighter.maxHP, player.color, colors.dark_gray)
     renderBar(panel, 1, 3, BAR_WIDTH, 'MP', player.Fighter.MP, player.Fighter.maxMP, colors.blue, colors.dark_gray)
     
     panel.draw_str(BUFF_X, 1, 'Buffs:', colors.white)
     buffY = 2
-    selfAware = True #TO-DO : Changes this so that this is true only if the player picked the 'self-aware' trait
+    selfAware = player.Player.getTrait('trait', 'Self aware') != 'not found'
     for buff in player.Fighter.buffList:
-        if selfAware:
-            buffText = buff.name.capitalize() + ' (' + str(buff.curCooldown) + ')'
-        else:
-            buffText = buff.name.capitalize()
-        panel.draw_str(BUFF_X, buffY, buffText, buff.color)
-        buffY += 1
+        if buff.showBuff:
+            if selfAware and buff.showCooldown:
+                buffText = buff.name.capitalize() + ' (' + str(buff.curCooldown) + ')'
+            else:
+                buffText = buff.name.capitalize()
+            panel.draw_str(BUFF_X, buffY, buffText, buff.color)
+            buffY += 1
+    root.draw_str(WIDTH-8, 1, '?: Help', colors.green)
     # Look code
     if gameState == 'looking' and lookCursor != None:
         global lookCursor
@@ -5227,6 +6529,93 @@ def Update():
         
     root.blit(panel, 0, PANEL_Y, WIDTH, PANEL_HEIGHT, 0, 0)
     
+def chat():
+    target = targetDirection()
+    if target == 'cancelled':
+        return 'cancelled'
+    else:
+        (tarX, tarY) = target
+        baddie = None
+        item = None
+        NPC = None
+        for object in objects:
+            if object.x == tarX and object.y == tarY:
+                if object.socialComp :
+                    NPC = object
+                    break
+                elif object.Fighter and object.AI and type(object.AI) != FriendlyMonster:
+                    baddie = object
+                elif object.Item:
+                    item = object
+        if NPC is not None:
+            tree = NPC.socialComp
+            #assert isinstance(tree, dial.DialogTree) #Tells PyDev that tree is an instance of the DialogTree class, so we can have auto-completion working. The side effect is that Python will throw an exception if tree isn't actually an instance of the DialogTree class (but if it isn't, you did something wrong and the rest of the code wouldn't work anyways).
+            root.clear()
+            tree.currentScreen = copy(tree.origScreen)
+            #assert isinstance(tree.currentScreen, dial.DialogScreen)
+            state = 'starting'
+            while state != 'END':
+                if state == 'SHOP':
+                    state = 'END'
+                    NPC.shopComp.browse()
+                    break
+                con.clear()
+                dialLength = len(tree.currentScreen.dialogText) - 1
+                ty = (CON_HEIGHT // 2) - (dialLength // 2)
+                for line in tree.currentScreen.dialogText:
+                    if line != 'BREAK':
+                        drawCentered(con, y = ty, text = line)
+                    ty += 1
+                root.blit(con, 0, 0, WIDTH, HEIGHT, 0, 0)
+                chosen = False
+                selectedIndex = 0
+                while not chosen:
+                    #assert isinstance(panel, tdl.Console)
+                    panel.clear()
+                    for x in range(WIDTH):
+                        panel.draw_char(x, 0, chr(196))
+                    for dchoice in tree.currentScreen.choicesList:
+                        #assert isinstance(dchoice, dial.DialogChoice)
+                        ind = tree.currentScreen.choicesList.index(dchoice)
+                        showInd = ind + 1
+                        prefix = str(showInd) + ') '
+                        strShown = prefix + dchoice.text
+                        if selectedIndex == ind:
+                            background = colors.dark_azure
+                        else:
+                            background = Ellipsis
+                        panel.draw_str(0, 1 + ind, prefix, fg = Ellipsis, bg = background)
+                        panel.draw_str(len(prefix), 1 + ind, dchoice.text, fg = Ellipsis, bg = background)
+                    root.blit(panel, 0, PANEL_Y, WIDTH, PANEL_HEIGHT, 0, 0)
+                    tdl.flush()
+                    key = tdl.event.key_wait()
+                    actualKey = key.keychar.upper()
+                    if actualKey == 'ESCAPE':
+                        state = 'END'
+                        chosen = True
+                    elif actualKey in ('UP', 'KP8'):
+                        selectedIndex -= 1
+                        if selectedIndex < 0:
+                            selectedIndex = len(tree.currentScreen.choicesList) - 1
+                        playWavSound('selectClic.wav')
+                    elif actualKey in ('DOWN', 'KP2'):
+                        selectedIndex += 1
+                        if selectedIndex > len(tree.currentScreen.choicesList) - 1 :
+                            selectedIndex = 0
+                        playWavSound('selectClic.wav')
+                    elif actualKey == 'ENTER':
+                        state = tree.currentScreen.choicesList[selectedIndex].select()
+                        chosen = True
+                    
+        elif baddie is not None:
+            msgString = baddie.name.capitalize() + ' is too busy trying to kill you to talk to you right now.'
+            message(msgString)
+        elif item is not None:
+            msgString = 'You receive no answer.'
+            message(msgString)
+        else:
+            msgString = 'You start a heated philosophical debate with yourself.'
+            message(msgString)
 def GetNamesUnderLookCursor():
     names = [obj for obj in objects
                 if obj.x == lookCursor.x and obj.y == lookCursor.y and (obj.x, obj.y in visibleTiles) and obj != lookCursor]
@@ -5363,7 +6752,24 @@ def targetAnyTile(startX = None, startY = None, drawRectangle = False):
             con.clear()
             Update()
             return (x, y)
-
+        
+def targetDirection():
+    global FOV_recompute
+    message('Please press a direction key')
+    FOV_recompute = True
+    Update()
+    tdl.flush()
+    key = tdl.event.key_wait()
+    if key.keychar.upper() in MOVEMENT_KEYS:
+        (dx, dy) = MOVEMENT_KEYS[key.keychar.upper()]
+        (x, y) = (player.x + dx, player.y + dy)
+        return (x, y)
+    else:
+        FOV_recompute = True
+        message('Invalid input')
+        Update()
+        tdl.flush()
+        return 'cancelled'
 def targetMonster(maxRange = None):
     target = targetTile(maxRange)
     if target == 'cancelled':
@@ -5436,7 +6842,7 @@ def saveGame():
     #mapFile.close()
 
 def newGame():
-    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, gameMsgs, equipmentList, currentBranch, bossDungeonsAppeared, DEBUG, REVEL
+    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, gameMsgs, equipmentList, currentBranch, bossDungeonsAppeared, DEBUG, REVEL, logMsgs, tilesInRange, tilesinPath, tilesInRect, menuWindows, explodingTiles, hiroshimanNumber, FOV_recompute
     
     DEBUG = False
     REVEL = False
@@ -5444,6 +6850,14 @@ def newGame():
     bossDungeonsAppeared = {'gluttony': False}
     gameMsgs = []
     objects = [player]
+    logMsgs = []
+    tilesInRange = []
+    explodingTiles = []
+    tilesinPath = []
+    tilesInRect = []
+    menuWindows = []
+    hiroshimanNumber = 0
+    FOV_recompute = True
     currentBranch = dBr.mainDungeon
     dungeonLevel = 1 
     makeMap()
@@ -5457,7 +6871,7 @@ def newGame():
     message('Zargothrox says : Prepare to get lost in the Realm of Madness !', colors.dark_red)
     gameState = 'playing'
     
-    equipmentComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus=3, burning = False, meleeWeapon=True)
+    equipmentComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus=3, meleeWeapon=True)
     object = GameObject(0, 0, '-', 'dagger', colors.light_sky, Equipment=equipmentComponent, Item=Item(weight = 0.8, pic = 'dagger.xp'), darkColor = colors.darker_sky)
     inventory.append(object)
     object.alwaysVisible = True
@@ -5599,7 +7013,19 @@ def loadLevel(level, save = True, branch = currentBranch):
     initializeFOV()
 
 def nextLevel(boss = False, changeBranch = None, fixedMap = None):
-    global dungeonLevel, currentBranch
+    global dungeonLevel, currentBranch, currentMusic
+    if boss:
+        currentMusic = 'Hoxton_Princess.wav'
+        stopProcess()
+        music = multiprocessing.Process(target = mus.runMusic, args = (currentMusic,))
+        music.start()
+        activeProcess.append(music)
+    elif currentMusic != 'Bumpy_Roots.wav':
+        currentMusic = 'Bumpy_Roots.wav'
+        stopProcess()
+        music = multiprocessing.Process(target = mus.runMusic, args = (currentMusic,))
+        music.start()
+        activeProcess.append(music)
     returned = "borked"
     changeToCurrent = False
     while returned != "completed":
@@ -5658,8 +7084,15 @@ def nextLevel(boss = False, changeBranch = None, fixedMap = None):
     initializeFOV()
 
 def playGame():
+    global currentMusic
+    currentMusic = 'Bumpy_Roots.wav'
+    stopProcess()
+    music = multiprocessing.Process(target = mus.runMusic, args = (currentMusic,))
+    music.start()
+    activeProcess.append(music)
+    actions = 1
     while not tdl.event.isWindowClosed():
-        global FOV_recompute, DEBUG
+        global FOV_recompute, DEBUG, actions
         Update()
         checkLevelUp()
         tdl.flush()
@@ -5672,14 +7105,39 @@ def playGame():
             if player.Player.slowAttackCooldown <= 0:
                 player.Player.attackedSlowly = False
         else:
-            playerAction = getInput()
+            for loop in range(actions):
+                playerAction = getInput()
+                if actions > 1:
+                    FOV_recompute = True
+                    Update()
+                    checkLevelUp()
+                    tdl.flush()
+                    for object in objects:
+                        object.clear()
+                if playerAction == 'exit':
+                    quitGame('Player pressed escape', True)
         FOV_recompute = True #So as to avoid the blackscreen bug no matter which key we press
-        if playerAction == 'exit':
-            quitGame('Player pressed escape', True)
         if gameState == 'playing' and playerAction != 'didnt-take-turn':
             for object in objects:
                 if object.AI:
-                    object.AI.takeTurn()
+                    try:
+                        object.AI.takeTurn()
+                    except TypeError as error:
+                        print("==================WARNING===================")
+                        print(type(error))
+                        print(error.args)
+                        print(object.name)
+                        try:
+                            message('CRITICAL AI ERROR SEE CONSOLE FOR DETAILS', colors.red)
+                        except Exception as error:
+                            print("==================WARNING===================")
+                            print("COULDNT PRINT MESSAGE")
+                            print(type(error))
+                            print(error.args)
+                            print(object.name)
+                            print("============================================")
+                        print("============================================")
+                        
                 
                 if object.Fighter and object.Fighter.baseShootCooldown > 0 and object.Fighter is not None:
                     object.Fighter.curShootCooldown -= 1
@@ -5720,7 +7178,7 @@ def playGame():
                             if monster.Fighter and not monster == player and (monster.x, monster.y) in visibleTiles:
                                 monsterInSight = True
                                 break
-                        if not 'burning' in convertBuffsToNames(player.Fighter) and not 'frozen' in convertBuffsToNames(player.Fighter) and  player.Fighter.hp != player.Fighter.maxHP and not monsterInSight and not player.Player.hungerStatus == 'starving':
+                        if not 'burning' in convertBuffsToNames(player.Fighter) and not 'frozen' in convertBuffsToNames(player.Fighter) and player.Fighter.hp != player.Fighter.maxHP and not monsterInSight and not player.Player.hungerStatus == 'starving' and not 'poisoned' in convertBuffsToNames(player.Fighter):
                             player.Fighter.healCountdown -= 1
                             if player.Fighter.healCountdown < 0:
                                 player.Fighter.healCountdown = 0
@@ -5729,33 +7187,42 @@ def playGame():
                                 player.Fighter.healCountdown= 25 - player.Player.vitality
 
                 if object.Player and object.Player.race == 'Werewolf':
-                    object.Player.transformCurCooldown -= 1
-                    if object.Player.transformationTime > 0:
-                        object.Player.transformationTime -= 1
-                    if object.Player.transformCurCooldown <= 0:
-                        message('You feel your wild instincts overwhelming you! You have turned into your wolf form!', colors.amber)
-                        object.Player.transformed = True
-                        object.Player.transformationTime = object.Player.transformMaxTurns
-                        object.Player.strength += 5
-                        object.Player.dexterity += 3
-                        object.Player.vitality += 4
-                        object.Player.willpower -= 5
-                        object.Player.transformCurCooldown = object.Player.transformCooldown    
-                        object.Player.updatePlayerStats()
-                    if object.Player.transformationTime <= 0 and object.Player.transformed:
-                        message('You are no longer in wolf form.', colors.amber)
-                        object.Player.transformed = False
-                        object.Player.transformationTime = object.Player.transformMaxTurns
-                        object.Player.strength -= 5
-                        object.Player.dexterity -= 3
-                        object.Player.vitality -= 4
-                        object.Player.willpower += 5
-                        object.Player.updatePlayerStats()
+                    def shapeshift(fighter, fromWolf = False, fromHuman = True):
+                        if fromWolf:
+                            player.Player.shapeshift = 'human'
+                            object.Player.shapeshifted = True
+                        if fromHuman:
+                            player.Player.shapeshift = 'wolf'
+                            object.Player.shapeshifted = True
+
+                    human = Buff('human', colors.lightest_yellow, cooldown = player.Player.human, showBuff = False, applyFunction = lambda fighter: setFighterStatsBack(fighter), removeFunction = lambda fighter: shapeshift(fighter))
+                    wolf = Buff('in wolf form', colors.amber, cooldown = player.Player.wolf, applyFunction = lambda fighter: modifyFighterStats(fighter, str = 5, dex = 3, vit = 4, will = -5), removeFunction = lambda fighter: shapeshift(fighter, fromHuman=False, fromWolf=True))
+                    if object.Player.shapeshifted:
+                        if object.Player.shapeshift == 'wolf':
+                            message('You feel your wild instincts overwhelming you! You have turned into your wolf form!', colors.amber)
+                            wolf.applyBuff(player)
+                            object.Player.shapeshifted = False
+                        if object.Player.shapeshift == 'human':
+                            human.applyBuff(player)
+                            object.Player.shapeshifted = False
+                
+                if object.Player and object.Player.race == 'Virus ':
+                    if object.Player.inHost:
+                        object.Player.hostDeath -= 1
+                        if object.Player.hostDeath <= 0:
+                            message('Your host has died! You must quickly find another one!', colors.red)
+                            object.Player.inHost = False
+                            object.Player.timeOutsideLeft = 50
+                    else:
+                        object.Player.timeOutsideLeft -= 1
+                        message('You only have {} turns left!'.format(object.Player.timeOutsideLeft), colors.red)
+                        if object.Player.timeOutsideLeft <= 0:
+                            object.Fighter.takeDamage(999, 'the lack of host')
                 
                 x = object.x
                 y = object.y
                 if myMap[x][y].acid and object.Fighter and object.Fighter is not None:
-                    object.Fighter.takeDamage(1)
+                    object.Fighter.takeDamage(1, 'acid')
                     object.Fighter.acidify()
                 
                 if object.Fighter and object.Fighter.acidified and object.Fighter is not None:
@@ -5790,11 +7257,14 @@ def playGame():
             if player.Player.hunger < 0:
                 player.Player.hunger = 0
             if player.Player.hunger <= BASE_HUNGER // 10:
-                player.Player.hungerStatus = "starving"
-                starveDamage = randint(0, 2)
-                if starveDamage == 0:
-                    player.Fighter.takeDamage(1)
-                    message("You're starving !", colors.red)
+                if not player.Player.hungerStatus == 'starving':
+                    starving = Buff('starving', colors.red, cooldown = 99999, showCooldown = False, continuousFunction = lambda fighter: randomDamage('starvation', fighter, chance = 33, minDamage = 1, maxDamage = 1, dmgMessage = 'You are starving!', dmgColor = colors.red, msgPlayerOnly = True))
+                    starving.applyBuff(player)
+                    player.Player.hungerStatus = "starving"
+                #starveDamage = randint(0, 2)
+                #if starveDamage == 0:
+                #    player.Fighter.takeDamage(1)
+                #    message("You're starving !", colors.red)
             elif player.Player.hunger <= BASE_HUNGER // 2:
                 prevStatus = player.Player.hungerStatus
                 player.Player.hungerStatus = "hungry"
@@ -5802,13 +7272,27 @@ def playGame():
                     message("You're starting to feel a little bit hungry.", colors.yellow)
                 elif prevStatus == "starving":
                     message("You're no longer starving")
+                    for buff in player.Fighter.buffList:
+                        if buff.name == 'starving':
+                            buff.removeBuff()
             else:
                 prevStatus = player.Player.hungerStatus
                 player.Player.hungerStatus = "full"
                 if prevStatus != "full":
                     message("You feel way less hungry")
-
+        
+        actions = 1
+        if player.Player.speed == 'fast' and randint(1, 100) <= player.Player.speedChance:
+            message('Your great speed allows you to take two actions this turn!', colors.green)
+            actions += 1
+        if player.Player.speed == 'slow' and randint(1, 100) <= player.Player.speedChance:
+            message('Your incredible slowness prevents you from taking any action this turn', colors.red)
+            actions -= 1
+    
     DEBUG = False
     quitGame('Window has been closed')
     
-mainMenu()
+if __name__ == '__main__':
+    freeze_support()
+    convertMusics()
+    mainMenu()
