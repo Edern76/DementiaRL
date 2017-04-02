@@ -1,4 +1,4 @@
-import colors, math, textwrap, time, os, sys, code, gzip, pathlib, traceback #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
+import colors, math, textwrap, time, os, sys, code, gzip, pathlib, traceback, ffmpy #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
 import tdlib as tdl
 import code.dialog as dial
 import music as mus
@@ -244,21 +244,48 @@ relPicklePath = "save\\equipment"
 relAssetPath = "assets"
 relSoundPath = "assets\\sound"
 relAsciiPath = "assets\\ascii"
+relMusicPath = 'assets\\music'
 relMetaPath = "metasave\\meta"
 relMetaDirPath = "metasave"
+relCodePath = "code"
 absDirPath = os.path.join(curDir, relDirPath)
 absFilePath = os.path.join(curDir, relPath)
 absPicklePath = os.path.join(curDir, relPicklePath)
 absAssetPath = os.path.join(curDir, relAssetPath)
 absSoundPath = os.path.join(curDir, relSoundPath)
+absMusicPath = os.path.join(curDir, relMusicPath)
 absAsciiPath = os.path.join(curDir, relAsciiPath)
 absMetaPath = os.path.join(curDir, relMetaPath)
 absMetaDirPath = os.path.join(curDir, relMetaDirPath)
+absCodePath = os.path.join(curDir, relCodePath)
 
 stairCooldown = 0
 pathfinder = None
 pathToTargetTile = []
 
+def convertMusics():
+    musicList = ['Bumpy_Roots', 'Dusty_Feelings', 'Hoxton_Princess']
+    executablePath = os.path.join(absCodePath, 'ffmpeg.exe')
+    for music in musicList:
+        mp3Music = music + '.mp3'
+        wavMusic = music + '.wav'
+        mp3Path = os.path.join(absMusicPath, mp3Music)
+        wavPath = os.path.join(absSoundPath, wavMusic)
+        if os.path.exists(wavPath):
+            print('MUSIC_CHK : Found {}'.format(wavPath))
+        else:
+            print('MUSIC_CHK_WAR : Didnt found {}'.format(wavPath))
+            if os.path.exists(mp3Path):
+                print('MUSIC_CONV : Converting {} to wav'.format(mp3Path))
+                ff = ffmpy.FFmpeg(inputs = {mp3Path : None}, outputs= {wavPath : None}, executable= executablePath)
+                ff.run()
+                print('MUSIC_CONV : Created {}'.format(wavPath))
+            else:
+                print('MUSIC_CONV_ERR : Path {} doesnt exists, skipping...'.format(mp3Path))
+        print()
+        
+        
+        
 def animStep(waitTime = .125):
     global FOV_recompute
     FOV_recompute = True
@@ -420,6 +447,7 @@ def menu(header, options, width, usedList = None, noItemMessage = None, inGame =
                             del menuWindows[ind]
                     return index + page * 26
                 elif keyChar.upper() == "ESCAPE":
+                    print('Cancelled')
                     return "cancelled"
     else:
         pass
@@ -7266,4 +7294,5 @@ def playGame():
     
 if __name__ == '__main__':
     freeze_support()
+    convertMusics()
     mainMenu()

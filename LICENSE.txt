@@ -1,6 +1,7 @@
 The files in the tdlib folder are from Kyle Stewart's TDL module, and have therefore their own license. See the TDL-License.txt file in the tdlib folder for more details.
 The file DilledShelve.py in the code package is a modification of the shelve module of the Python Standard Library, which falls under the Python Software Fundation License. See shelve-License.txt in the code folder for more details.
 The file XpLoaderPy3.py is a modification of Sean Hagar's XpLoader module, which falls under the MIT License. See XPl-License.txt file in the code folder for more details.
+This software uses libraries from the FFmpeg project under the LGPLv2.1
 
 If you downloaded this software as 'frozen' binaries, be aware that some other thrid-party libraries and/or modules might have been included by cx_Freeze. Such libraries/modules belong to their respective owners.
 
