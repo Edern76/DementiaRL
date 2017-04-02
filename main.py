@@ -413,6 +413,11 @@ def menu(header, options, width, usedList = None, noItemMessage = None, inGame =
                     if index >= 0 and index < len(options):
                         return index + page * 26
                 elif keyChar.upper() == 'ENTER':
+                    if menuWindows and inGame:
+                        for mWindow in menuWindows:
+                            mWindow.clear()
+                            ind = menuWindows.index(mWindow)
+                            del menuWindows[ind]
                     return index + page * 26
                 elif keyChar.upper() == "ESCAPE":
                     return "cancelled"
