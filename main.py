@@ -553,6 +553,10 @@ def randomDamage(name, fighter = None, chance = 33, minDamage = 1, maxDamage = 1
         if (dmgMessage is not None) and (fighter == player.Fighter or (not msgPlayerOnly)):
             message(dmgMessage.format(damage), dmgColor)
 
+def addSlot(fighter, slot):
+    print('adding {} slot to {}'.format(slot, fighter.owner.name))
+    fighter.slots.append(slot)
+
 class Buff: #also (and mainly) used for debuffs
     def __init__(self, name, color, owner = None, cooldown = 20, showCooldown = True, showBuff = True, applyFunction = None, continuousFunction = None, removeFunction = None):
         self.name = name
@@ -568,9 +572,9 @@ class Buff: #also (and mainly) used for debuffs
     
     def applyBuff(self, target):
         print(self.name, target.name)
+        self.owner = target
         if not self.name in convertBuffsToNames(target.Fighter):
             self.curCooldown = self.baseCooldown
-            self.owner = target
             if self.showBuff:
                 message(self.owner.name.capitalize() + ' is now ' + self.name + '!', self.color)
             if self.applyFunction is not None:
@@ -1631,7 +1635,7 @@ class GameObject:
         return deepcopy(self)
 
 class Fighter: #All NPCs, enemies and the player
-    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = [0], shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = None):
+    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = [0], shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = None, slots = ['head', 'torso', 'left hand', 'right hand', 'legs', 'feet'], equipmentList = [], toEquip = []):
         self.noVitHP = hp
         self.BASE_MAX_HP = hp
         self.hp = hp
@@ -1674,6 +1678,13 @@ class Fighter: #All NPCs, enemies and the player
         self.BASE_MAX_MP = maxMP
         
         self.damageText = 'unscathed'
+        
+        self.slots = slots
+        self.equipmentList = equipmentList
+        if toEquip:
+            for equipment in toEquip:
+                equipment.Equipment.equip(self)
+                print('equipped {} on {}'.format(equipment.name, self))
         
         if knownSpells != None:
             self.knownSpells = knownSpells
@@ -2328,8 +2339,19 @@ class Player:
             self.inHost = False
             self.timeOutsideLeft = 50
         
-        if self.race == 'Demon spawn':
-            self.possibleMutations = {'extra limb': 100}
+        if self.race == 'Demon Spawn':
+            class Mutation:
+                def __init__(self, name, effect = None):
+                    self.name = name
+                    self.effect = effect
+                
+                def mutate(self):
+                    print('mutating ' + self.name)
+                    del player.Player.possibleMutations[self]
+                    player.Player.mutationsGotten.append(self)
+            
+            extra = Mutation('extra limb', effect = lambda: addSlot(player.Fighter, 'extra limb'))
+            self.possibleMutations = {extra: 100}
             self.mutationsGotten = []
             self.mutationLevel = [2]
         
@@ -2565,7 +2587,7 @@ class Item:
             if equipment:
                 handed = equipment.slot == 'one handed' or equipment.slot == 'two handed'
                 if not handed and getEquippedInSlot(equipment.slot) is None:
-                    equipment.equip(silent)
+                    equipment.equip(player.Fighter, silent)
         else:
             itemFound = False
             for item in inventory:
@@ -3030,118 +3052,128 @@ class Equipment:
         else:
             self.equip()
 
-    def equip(self, silent = False):
-        extra = False
+    def equip(self, fighter = None, silent = False):
+        playerEquipping = False
+        if fighter is None or fighter == player.Fighter:
+            playerEquipping = True
+            fighter = player.Fighter
         handSlot = None
         oldEquipment = None
         global FOV_recompute
         
         handed = self.slot == 'one handed' or self.slot == 'two handed'
+        extra = 'extra limb' in fighter.slots
         
-        if self.slot == 'one handed':
-            inHands = getEquippedInHands()
-            rightText = "right hand"
-            leftText = "left hand"
-            extra = False
-            if player.Player.race == 'Demon spawn':
-                if 'extra limb' in player.Player.mutationsGotten:
-                    extraText = "extra arm"
-                    extra = True
-            for object in equipmentList:
-                if object.Equipment.curSlot == "right hand":
-                    rightText = rightText + " (" + object.name + ")"
-                if object.Equipment.curSlot == "left hand":
-                    leftText = leftText + " (" + object.name + ")"
-                if object.Equipment.curSlot == 'both hands':
-                    rightText = rightText + " (" + object.name + ")"
-                    leftText = leftText + " (" + object.name + ")"
-                if extra and object.Equipment.curSlot == 'extra arm':
-                    extraText = extraText + ' (' + object.name + ')'
-            if extra:
-                handList = [rightText, leftText, extraText]
-            else:
-                handList = [rightText, leftText]
-            handIndex = menu('What slot do you want to equip this ' + self.owner.name + ' in?', handList, 60)
-            if handIndex == 0:
-                handSlot = 'right hand'
-            elif handIndex == 1:
-                handSlot = 'left hand'
-            elif extra and handIndex == 2:
-                handSlot = 'extra arm'
-            else:
-                return None
-        elif self.slot == 'two handed':
-            handSlot = 'both hands'
-
-        rightEquipment = None
-        leftEquipment = None
-        extraEquipment = None
-        if handed:
-            if self.meleeWeapon and handSlot == 'right hand':
-                leftEquipment = getEquippedInSlot('left hand', hand = True)
-                extraEquipment = getEquippedInSlot('extra arm', hand = True)
-            elif self.meleeWeapon and handSlot == 'left hand':
-                rightEquipment = getEquippedInSlot('right hand', hand = True)
-                extraEquipment = getEquippedInSlot('extra arm', hand = True)
-            elif extra and self.meleeWeapon and handSlot == 'extra arm':
-                leftEquipment = getEquippedInSlot('left hand', hand = True)
-                rightEquipment = getEquippedInSlot('right hand', hand = True)
-        rightIsWeapon = rightEquipment and rightEquipment.meleeWeapon
-        leftIsWeapon = leftEquipment and leftEquipment.meleeWeapon
-        extraIsWeapon = extraEquipment and extraEquipment.meleeWeapon
-
-        possible = True
-        if rightIsWeapon or leftIsWeapon or extraIsWeapon:
-            if player.Player.getTrait('trait', 'Dual wield') == 'not found':
-                message('You cannot wield two weapons at the same time!', colors.yellow)
-                possible = False
-            else:
-                if self.type == 'light weapon':
-                    if rightIsWeapon and not rightEquipment.type == 'light weapon' or leftIsWeapon and not leftEquipment.type == 'light weapon' or rightIsWeapon and not rightEquipment.type == 'light weapon':
-                        message('You can only wield several light weapons.', colors.yellow)
-                        possible = False
-        if possible:
-            if not handed:
-                oldEquipment = getEquippedInSlot(self.slot)
-                if oldEquipment is not None:
-                    oldEquipment.unequip()
-            else:
-                rightEquipment = None
-                leftEquipment = None
-                bothEquipment = None
-        
-                if self.slot == 'one handed':
-                    bothEquipment = getEquippedInSlot('both hands', hand = True)
-                    oldEquipment = getEquippedInSlot(handSlot, hand = True)
-                if self.slot == 'two handed':
-                    rightEquipment = getEquippedInSlot('right hand', hand = True)
+        if playerEquipping:
+            print('player is equipping')
+            if self.slot == 'one handed':
+                inHands = getEquippedInHands()
+                rightText = "right hand"
+                leftText = "left hand"
+                extraText = 'extra limb'
+                for object in equipmentList:
+                    if object.Equipment.curSlot == "right hand":
+                        rightText = rightText + " (" + object.name + ")"
+                    if object.Equipment.curSlot == "left hand":
+                        leftText = leftText + " (" + object.name + ")"
+                    if object.Equipment.curSlot == 'both hands':
+                        rightText = rightText + " (" + object.name + ")"
+                        leftText = leftText + " (" + object.name + ")"
+                    if extra and object.Equipment.curSlot == 'extra limb':
+                        extraText = extraText + ' (' + object.name + ')'
+                if extra:
+                    handList = [rightText, leftText, extraText]
+                else:
+                    handList = [rightText, leftText]
+                handIndex = menu('What slot do you want to equip this ' + self.owner.name + ' in?', handList, 60)
+                if handIndex == 0:
+                    handSlot = 'right hand'
+                elif handIndex == 1:
+                    handSlot = 'left hand'
+                elif extra and handIndex == 2:
+                    handSlot = 'extra limb'
+                else:
+                    return None
+            elif self.slot == 'two handed':
+                handSlot = 'both hands'
+    
+            rightEquipment = None
+            leftEquipment = None
+            extraEquipment = None
+            if handed:
+                if self.meleeWeapon and handSlot == 'right hand':
                     leftEquipment = getEquippedInSlot('left hand', hand = True)
-                    bothEquipment = getEquippedInSlot('both hands', hand = True)
+                    extraEquipment = getEquippedInSlot('extra limb', hand = True)
+                elif self.meleeWeapon and handSlot == 'left hand':
+                    rightEquipment = getEquippedInSlot('right hand', hand = True)
+                    extraEquipment = getEquippedInSlot('extra limb', hand = True)
+                elif extra and self.meleeWeapon and handSlot == 'extra limb':
+                    leftEquipment = getEquippedInSlot('left hand', hand = True)
+                    rightEquipment = getEquippedInSlot('right hand', hand = True)
+            rightIsWeapon = rightEquipment and rightEquipment.meleeWeapon
+            leftIsWeapon = leftEquipment and leftEquipment.meleeWeapon
+            extraIsWeapon = extraEquipment and extraEquipment.meleeWeapon
     
-                if bothEquipment is not None:
-                    bothEquipment.unequip()
-                if rightEquipment is not None:
-                    rightEquipment.unequip()
-                if leftEquipment is not None:
-                    leftEquipment.unequip()
-                if oldEquipment is not None:
-                    oldEquipment.unequip()
-    
-            inventory.remove(self.owner)
-            equipmentList.append(self.owner)
+            possible = True
+            if rightIsWeapon or leftIsWeapon or extraIsWeapon:
+                if player.Player.getTrait('trait', 'Dual wield') == 'not found':
+                    message('You cannot wield two weapons at the same time!', colors.yellow)
+                    possible = False
+                else:
+                    if self.type == 'light weapon':
+                        if rightIsWeapon and not rightEquipment.type == 'light weapon' or leftIsWeapon and not leftEquipment.type == 'light weapon' or rightIsWeapon and not rightEquipment.type == 'light weapon':
+                            message('You can only wield several light weapons.', colors.yellow)
+                            possible = False
+            if possible:
+                if not handed:
+                    oldEquipment = getEquippedInSlot(self.slot)
+                    if oldEquipment is not None:
+                        oldEquipment.unequip()
+                else:
+                    rightEquipment = None
+                    leftEquipment = None
+                    bothEquipment = None
+            
+                    if self.slot == 'one handed':
+                        bothEquipment = getEquippedInSlot('both hands', hand = True)
+                        oldEquipment = getEquippedInSlot(handSlot, hand = True)
+                    if self.slot == 'two handed':
+                        rightEquipment = getEquippedInSlot('right hand', hand = True)
+                        leftEquipment = getEquippedInSlot('left hand', hand = True)
+                        bothEquipment = getEquippedInSlot('both hands', hand = True)
+        
+                    if bothEquipment is not None:
+                        bothEquipment.unequip()
+                    if rightEquipment is not None:
+                        rightEquipment.unequip()
+                    if leftEquipment is not None:
+                        leftEquipment.unequip()
+                    if oldEquipment is not None:
+                        oldEquipment.unequip()
+        
+                inventory.remove(self.owner)
+                equipmentList.append(self.owner)
+                self.isEquipped = True
+                if self.maxHP_Bonus != 0:
+                    player.Fighter.hp += self.maxHP_Bonus
+                if self.maxMP_Bonus != 0:
+                    player.Fighter.MP += self.maxMP_Bonus
+                
+                if not silent:
+                    if handed:
+                        self.curSlot = handSlot
+                        message('Equipped ' + self.owner.name + ' on ' + self.curSlot + '.', colors.light_green)
+                    else:
+                        message('Equipped ' + self.owner.name + ' on ' + self.slot + '.', colors.light_green)
+        else:
+            print('monster is equipping')
+            fighter.equipmentList.append(self.owner)
             self.isEquipped = True
             if self.maxHP_Bonus != 0:
-                player.Fighter.hp += self.maxHP_Bonus
+                fighter.hp += self.maxHP_Bonus
             if self.maxMP_Bonus != 0:
-                player.Fighter.MP += self.maxMP_Bonus
-            
-            if not silent:
-                if handed:
-                    self.curSlot = handSlot
-                    message('Equipped ' + self.owner.name + ' on ' + self.curSlot + '.', colors.light_green)
-                else:
-                    message('Equipped ' + self.owner.name + ' on ' + self.slot + '.', colors.light_green)
- 
+                fighter.MP += self.maxMP_Bonus
+
     def unequip(self):
         handed = self.slot == 'one handed' or self.slot == 'two handed'
 
@@ -3911,6 +3943,7 @@ def checkLevelUp():
     
     levelUp_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
     if player.Fighter.xp >= levelUp_xp:
+        print('levelling up from {} to {}'.format(str(player.level), str(player.level + 1)))
         player.level += 1
         player.Fighter.xp -= levelUp_xp
         message('Your battle skills grow stronger! You reached level ' + str(player.level) + '!', colors.yellow)
@@ -3941,12 +3974,13 @@ def checkLevelUp():
         player.Player.willpower += player.Player.levelUpStats['will']
         player.Player.BASE_WILLPOWER += player.Player.levelUpStats['will']
         
-        if player.Player.race == 'Demon spawn':
+        if player.Player.race == 'Demon Spawn':
             if player.Player.possibleMutations and player.level in player.Player.mutationLevel:
                 mutation = randomChoice(player.Player.possibleMutations)
-                del player.Player.possibleMutations[mutation]
-                player.Player.mutationsGotten.append(mutation)
-                message('You feel strange... You feel like you now have a ' + mutation +'.', colors.yellow)
+                print('mutation is possible: ' + mutation.name)
+                message('You feel strange... You feel like you now have a ' + mutation.name + '.', colors.yellow)
+                if mutation.effect:
+                    mutation.effect()
             else:
                 mutation = randint(1, 4)
                 if mutation == 1:
@@ -5254,16 +5288,18 @@ def createDarksoul(x, y, friendly = False, corpse = False):
             deathType = monsterDeath
             darksoulName = "darksoul"
             color = colors.dark_grey
+            toEquip = [darksoulHelmet]
         else:
             darksoulName = "darksoul skeleton"
             deathType = zombieDeath
             lootOnDeath = None
             color = colors.lighter_gray
+            toEquip = []
         if not friendly:
             AI_component = BasicMonster()
         else:
             AI_component = FriendlyMonster(friendlyTowards = player)
-        fighterComponent = Fighter(hp=30, armor=1, power=6, xp = 35, deathFunction = deathType, evasion = 25, accuracy = 10, lootFunction = lootOnDeath, lootRate = [30, 20])
+        fighterComponent = Fighter(hp=30, armor=0, power=6, xp = 35, deathFunction = deathType, evasion = 25, accuracy = 10, lootFunction = lootOnDeath, lootRate = [30, 20], toEquip=toEquip)
         monster = GameObject(x, y, char = 'd', color = color, name = darksoulName, blocks = True, Fighter=fighterComponent, AI = AI_component)
         return monster
     else:
