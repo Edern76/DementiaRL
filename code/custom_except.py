@@ -3,4 +3,4 @@ class UnusableMethodException(Exception):
         self.message = message
     def __str__(self):
         return self.message
-
+    
