@@ -46,8 +46,6 @@ sys.excepthook = notCloseImmediatelyAfterCrash #We call the above defined functi
 # MyClass
 # Not dramatic if you forget about this (it happens to me too), but it makes reading code easier
 
-#NEVER SET AN EVASION VALUE AT ZERO, SET IT AT ONE INSTEAD#
-
 class MusicThread(threading.Thread):
     def __init__(self, musicName = 'Bumpy_Roots.wav'):
         self.musicName = musicName
@@ -65,6 +63,11 @@ def runMusic(musicName):
     while True:
         if playObj is None or not playObj.is_playing():
             playObj = playWavSound(musicName, forceStop=True)
+            
+class NamedConsole(tdl.Console):
+    def __init__(self, name, width, height):
+        self.name = name
+        tdl.Console.__init__(self, width, height)
 #_____________ CONSTANTS __________________
 MOVEMENT_KEYS = {
                  #Standard arrows
@@ -128,8 +131,8 @@ DEATH_SCREEN_HEIGHT = 10
 # - Consoles -
 if __name__ == '__main__':
     root = tdl.init(WIDTH, HEIGHT, 'Dementia')
-    con = tdl.Console(WIDTH, HEIGHT)
-    panel = tdl.Console(WIDTH, PANEL_HEIGHT)
+    con = NamedConsole('con', WIDTH, HEIGHT)
+    panel = NamedConsole('panel', WIDTH, PANEL_HEIGHT)
 else:
     root = None
     con = None
@@ -313,7 +316,7 @@ def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxP
 
     tdl.flush()
 
-def menu(header, options, width, usedList = None, noItemMessage = None, inGame = True, adjustHeight = True, needsInput = True, displayItem = False):
+def menu(header, options, width, usedList = None, noItemMessage = None, inGame = True, adjustHeight = True, needsInput = True, displayItem = False, name = 'noName'):
     global menuWindows, FOV_recompute
     page = 0
     pagesDisp = True
@@ -341,7 +344,7 @@ def menu(header, options, width, usedList = None, noItemMessage = None, inGame =
         FOV_recompute = True
         Update()
         tdl.flush()
-    window = tdl.Console(width, height)
+    window = NamedConsole(name, width, height)
     menuWindows.append(window)
     window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
     y = headerHeight + 2 + pagesDispHeight
@@ -2342,7 +2345,7 @@ def displayCharacter():
     
     width = CHARACTER_SCREEN_WIDTH
     height = CHARACTER_SCREEN_HEIGHT
-    window = tdl.Console(width, height)
+    window = NamedConsole('displayCharacter', width, height)
     window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
     window.clear()
     page = 1
@@ -2679,8 +2682,17 @@ class Item:
         if desc == '':
             descriptionHeight = 0
         height = descriptionHeight + 6 + int(picHeight) + 1
-        window = tdl.Console(width, height)
+        
+        if menuWindows:
+            for mWindow in menuWindows:
+                if not mWindow.name == 'inventory':
+                    mWindow.clear()
+                FOV_recompute = True
+                Update()
+                tdl.flush()
+        window = NamedConsole('displayItemInInventory', width, height)
         window.clear()
+        menuWindows.append(window)
 
         for k in range(width):
             window.draw_char(k, 0, chr(196))
@@ -2741,7 +2753,7 @@ class Item:
                 FOV_recompute = True
                 Update()
                 tdl.flush()
-        window = tdl.Console(width, height)
+        window = NamedConsole('displayItemSelected', width, height)
         window.clear()
         menuWindows.append(window)
         
@@ -5822,7 +5834,7 @@ def displayLog(height):
         Update()
         tdl.flush()
     width = MSG_WIDTH + 2
-    window = tdl.Console(width, height)
+    window = NamedConsole('displayLog', width, height)
     menuWindows.append(window)
     upKeys = ['UP', 'KP8', 'PAGEUP', '^']
     downKeys = ['DOWN', 'KP2', 'PAGEDOWN', 'V']
@@ -5896,6 +5908,7 @@ def displayLog(height):
 def inventoryMenu(header, invList = None, noItemMessage = 'Inventory is empty'):
     #show a menu with each item of the inventory as an option
     global inventory
+    displayItem = True
     if 'frozen' in convertBuffsToNames(player.Fighter):
         message('You cannot check your inventory right now !', colors.red)
         return None
@@ -5906,6 +5919,7 @@ def inventoryMenu(header, invList = None, noItemMessage = 'Inventory is empty'):
             invList = [object for object in inventory if object.Item and object.Item.type == "food"]
         if len(invList) == 0:
             options = [noItemMessage]
+            displayItem = False
         else:
             options = []
             for item in invList:
@@ -5913,7 +5927,7 @@ def inventoryMenu(header, invList = None, noItemMessage = 'Inventory is empty'):
                 if item.Item.stackable:
                     text = text + ' (' + str(item.Item.amount) + ')'
                 options.append(text)
-        index = menu(header, options, INVENTORY_WIDTH, invList, noItemMessage, displayItem=True)
+        index = menu(header, options, INVENTORY_WIDTH, invList, noItemMessage, displayItem=displayItem, name = 'inventory')
         if index is None or len(invList) == 0 or index == "cancelled":
             return None
         else:
@@ -5940,8 +5954,7 @@ def spellsMenu(header):
     '''
     borked = False
     if len(player.Fighter.knownSpells) == 0:
-        options = []
-        showableHeader = "You don't have any spells ready right now"
+        options = ["You don't have any spells ready right now"]
     else:
         player.Fighter.knownSpells = sortSpells(player.Fighter.knownSpells)
         options = []
@@ -5949,11 +5962,10 @@ def spellsMenu(header):
             for spell in player.Fighter.knownSpells:
                 text = spell.name
                 options.append(text)
-            showableHeader = header
         except TDLError:
             options = []
             borked = True
-    index = menu(showableHeader, options, INVENTORY_WIDTH)
+    index = menu(header, options, INVENTORY_WIDTH)
     if index is None or len(player.Fighter.knownSpells) == 0 or borked or index == "cancelled":
         global DEBUG
         if DEBUG:
@@ -6016,7 +6028,7 @@ def deathMenu():
     deathText = textwrap.wrap('You were killed by ' + lastHitter + '.', DEATH_SCREEN_WIDTH)
     width = DEATH_SCREEN_WIDTH + 2
     height = DEATH_SCREEN_HEIGHT + len(deathText)
-    window = tdl.Console(width, height)
+    window = NamedConsole('deathMenu', width, height)
     window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
     window.clear()
     index = 0
@@ -6077,7 +6089,7 @@ def temporaryBox(text, color = colors.white):
     Update()
     width = len(text) + 2
     height = 3
-    window = tdl.Console(width, height)
+    window = NamedConsole('temporaryBox', width, height)
     assert isinstance(window, tdl.Console)
     
     window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
@@ -6110,7 +6122,7 @@ def controlBox():
     Update()
     width = 45
     height = 29
-    window = tdl.Console(width, height)
+    window = NamedConsole('controlBox', width, height)
     assert isinstance(window, tdl.Console)
     
     window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
