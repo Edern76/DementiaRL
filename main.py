@@ -65,8 +65,9 @@ def runMusic(musicName):
             playObj = playWavSound(musicName, forceStop=True)
             
 class NamedConsole(tdl.Console):
-    def __init__(self, name, width, height):
+    def __init__(self, name, width, height, type = 'noType'):
         self.name = name
+        self.type = type
         tdl.Console.__init__(self, width, height)
 #_____________ CONSTANTS __________________
 MOVEMENT_KEYS = {
@@ -313,8 +314,9 @@ def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxP
         x = MID_WIDTH - int(width/2)
     y = MID_HEIGHT - int(height/2)
     root.blit(window, x, y, width, height, 0, 0)
-
-    tdl.flush()
+    
+    if not displayItem:
+        tdl.flush()
 
 def menu(header, options, width, usedList = None, noItemMessage = None, inGame = True, adjustHeight = True, needsInput = True, displayItem = False, name = 'noName'):
     global menuWindows, FOV_recompute
@@ -344,15 +346,18 @@ def menu(header, options, width, usedList = None, noItemMessage = None, inGame =
         FOV_recompute = True
         Update()
         tdl.flush()
-    window = NamedConsole(name, width, height)
+    window = NamedConsole(name, width, height, 'menu')
     menuWindows.append(window)
     window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
     y = headerHeight + 2 + pagesDispHeight
     drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp, noItemMessage, displayItem)
+    print('Not loop menu option draw')
     
     if displayItem and usedList:
         item = usedList[0].Item
         item.displayItem(posX = MID_WIDTH + width//2 - 15)
+    print('Not loop item disp')
+    tdl.flush()
     
     if needsInput:
         choseOrQuit = False
@@ -365,6 +370,8 @@ def menu(header, options, width, usedList = None, noItemMessage = None, inGame =
             choseOrQuit = True
             arrow = False
             drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp, index, noItemMessage, displayItem)
+            tdl.flush()
+            print('Loop menu option disp')
             key = tdl.event.key_wait()
             keyChar = key.keychar
             if keyChar == '':
@@ -397,6 +404,8 @@ def menu(header, options, width, usedList = None, noItemMessage = None, inGame =
             if displayItem and usedList:
                 item = usedList[index + page * 26].Item
                 item.displayItem(posX = MID_WIDTH + width//2 - 15)
+            print('Loop item disp')
+            tdl.flush()
             
             if not arrow:
                 if keyChar in 'abcdefghijklmnopqrstuvwxyz':
@@ -2685,12 +2694,18 @@ class Item:
         
         if menuWindows:
             for mWindow in menuWindows:
-                if not mWindow.name == 'inventory':
+                if not mWindow.name == 'inventory' and not mWindow.type == 'menu':
                     mWindow.clear()
+                    print('CLEARED {} WINDOW OF TYPE {}'.format(mWindow.name, mWindow.type))
+                    if mWindow.name == 'displayItemInInventory':
+                        ind = menuWindows.index(mWindow)
+                        del menuWindows[ind]
+                        print('Deleted')
                 FOV_recompute = True
                 Update()
                 tdl.flush()
         window = NamedConsole('displayItemInInventory', width, height)
+        print('Created disp window')
         window.clear()
         menuWindows.append(window)
 
