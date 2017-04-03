@@ -2314,7 +2314,6 @@ class Player:
         self.classes = classes
         self.allTraits = allTraits
         self.levelUpStats = levelUpStats
-        self.burdened = False
         self.hunger = baseHunger
         self.hungerStatus = "full"
         self.attackedSlowly = False
@@ -3845,7 +3844,7 @@ def moveOrAttack(dx, dy):
         else:
             player.Fighter.attack(target)
     else:
-        if not player.Player.burdened:
+        if not 'burdened' in convertBuffsToNames(player.Fighter):
             player.move(dx, dy)
 
 def shoot():
@@ -5641,11 +5640,11 @@ def getAllWeights(object):
 
 def checkLoad():
     load = getAllWeights(player)
+    burdened = Buff('burdened', colors.yellow, 99999, showCooldown=False)
     if load > player.Player.maxWeight:
-        message("You are carrying too much objects! You are burdened and can't move anymore.", colors.yellow)
-        player.Player.burdened = True
-    if load < player.Player.maxWeight:
-        player.Player.burdened = False
+        burdened.applyBuff(player)
+    if load < player.Player.maxWeight and 'burdened' in convertBuffsToNames(player.Fighter):
+        burdened.removeBuff()
 
 def lootItem(object, x, y):
     objects.append(object)
