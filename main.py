@@ -21,6 +21,8 @@ from code.custom_except import UnusableMethodException
 from music import playWavSound
 from multiprocessing import freeze_support
 
+activeProcess = []
+
 def notCloseImmediatelyAfterCrash(exc_type, exc_value, tb):
     '''
     Does exactly what it says on the tin : prevents the console from closing immediately after crash
@@ -32,6 +34,11 @@ def notCloseImmediatelyAfterCrash(exc_type, exc_value, tb):
         print('Cannot delete window')
         print('Problem = ' + str(type(error)))
         print('Details = ' + str(error.args))
+    try:
+        for process in activeProcess:
+            process.terminate()
+    except:
+        print("Couldn't terminate process")
     if getattr(sys, 'frozen', False): #If we are running the frozen binaries, then we prevent the console from immediately closing
         input('Press Enter to exit') #Prevent stuff from executing further until we press Enter
     else:
@@ -205,7 +212,7 @@ inventory = [] #Player inventory
 equipmentList = [] #Player equipment
 activeSounds = []
 spells = [] #List of all spells in the game
-activeProcess = []
+
 ########
 # These need to be globals because otherwise Python will flip out when we try to look for some kind of stairs in the object lists.
 stairs = None
@@ -318,7 +325,7 @@ def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxP
         window.draw_char(m, lMax, chr(196))
     window.draw_char(0, lMax, chr(192))
     window.draw_char(kMax, lMax, chr(217))
-    if (noItemMessage is None or options[0] != str(noItemMessage)):
+    if (noItemMessage is None or not options or options[0] != str(noItemMessage)):
         if len(options) == 1:
             print(options[0])
             print(str(noItemMessage))
@@ -5664,7 +5671,14 @@ def turnIntoNemesis():
         nemesisList.append(nemesis)
         print('added nemesis to list')
     
-    file = shelve.open(absMetaPath, "w")
+    found = checkFile('meta.bak', absMetaDirPath)
+
+    if not found:
+        file = shelve.open(absMetaPath, "c")
+        print('found no nemesis file')
+    else:
+        print('found nemesis file')
+        file = shelve.open(absMetaPath, "w")
     file['nemesis'] = nemesisList
     file.close()
 
@@ -6445,21 +6459,35 @@ def gameCredits():
     tdl.event.key_wait()
 
 def leaderboard():
-    file = shelve.open(absMetaPath, "c")
     try:
+        file = shelve.open(absMetaPath, "c")
         scoreList = file['scores']
         scoreList.sort()
         scoreList.reverse()
+        root.clear()
+        length = len(scoreList) * 4
+        y = (HEIGHT // 2) - (length // 2)
         for score in scoreList:
             print(score.sName())
+            drawCentered(root, y, score.sName())
+            y += 1
             print(score.sDeath())
+            drawCentered(root, y, score.sDeath())
+            y += 1
             print(score.sScore())
+            drawCentered(root, y, score.sScore())
+            y += 2
             print()
+        drawCentered(root, y + 3, text = 'Press any key to continue', fg = colors.green)
         file['scores'] = scoreList
         file.sync()
         file.close()
-    except KeyError:
+        tdl.flush()
+        tdl.event.key_wait()
+    except (KeyError, FileNotFoundError) as e:
         print('No high scores')
+        msgBox(" No high scores to load.", 26, False, False)
+        tdl.flush()
 
 
 #_____________ GUI _______________
