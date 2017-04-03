@@ -377,9 +377,6 @@ def menu(header, options, width, usedList = None, noItemMessage = None, inGame =
     if menuWindows and inGame:
         for mWindow in menuWindows:
             mWindow.clear()
-        FOV_recompute = True
-        Update()
-        tdl.flush()
     window = NamedConsole(name, width, height, 'menu')
     menuWindows.append(window)
     window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
@@ -411,10 +408,14 @@ def menu(header, options, width, usedList = None, noItemMessage = None, inGame =
             if keyChar == '':
                 keyChar = ' '
             elif keyChar == 'RIGHT':
+                if pagesDisp:
+                    index = 0
                 page += 1
                 choseOrQuit = False
                 arrow = True
             elif keyChar == 'LEFT':
+                if pagesDisp:
+                    index = 0
                 page -= 1
                 choseOrQuit = False
                 arrow = True
@@ -439,7 +440,6 @@ def menu(header, options, width, usedList = None, noItemMessage = None, inGame =
                 item = usedList[index + page * 26].Item
                 item.displayItem(posX = MID_WIDTH + width//2 - 15)
             print('Loop item disp')
-            tdl.flush()
             
             if not arrow:
                 if keyChar in 'abcdefghijklmnopqrstuvwxyz':
@@ -2748,6 +2748,8 @@ class Item:
         lData = attributes["layer_data"]
         
         width = picWidth + 15
+        if width < len(self.owner.name) + 3:
+            width = len(self.owner.name) + 3
         desc = self.fullDescription(width - 2)
         descriptionHeight = len(desc)
         if desc == '':
@@ -2763,8 +2765,6 @@ class Item:
                         ind = menuWindows.index(mWindow)
                         del menuWindows[ind]
                         print('Deleted')
-                FOV_recompute = True
-                Update()
                 tdl.flush()
         window = NamedConsole('displayItemInInventory', width, height)
         print('Created disp window')
@@ -6113,7 +6113,7 @@ def equipmentMenu(header):
                     else:
                         text = text + ' (on ' + item.Equipment.slot + ')'
                 options.append(text)
-        index = menu(header, options, INVENTORY_WIDTH)
+        index = menu(header, options, INVENTORY_WIDTH, equipmentList, displayItem=True)
         if index is None or len(equipmentList) == 0 or index == "cancelled":
             return None
         else:
