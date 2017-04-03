@@ -4900,26 +4900,35 @@ class Wrath():
         boss = self.owner
         bossVisibleTiles = tdl.map.quickFOV(boss.x, boss.y, isVisibleTile, fov = BOSS_FOV_ALGO, radius = BOSS_SIGHT_RADIUS, lightWalls= False)
         
-        if boss.distanceTo(player) < 2 and not self.charging:
-            if self.flurryCooldown <= 0:
-                message('Wrath unleashes a volley of slashes at you!', colors.dark_amber)
-                numberHits = randint(2, 4)
-                for loop in range(numberHits):
+        if (player.x, player.y) in bossVisibleTiles:
+            if boss.distanceTo(player) < 2 and not self.charging:
+                if self.flurryCooldown <= 0:
+                    message('Wrath unleashes a volley of slashes at you!', colors.amber)
+                    numberHits = randint(2, 4)
+                    for loop in range(numberHits):
+                        boss.Fighter.attack(player)
+                        print("Wrath attacked")
+                    self.flurryCooldown = 21
+                else:
                     boss.Fighter.attack(player)
-                    print("Wrath attacked")
-                self.flurryCooldown = 21
-        elif (player.x, player.y) in bossVisibleTiles and self.chargeCooldown <= 0 and not self.charging:
-            chargePath = tdl.map.bresenham(boss.x, boss.y, player.x, player.y)
-            for y in range(MAP_HEIGHT):
-                for x in range(MAP_WIDTH):
-                    if (x, y) in chargePath:
-                        sign = GameObject(x, y, '.', 'chargePath', color = colors.red, Ghost = True)
-                        objects.append(sign)
-            self.charging = True
-            self.chargeCooldown = 16
-            self.curChargeCooldown = 2
-        else:
-            boss.moveAstar(player.x, player.y, fallback = False)
+            elif self.chargeCooldown <= 0 and not self.charging:
+                chargePath = tdl.map.bresenham(boss.x, boss.y, player.x, player.y)
+                for y in range(MAP_HEIGHT):
+                    for x in range(MAP_WIDTH):
+                        if (x, y) in chargePath and not (x, y) == (boss.x, boss.y):
+                            sign = GameObject(x, y, '.', 'chargePath', color = colors.red, Ghost = True)
+                            objects.append(sign)
+                self.charging = True
+                self.chargeCooldown = 16
+                self.curChargeCooldown = 2
+            else:
+                boss.moveAstar(player.x, player.y, fallback = False)
+            
+        self.chargeCooldown -= 1
+        self.curChargeCooldown -= 1
+        self.explodeCooldown -= 1
+        self.flurryCooldown -= 1
+        self.charging = False #TEMPORARY
 #--Wrath--
 
 #-- High Inquisitor --
@@ -5021,8 +5030,8 @@ def placeBoss(name, x, y):
         boss = GameObject(x, y, char = 'G', color = colors.darker_lime, name = name, blocks = True, Fighter = fighterComponent, AI = AI_component)
         objects.append(boss)
         
-        for x in range(50, 100):
-            for y in range(20, 60):
+        for x in range(boss.x - 5, boss.x + 5):
+            for y in range(boss.y - 5, boss.y + 5):
                 if not isBlocked(x, y) and boss.distanceToCoords(x, y) <= 3:
                     createFat(x, y)
 
