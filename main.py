@@ -291,15 +291,12 @@ def convertMusics():
                 print('MUSIC_CONV_ERR : Path {} doesnt exists, skipping...'.format(mp3Path))
         print()
         
-        
-        
 def animStep(waitTime = .125):
     global FOV_recompute
     FOV_recompute = True
     Update()
     tdl.flush()
     time.sleep(waitTime)
-    
 
 #_____________MENU_______________
 def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp, selectedIndex, noItemMessage = None, displayItem = False):
@@ -343,8 +340,10 @@ def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxP
     else:
         window.draw_str(1, y, options[0], bg = None, fg = colors.red)
     if displayItem:
+        print('displaying item')
         x = MID_WIDTH - int(width/2) - 15
     else:
+        print('not displaying item')
         x = MID_WIDTH - int(width/2)
     y = MID_HEIGHT - int(height/2)
     root.blit(window, x, y, width, height, 0, 0)
@@ -354,6 +353,8 @@ def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxP
 
 def menu(header, options, width, usedList = None, noItemMessage = None, inGame = True, adjustHeight = True, needsInput = True, displayItem = False, name = 'noName'):
     global menuWindows, FOV_recompute
+    index = 0
+    print('display item:', str(displayItem))
     page = 0
     pagesDisp = True
     maxPages = len(options)//26
@@ -381,7 +382,7 @@ def menu(header, options, width, usedList = None, noItemMessage = None, inGame =
     menuWindows.append(window)
     window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
     y = headerHeight + 2 + pagesDispHeight
-    drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp, noItemMessage, displayItem)
+    drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp, index, noItemMessage, displayItem)
     print('Not loop menu option draw')
     
     if displayItem and usedList:
@@ -394,6 +395,7 @@ def menu(header, options, width, usedList = None, noItemMessage = None, inGame =
         choseOrQuit = False
         index = 0
         while not choseOrQuit:
+            print('display item:', str(displayItem))
             if page == maxPages:
                 maxIndex = len(options) - maxPages * 26 - 1
             else:
@@ -2765,6 +2767,8 @@ class Item:
                         del menuWindows[ind]
                         print('Deleted')
                 tdl.flush()
+        FOV_recompute = True
+        Update()
         window = NamedConsole('displayItemInInventory', width, height)
         print('Created disp window')
         window.clear()
@@ -4918,6 +4922,7 @@ class Wrath():
                         if (x, y) in chargePath and not (x, y) == (boss.x, boss.y):
                             sign = GameObject(x, y, '.', 'chargePath', color = colors.red, Ghost = True)
                             objects.append(sign)
+                            sign.sendToBack()
                 self.charging = True
                 self.chargeCooldown = 16
                 self.curChargeCooldown = 2
