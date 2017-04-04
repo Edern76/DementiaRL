@@ -6554,6 +6554,7 @@ def mainMenu():
         stopProcess()    
     else:
         print('Not main SO WE ARENT DOING FUCKING ANYTHING AND NOT FUCKING UP THE WHOLE PROGRAM BY OPENING INFINITE INSTANCES OF IT')
+
 def gameCredits():
     centerX, centerY = MID_WIDTH, MID_HEIGHT
     root.clear()
