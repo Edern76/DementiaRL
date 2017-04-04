@@ -3394,6 +3394,23 @@ cSwordChoice = ShopChoice(gObject = cSword, price = 400, stock = 1)
 ayethShopChoices = [badPieChoice, saladChoice, breadChoice, cSwordChoice]
 ayethShop = Shop(choicesList=ayethShopChoices)
 
+class Quest:
+    def __init__(self, name, choiceGive, choiceCompleted, screenGive, screenCompleted, rewardList, rewardXP):
+        self.name = name
+        self.choiceGive = choiceGive
+        self.choiceCompleted = choiceCompleted
+        self.screenGive = screenGive
+        self.screenCompleted = screenCompleted
+        self.rewardList = rewardList
+        self.rewardXP = rewardXP
+    
+    def valid(self):
+        for item in self.rewardList:
+            item.pickUp()
+        
+        player.Fighter.xp += self.rewardXP
+        
+
 def quitGame(message, backToMainMenu = False):
     global objects
     global inventory
