@@ -5003,8 +5003,12 @@ class Wrath(Charger):
         bossVisibleTiles = tdl.map.quickFOV(boss.x, boss.y, isVisibleTile, fov = BOSS_FOV_ALGO, radius = BOSS_SIGHT_RADIUS, lightWalls= False)
         
         if (player.x, player.y) in bossVisibleTiles:
-            if self.charging:
+            if self.charging and self.curChargeCooldown <= 0:
                 self.charge()
+                self.charging = False
+                for object in objects:
+                    if object.name.upper() == 'WRATHCHARGEPATH':
+                        objects.remove(object)
             elif boss.distanceTo(player) < 2 and not self.charging:
                 if self.flurryCooldown <= 0:
                     message('Wrath unleashes a volley of slashes at you!', colors.amber)
@@ -5020,15 +5024,17 @@ class Wrath(Charger):
                 for y in range(MAP_HEIGHT):
                     for x in range(MAP_WIDTH):
                         if (x, y) in self.chargePath and not (x, y) == (boss.x, boss.y):
-                            sign = GameObject(x, y, '.', 'chargePath', color = colors.red, Ghost = True)
+                            sign = GameObject(x, y, '.', 'wrathChargePath', color = colors.red, Ghost = True)
                             objects.append(sign)
                             sign.sendToBack()
                 self.charging = True
                 self.chargeCooldown = 16
+                self.curChargeCooldown = 2
             else:
                 boss.moveAstar(player.x, player.y, fallback = False)
             
         self.chargeCooldown -= 1
+        self.curChargeCooldown -= 1
         self.explodeCooldown -= 1
         self.flurryCooldown -= 1
 #--Wrath--
