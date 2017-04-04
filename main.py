@@ -19,7 +19,7 @@ import code.dilledShelve as shelve
 from code.dunbranches import gluttonyDungeon
 from code.custom_except import UnusableMethodException
 from music import playWavSound
-from multiprocessing import freeze_support
+from multiprocessing import freeze_support, current_process
 
 activeProcess = []
 
@@ -66,6 +66,7 @@ class MusicThread(threading.Thread):
                 self.playObj = playWavSound(self.musicName, forceStop=True)
 
 def runMusic(musicName):
+    print('RUNNING MUSIC')
     playObj = None
     while True:
         if playObj is None or not playObj.is_playing():
@@ -134,14 +135,20 @@ CHARACTER_SCREEN_HEIGHT = 21
 
 DEATH_SCREEN_WIDTH = 25
 DEATH_SCREEN_HEIGHT = 10
+consolesDisplayed = False
+
 # - GUI Constants -
 
 # - Consoles -
-if __name__ == '__main__':
+if (__name__ == '__main__' or __name__ == 'main__main__') and not consolesDisplayed and current_process().name == 'MainProcess':
+    freeze_support()
+    print('Displaying consoles because instance is ' + __name__)
     root = tdl.init(WIDTH, HEIGHT, 'Dementia')
     con = NamedConsole('con', WIDTH, HEIGHT)
     panel = NamedConsole('panel', WIDTH, PANEL_HEIGHT)
+    consolesDisplayed = True
 else:
+    print(__name__)
     root = None
     con = None
     panel = None
@@ -272,7 +279,11 @@ pathToTargetTile = []
 
 def convertMusics():
     musicList = ['Bumpy_Roots', 'Dusty_Feelings', 'Hoxton_Princess']
-    executablePath = os.path.join(absCodePath, 'ffmpeg.exe')
+    tryPath = os.path.join(absCodePath, 'ffmpeg.exe')
+    if os.path.exists(tryPath):
+        executablePath = os.path.join(absCodePath, 'ffmpeg.exe')
+    else:
+        executablePath = os.path.join(curDir, 'ffmpeg.exe')
     for music in musicList:
         mp3Music = music + '.mp3'
         wavMusic = music + '.wav'
@@ -6282,7 +6293,7 @@ def controlBox():
 
 def mainMenu():
 
-    if __name__ == '__main__':
+    if (__name__ == '__main__' or __name__ == 'main__main__') and root is not None:
         global player, currentMusic, activeProcess
         choices = ['New Game', 'Continue', 'Leaderboard' ,'About', 'Quit']
         index = 0
@@ -6294,7 +6305,9 @@ def mainMenu():
         music.run()
         '''
         stopProcess()
+        print('CREATING MUSIC PROCESS')
         music = multiprocessing.Process(target = mus.runMusic, args = (currentMusic,))
+        print('STARTING MUSIC PROCESS')
         music.start()
         activeProcess.append(music)
         '''   
@@ -7369,7 +7382,10 @@ def playGame():
     DEBUG = False
     quitGame('Window has been closed')
     
-if __name__ == '__main__':
+if (__name__ == '__main__' or __name__ == 'main__main__') and root is not None:
     freeze_support()
     convertMusics()
     mainMenu()
+else:
+    print(__name__)
+#input()
