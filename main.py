@@ -2021,6 +2021,56 @@ class BasicMonster: #Basic monsters' AI
         elif not 'frozen' in convertBuffsToNames(self.owner.Fighter):
             monster.move(randint(-1, 1), randint(-1, 1)) #wandering
 
+class Charger:
+    def __init__(self):
+        self.chargePath = []
+    
+    def defineChargePath(self, target):
+        print('creating charge path from {} to {}'.format(self.owner.name, target.name))
+        monster = self.owner
+        (sourceX, sourceY) = (monster.x, monster.y)
+        (destX, destY) = (target.x, target.y)
+        line = tdl.map.bresenham(sourceX, sourceY, destX, destY)
+        if len(line) > 1:
+            dx = destX - sourceX
+            dy = destY - sourceY
+            (x, y) = line[len(line) - 1]
+            (newX, newY) = line[len(line) - 1]
+            counter = 0
+            while not myMap[newX][newY].blocked and counter < 25:
+                newX = x + dx
+                newY = y + dy
+                startX = x
+                startY = y
+                newLine = tdl.map.bresenham(x, y, newX, newY)
+                dx = newX - startX
+                dy = newY - startY
+                counter += 1
+        del newLine[0]
+        for (x, y) in newLine:
+            print(str(myMap[x][y].blocked))
+            if myMap[x][y].blocked:
+                newLine.remove((x, y))
+                print('removed', (x, y))
+        line.extend(newLine)
+        self.chargePath = line
+        print('charge path of {}:'.format(self.owner.name), self.chargePath)
+    
+    def charge(self):
+        global FOV_recompute
+        line = self.chargePath
+        monster = self.owner
+        for i in range(len(line)):
+            (x, y) = line.pop(0)
+            print((x, y))
+            if not myMap[x][y].blocked:
+                monster.x, monster.y = x, y
+                animStep(.050)
+            else:
+                break
+        self.chargePath = []
+        FOV_recompute = True
+
 class FastMonster:
     def __init__(self, speed):
         self.speed = speed
@@ -4920,48 +4970,48 @@ def gluttonysDeath(monster):
 #--Gluttony--
 
 #--Wrath--   WIP
-class Wrath():
+class Wrath(Charger):
     def __init__(self):
         self.chargeCooldown = 0
         self.curChargeCooldown = 0
         self.explodeCooldown = 0
         self.flurryCooldown = 0
         self.charging = False
+        Charger.__init__(self)
 
     def takeTurn(self):
         boss = self.owner
         bossVisibleTiles = tdl.map.quickFOV(boss.x, boss.y, isVisibleTile, fov = BOSS_FOV_ALGO, radius = BOSS_SIGHT_RADIUS, lightWalls= False)
         
         if (player.x, player.y) in bossVisibleTiles:
-            if boss.distanceTo(player) < 2 and not self.charging:
+            if self.charging:
+                self.charge()
+            elif boss.distanceTo(player) < 2 and not self.charging:
                 if self.flurryCooldown <= 0:
                     message('Wrath unleashes a volley of slashes at you!', colors.amber)
                     numberHits = randint(2, 4)
-                    for loop in range(numberHits):
+                    for hit in range(numberHits):
                         boss.Fighter.attack(player)
                         print("Wrath attacked")
                     self.flurryCooldown = 21
                 else:
                     boss.Fighter.attack(player)
             elif self.chargeCooldown <= 0 and not self.charging:
-                chargePath = tdl.map.bresenham(boss.x, boss.y, player.x, player.y)
+                self.defineChargePath(player)
                 for y in range(MAP_HEIGHT):
                     for x in range(MAP_WIDTH):
-                        if (x, y) in chargePath and not (x, y) == (boss.x, boss.y):
+                        if (x, y) in self.chargePath and not (x, y) == (boss.x, boss.y):
                             sign = GameObject(x, y, '.', 'chargePath', color = colors.red, Ghost = True)
                             objects.append(sign)
                             sign.sendToBack()
                 self.charging = True
                 self.chargeCooldown = 16
-                self.curChargeCooldown = 2
             else:
                 boss.moveAstar(player.x, player.y, fallback = False)
             
         self.chargeCooldown -= 1
-        self.curChargeCooldown -= 1
         self.explodeCooldown -= 1
         self.flurryCooldown -= 1
-        self.charging = False #TEMPORARY
 #--Wrath--
 
 #-- High Inquisitor --
