@@ -2427,6 +2427,7 @@ class Player:
         self.hasDiscoveredTown = False
         self.money = 0
         self.baseScore = 0
+        self.questList = []
         if DEBUG:
             print('Player component initialized')
 
@@ -3443,9 +3444,11 @@ cSwordChoice = ShopChoice(gObject = cSword, price = 400, stock = 1)
 
 ayethShopChoices = [badPieChoice, saladChoice, breadChoice, cSwordChoice]
 ayethShop = Shop(choicesList=ayethShopChoices)
+def Erwan():
+    pass
 
 class Quest:
-    def __init__(self, name, choiceGive, choiceCompleted, screenGive, screenCompleted, rewardList, rewardXP):
+    def __init__(self, name, choiceGive, choiceCompleted, screenGive, screenCompleted, rewardList, rewardXP, validateFunction):
         self.name = name
         self.choiceGive = choiceGive
         self.choiceCompleted = choiceCompleted
@@ -3453,13 +3456,29 @@ class Quest:
         self.screenCompleted = screenCompleted
         self.rewardList = rewardList
         self.rewardXP = rewardXP
+        self.validateFunction = validateFunction
+        self.onValid = Erwan
     
     def valid(self):
+        self.onValid()
         for item in self.rewardList:
             item.pickUp()
         
         player.Fighter.xp += self.rewardXP
-        
+        message('You completed {} !'.format(self.name))
+        ind = player.Player.questList.index(self)
+        del player.Player.questList[ind]
+    
+    def take(self):
+        message('You started a new quest ! {} added to quest log.')
+        player.Player.questList.append(self)
+    
+class FetchQuest(Quest):
+    def __init__(self, name, choiceGive, choiceCompleted, screenGive, screenCompleted, rewardList, rewardXP, validateFunction, itemName, amountWanted):    
+        self.itemName = itemName
+        self.amountWanted = amountWanted
+        Quest.__init__(self, name, choiceGive, choiceCompleted, screenGive, screenCompleted, rewardList, rewardXP, validateFunction)
+        self.onValid = Erwan #TEMPORARY
 
 def quitGame(message, backToMainMenu = False):
     global objects
