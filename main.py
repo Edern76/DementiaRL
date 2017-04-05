@@ -168,7 +168,7 @@ BASE_HIT_CHANCE = 50
 
 boss_FOV_recompute = True
 BOSS_FOV_ALGO = 'BASIC'
-BOSS_SIGHT_RADIUS = 60
+BOSS_SIGHT_RADIUS = 20
 bossDungeonsAppeared = {'gluttony': False}
 lastHitter = None
 nemesisList = []
@@ -2024,6 +2024,7 @@ class BasicMonster: #Basic monsters' AI
 class Charger:
     def __init__(self):
         self.chargePath = []
+        self.chargePathSigns = []
     
     def defineChargePath(self, target):
         print('creating charge path from {} to {}'.format(self.owner.name, target.name))
@@ -2031,22 +2032,26 @@ class Charger:
         (sourceX, sourceY) = (monster.x, monster.y)
         (destX, destY) = (target.x, target.y)
         line = tdl.map.bresenham(sourceX, sourceY, destX, destY)
+        newLine = []
         if len(line) > 1:
             dx = destX - sourceX
             dy = destY - sourceY
             (x, y) = line[len(line) - 1]
-            (newX, newY) = line[len(line) - 1]
             counter = 0
-            while not myMap[newX][newY].blocked and counter < 25:
+            while counter < 25:
                 newX = x + dx
                 newY = y + dy
-                startX = x
-                startY = y
-                newLine = tdl.map.bresenham(x, y, newX, newY)
-                dx = newX - startX
-                dy = newY - startY
-                counter += 1
-        del newLine[0]
+                if not newX >= MAP_WIDTH and not newY >= MAP_HEIGHT and not newX <= 0 and not newY <= 0:
+                    tempLine = tdl.map.bresenham(x, y, newX, newY)
+                    dx = newX - x
+                    dy = newY - y
+                    x = newX
+                    y = newY
+                    counter += 1
+                    del tempLine[0]
+                    newLine.extend(tempLine)
+                else:
+                    break
         for (x, y) in newLine:
             print(str(myMap[x][y].blocked))
             if myMap[x][y].blocked:
@@ -2055,6 +2060,12 @@ class Charger:
         line.extend(newLine)
         self.chargePath = line
         print('charge path of {}:'.format(self.owner.name), self.chargePath)
+        for (x, y) in self.chargePath:
+            if not (x, y) == (monster.x, monster.y):
+                sign = GameObject(x, y, '.', 'chargePath', color = colors.red, Ghost = True)
+                self.chargePathSigns.append(sign)
+                objects.append(sign)
+                sign.sendToBack()
     
     def charge(self):
         global FOV_recompute
@@ -2069,6 +2080,10 @@ class Charger:
             else:
                 break
         self.chargePath = []
+        for sign in self.chargePathSigns:
+            if sign in objects:
+                objects.remove(sign)
+        self.chargePathSigns = []
         FOV_recompute = True
 
 class FastMonster:
@@ -5006,9 +5021,6 @@ class Wrath(Charger):
             if self.charging and self.curChargeCooldown <= 0:
                 self.charge()
                 self.charging = False
-                for object in objects:
-                    if object.name.upper() == 'WRATHCHARGEPATH':
-                        objects.remove(object)
             elif boss.distanceTo(player) < 2 and not self.charging:
                 if self.flurryCooldown <= 0:
                     message('Wrath unleashes a volley of slashes at you!', colors.amber)
@@ -5021,17 +5033,11 @@ class Wrath(Charger):
                     boss.Fighter.attack(player)
             elif self.chargeCooldown <= 0 and not self.charging:
                 self.defineChargePath(player)
-                for y in range(MAP_HEIGHT):
-                    for x in range(MAP_WIDTH):
-                        if (x, y) in self.chargePath and not (x, y) == (boss.x, boss.y):
-                            sign = GameObject(x, y, '.', 'wrathChargePath', color = colors.red, Ghost = True)
-                            objects.append(sign)
-                            sign.sendToBack()
                 self.charging = True
                 self.chargeCooldown = 16
                 self.curChargeCooldown = 2
             else:
-                boss.moveAstar(player.x, player.y, fallback = False)
+                boss.moveAstar(player.x, player.y, fallback = True)
             
         self.chargeCooldown -= 1
         self.curChargeCooldown -= 1
@@ -6673,6 +6679,9 @@ def Update():
         if object != player:
             if (object.x, object.y) in visibleTiles or (object.alwaysVisible and myMap[object.x][object.y].explored) or REVEL:
                 object.draw()
+                #if object.AI and object.AI.__class__.__name__ == 'Charger' or object.AI.__class__.__name__ == 'Wrath':
+                #    for sign in object.AI.chargePathSigns:
+                #        sign.draw()
     player.draw()
     for x in range(WIDTH):
         con.draw_char(x, PANEL_Y - 1, chr(196))
