@@ -2025,8 +2025,10 @@ class Charger:
     def __init__(self):
         self.chargePath = []
         self.chargePathSigns = []
+        self.charging = False
     
     def defineChargePath(self, target):
+        self.charging = True
         print('creating charge path from {} to {}'.format(self.owner.name, target.name))
         monster = self.owner
         (sourceX, sourceY) = (monster.x, monster.y)
@@ -2052,39 +2054,93 @@ class Charger:
                     newLine.extend(tempLine)
                 else:
                     break
-        for (x, y) in newLine:
-            print(str(myMap[x][y].blocked))
-            if myMap[x][y].blocked:
-                newLine.remove((x, y))
-                print('removed', (x, y))
         line.extend(newLine)
         self.chargePath = line
         print('charge path of {}:'.format(self.owner.name), self.chargePath)
         for (x, y) in self.chargePath:
-            if not (x, y) == (monster.x, monster.y):
+            if not (x, y) == (monster.x, monster.y) and not myMap[x][y].blocked:
                 sign = GameObject(x, y, '.', 'chargePath', color = colors.red, Ghost = True)
                 self.chargePathSigns.append(sign)
                 objects.append(sign)
                 sign.sendToBack()
-    
+
     def charge(self):
         global FOV_recompute
         line = self.chargePath
         monster = self.owner
+        (firstX, firstY)= line[1]
+        inclX = firstX - monster.x
+        inclY = firstY - monster.y
+        incl = (inclX, inclY)
+        print(incl)
+        if incl == (1, 0) or incl == (-1, 0):
+            possibleKnock = [[0, -1], [0, 1]]
+        elif incl == (0, 1) or incl == (0, -1):
+            possibleKnock = [[1, 0], [-1, 0]]
+        elif incl == (1, -1) or incl == (-1, 1):
+            possibleKnock = [[-1, -1], [1, 1]]
+        else:
+            possibleKnock = [[1, -1], [-1, 1]]
+        print(possibleKnock)
+        dragging = False
+        dragged = None
         for i in range(len(line)):
             (x, y) = line.pop(0)
-            print((x, y))
+            (pinnedX, pinnedY) = line[0]
+            for object in objects:
+                if object.x == x and object.y == y and object.Fighter and not object == monster:
+                    if not dragging:
+                        dragging = True
+                        dragged = object
+                        message('{} is pinned by {}!'.format(object.name.capitalize(), monster.name), colors.red)
+                    elif not object == dragged:
+                        choice = randint(0, 1)
+                        newX = x + possibleKnock[choice][0]
+                        newY = y + possibleKnock[choice][1]
+                        otherX = x + possibleKnock[(choice-1) ** 2][0]
+                        otherY = y + possibleKnock[(choice-1) ** 2][1]
+                        if not isBlocked(newX, newY):
+                            object.x = newX
+                            object.y = newY
+                        elif not isBlocked(otherX, otherY):
+                            object.x = otherX
+                            object.y = otherY
+                        else:
+                            myMap[newX][newY].blocked = False
+                            myMap[newX][newY].block_sight = False
+                            myMap[newX][newY].character = None
+                            myMap[newX][newY].wall = False
+                            object.x = newX
+                            object.y = newY
+                            message('{} is slammed into the wall!'.format(object.name.capitalize()), colors.red)
+                            object.Fighter.takeDamage(randint(monster.Fighter.power - 5, monster.Fighter.power + 5), "{}'s charge".format(monster.name))
+                            
             if not myMap[x][y].blocked:
                 monster.x, monster.y = x, y
+                if dragging:
+                    dragged.x, dragged.y = pinnedX, pinnedY
                 animStep(.050)
             else:
+                if dragging:
+                    print(x, y)
+                    myMap[x][y].blocked = False
+                    myMap[x][y].block_sight = False
+                    myMap[x][y].character = None
+                    myMap[x][y].wall = False
+                    dragged.x = x
+                    dragged.y = y
+                    message('{} is slammed into the wall by the force of the charge!'.format(dragged.name.capitalize()), colors.red)
+                    dragged.Fighter.takeDamage(randint(monster.Fighter.power , monster.Fighter.power + 10), "{}'s charge".format(monster.name))
+
                 break
+
         self.chargePath = []
         for sign in self.chargePathSigns:
             if sign in objects:
                 objects.remove(sign)
         self.chargePathSigns = []
         FOV_recompute = True
+        self.charging = False
 
 class FastMonster:
     def __init__(self, speed):
@@ -5010,7 +5066,6 @@ class Wrath(Charger):
         self.curChargeCooldown = 0
         self.explodeCooldown = 0
         self.flurryCooldown = 0
-        self.charging = False
         Charger.__init__(self)
 
     def takeTurn(self):
@@ -5020,7 +5075,6 @@ class Wrath(Charger):
         if (player.x, player.y) in bossVisibleTiles:
             if self.charging and self.curChargeCooldown <= 0:
                 self.charge()
-                self.charging = False
             elif boss.distanceTo(player) < 2 and not self.charging:
                 if self.flurryCooldown <= 0:
                     message('Wrath unleashes a volley of slashes at you!', colors.amber)
@@ -5033,10 +5087,9 @@ class Wrath(Charger):
                     boss.Fighter.attack(player)
             elif self.chargeCooldown <= 0 and not self.charging:
                 self.defineChargePath(player)
-                self.charging = True
                 self.chargeCooldown = 16
                 self.curChargeCooldown = 2
-            else:
+            elif not self.charging:
                 boss.moveAstar(player.x, player.y, fallback = True)
             
         self.chargeCooldown -= 1
