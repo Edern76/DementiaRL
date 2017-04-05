@@ -1581,6 +1581,8 @@ class GameObject:
         else:
             if self.Player and self.Fighter and 'confused' in convertBuffsToNames(self.Fighter):
                 message('You bump into a wall !')
+            elif self == player:
+                return 'didnt-take-turn'
     
     def draw(self):
         if (self.x, self.y) in visibleTiles or REVEL:
@@ -2764,8 +2766,11 @@ class Item:
 
     def use(self):
         if self.owner.Equipment:
-            self.owner.Equipment.toggleEquip()
-            return
+            equipping = self.owner.Equipment.toggleEquip()
+            if equipping == 'didnt-take-turn' or equipping == 'cancelled':
+                return 'didnt-take-turn'
+            else:
+                return
         if self.useFunction is None:
             message('The ' + self.owner.name + ' cannot be used !')
             return 'cancelled'
@@ -3027,6 +3032,8 @@ class Item:
                     return index
             elif keyChar.upper() == "ESCAPE":
                 return "cancelled"
+            else:
+                choseOrQuit = False
         return None
 
 class Enchantment:
@@ -3193,7 +3200,10 @@ class Equipment:
         if self.isEquipped:
             self.unequip()
         else:
-            self.equip()
+            equipping = self.equip()
+            if equipping == 'didnt-take-turn':
+                return 'didnt-take-turn'
+        return
 
     def equip(self, fighter = None, silent = False):
         playerEquipping = False
@@ -3236,7 +3246,7 @@ class Equipment:
                 elif extra and handIndex == 2:
                     handSlot = 'extra limb'
                 else:
-                    return None
+                    return 'didnt-take-turn'
             elif self.slot == 'two handed':
                 handSlot = 'both hands'
     
@@ -3316,6 +3326,8 @@ class Equipment:
                 fighter.hp += self.maxHP_Bonus
             if self.maxMP_Bonus != 0:
                 fighter.MP += self.maxMP_Bonus
+        
+        return
 
     def unequip(self):
         handed = self.slot == 'one handed' or self.slot == 'two handed'
@@ -3716,6 +3728,8 @@ def getInput():
         chosenItem = inventoryMenu('Press the key next to an item to drop it, or press any other key to cancel.')
         if chosenItem is not None:
             chosenItem.drop()
+        else:
+            return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'Z' and gameState == 'playing':
         chosenSpell = spellsMenu('Press the key next to a spell to use it')
         if chosenSpell == None:
@@ -3760,17 +3774,26 @@ def getInput():
     if gameState == 'playing':
         if userInput.keychar.upper() in MOVEMENT_KEYS:
             keyX, keyY = MOVEMENT_KEYS[userInput.keychar.upper()]
-            moveOrAttack(keyX, keyY)
+            action = moveOrAttack(keyX, keyY)
+            if action == 'didnt-take-turn':
+                return 'didnt-take-turn'
             FOV_recompute = True #Don't ask why, but it's needed here to recompute FOV, despite not moving, or else Bad Things (trademark) happen.
         elif userInput.keychar.upper()== 'SPACE':
+            foundObj = False
             for object in objects:
                 if object.x == player.x and object.y == player.y:
                     if object.Item is not None:
                         object.Item.pickUp()
+                        foundObj = True
                         break
                     elif object.Essence is not None:
                         object.Essence.absorb()
+                        foundObj = True
                         break
+            if not foundObj:
+                return 'didnt-take-turn'
+            else:
+                return
                 
         elif userInput.keychar.upper() == '<':
             print('You pressed the freaking climb up key')
@@ -3850,7 +3873,7 @@ def getInput():
                     usage = chosenItem.display(['Use', 'Drop', 'Back'])
                     if usage == 0:
                         using = chosenItem.use()
-                        if using == 'cancelled':
+                        if using == 'cancelled' or using == 'didnt-take-turn':
                             FOV_recompute = True
                             return 'didnt-take-turn'
                     elif usage == 1:
@@ -3858,6 +3881,8 @@ def getInput():
                         return None
                     elif usage == 2:
                         choseOrQuit = False
+                    else:
+                        return 'didnt-take-turn'
                 else:
                     return 'didnt-take-turn'
         elif userInput.keychar == 'e':
@@ -3886,7 +3911,7 @@ def getInput():
                     usage = chosenItem.display(['Unequip', 'Drop', 'Back'])
                     if usage == 0:
                         using = chosenItem.use()
-                        if using == 'cancelled':
+                        if using == 'cancelled' or using == 'didnt-take-turn':
                             FOV_recompute = True
                             return 'didnt-take-turn'
                     elif usage == 1:
@@ -3895,6 +3920,8 @@ def getInput():
                         return None
                     elif usage == 2:
                         choseOrQuit = False
+                    else:
+                        return 'didnt-take-turn'
                 else:
                     FOV_recompute = True
                     return 'didnt-take-turn'
@@ -4017,7 +4044,11 @@ def moveOrAttack(dx, dy):
             player.Fighter.attack(target)
     else:
         if not 'burdened' in convertBuffsToNames(player.Fighter):
-            player.move(dx, dy)
+            moving = player.move(dx, dy)
+            if moving == 'didnt-take-turn':
+                return 'didnt-take-turn'
+        else:
+            return 'didnt-take-turn'
 
 def shoot():
     global FOV_recompute
