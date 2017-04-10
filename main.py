@@ -1000,7 +1000,7 @@ class Trait():
     '''
     Actually used for everything in the character creation, from race to skills etc
     '''
-    def __init__(self, name, description, type, x = 0, y = 0, underCursor = False, selectable = True, selected = False, allowsSelection = [], amount = 0, maxAmount = 1, pow = (0, 0), acc = (0, 0), ev = (0, 0), arm = (0, 0), hp = (0, 0), mp = (0, 0), crit = (0, 0), str = (0, 0), dex = (0, 0), vit = (0, 0), will = (0, 0), spells = None, load = 0, ap = (0, 0)):
+    def __init__(self, name, description, type, x = 0, y = 0, underCursor = False, selectable = True, selected = False, allowsSelection = [], amount = 0, maxAmount = 1, tier = 1, pow = (0, 0), acc = (0, 0), ev = (0, 0), arm = (0, 0), hp = (0, 0), mp = (0, 0), crit = (0, 0), str = (0, 0), dex = (0, 0), vit = (0, 0), will = (0, 0), spells = None, load = 0, ap = (0, 0)):
         self.name = name
         self.desc = description
         self.type = type
@@ -1026,13 +1026,14 @@ class Trait():
         self.ap, self.apPerLvl = ap
         self.load = load
         self.spells = spells
+        self.tier = tier
         
     def description(self):
         wrappedText = textwrap.wrap(self.desc, 25)
         line = 0
         for lines in wrappedText:
             line += 1
-            drawCentered(cons = root, y = 35 + line, text = lines, fg = colors.white, bg = None)
+            drawCentered(cons = root, y = 11 + line, text = lines, fg = colors.white, bg = None)
     
     def applyBonus(self, charCreation = True):
         if charCreation:
@@ -1169,14 +1170,24 @@ class Trait():
                 drawCenteredOnX(cons, self.x, self.y, self.name, fg = colors.black, bg = colors.white)
             self.description()
         
-        if self.name == 'Strength':
+        if self.name == 'Strength' and self.type == 'attribute':
             drawCenteredOnX(cons, self.x - 10, y = self.y, text = str(10 + createdCharacter['str']), fg = colors.white, bg = None)
-        if self.name == 'Dexterity':
+        if self.name == 'Dexterity' and self.type == 'attribute':
             drawCenteredOnX(cons, self.x - 10, y = self.y, text = str(10 + createdCharacter['dex']), fg = colors.white, bg = None)
-        if self.name == 'Constitution':
+        if self.name == 'Constitution' and self.type == 'attribute':
             drawCenteredOnX(cons, self.x - 10, y = self.y, text = str(10 + createdCharacter['vit']), fg = colors.white, bg = None)
-        if self.name == 'Willpower':
+        if self.name == 'Willpower' and self.type == 'attribute':
             drawCenteredOnX(cons, self.x - 10, y = self.y, text = str(10 + createdCharacter['will']), fg = colors.white, bg = None)
+        
+        if self.type == 'skill' and self.tier <= 1:
+            x = self.x + len(self.name)//2 + 2
+            color = colors.grey
+            if self.selected:
+                color = colors.white
+            cons.draw_str(x + 1, self.y - 2, '__', fg = color)
+            cons.draw_char(x, self.y - 1, '/', fg = color)
+            cons.draw_str(x, self.y, '---', fg = color)
+            cons.draw_str(x, self.y + 1, chr(92) + '__', fg = color)
 
 def characterCreation():
     global createdCharacter
@@ -1184,15 +1195,19 @@ def characterCreation():
                     'powLvl': 0, 'accLvl': 0, 'evLvl': 0, 'armLvl': 0, 'hpLvl': 0, 'mpLvl': 0, 'critLvl': 0, 'strLvl': 0, 'dexLvl': 0, 'vitLvl': 0, 'willLvl': 0, 'apLvl': 0,
                     'spells': [], 'load': 45.0}
     allTraits = []
+    leftTraits = []
+    rightTraits = []
     LEFT_X = (WIDTH // 4)
     RIGHT_X = WIDTH - (WIDTH // 4)
     RACE_Y = 11
-    ATTRIBUTE_Y = 36
-    TRAIT_Y = 48
+    ATTRIBUTE_Y = 31
+    TRAIT_Y = 31
     CLASS_Y = 11
-    SKILL_Y = 36
+    SKILL_Y = 41
     
+    ## racial traits ##
     fastLearn = Trait('Fast learner', 'You are very smart and learn from your wins or losses very fast', type = 'trait', selectable = False)
+    skilled = Trait('Skilled', 'You are already a skillful warrior', type = 'trait', selectable=False)
     rage = Trait('Rage', 'When low on health, you will lose all control', type = 'trait', selectable = False)
     horns = Trait('Horned', 'Your horns are very large and can be used in combats', type = 'trait', selectable = False)
     carapace = Trait('Chitin carapace', 'Your natural exoskeleton is very resistant', type = 'trait', arm=(2, 0), selectable = False)
@@ -1200,9 +1215,10 @@ def characterCreation():
     venom = Trait('Venomous glands', 'You are able to envenom your weapons', type = 'trait', selectable = False, spells = [envenom])
     mimesis = Trait('Mimesis', 'You can mimic your environment, making it very hard to see you', type = 'trait', selectable = False)
     wild = Trait('Wild instincts', 'Your natural transformation is even more deadly', type = 'trait', selectable = False)
-    optionTraits = [fastLearn, rage, horns, carapace, silence, venom, mimesis, wild]
+    optionTraits = [fastLearn, skilled, rage, horns, carapace, silence, venom, mimesis, wild]
     
-    human = Trait('Human', 'Humans are the most common race. They have no special characteristic, and are neither better or worse at anything. However, they are good learners and gain experience faster.', type = 'race', allowsSelection=[fastLearn])
+    ## races ##
+    human = Trait('Human', 'Humans are the most common race. They have no special characteristic, and are neither better or worse at anything. However, they are good learners and gain experience faster.', type = 'race', allowsSelection=[fastLearn, skilled])
     mino = Trait('Minotaur', 'Minotaurs, whose muscular bodies are topped with a taurine head, are tougher and stronger than humans, but are way less smart. They are uncontrollable and, when angered, can become a wrecking ball of muscles and thorns.', type= 'race', allowsSelection=[rage, horns], str=(5, 0), dex=(-4, 0), vit=(4, 0), will=(-3, 0))
     insect = Trait('Insectoid', 'Insectoids are a rare race of bipedal insects which are stronger than human but, more importantly, very good at arcane arts. They come in all kinds of forms, from the slender mantis to the bulky beetle.', type = 'race', allowsSelection=[carapace], str=(1, 0), dex=(-1, 0), vit=(-2, 0), will=(2, 0))
     cat = Trait('Felis', 'Felis, kinds of humanoid cats, are sneaky thieves and assassins. They usually move silently and can see in the dark.', type ='race', allowsSelection=[silence], str = (2, 0), vit = (-2, 0))
@@ -1214,6 +1230,7 @@ def characterCreation():
     virus = Trait('Virus ', 'Viruses are the physically weakest race, but do not base their success on their own bodies. Indeed, they are able to infect another race, making it their host and fully controllable by the virus. What is more, the virus own physical attributes, instead of applying to it directly, rather modifies the host metabolism, potentially making it stronger or tougher. However, this take-over is very harmful for the host, who will eventually die. The virus must then find a new host to continue living.', type = 'race', ev = (999, 0))
     races = [human, mino, insect, cat, rept, demon, tree, wolf, devourer, virus]
     allTraits.extend(races)
+    leftTraits.extend(races)
     
     counter = 0
     for race in races:
@@ -1221,19 +1238,75 @@ def characterCreation():
         race.y = RACE_Y + counter
         counter += 1
     
+    ## attributes ##
     stren = Trait('Strength', 'Strength augments the power of your attacks', type = 'attribute', maxAmount=5, str=(1, 0))
     dex = Trait('Dexterity', 'Dexterity augments your accuracy and your evasion', type = 'attribute', maxAmount=5, dex=(1, 0))
     const = Trait('Constitution', 'Constitution augments your maximum health and your regeneration rate.', type = 'attribute', maxAmount=5, vit=(1, 0))
     will = Trait('Willpower', 'Willpower augments your energy and the rate at which you regain it.', type = 'attribute', maxAmount=5, will=(1, 0))
     attributes = [stren, dex, const, will]
     allTraits.extend(attributes)
+    leftTraits.extend(attributes)
     
     counter = 0
     for attribute in attributes:
         attribute.x = LEFT_X
         attribute.y = ATTRIBUTE_Y + counter
         counter += 1
-
+    
+    ## skills ##
+    light = Trait('Light weapons', '+20% damage per skillpoints with light weapons', type = 'skill', selectable = False, tier = 2)
+    heavy = Trait('Heavy weapons', '+20% damage per skillpoints with heavy weapons', type = 'skill', selectable = False, tier = 2)
+    missile = Trait('Missile weapons', '+20% damage per skillpoints with missile weapons', type = 'skill', selectable = False, tier = 2)
+    constitution = Trait('Constitution', 'You are a sturdy person', type = 'skill', hp = (5, 0), vit = (1, 0), selectable = False, tier = 2)
+    strength = Trait('Strength', 'You are as strong as a bear', type = 'skill', str=(1, 0), selectable = False, tier = 2)
+    endurance = Trait('Endurance', 'You are used to live in harsh conditions', type = 'skill', selectable = False, tier = 2)
+    magic = Trait('Magic ', 'You can use the power of your mind to bind reality to your will', type = 'skill', selectable = False, tier = 2)
+    willpower = Trait('Willpower', 'Your will is very strong', type = 'skill', mp=(5, 0), will = (1, 0), selectable = False, tier = 2)
+    intelligence = Trait('Intelligence', 'You are cunning, and can both use this to hide in the shadows, or to increase the potency of your spells', type = 'skill', selectable = False, tier = 2)
+    weapon = Trait('Weapon mastery', 'You are trained to use a wide variety of weapons', type = 'skill', acc=(10, 0), allowsSelection=[light, heavy, missile])
+    physical = Trait('Physical training', 'You are muscular and are used to physical efforts', type = 'skill', allowsSelection=[constitution, strength, endurance])
+    mental = Trait('Mental training', 'Your mind is as fast as an arrow and as sharp as a scalpel', type = 'skill', allowsSelection=[magic, willpower, intelligence])
+    basicSkills = [weapon, physical, mental]
+    secondTierSkills = [light, heavy, missile, constitution, strength, endurance, magic, willpower, intelligence]
+    skills = basicSkills
+    skills.extend(secondTierSkills)
+    allTraits.extend(skills)
+    leftTraits.extend(skills)
+    
+    counter = 1
+    for skill in basicSkills:
+        skill.x = LEFT_X
+        skill.y = SKILL_Y + counter
+        counter += 4
+    
+    counter = 0
+    passLine = 0
+    for skill in secondTierSkills:
+        skill.x = LEFT_X + 20
+        if passLine == 3:
+            passLine = 0
+            counter += 1
+        skill.y = SKILL_Y + counter
+        passLine += 1
+        counter += 1
+    
+    ## classes ##
+    knight = Trait('Knight', 'A warrior who wears armor and wields shields', type ='class', arm=(1, 1), hp=(120, 14), mp=(30, 3))
+    barb = Trait('Barbarian', 'A brutal fighter who is mighty strong', type = 'class', hp=(160, 20), mp=(30, 3), str=(1, 1), spells=[enrage])
+    rogue = Trait('Rogue', 'A rogue who is stealthy and backstabby (probably has a french accent)', type = 'class', acc=(8, 4), ev=(10, 2), hp=(90, 10), mp=(40, 5), crit=(3, 0))
+    mage = Trait('Mage ', 'A wizard who zaps everything', type ='class', hp=(70, 6), mp=(50, 7), will=(2, 0), spells=[fireball])
+    necro = Trait('Necromancer', 'A master of the occult arts who has the ability to raise and control the dead.', type = 'class', hp=(100, 4), mp=(15, 1), spells=[darkPact, ressurect])
+    classes = [knight, barb, rogue, mage, necro]
+    allTraits.extend(classes)
+    rightTraits.extend(classes)
+    
+    counter = 0
+    for classe in classes:
+        classe.x = RIGHT_X
+        classe.y = CLASS_Y + counter
+        counter += 1
+    
+    ## traits ##
     aggressive = Trait('Aggressive', 'Your anger is uncontrollable', type = 'trait')
     aura = Trait('Aura', 'You are surrounded by a potent aura', type = 'trait', mp=(20, 0))
     evasive = Trait('Evasive', 'You are aware of how to stay out of trouble', type = 'trait', ev=(10, 0))
@@ -1247,53 +1320,20 @@ def characterCreation():
     traits = [aggressive, aura, evasive, healthy, muscular, natArmor, mind, agile, training, tough]
     traits.extend(optionTraits)
     allTraits.extend(traits)
+    rightTraits.extend(traits)
     
     counter = 0
     for trait in traits:
-        trait.x = LEFT_X
+        trait.x = RIGHT_X
         trait.y = TRAIT_Y + counter
-        counter += 1
-
-    knight = Trait('Knight', 'A warrior who wears armor and wields shields', type ='class', arm=(1, 1), hp=(120, 14), mp=(30, 3))
-    barb = Trait('Barbarian', 'A brutal fighter who is mighty strong', type = 'class', hp=(160, 20), mp=(30, 3), str=(1, 1), spells=[enrage])
-    rogue = Trait('Rogue', 'A rogue who is stealthy and backstabby (probably has a french accent)', type = 'class', acc=(8, 4), ev=(10, 2), hp=(90, 10), mp=(40, 5), crit=(3, 0))
-    mage = Trait('Mage ', 'A wizard who zaps everything', type ='class', hp=(70, 6), mp=(50, 7), will=(2, 0), spells=[fireball])
-    necro = Trait('Necromancer', 'A master of the occult arts who has the ability to raise and control the dead.', type = 'class', hp=(100, 4), mp=(15, 1), spells=[darkPact, ressurect])
-    classes = [knight, barb, rogue, mage, necro]
-    allTraits.extend(classes)
-    
-    counter = 0
-    for classe in classes:
-        classe.x = RIGHT_X
-        classe.y = CLASS_Y + counter
-        counter += 1
-
-    light = Trait('Light weapons', '+20% damage per skillpoints with light weapons', type = 'skill')
-    heavy = Trait('Heavy weapons', '+20% damage per skillpoints with heavy weapons', type = 'skill')
-    missile = Trait('Missile weapons', '+20% damage per skillpoints with missile weapons', type = 'skill')
-    throw = Trait('Throwing weapons', '+20% damage per skillpoints with throwing weapons', type = 'skill')
-    magic = Trait('Magic ', 'Magic ', type = 'skill')
-    armorWield = Trait('Armor wielding', 'Armor wielding', type = 'skill')
-    athletics = Trait('Athletics', '+20 HP and maximum HP per skillpoints', type = 'skill', hp = (20, 0))
-    concentration = Trait('Concentration', '+20 MP and maximum MP per skillpoints', type = 'skill', mp = (20, 0))
-    dodge = Trait('Dodge', '+3 evasion per skillpoints', type = 'skill', ev=(3, 0))
-    crit = Trait('Critical', '+3 critical chance par skillpoints ', type ='skill', crit=(3, 0))
-    accuracy = Trait('Accuracy', '+10 accuracy per skillpoints', type = 'skill', acc=(10, 0))
-    skills = [light, heavy, missile, throw, magic, armorWield, athletics, concentration, dodge, crit, accuracy]
-    allTraits.extend(skills)
-    
-    counter = 0
-    for skill in skills:
-        skill.x = RIGHT_X
-        skill.y = SKILL_Y + counter
         counter += 1
     
     #index
     index = 0
     leftIndexMin = 0
-    leftIndexMax = leftIndexMin + len(attributes) + len(traits) + len(races) - 1
+    leftIndexMax = len(leftTraits) - 1
     rightIndexMin = leftIndexMax + 1
-    rightIndexMax = rightIndexMin + len(skills) + len(classes) - 1
+    rightIndexMax = rightIndexMin + len(rightTraits) - 1
     maxIndex = len(allTraits) + 1
     
     while not tdl.event.isWindowClosed():
@@ -1324,6 +1364,9 @@ def characterCreation():
         print(classSelected)
         
         skillsPoints = 0
+        maxSkill = 1
+        if skilled.selected:
+            maxSkill=2
         for skill in skills:
             skillsPoints += skill.amount
         print(skillsPoints)
@@ -1332,18 +1375,18 @@ def characterCreation():
         
         drawCenteredOnX(cons = root, x = LEFT_X, y = 9, text = '-- RACE --', fg = colors.darker_red, bg = None)
         
-        drawCenteredOnX(cons = root, x = LEFT_X, y = 33, text = '-- ATTRIBUTES --', fg = colors.darker_red, bg = None)
-        drawCenteredOnX(cons = root, x = LEFT_X, y = 34, text = str(attributesPoints) + '/10', fg = colors.dark_red, bg = None)
+        drawCenteredOnX(cons = root, x = LEFT_X, y = 28, text = '-- ATTRIBUTES --', fg = colors.darker_red, bg = None)
+        drawCenteredOnX(cons = root, x = LEFT_X, y = 29, text = str(attributesPoints) + '/10', fg = colors.dark_red, bg = None)
 
-        drawCenteredOnX(cons = root, x = LEFT_X, y = 45, text = '-- TRAITS --', fg = colors.darker_red, bg = None)
-        drawCenteredOnX(cons = root, x = LEFT_X, y = 46, text = str(traitsPoints) + '/2', fg = colors.dark_red, bg = None)
+        drawCenteredOnX(cons = root, x = RIGHT_X, y = 28, text = '-- TRAITS --', fg = colors.darker_red, bg = None)
+        drawCenteredOnX(cons = root, x = RIGHT_X, y = 29, text = str(traitsPoints) + '/2', fg = colors.dark_red, bg = None)
         
         drawCenteredOnX(cons = root, x = RIGHT_X, y = 9, text = '-- CLASS --', fg = colors.darker_red, bg = None)
         
-        drawCenteredOnX(cons = root, x = RIGHT_X, y = 33, text = '-- SKILLS --', fg = colors.darker_red, bg = None)
-        drawCenteredOnX(cons = root, x = RIGHT_X, y = 34, text = str(skillsPoints) + '/2', fg = colors.dark_red, bg = None)
+        drawCenteredOnX(cons = root, x = LEFT_X, y = 38, text = '-- SKILLS --', fg = colors.darker_red, bg = None)
+        drawCenteredOnX(cons = root, x = LEFT_X, y = 39, text = str(skillsPoints) + '/' + str(maxSkill), fg = colors.dark_red, bg = None)
         
-        drawCentered(cons = root, y = 33, text = '-- DESCRIPTION --', fg = colors.darker_red, bg = None)
+        drawCentered(cons = root, y = 9, text = '-- DESCRIPTION --', fg = colors.darker_red, bg = None)
         drawCentered(cons = root, y = 70, text = 'Start Game', fg = colors.white, bg = None)
         drawCentered(cons = root, y = 71, text = 'Cancel', fg = colors.white, bg = None)
 
@@ -1412,8 +1455,8 @@ def characterCreation():
             playWavSound('selectClic.wav')
         if key.keychar.upper() == 'RIGHT' and (leftIndexMin <= index <= leftIndexMax):
             if (leftIndexMin <= index <= leftIndexMax):
-                if rightIndexMin <= index + len(attributes) + len(traits) + len(races) <= rightIndexMax:
-                    index += len(attributes) + len(traits) + len(races)
+                if rightIndexMin <= index + len(leftTraits) <= rightIndexMax:
+                    index += len(leftTraits)
                 else:
                     index = rightIndexMax
                 playWavSound('selectClic.wav')
@@ -1421,8 +1464,8 @@ def characterCreation():
                 playWavSound('error.wav')
         if key.keychar.upper() == 'LEFT':
             if (rightIndexMin <= index <= rightIndexMax):
-                if leftIndexMin <= index - (len(attributes) + len(traits) + len(races)) <= leftIndexMax:
-                    index -= (len(attributes) + len(traits) + len(races))
+                if leftIndexMin <= index - len(leftTraits) <= leftIndexMax:
+                    index -= len(leftTraits)
                 else:
                     index = leftIndexMax
                 playWavSound('selectClic.wav')
@@ -1445,26 +1488,31 @@ def characterCreation():
             if not error:
                 trait = allTraits[index]
                 if trait.type == 'race':
-                    if not raceSelected:
+                    if not raceSelected and trait.selectable:
                         trait.applyBonus()
                 if trait.type == 'attribute':
-                    if attributesPoints < 10:
+                    if attributesPoints < 10 and trait.selectable:
                         trait.applyBonus()
                 if trait.type == 'trait':
-                    if traitsPoints < 2:
+                    if traitsPoints < 2 and trait.selectable:
                         trait.applyBonus()
                 if trait.type == 'class':
-                    if not classSelected:
+                    if not classSelected and trait.selectable:
                         trait.applyBonus()
                 if trait.type == 'skill':
-                    if skillsPoints < 2:
+                    if skillsPoints < maxSkill and trait.selectable:
                         trait.applyBonus()
 
         #removing choice bonus
         if key.keychar.upper() == 'BACKSPACE':
             if index != maxIndex and index != maxIndex - 1:
                 trait = allTraits[index]
-                trait.removeBonus()
+                if trait == skilled or (trait == human and skilled.selected):
+                    for skill in skills:
+                        if skill.selected:
+                            skill.removeBonus()
+                if trait.selected:
+                    trait.removeBonus()
             else:
                 playWavSound('error.wav')
         if index > maxIndex:
@@ -4147,6 +4195,143 @@ def shoot():
         message('You have no ranged weapon equipped.')
         return 'didnt-take-turn'
 
+def levelUpScreen(skillpoint = 3):
+    global menuWindows, FOV_recompute
+    quitted = False
+    if menuWindows:
+        for mWindow in menuWindows:
+            mWindow.clear()
+        FOV_recompute = True
+        Update()
+        tdl.flush()
+    width = 80
+    height = 58
+    window = NamedConsole('levelUpScreen', width, height)
+    menuWindows.append(window)
+    tier1X = 10
+    tier2X = 30
+    #tier3X = 50
+    #tier4X = 70
+    
+    notConfirmed = {}
+    tier1list = []
+    tier2list = []
+    for skill in player.Player.skills:
+        if skill.tier == 1:
+            tier1list.append(skill)
+        elif skill.tier == 2:
+            tier2list.append(skill)
+    
+    index = 0
+    selectedSkill = player.Player.skills[0]
+    selectedSkill.underCursor = True
+    while not quitted:
+        FOV_recompute = True
+        window.clear()
+        window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)    
+        
+        for k in range(width):
+            window.draw_char(k, 0, chr(196))
+        window.draw_char(0, 0, chr(218))
+        window.draw_char(k, 0, chr(191))
+        kMax = k
+        for l in range(height):
+            if l > 0:
+                window.draw_char(0, l, chr(179))
+                window.draw_char(kMax, l, chr(179))
+        lMax = l
+        for m in range(width):
+            window.draw_char(m, lMax, chr(196))
+        window.draw_char(0, lMax, chr(192))
+        window.draw_char(kMax, lMax, chr(217))
+        
+        counter1 = 0
+        counter2 = 0
+        groupCounter2 = 0
+        for skill in player.Player.skills:
+            if skill != selectedSkill:
+                skill.underCursor = False
+
+            color = colors.grey
+            if skill.selectable and not skill.selected:
+                color = colors.white
+            elif skill.selectable and skill.selected and skill in notConfirmed:
+                color = colors.yellow
+            elif skill.selectable and skill.selected and not skill in notConfirmed:
+                color = colors.dark_red
+            if skill.tier == 1:
+                if not skill.underCursor:
+                    drawCenteredOnX(window, tier1X, 7 + counter1, skill.name, color)
+                else:
+                    drawCenteredOnX(window, tier1X, 7 + counter1, skill.name, colors.black, color)
+                drawCenteredOnX(window, tier1X, 8 + counter1, str(skill.amount)+'/'+str(skill.maxAmount), color)
+                counter1 += 21
+            if skill.tier == 2:
+                if groupCounter2 >= 3:
+                    counter2 += 6
+                    groupCounter2 = 0
+                if not skill.underCursor:
+                    drawCenteredOnX(window, tier2X, 2 + counter2, skill.name, color)
+                else:
+                    drawCenteredOnX(window, tier2X, 2 + counter2, skill.name, colors.black, color)
+                drawCenteredOnX(window, tier2X, 3 + counter2, str(skill.amount)+'/'+str(skill.maxAmount), color)
+                groupCounter2 += 1
+                counter2 += 5
+        
+        windowX = MID_WIDTH - int(width/2)
+        windowY = 1
+        root.blit(window, windowX, windowY, width, height, 0, 0)
+        
+        if 0 <= index < len(tier1list):
+            prevList = tier2list
+            currentList = tier1list
+            nextList = tier2list
+        elif len(tier1list) <= index < len(tier2list):
+            prevList = tier1list
+            currentList = tier2list
+            nextList = tier1list
+        
+        tdl.flush()
+        key = tdl.event.key_wait()
+        if key.keychar.upper() == 'ESCAPE':
+            return
+        elif key.keychar.upper() == 'DOWN':
+            index += 1
+        elif key.keychar.upper() == 'UP':
+            index -= 1
+        elif key.keychar.upper() == 'RIGHT':
+            index += len(currentList)
+            if index >= len(nextList):
+                index = len(nextList) - 1
+        elif key.keychar.upper() == 'LEFT':
+            index -= len(prevList)
+            if index >= len(prevList):
+                index = len(prevList) - 1
+        elif key.keychar.upper() == 'ENTER':
+            skill = player.Player.skills[index]
+            if skill.selectable and skill.amount < 5 and skillpoint > 0:
+                skill.selected = True
+                if not skill in notConfirmed:
+                    notConfirmed[skill] = skill.amount
+                skill.amount += 1
+                skillpoint -= 1
+        elif key.keychar.upper() == 'BACKSPACE':
+            skill = player.Player.skills[index]
+            if skill in notConfirmed and skill.amount > notConfirmed[skill]:
+                skill.amount -= 1
+                skillpoint += 1
+                if skill.amount == notConfirmed[skill]:
+                    del notConfirmed[skill]
+                if skill.amount <= 0:
+                    skill.selected = False
+
+        if index >= len(player.Player.skills):
+            index = 0
+        if index < 0:
+            index = len(player.Player.skills) - 1
+        selectedSkill = player.Player.skills[index]
+        selectedSkill.underCursor = True
+
 def checkLevelUp():
     global FOV_recompute
     
@@ -4239,6 +4424,12 @@ def checkLevelUp():
                     player.Fighter.MP += mpBonus
             message('You feel your wooden corpse thickening!', colors.celadon)
         
+        levelUpScreen()
+        tdl.flush()
+        FOV_recompute = True
+        Update()
+        
+        '''
         choice = None
         while choice == None:
             choice = menu('Level up! Choose a skill to raise: \n',
@@ -4263,13 +4454,14 @@ def checkLevelUp():
 
                 else:
                     choice = None
+        '''
 
         if player.Player.getTrait('skill', 'Light weapons').amount >= 5 and player.Player.getTrait('trait', 'Dual wield') == 'not found':
             message('You are now proficient enough with light weapons to wield two at the same time!', colors.yellow)
             dual = Trait('Dual wield', 'Allows to wield two lights weapons at the same time.', 'trait')
             dual.addTraitToPlayer()
         
-        if player.Player.getTrait('skill', 'Concentration').amount >= 5 and player.Player.getTrait('trait', 'Self aware') == 'not found':
+        if player.Player.getTrait('skill', 'Mental training').amount >= 5 and player.Player.getTrait('trait', 'Self aware') == 'not found':
             message('Your meditation training is now so strong you can be really aware of your health state!', colors.yellow)
             aware = Trait('Self aware', 'Allows to see the buffs and debuffs cooldowns.', 'trait')
             aware.addTraitToPlayer()
@@ -6480,101 +6672,13 @@ def mainMenu():
         choices = ['New Game', 'Continue', 'Leaderboard' ,'About', 'Quit']
         index = 0
         currentMusic = str('Dusty_Feelings.wav')
-        '''
-        #music = MusicThread(target = self.run, musicName= currentMusic)
-        music = threading.Thread(target = lambda : runMusic(currentMusic))
-        music.setDaemon(True)
-        music.run()
-        '''
         stopProcess()
         print('CREATING MUSIC PROCESS')
         music = multiprocessing.Process(target = mus.runMusic, args = (currentMusic,))
         print('STARTING MUSIC PROCESS')
         music.start()
         activeProcess.append(music)
-        '''   
-        =======
-            global player, currentMusic
-            choices = ['New Game', 'Continue', 'Leaderboard' ,'About', 'Quit']
-            index = 0
-            if currentMusic != 'Dusty_Feelings.wav':
-                currentMusic = 'Dusty_Feelings.wav'
-                music = MusicThread(currentMusic)
-                music.run()
-        
-            while not tdl.event.isWindowClosed():
-                root.clear()
-                asciiFile = os.path.join(absAsciiPath, 'logo.xp')
-                xpRawString = gzip.open(asciiFile, "r").read()
-                convertedString = xpRawString
-                attributes = xpL.load_xp_string(convertedString)
-                picHeight = int(attributes["height"])
-                picWidth = int(attributes["width"])
-                lData = attributes["layer_data"]
-                layerInd = int(0)
-                for layerInd in range(len(lData)):
-                    xpL.load_layer_to_console(root, lData[layerInd], WIDTH//2 - picWidth//2, 15)
-                drawCentered(cons = root, y = 44, text = choices[0], fg = colors.white, bg = None)
-                drawCentered(cons = root, y = 45, text = choices[1], fg  = colors.white, bg = None)
-                drawCentered(cons = root, y = 46, text = choices[2], fg = colors.white, bg = None)
-                drawCentered(cons = root, y = 47, text = choices[3], fg = colors.white, bg = None)
-                drawCentered(cons = root, y = 48, text = choices[4], fg = colors.white, bg = None)
-                drawCentered(cons = root, y = 44 + index, text=choices[index], fg = colors.black, bg = colors.white)
-                tdl.flush()
-                key = tdl.event.key_wait()
-                if key.keychar.upper() == "DOWN":
-                    index += 1
-                    playWavSound('selectClic.wav')
-                elif key.keychar.upper() == "UP":
-                    index -= 1
-                    playWavSound('selectClic.wav')
-                if index < 0:
-                    index = len(choices) - 1
-                if index > len(choices) - 1:
-                    index = 0
-                if key.keychar.upper() == "ENTER":
-                    if index == 0:
-                        (playerComponent, allTraits) = characterCreation()
-                        if playerComponent != 'cancelled':
-                            for trait in allTraits:
-                                if trait.type == 'race' and trait.selected:
-                                    chosenRace = trait.name
-                            for trait in allTraits:
-                                if trait.type == 'class' and trait.selected:
-                                    chosenClass = trait.name
-                            name = enterName(chosenRace)
-                            LvlUp = {'pow': createdCharacter['powLvl'], 'acc': createdCharacter['accLvl'], 'ev': createdCharacter['evLvl'], 'arm': createdCharacter['armLvl'], 'hp': createdCharacter['hpLvl'], 'mp': createdCharacter['mpLvl'], 'crit': createdCharacter['critLvl'], 'str': createdCharacter['strLvl'], 'dex': createdCharacter['dexLvl'], 'vit': createdCharacter['vitLvl'], 'will': createdCharacter['willLvl'], 'ap': createdCharacter['apLvl']}
-                            playComp = Player(name, playerComponent['str'], playerComponent['dex'], playerComponent['vit'], playerComponent['will'], playerComponent['load'], chosenRace, chosenClass, allTraits, LvlUp)
-                            playFight = Fighter(hp = playerComponent['hp'], power= playerComponent['pow'], armor= playerComponent['arm'], deathFunction=playerDeath, xp=0, evasion = playerComponent['ev'], accuracy = playerComponent['acc'], maxMP= playerComponent['mp'], knownSpells=playerComponent['spells'], critical = playerComponent['crit'], armorPenetration = playerComponent['ap'])
-                            player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = name, color = (0, 210, 0))
-                            player.level = 1
-                            player.Fighter.hp = player.Fighter.baseMaxHP
-                            player.Fighter.MP = player.Fighter.baseMaxMP
-        
-                            newGame()
-                            playGame()
-                        else:
-                            mainMenu()
-                    elif index == 1:
-                        error = False
-                        try:
-                            loadGame()
-                        except:
-                            msgBox("\n No saved game to load.\n", 26, False, False)
-                            error = True
-                            key = None
-                            continue
-                        if not error:
-                            playGame()
-                    elif index == 2:
-                        leaderboard()
-                    elif index == 3:
-                        gameCredits()
-                    elif index == 4:
-                        raise SystemExit("Chose Quit on the main menu")
-                tdl.flush()
-        >>>>>>> origin/secondary
-        '''
+
         while not tdl.event.isWindowClosed():
             root.clear()
             asciiFile = os.path.join(absAsciiPath, 'logo.xp')
