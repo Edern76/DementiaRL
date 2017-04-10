@@ -4195,6 +4195,143 @@ def shoot():
         message('You have no ranged weapon equipped.')
         return 'didnt-take-turn'
 
+def levelUpScreen(skillpoint = 3):
+    global menuWindows, FOV_recompute
+    quitted = False
+    if menuWindows:
+        for mWindow in menuWindows:
+            mWindow.clear()
+        FOV_recompute = True
+        Update()
+        tdl.flush()
+    width = 80
+    height = 58
+    window = NamedConsole('levelUpScreen', width, height)
+    menuWindows.append(window)
+    tier1X = 10
+    tier2X = 30
+    #tier3X = 50
+    #tier4X = 70
+    
+    notConfirmed = {}
+    tier1list = []
+    tier2list = []
+    for skill in player.Player.skills:
+        if skill.tier == 1:
+            tier1list.append(skill)
+        elif skill.tier == 2:
+            tier2list.append(skill)
+    
+    index = 0
+    selectedSkill = player.Player.skills[0]
+    selectedSkill.underCursor = True
+    while not quitted:
+        FOV_recompute = True
+        window.clear()
+        window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)    
+        
+        for k in range(width):
+            window.draw_char(k, 0, chr(196))
+        window.draw_char(0, 0, chr(218))
+        window.draw_char(k, 0, chr(191))
+        kMax = k
+        for l in range(height):
+            if l > 0:
+                window.draw_char(0, l, chr(179))
+                window.draw_char(kMax, l, chr(179))
+        lMax = l
+        for m in range(width):
+            window.draw_char(m, lMax, chr(196))
+        window.draw_char(0, lMax, chr(192))
+        window.draw_char(kMax, lMax, chr(217))
+        
+        counter1 = 0
+        counter2 = 0
+        groupCounter2 = 0
+        for skill in player.Player.skills:
+            if skill != selectedSkill:
+                skill.underCursor = False
+
+            color = colors.grey
+            if skill.selectable and not skill.selected:
+                color = colors.white
+            elif skill.selectable and skill.selected and skill in notConfirmed:
+                color = colors.yellow
+            elif skill.selectable and skill.selected and not skill in notConfirmed:
+                color = colors.dark_red
+            if skill.tier == 1:
+                if not skill.underCursor:
+                    drawCenteredOnX(window, tier1X, 7 + counter1, skill.name, color)
+                else:
+                    drawCenteredOnX(window, tier1X, 7 + counter1, skill.name, colors.black, color)
+                drawCenteredOnX(window, tier1X, 8 + counter1, str(skill.amount)+'/'+str(skill.maxAmount), color)
+                counter1 += 21
+            if skill.tier == 2:
+                if groupCounter2 >= 3:
+                    counter2 += 6
+                    groupCounter2 = 0
+                if not skill.underCursor:
+                    drawCenteredOnX(window, tier2X, 2 + counter2, skill.name, color)
+                else:
+                    drawCenteredOnX(window, tier2X, 2 + counter2, skill.name, colors.black, color)
+                drawCenteredOnX(window, tier2X, 3 + counter2, str(skill.amount)+'/'+str(skill.maxAmount), color)
+                groupCounter2 += 1
+                counter2 += 5
+        
+        windowX = MID_WIDTH - int(width/2)
+        windowY = 1
+        root.blit(window, windowX, windowY, width, height, 0, 0)
+        
+        if 0 <= index < len(tier1list):
+            prevList = tier2list
+            currentList = tier1list
+            nextList = tier2list
+        elif len(tier1list) <= index < len(tier2list):
+            prevList = tier1list
+            currentList = tier2list
+            nextList = tier1list
+        
+        tdl.flush()
+        key = tdl.event.key_wait()
+        if key.keychar.upper() == 'ESCAPE':
+            return
+        elif key.keychar.upper() == 'DOWN':
+            index += 1
+        elif key.keychar.upper() == 'UP':
+            index -= 1
+        elif key.keychar.upper() == 'RIGHT':
+            index += len(currentList)
+            if index >= len(nextList):
+                index = len(nextList) - 1
+        elif key.keychar.upper() == 'LEFT':
+            index -= len(prevList)
+            if index >= len(prevList):
+                index = len(prevList) - 1
+        elif key.keychar.upper() == 'ENTER':
+            skill = player.Player.skills[index]
+            if skill.selectable and skill.amount < 5 and skillpoint > 0:
+                skill.selected = True
+                if not skill in notConfirmed:
+                    notConfirmed[skill] = skill.amount
+                skill.amount += 1
+                skillpoint -= 1
+        elif key.keychar.upper() == 'BACKSPACE':
+            skill = player.Player.skills[index]
+            if skill in notConfirmed and skill.amount > notConfirmed[skill]:
+                skill.amount -= 1
+                skillpoint += 1
+                if skill.amount == notConfirmed[skill]:
+                    del notConfirmed[skill]
+                if skill.amount <= 0:
+                    skill.selected = False
+
+        if index >= len(player.Player.skills):
+            index = 0
+        if index < 0:
+            index = len(player.Player.skills) - 1
+        selectedSkill = player.Player.skills[index]
+        selectedSkill.underCursor = True
+
 def checkLevelUp():
     global FOV_recompute
     
@@ -4287,6 +4424,12 @@ def checkLevelUp():
                     player.Fighter.MP += mpBonus
             message('You feel your wooden corpse thickening!', colors.celadon)
         
+        levelUpScreen()
+        tdl.flush()
+        FOV_recompute = True
+        Update()
+        
+        '''
         choice = None
         while choice == None:
             choice = menu('Level up! Choose a skill to raise: \n',
@@ -4311,13 +4454,14 @@ def checkLevelUp():
 
                 else:
                     choice = None
+        '''
 
         if player.Player.getTrait('skill', 'Light weapons').amount >= 5 and player.Player.getTrait('trait', 'Dual wield') == 'not found':
             message('You are now proficient enough with light weapons to wield two at the same time!', colors.yellow)
             dual = Trait('Dual wield', 'Allows to wield two lights weapons at the same time.', 'trait')
             dual.addTraitToPlayer()
         
-        if player.Player.getTrait('skill', 'Concentration').amount >= 5 and player.Player.getTrait('trait', 'Self aware') == 'not found':
+        if player.Player.getTrait('skill', 'Mental training').amount >= 5 and player.Player.getTrait('trait', 'Self aware') == 'not found':
             message('Your meditation training is now so strong you can be really aware of your health state!', colors.yellow)
             aware = Trait('Self aware', 'Allows to see the buffs and debuffs cooldowns.', 'trait')
             aware.addTraitToPlayer()
