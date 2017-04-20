@@ -52,7 +52,9 @@ class Branch:
 mainDungeon = Branch(shortName = "main", name = "Main", branchesTo = None)
 gluttonyDungeon = Branch(shortName = "glutt", name = "Gluttony Dungeon", maxDepth = 5, branchesFrom = (mainDungeon, 1), lightStairsColor = colors.desaturated_chartreuse, darkStairsColor = colors.darkest_chartreuse, monsterChances = {'darksoul': 400, 'ogre': 200, 'starveling': 250, 'cultist': 150}, itemChances = {'potion': 360, 'scroll': 20, 'weapon': 20, 'shield': 100, 'food': 500}, bossLevels = [5], bossNames = {'Gluttony': 5})
 hiddenTown = Branch(shortName = 'town',name = "Hidden Refuge", maxDepth = 1, branchesFrom = (mainDungeon, 1),lightStairsColor = colors.azure, darkStairsColor = colors.darker_azure, fixedMap = 'town')
+greedDungeon = Branch(shortName = 'greed', name = 'Greed Cavern', maxDepth = 5, branchesFrom= (mainDungeon, 7), lightStairsColor = colors.yellow, darkStairsColor = colors.darker_yellow)
 
 mainDungeon.branchesTo.append((gluttonyDungeon, 1))
 mainDungeon.branchesTo.append((hiddenTown, 1))
+mainDungeon.branchesTo.append((greedDungeon, 7))
     

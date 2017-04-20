@@ -169,7 +169,7 @@ BASE_HIT_CHANCE = 50
 boss_FOV_recompute = True
 BOSS_FOV_ALGO = 'BASIC'
 BOSS_SIGHT_RADIUS = 20
-bossDungeonsAppeared = {'gluttony': False}
+bossDungeonsAppeared = {'gluttony': False, 'greed' : False}
 lastHitter = None
 nemesisList = []
 currentMusic = 'No_Music.wav'
@@ -226,6 +226,7 @@ stairs = None
 upStairs = None
 gluttonyStairs = None
 townStairs = None
+greedStairs = None
 ########
 hiroshimanHasAppeared = False
 highCultistHasAppeared = False
@@ -3946,6 +3947,17 @@ def getInput():
                     nextLevel(boss, changeBranch = dBr.hiddenTown)
                 else:
                     message("You're too tired to climb down the stairs right now")
+            elif greedStairs.x == player.x and greedStairs.y == player.y:
+                if stairCooldown == 0:
+                    global stairCooldown
+                    temporaryBox('Loading...')
+                    stairCooldown = 2
+                    boss = False
+                    if DEBUG:
+                        message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
+                    nextLevel(boss, changeBranch = dBr.greedDungeon)
+                else:
+                    message("You're too tired to climb down the stairs right now")
         elif userInput.keychar.upper() == 'I':
             choseOrQuit = False
             while not choseOrQuit:
@@ -4997,10 +5009,30 @@ def makeMap():
                         bossDungeonsAppeared['gluttony'] = True
                         createdStairs = True
                         print('created gluttonys stairs at ' + str(x) + ', ' + str(y))
+        elif branch == dBr.greedDungeon:
+            if dungeonLevel == level and not bossDungeonsAppeared['greed']:
+                createdStairs = False
+                while not createdStairs:
+                    randRoom = randint(0, len(rooms) - 1)
+                    room = rooms[randRoom]
+                    (x, y) = room.center()
+                    wrongCentre = False
+                    for object in objects:
+                        if object.x == x and object.y == y:
+                            wrongCentre = True
+                            break
+                    if not wrongCentre:
+                        global greedStairs
+                        greedStairs = GameObject(x, y, '>', 'stairs to Greed', branch.lightStairsColor, alwaysVisible = True, darkColor = branch.darkStairsColor)
+                        objects.append(greedStairs)
+                        greedStairs.sendToBack()
+                        bossDungeonsAppeared['greed'] = True
+                        createdStairs = True
+                        print('created greeds stairs at ' + str(x) + ', ' + str(y))
             else:
-                global gluttonyStairs
-                print('No gluttony stairs on this level')
-                gluttonyStairs = None
+                global greedStairs
+                print('No greed stairs on this level')
+                greedStairs = None
         if branch == dBr.hiddenTown:
             if dungeonLevel == level:
                 createdStairs = False
