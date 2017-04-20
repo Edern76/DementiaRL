@@ -1576,7 +1576,7 @@ class Nemesis:
 
 class GameObject:
     "A generic object, represented by a character"
-    def __init__(self, x, y, char, name, color = colors.white, blocks = False, Fighter = None, AI = None, Player = None, Ghost = False, Item = None, alwaysVisible = False, darkColor = None, Equipment = None, pName = None, Essence = None, socialComp = None, shopComp = None):
+    def __init__(self, x, y, char, name, color = colors.white, blocks = False, Fighter = None, AI = None, Player = None, Ghost = False, Item = None, alwaysVisible = False, darkColor = None, Equipment = None, pName = None, Essence = None, socialComp = None, shopComp = None, questList = []):
         self.x = x
         self.y = y
         self.char = char
@@ -1611,6 +1611,7 @@ class GameObject:
         self.pName = self.pluralName
         self.socialComp = socialComp
         self.shopComp = shopComp
+        self.questList = questList
 
     def moveTowards(self, target_x, target_y):
         dx = target_x - self.x
@@ -6939,6 +6940,9 @@ def chat():
                     state = 'END'
                     NPC.shopComp.browse()
                     break
+                elif state != 'QUEST0':
+                    NPC.questList[0].take()
+                    tree.currentScreen = NPC.questList[0].screenGive
                 con.clear()
                 dialLength = len(tree.currentScreen.dialogText) - 1
                 ty = (CON_HEIGHT // 2) - (dialLength // 2)
