@@ -1,4 +1,4 @@
-import colors, math, textwrap, time, os, sys, code, gzip, pathlib, traceback, ffmpy #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
+import colors, math, textwrap, time, os, sys, code, gzip, pathlib, traceback, ffmpy, pdb #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
 import tdlib as tdl
 import code.dialog as dial
 import music as mus
@@ -3576,6 +3576,7 @@ cSwordChoice = ShopChoice(gObject = cSword, price = 400, stock = 1)
 
 ayethShopChoices = [badPieChoice, saladChoice, breadChoice, cSwordChoice]
 ayethShop = Shop(choicesList=ayethShopChoices)
+
 def Erwan():
     pass
 
@@ -3590,9 +3591,11 @@ class Quest:
         self.rewardXP = rewardXP
         self.validateFunction = validateFunction
         self.onValid = Erwan
+        self.onValid2 = Erwan
     
     def valid(self):
         self.onValid()
+        self.onValid2()
         for item in self.rewardList:
             item.pickUp()
         
@@ -3604,6 +3607,12 @@ class Quest:
     def take(self):
         message('You started a new quest ! {} added to quest log.')
         player.Player.questList.append(self)
+        
+    def removeObjects(self):
+        print("Doing nothing but printing this message because I am not supposed to remove objects because this is not a fetch quest")
+    
+    def appendToTree(self, treeToAppend, entryPoint):
+        pass #My whole body is noping at the mere idea of implementing this. Why do we need quests anyways ?
     
 class FetchQuest(Quest):
     def __init__(self, name, choiceGive, choiceCompleted, screenGive, screenCompleted, rewardList, rewardXP, validateFunction, itemName, amountWanted):    
@@ -3611,6 +3620,30 @@ class FetchQuest(Quest):
         self.amountWanted = amountWanted
         Quest.__init__(self, name, choiceGive, choiceCompleted, screenGive, screenCompleted, rewardList, rewardXP, validateFunction)
         self.onValid = Erwan #TEMPORARY
+        self.onValid2 = self.removeObjects
+        
+    def removeObjects(self):
+        foundItem = None
+        for item in inventory:
+            if item.name == self.itemName:
+                foundItem = item
+                break
+        try:
+            if foundItem is None:
+                raise ValueError('No item found')
+            else:
+                foundItem.Item.amount -= self.amountWanted
+                if foundItem.Item.amount < 0:
+                    raise ValueError('Item in too low quantity')
+                elif foundItem.Item.amount == 0:
+                    inventory.remove(foundItem)
+        except ValueError:
+            traceback.print_exc()
+            pdb.set_trace()
+        
+                
+        
+    
 
 def quitGame(message, backToMainMenu = False):
     global objects
