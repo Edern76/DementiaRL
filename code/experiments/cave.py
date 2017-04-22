@@ -18,6 +18,7 @@ emptyTiles = [] #List of tuples of the coordinates of emptytiles not yet process
 rooms = []
 visuTiles = []
 visuEdges = []
+confTiles = []
 dispEmpty = False
 dispDebug = True
 state = "base"
@@ -47,6 +48,16 @@ class Tile:
     def close(self):
         if not self.blocked:
             self.blocked = True
+    
+    def addOwner(self, toAdd):
+        if not toAdd in self.belongsTo:
+            if self.belongsTo:
+                otherOwners = list(self.belongsTo)
+            else:
+                otherOwners = []
+            self.belongsTo.append(toAdd)
+            print(otherOwners)
+            return otherOwners
 
         
 class Room:
@@ -54,6 +65,8 @@ class Room:
         self.tiles = tiles
         self.borders = borders
         rooms.append(self)
+        self.contestedTiles = []
+        self.collidingRooms = []
         
     def remove(self):
         for (x,y) in self.tiles:
@@ -62,10 +75,16 @@ class Room:
         del self
         
     def claimTile(self, x, y):
-        if myMap[x][y] in self.tiles or myMap[x][y] in self.borders:
-            myMap[x][y].belongsTo.append(self) 
+        if (x,y) in self.tiles or (x,y) in self.borders:
+            conflict = myMap[x][y].addOwner(self)
+            if conflict:
+                print("CONFLICT")
+                self.contestedTiles.append((x,y))
+                for contester in conflict:
+                    if not contester in self.collidingRooms:
+                        self.collidingRooms.append(contester)
         else:
-            raise IllegalTileInvasion("At {}{}".format(x, y))
+            raise IllegalTileInvasion("At {} {}".format(x, y))
         
     def claimBorders(self):
         for (x, y) in self.borders:
@@ -164,10 +183,12 @@ def doStep(oldMap):
     return newMap
 
 def generateMap():
-    global myMap, baseMap, mapToDisp, maps, visuTiles, state, visuEdges
+    global myMap, baseMap, mapToDisp, maps, visuTiles, state, visuEdges, confTiles, rooms
     myMap = [[Tile(False) for y in range(MAP_HEIGHT)] for x in range(MAP_WIDTH)]
     visuTiles = []
     visuEdges = []
+    confTiles = []
+    rooms = []
     for x in range(MAP_WIDTH):
         myMap[x][0].setIndestructible()
         removeFromEmptyTiles(x,0)
@@ -241,7 +262,9 @@ def generateMap():
                         
             update(mapToFuckingUse)
         for room in rooms:
+            room.claimBorders()
             visuEdges.extend(room.borders)
+            confTiles.extend(room.contestedTiles)
             update(mapToFuckingUse)
         state = "normal"
         refreshEmptyTiles()
@@ -256,6 +279,8 @@ def update(mapToUse):
                     root.draw_char(x, y, char = '#', fg = colors.lighter_gray)
                     if visuEdges and (x,y) in visuEdges and (state != 'normal' or dispDebug):
                         root.draw_char(x,y, char='#', fg = colors.purple)
+                    if confTiles and (x,y) in confTiles and (state != 'normal' or dispDebug):
+                        root.draw_char(x,y, char='#', fg = colors.red)
                 else:
                     root.draw_char(x, y, char = None, bg = colors.dark_sepia)
                     if visuTiles and (x,y) in visuTiles and (state != 'normal' or dispDebug):
