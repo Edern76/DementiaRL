@@ -1,6 +1,7 @@
 import tdl, colors, copy, pdb, traceback, os, sys, time
 from random import *
 from colors import darker_sepia
+from custom_except import *
 
 WIDTH, HEIGHT, LIMIT = 150, 80, 20
 MAP_WIDTH, MAP_HEIGHT = 140, 60
@@ -16,7 +17,9 @@ MIN_ROOM_SIZE = 6
 emptyTiles = [] #List of tuples of the coordinates of emptytiles not yet processed by the floodfill algorithm
 rooms = []
 visuTiles = []
+visuEdges = []
 dispEmpty = False
+dispDebug = True
 state = "base"
 
 sys.setrecursionlimit(3000)
@@ -28,6 +31,7 @@ class Tile:
     def __init__(self, blocked):
         self.blocked = blocked
         self.indestructible = False
+        self.belongsTo = []
         
     def setIndestructible(self):
         self.blocked = True
@@ -43,6 +47,7 @@ class Tile:
     def close(self):
         if not self.blocked:
             self.blocked = True
+
         
 class Room:
     def __init__(self, tiles, borders = []):
@@ -56,17 +61,32 @@ class Room:
         rooms.remove(self)
         del self
         
-def floodFill(x, y, listToAppend):
+    def claimTile(self, x, y):
+        if myMap[x][y] in self.tiles or myMap[x][y] in self.borders:
+            myMap[x][y].belongsTo.append(self) 
+        else:
+            raise IllegalTileInvasion("At {}{}".format(x, y))
+        
+    def claimBorders(self):
+        for (x, y) in self.borders:
+            self.claimTile(x, y)
+        
+def floodFill(x, y, listToAppend, edgeList):
     print("{},{}".format(x, y))
-    if not myMap[x][y].blocked and (x,y) in emptyTiles:
-        removeFromEmptyTiles(x,y)
-        listToAppend.append((x,y))
-        visuTiles.append((x,y))
-        floodFill(x+1, y, listToAppend)
-        floodFill(x-1, y, listToAppend)
-        floodFill(x, y+1, listToAppend)
-        floodFill(x, y-1, listToAppend)
+    if not myMap[x][y].blocked:
+        if (x,y) in emptyTiles:
+            removeFromEmptyTiles(x,y)
+            listToAppend.append((x,y))
+            visuTiles.append((x,y))
+            floodFill(x+1, y, listToAppend, edgeList)
+            floodFill(x-1, y, listToAppend, edgeList)
+            floodFill(x, y+1, listToAppend, edgeList)
+            floodFill(x, y-1, listToAppend, edgeList)
+        else:
+            return
     else:
+        
+        edgeList.append((x,y))
         return
     
 
@@ -80,8 +100,9 @@ baseMap = [[]]
 maps = [myMap, baseMap]
 mapIndex = 0
 
-def countNeighbours(mapToUse, startX, startY):
+def countNeighbours(mapToUse, startX, startY, stopAtFirst = False):
     count = 0
+    found = False
     for x in range(-1, 2):
         for y in range(-1, 2):
             if x == 0 and y == 0:
@@ -91,6 +112,11 @@ def countNeighbours(mapToUse, startX, startY):
                 otherY = startY + y
                 if mapToUse[otherX][otherY].blocked:
                     count += 1
+                    found = True
+                    if stopAtFirst:
+                        break
+        if stopAtFirst and found:
+            break
     return count
 
 def drawCentered(cons = root , y = 1, text = "Lorem Ipsum", fg = None, bg = None):
@@ -138,8 +164,10 @@ def doStep(oldMap):
     return newMap
 
 def generateMap():
-    global myMap, baseMap, mapToDisp, maps, visuTiles, state
+    global myMap, baseMap, mapToDisp, maps, visuTiles, state, visuEdges
     myMap = [[Tile(False) for y in range(MAP_HEIGHT)] for x in range(MAP_WIDTH)]
+    visuTiles = []
+    visuEdges = []
     for x in range(MAP_WIDTH):
         myMap[x][0].setIndestructible()
         removeFromEmptyTiles(x,0)
@@ -183,25 +211,40 @@ def generateMap():
     state = "floodfillPrep"
     update(mapToFuckingUse)
     tdl.event.key_wait()
-    print("Continuing")
-    state = "floodfill"
-    while emptyTiles:
-        (x,y) = emptyTiles[0]
-        #time.sleep(0.05)
-        newRoomTiles = []
-        try:
-            floodFill(x,y, newRoomTiles)
-        except RecursionError:
-            traceback.print_exc()
-            print(sys.getrecursionlimit())
-            os._exit(-1)
-        newRoom = Room(newRoomTiles)
-        if len(newRoom.tiles) < MIN_ROOM_SIZE:
-            newRoom.remove()
-        update(myMap)
-    visuTiles = []
-    state = "normal"
-    refreshEmptyTiles()
+    if not tdl.event.is_window_closed():
+        print("Continuing")
+        state = "floodfill"
+        while emptyTiles:
+            (x,y) = emptyTiles[0]
+            #time.sleep(0.05)
+            newRoomTiles = []
+            newRoomEdges = []
+            try:
+                floodFill(x,y, newRoomTiles, newRoomEdges)
+            except RecursionError:
+                traceback.print_exc()
+                print(sys.getrecursionlimit())
+                os._exit(-1)
+            newRoom = Room(newRoomTiles, borders = newRoomEdges)
+            if len(newRoom.tiles) < MIN_ROOM_SIZE:
+                newRoom.remove()
+            else:
+                '''
+                newRoomEdges = []
+                for (x,y) in newRoom.tiles:
+                    if countNeighbours(myMap, x, y, stopAtFirst = True) > 0:
+                        newRoomEdges.append((x,y))
+                newRoom.borders = list(newRoomEdges)
+                '''
+                #visuEdges.extend(newRoom.borders)
+                pass
+                        
+            update(mapToFuckingUse)
+        for room in rooms:
+            visuEdges.extend(room.borders)
+            update(mapToFuckingUse)
+        state = "normal"
+        refreshEmptyTiles()
         
     
 def update(mapToUse):
@@ -211,15 +254,20 @@ def update(mapToUse):
             for y in range(MAP_HEIGHT):
                 if mapToUse[x][y].blocked:
                     root.draw_char(x, y, char = '#', fg = colors.lighter_gray)
+                    if visuEdges and (x,y) in visuEdges and (state != 'normal' or dispDebug):
+                        root.draw_char(x,y, char='#', fg = colors.purple)
                 else:
                     root.draw_char(x, y, char = None, bg = colors.dark_sepia)
-                    if visuTiles and (x,y) in visuTiles:
+                    if visuTiles and (x,y) in visuTiles and (state != 'normal' or dispDebug):
                         root.draw_char(x,y, char=None, bg = colors.red)
+                    if visuEdges and (x,y) in visuEdges and (state != 'normal' or dispDebug):
+                        root.draw_char(x,y, char=None, bg = colors.purple)
+                    
         if dispEmpty:
             for (x,y) in emptyTiles:
                 root.draw_char(x, y, char= ".", bg = colors.cyan)
             print(len(emptyTiles))
-        if state == "floodfillPrep":
+        if state in ("floodfillPrep", "edgeDetectionPrep"):
             drawCentered(root, 70, "Ready to continue, press a key to proceed...", fg = colors.green)
         elif state == "floodfill":
             drawCentered(root, 70, "Filling...", fg = colors.green)
@@ -249,6 +297,9 @@ def getInput():
     elif actualKey == 'E':
         global dispEmpty
         dispEmpty = not dispEmpty
+    elif actualKey == 'A':
+        global dispDebug
+        dispDebug = not dispDebug
     
     
 if __name__ == '__main__':
