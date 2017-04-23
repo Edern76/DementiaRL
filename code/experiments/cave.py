@@ -23,6 +23,8 @@ dispEmpty = False
 dispDebug = True
 state = "base"
 
+curRoomIndex = 0
+
 sys.setrecursionlimit(3000)
 
 if __name__ == '__main__':
@@ -58,6 +60,11 @@ class Tile:
             self.belongsTo.append(toAdd)
             print(otherOwners)
             return otherOwners
+    
+    def returnOtherOwners(self, base):
+        newList = list(self.belongsTo)
+        newList.remove(base)
+        return newList
 
         
 class Room:
@@ -67,6 +74,7 @@ class Room:
         rooms.append(self)
         self.contestedTiles = []
         self.collidingRooms = []
+        self.protect = False
         
     def remove(self):
         for (x,y) in self.tiles:
@@ -89,6 +97,37 @@ class Room:
     def claimBorders(self):
         for (x, y) in self.borders:
             self.claimTile(x, y)
+            
+    def mergeWith(self, other, arbitraryTiles = []):
+        self.protect = True
+        if not other.protect:
+            if self in self.collidingRooms:
+                self.collidingRooms.remove(self)
+                print("REMOVED SELF FROM COLLROOMS")
+            for (x,y) in other.tiles:
+                if not (x,y) in self.tiles:
+                    self.tiles.append((x,y))
+    
+            for (x,y) in arbitraryTiles:
+                if not (x,y) in self.tiles:
+                    self.tiles.append((x,y))
+            
+            for (x,y) in other.borders:
+                if not (x,y) in self.borders:
+                    self.borders.append((x,y))
+    
+            if other in rooms:
+                rooms.remove(other)
+            else:
+                print("Other room not in rooms")
+            if other in self.collidingRooms:
+                self.collidingRooms.remove(other)
+            else:
+                print("Other room not in colliding rooms")
+            del other
+        else:
+            print("OTHER ROOM IS FUCKING PROTECTED, DO NOT MERGE")
+    
         
 def floodFill(x, y, listToAppend, edgeList):
     print("{},{}".format(x, y))
@@ -266,8 +305,30 @@ def generateMap():
             visuEdges.extend(room.borders)
             confTiles.extend(room.contestedTiles)
             update(mapToFuckingUse)
-        state = "normal"
+        state = "roomMergePrep"
+        update(mapToFuckingUse)
         refreshEmptyTiles()
+        tdl.event.key_wait()
+        tempRooms = list(rooms)
+        while tempRooms:
+            for rum in tempRooms:
+                if rum not in rooms:
+                    tempRooms.remove(rum)
+            room = tempRooms[0]
+            oldRoomBorders = []
+            if room.contestedTiles:
+                for (x,y) in room.contestedTiles:
+                    openTile(x,y, myMap)
+                    visuEdges.remove((x,y))
+                    for owner in myMap[x][y].belongsTo:
+                        oldRoomBorders.append((x,y))
+                        owner.borders.remove((x,y))
+                        room.mergeWith(owner, oldRoomBorders)
+            tempRooms.remove(room)
+
+        state = "normal"
+        update(mapToFuckingUse)
+        
         
     
 def update(mapToUse):
@@ -292,12 +353,16 @@ def update(mapToUse):
             for (x,y) in emptyTiles:
                 root.draw_char(x, y, char= ".", bg = colors.cyan)
             print(len(emptyTiles))
-        if state in ("floodfillPrep", "edgeDetectionPrep"):
+        if state in ("floodfillPrep", "edgeDetectionPrep", "roomMergePrep"):
             drawCentered(root, 70, "Ready to continue, press a key to proceed...", fg = colors.green)
         elif state == "floodfill":
             drawCentered(root, 70, "Filling...", fg = colors.green)
         elif state == "normal":
             drawCentered(root, 70, "Done ! Press ENTER to restart or SPACE to toggle between map and canvas. ", fg = colors.green)
+            for (x,y) in rooms[curRoomIndex].tiles:
+                root.draw_char(x, y, None, bg = colors.yellow)
+            for (x,y) in rooms[curRoomIndex].borders:
+                root.draw_char(x, y, "#", fg = colors.orange)
         elif state == "base":
             drawCentered(root, 70, "Loading...", fg = colors.gray)
     except IndexError:
@@ -325,6 +390,20 @@ def getInput():
     elif actualKey == 'A':
         global dispDebug
         dispDebug = not dispDebug
+    elif actualKey in ("LEFT", "RIGHT"):
+        global curRoomIndex
+        maxIndex = len(rooms) - 1
+        if actualKey == "LEFT":
+            curRoomIndex -= 1
+        else:
+            curRoomIndex += 1
+        if curRoomIndex < 0:
+            curRoomIndex = int(maxIndex)
+        if curRoomIndex > maxIndex:
+            curRoomIndex = 0
+
+
+        
     
     
 if __name__ == '__main__':
