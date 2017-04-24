@@ -3,6 +3,7 @@ from random import *
 from colors import darker_sepia
 from custom_except import *
 
+
 WIDTH, HEIGHT, LIMIT = 150, 80, 20
 MAP_WIDTH, MAP_HEIGHT = 140, 60
 MID_MAP_WIDTH, MID_MAP_HEIGHT = MAP_WIDTH//2, MAP_HEIGHT//2
@@ -74,7 +75,10 @@ class Room:
         rooms.append(self)
         self.contestedTiles = []
         self.collidingRooms = []
+        self.connectedRooms = []
         self.protect = False
+        self.mainRoom = False
+        self.reachableFromMainRoom = False
         
     def remove(self):
         for (x,y) in self.tiles:
@@ -127,7 +131,12 @@ class Room:
             del other
         else:
             print("OTHER ROOM IS FUCKING PROTECTED, DO NOT MERGE")
-    
+            
+    def setReachable(self):
+        if not self.reachableFromMainRoom:
+            self.reachableFromMainRoom = True
+            for room in self.connectedRooms:
+                room.setReachable()
         
 def floodFill(x, y, listToAppend, edgeList):
     print("{},{}".format(x, y))
@@ -220,7 +229,84 @@ def doStep(oldMap):
                 else:
                     openTile(x, y, newMap)
     return newMap
+def connectRooms(roomList, forceAccess = False):
+    roomListA = []
+    roomListB = []
+    
+    if forceAccess:
+        for room in rooms:
+            if room.reachableFromMainRoom:
+                roomListB.append(room)
+            else:
+                roomListA.append(room)
+    else:
+        roomListA = list(rooms)
+        roomListB = list(rooms)
+    
+    bestDistance = 0
+    for roomA in roomListA:
+        if not forceAccess:
+            possibleConnectionFound = False
+            if (roomA.connectedRooms):
+                continue
+        for roomB in roomListB:
+            if roomA == roomB or roomB in roomA.connectedRooms:
+                continue
+            else:
+                for tileIndexA in range(0, len(roomA.borders) - 1):
+                    for tileIndexB in range(0, len(roomB.borders) - 1):
+                        (xA, yA) = roomA.borders[tileIndexA]
+                        (xB, yB) = roomB.borders[tileIndexB]
+                    distance = (xA - xB)**2 + (yA - yB)**2
+                    
+                    if distance < bestDistance or not possibleConnectionFound:
+                        bestDistance = int(distance)
+                        possibleConnectionFound = True
+                        bestTileA = (int(xA), int(yA))
+                        bestTileB = (int(xB), int(yB))
+                        bestRoomA = roomA
+                        bestRoomB = roomB
+                    
+        if possibleConnectionFound and not forceAccess:
+            createPassage(bestRoomA, bestRoomB, bestTileA, bestTileB)
+    
+    if possibleConnectionFound and forceAccess:
+        createPassage(bestRoomA, bestRoomB, bestTileA, bestTileB)
+        connectRooms(rooms, True)
+    
+    if forceAccess:
+        connectRooms(rooms, True)
 
+def linkRooms(room1, room2):
+    if room1.reachableFromMainRoom:
+        room2.setReachable()
+    elif room2.reachableFromMainRoom:
+        room1.setReachable()
+    
+    room1.connectedRooms.append(room2)
+    room2.connectedRooms.append(room1)
+
+def createPassage(roomA, roomB, tileA, tileB):
+    '''
+    if not roomB in roomA.connectedRooms:
+        #roomA.connectedRooms.append(roomB)
+        linkRooms(roomA, roomB)
+    if not roomA in roomB.connectedRooms:
+        #roomB.connectedRooms.append(roomA)
+        linkRooms(roomB, roomA)
+    '''
+    linkRooms(roomA, roomB)
+    
+    (xA, yA) = tileA
+    (xB, yB) = tileB
+    
+    passage = tdl.map.bresenham(xA, yA, xB, yB)
+    for (x,y) in passage:
+        openTile(x,y,myMap)
+                
+    
+    
+    
 def generateMap():
     global myMap, baseMap, mapToDisp, maps, visuTiles, state, visuEdges, confTiles, rooms
     myMap = [[Tile(False) for y in range(MAP_HEIGHT)] for x in range(MAP_WIDTH)]
@@ -325,7 +411,11 @@ def generateMap():
                         owner.borders.remove((x,y))
                         room.mergeWith(owner, oldRoomBorders)
             tempRooms.remove(room)
-
+        
+        rooms[0].mainRoom = True
+        rooms[0].reachableFromMainRoom = True
+        
+        connectRooms(rooms)
         state = "normal"
         update(mapToFuckingUse)
         
