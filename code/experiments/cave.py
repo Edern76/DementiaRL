@@ -360,6 +360,7 @@ def generateMap():
     if not tdl.event.is_window_closed():
         print("Continuing")
         state = "floodfill"
+        survivingRooms = []
         while emptyTiles:
             (x,y) = emptyTiles[0]
             #time.sleep(0.05)
@@ -373,7 +374,8 @@ def generateMap():
                 os._exit(-1)
             newRoom = Room(newRoomTiles, borders = newRoomEdges)
             if len(newRoom.tiles) < MIN_ROOM_SIZE:
-                newRoom.remove()
+                for (x,y) in newRoom.tiles:
+                    myMap[x][y].blocked = True
             else:
                 '''
                 newRoomEdges = []
@@ -383,10 +385,10 @@ def generateMap():
                 newRoom.borders = list(newRoomEdges)
                 '''
                 #visuEdges.extend(newRoom.borders)
-                pass
+                survivingRooms.append(newRoom)
                         
             update(mapToFuckingUse)
-        for room in rooms:
+        for room in survivingRooms:
             room.claimBorders()
             visuEdges.extend(room.borders)
             confTiles.extend(room.contestedTiles)
@@ -412,8 +414,8 @@ def generateMap():
                         room.mergeWith(owner, oldRoomBorders)
             tempRooms.remove(room)
         
-        rooms[0].mainRoom = True
-        rooms[0].reachableFromMainRoom = True
+        survivingRooms[0].mainRoom = True
+        survivingRooms[0].reachableFromMainRoom = True
         
         connectRooms(rooms)
         state = "normal"
