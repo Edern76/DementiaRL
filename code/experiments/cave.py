@@ -245,10 +245,9 @@ def connectRooms(roomList, forceAccess = False):
     
     bestDistance = 0
     for roomA in roomListA:
-        if not forceAccess:
-            possibleConnectionFound = False
-            if (roomA.connectedRooms):
-                continue
+        possibleConnectionFound = False
+        if (roomA.connectedRooms and not forceAccess):
+            continue
         for roomB in roomListB:
             if roomA == roomB or roomB in roomA.connectedRooms:
                 continue
@@ -267,15 +266,9 @@ def connectRooms(roomList, forceAccess = False):
                         bestRoomA = roomA
                         bestRoomB = roomB
                     
-        if possibleConnectionFound and not forceAccess:
+        if possibleConnectionFound:
             createPassage(bestRoomA, bestRoomB, bestTileA, bestTileB)
-    
-    if possibleConnectionFound and forceAccess:
-        createPassage(bestRoomA, bestRoomB, bestTileA, bestTileB)
-        connectRooms(rooms, True)
-    
-    if forceAccess:
-        connectRooms(rooms, True)
+
 
 def linkRooms(room1, room2):
     if room1.reachableFromMainRoom:
@@ -416,6 +409,7 @@ def generateMap():
         rooms[0].reachableFromMainRoom = True
         
         connectRooms(rooms)
+        connectRooms(rooms, True)
         state = "normal"
         update(mapToFuckingUse)
         
