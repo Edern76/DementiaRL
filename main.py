@@ -5278,6 +5278,19 @@ def generateCave():
         (pX, pY) = rooms[0].tiles[randint(0, len(rooms[0].tiles) - 1)]
         player.x = pX
         player.y = pY
+        upStairs = GameObject(pX, pY, '<', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor)
+        objects.append(upStairs)
+        upStairs.sendToBack()
+        stairsRoom = rooms[randint(1, len(rooms) - 1)]
+        (sX, sY) = stairsRoom.tiles[randint(0, len(stairsRoom.tiles) - 1)]
+        stairs = GameObject(sX, sY, '>', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor)
+        objects.append(stairs)
+        stairs.sendToBack()
+        for room in rooms:
+            if room == rooms[0]:
+                placeObjects(room, True)
+            else:
+                placeObjects(room, False)
         print("DONE")
 
         
@@ -6472,6 +6485,8 @@ def placeObjects(room, first = False):
         if type(room) is Rectangle:
             x = randint(room.x1+1, room.x2-1)
             y = randint(room.y1+1, room.y2-1)
+        elif type(room) is CaveRoom:
+            (x,y) = room.tiles[randint(0, len(room.tiles) - 1)]
         
         
         if not isBlocked(x, y) and (x, y) != (player.x, player.y):
@@ -6479,7 +6494,7 @@ def placeObjects(room, first = False):
             if monsterChoice == 'darksoul':
                 monster = createDarksoul(x, y)
 
-            elif monsterChoice == 'hiroshiman' and hiroshimanNumber == 0 and dungeonLevel > 2:
+            elif monsterChoice == 'hiroshiman' and hiroshimanNumber == 0 and dungeonLevel > 2 and not first:
                 global hiroshimanNumber
                 global monsterChances
                 monster = createHiroshiman(x, y)
@@ -6487,7 +6502,7 @@ def placeObjects(room, first = False):
                 del monsterChances['hiroshiman']
                 monsterChances['ogre'] = 20
                 
-            elif monsterChoice == 'ogre':
+            elif monsterChoice == 'ogre' and not first:
                 monster = createOgre(x, y)
             
             elif monsterChoice == 'snake':
@@ -6495,7 +6510,7 @@ def placeObjects(room, first = False):
             
             elif monsterChoice == 'cultist':
                 monster = createCultist(x, y)
-            elif monsterChoice == 'highCultist':
+            elif monsterChoice == 'highCultist' and not first:
                 global highCultistHasAppeared
                 monster = createHighCultist(x, y)
                 diagonals = [(x+1, y+1), (x-1, y-1), (x-1, y+1), (x+1, y-1)]
@@ -6529,8 +6544,11 @@ def placeObjects(room, first = False):
 
     num_items = randint(0, MAX_ROOM_ITEMS)
     for i in range(num_items):
-        x = randint(room.x1+1, room.x2-1)
-        y = randint(room.y1+1, room.y2-1)
+        if type(room) is Rectangle:
+            x = randint(room.x1+1, room.x2-1)
+            y = randint(room.y1+1, room.y2-1)
+        elif type(room) is CaveRoom:
+            (x,y) = room.tiles[randint(0, len(room.tiles) - 1)]
         item = None
         if not isBlocked(x, y):
             itemChoice = randomChoice(itemChances)
@@ -6546,6 +6564,8 @@ def placeObjects(room, first = False):
                 item = None
             elif itemChoice == 'weapon':
                 item = createWeapon(x, y)
+            elif itemChoice == 'money':
+                item = GameObject(x, y, char = '$', name = 'gold piece', color = colors.gold, Item=Money(randint(15, 30)), blocks = False, pName = 'gold pieces')
             elif itemChoice == 'shield':
                 equipmentComponent = Equipment(slot = 'one handed', type = 'shield', armorBonus=3)
                 item = GameObject(x, y, '[', 'shield', colors.darker_orange, Equipment=equipmentComponent, Item=Item(weight = 3.0, pic = 'shield.xp'))
