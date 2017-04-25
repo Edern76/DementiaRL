@@ -4387,6 +4387,8 @@ def levelUpScreen(skillpoint = 3):
                     notConfirmed[skill] = skill.amount
                 skill.amount += 1
                 skillpoint -= 1
+                for newSkill in skill.allowsSelection:
+                    newSkill.selectable = True
         elif key.keychar.upper() == 'BACKSPACE':
             skill = player.Player.skills[index]
             if skill in notConfirmed and skill.amount > notConfirmed[skill]:
@@ -4396,6 +4398,8 @@ def levelUpScreen(skillpoint = 3):
                     del notConfirmed[skill]
                 if skill.amount <= 0:
                     skill.selected = False
+                    for newSkill in skill.allowsSelection:
+                        newSkill.selectable = False
 
         if index >= len(player.Player.skills):
             index = 0
