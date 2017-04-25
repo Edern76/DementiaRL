@@ -1,4 +1,4 @@
-import colors, math, textwrap, time, os, sys, code, gzip, pathlib, traceback, ffmpy, pdb #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
+import colors, math, textwrap, time, os, sys, code, gzip, pathlib, traceback, ffmpy, pdb, copy #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
 import tdlib as tdl
 import code.dialog as dial
 import music as mus
@@ -3911,7 +3911,7 @@ def getInput():
                     return None
             FOV_recompute = True
         elif userInput.keychar.upper() == '>':
-            if stairs.x == player.x and stairs.y == player.y:
+            if stairs is not None and stairs.x == player.x and stairs.y == player.y:
                 if stairCooldown == 0:
                     global stairCooldown
                     temporaryBox('Loading...')
@@ -3924,7 +3924,7 @@ def getInput():
                     nextLevel(boss)
                 else:
                     message("You're too tired to climb down the stairs right now")
-            elif gluttonyStairs.x == player.x and gluttonyStairs.y == player.y:
+            elif gluttonyStairs is not None and gluttonyStairs.x == player.x and gluttonyStairs.y == player.y:
                 if stairCooldown == 0:
                     global stairCooldown
                     temporaryBox('Loading...')
@@ -3936,7 +3936,7 @@ def getInput():
                 else:
                     message("You're too tired to climb down the stairs right now")
                 return None
-            elif townStairs.x == player.x and townStairs.y == player.y:
+            elif townStairs is not None and townStairs.x == player.x and townStairs.y == player.y:
                 if stairCooldown == 0:
                     global stairCooldown
                     temporaryBox('Loading...')
@@ -3947,7 +3947,7 @@ def getInput():
                     nextLevel(boss, changeBranch = dBr.hiddenTown)
                 else:
                     message("You're too tired to climb down the stairs right now")
-            elif greedStairs.x == player.x and greedStairs.y == player.y:
+            elif greedStairs is not None and greedStairs.x == player.x and greedStairs.y == player.y:
                 if stairCooldown == 0:
                     global stairCooldown
                     temporaryBox('Loading...')
@@ -4683,6 +4683,22 @@ ROOM_MAX_SIZE = 10
 ROOM_MIN_SIZE = 6
 MAX_ROOMS = 30
 
+CHANCE_TO_START_ALIVE = 55
+DEATH_LIMIT = 3
+BIRTH_LIMIT = 4
+STEPS_NUMBER = 2
+MIN_ROOM_SIZE = 6
+
+emptyTiles = [] #List of tuples of the coordinates of emptytiles not yet processed by the floodfill algorithm
+rooms = []
+visuTiles = []
+visuEdges = []
+confTiles = []
+reachableRooms = []
+unreachableRooms = []
+dispEmpty = False
+dispDebug = True
+
 class Tile:
     def __init__(self, blocked, block_sight = None, acid = False, acidCooldown = 5, character = None, fg = None, bg = None, dark_fg = None, dark_bg = None, wall = False):
         self.blocked = blocked
@@ -4702,6 +4718,8 @@ class Tile:
         self.acid = acid
         self.baseAcidCooldown = acidCooldown
         self.curAcidCooldown = 0
+        self.belongsTo = []
+        self.usedForPassage = False
         if self.wall:
             self.character = '#'
             self.FG = color_light_wall
@@ -4712,6 +4730,50 @@ class Tile:
             self.dark_fg = color_dark_wall
             self.DARK_BG = color_dark_ground
             self.dark_bg = color_dark_ground
+    
+    def applyWallProperties(self):
+        self.character = '#'
+        self.FG = color_light_wall
+        self.fg = color_light_wall
+        self.BG = color_light_ground
+        self.bg = color_light_ground
+        self.DARK_FG = color_dark_wall
+        self.dark_fg = color_dark_wall
+        self.DARK_BG = color_dark_ground
+        self.dark_bg = color_dark_ground
+    
+    
+    def setUnbreakable(self):
+        self.blocked = True
+        self.unbreakable = True
+        
+    def open(self):
+        if not self.unbreakable:
+            self.blocked = False
+            self.block_sight = False
+            return True
+        else:
+            return False
+    
+    def close(self):
+        if not self.blocked:
+            self.blocked = True
+            self.block_sight = True
+    
+    def addOwner(self, toAdd):
+        if not toAdd in self.belongsTo:
+            if self.belongsTo:
+                otherOwners = list(self.belongsTo)
+            else:
+                otherOwners = []
+            self.belongsTo.append(toAdd)
+            print(otherOwners)
+            return otherOwners
+    
+    def returnOtherOwners(self, base):
+        newList = list(self.belongsTo)
+        newList.remove(base)
+        return newList
 
 class Rectangle:
     def __init__(self, x, y, w, h):
@@ -4728,6 +4790,497 @@ class Rectangle:
     def intersect(self, other):
         return (self.x1 <= other.x2 and self.x2 >= other.x1 and
                 self.y1 <= other.y2 and self.y2 >= other.y1)
+        
+class CaveRoom:
+    def __init__(self, tiles, borders = []):
+        self.tiles = tiles
+        self.borders = borders
+        rooms.append(self)
+        self.contestedTiles = []
+        self.collidingRooms = []
+        self.connectedRooms = []
+        self.protect = False
+        self.mainRoom = False
+        self.reachableFromMainRoom = False
+        
+    def remove(self):
+        for (x,y) in self.tiles:
+            closeTile(x, y, myMap)
+        rooms.remove(self)
+        del self
+        
+    def claimTile(self, x, y):
+        if (x,y) in self.tiles or (x,y) in self.borders:
+            conflict = myMap[x][y].addOwner(self)
+            if conflict:
+                print("CONFLICT")
+                self.contestedTiles.append((x,y))
+                for contester in conflict:
+                    if not contester in self.collidingRooms:
+                        self.collidingRooms.append(contester)
+        else:
+            raise IllegalTileInvasion("At {} {}".format(x, y))
+        
+    def claimBorders(self):
+        for (x, y) in self.borders:
+            self.claimTile(x, y)
+            
+    def mergeWith(self, other, arbitraryTiles = []):
+        self.protect = True
+        if not other.protect:
+            if self in self.collidingRooms:
+                self.collidingRooms.remove(self)
+                print("REMOVED SELF FROM COLLROOMS")
+            for (x,y) in other.tiles:
+                if not (x,y) in self.tiles:
+                    self.tiles.append((x,y))
+    
+            for (x,y) in arbitraryTiles:
+                if not (x,y) in self.tiles:
+                    self.tiles.append((x,y))
+            
+            for (x,y) in other.borders:
+                if not (x,y) in self.borders:
+                    self.borders.append((x,y))
+    
+            if other in rooms:
+                rooms.remove(other)
+            else:
+                print("Other room not in rooms")
+            if other in self.collidingRooms:
+                self.collidingRooms.remove(other)
+            else:
+                print("Other room not in colliding rooms")
+            del other
+        else:
+            print("OTHER ROOM IS FUCKING PROTECTED, DO NOT MERGE")
+            
+    def setReachable(self):
+        if not self.reachableFromMainRoom:
+            self.reachableFromMainRoom = True
+            for room in self.connectedRooms:
+                room.setReachable()
+
+def floodFill(x, y, listToAppend, edgeList):
+    print("{},{}".format(x, y))
+    if not myMap[x][y].blocked:
+        if (x,y) in emptyTiles:
+            removeFromEmptyTiles(x,y)
+            listToAppend.append((x,y))
+            visuTiles.append((x,y))
+            floodFill(x+1, y, listToAppend, edgeList)
+            floodFill(x-1, y, listToAppend, edgeList)
+            floodFill(x, y+1, listToAppend, edgeList)
+            floodFill(x, y-1, listToAppend, edgeList)
+        else:
+            return
+    else:
+        
+        edgeList.append((x,y))
+        return
+    
+def countNeighbours(mapToUse, startX, startY, stopAtFirst = False):
+    count = 0
+    found = False
+    for x in range(-1, 2):
+        for y in range(-1, 2):
+            if x == 0 and y == 0:
+                continue
+            else:
+                otherX = startX + x
+                otherY = startY + y
+                if mapToUse[otherX][otherY].blocked:
+                    count += 1
+                    found = True
+                    if stopAtFirst:
+                        break
+        if stopAtFirst and found:
+            break
+    return count
+
+def findNeighbours(startX, startY):
+    if myMap[startX - 1][startY].blocked:
+        return (startX - 1, startY)
+    
+    elif myMap[startX - 1][startY - 1].blocked:
+        return (startX - 1, startY - 1)
+    
+    elif myMap[startX - 1][startY + 1].blocked:
+        return (startX - 1, startY + 1)
+    
+    elif myMap[startX + 1][startY].blocked:
+        return (startX + 1, startY)
+    
+    elif myMap[startX + 1][startY - 1].blocked:
+        return (startX + 1, startY - 1)
+    
+    elif myMap[startX + 1][startY + 1].blocked:
+        return (startX + 1, startY + 1)
+    
+    elif myMap[startX][startY - 1].blocked:
+        return (startX, startY - 1)
+    
+    elif myMap[startX][startY + 1].blocked:
+        return (startX, startY + 1)
+    
+def removeFromEmptyTiles(x, y):
+    if (x,y) in emptyTiles:
+        emptyTiles.remove((x,y))
+
+def openTile(x, y, mapToUse):
+    if mapToUse[x][y].open() and not (x,y) in emptyTiles:
+        #emptyTiles.append((x,y))
+        pass
+
+def closeTile(x, y, mapToUse):
+    mapToUse[x][y].close()
+    #removeFromEmptyTiles(x,y)
+    
+def refreshEmptyTiles():
+    global emptyTiles
+    emptyTiles = []
+    for x in range(MAP_WIDTH):
+        for y in range(MAP_HEIGHT):
+            if not myMap[x][y].blocked:
+                emptyTiles.append((x,y))
+
+def doStep(oldMap):
+    newMap = list(deepcopy(baseMap))
+    for x in range(1, MAP_WIDTH - 1):
+        for y in range(1, MAP_HEIGHT - 1):
+            neighbours = countNeighbours(oldMap, x, y)
+            if oldMap[x][y].blocked:
+                if neighbours < DEATH_LIMIT:
+                    openTile(x, y, newMap)
+                else:
+                    closeTile(x, y, newMap)
+                    print('Blocking')
+            else:
+                if neighbours > BIRTH_LIMIT:
+                    closeTile(x, y, newMap)
+                    print('Blocking')
+                else:
+                    openTile(x, y, newMap)
+    return newMap
+
+def updateReachLists():
+    global reachableRooms, unreachableRooms
+    reachableRooms = []
+    unreachableRooms = []
+    for room in rooms:
+        if room.reachableFromMainRoom and not room in reachableRooms:
+            reachableRooms.append(room)
+        else:
+            if room not in unreachableRooms:
+                unreachableRooms.append(room)
+
+def connectRooms(roomList, forceAccess = False):
+    roomListA = []
+    roomListB = []
+    
+    if forceAccess:
+        '''
+        for room in rooms:
+            if room.reachableFromMainRoom:
+                roomListB.append(room)
+            else:
+                roomListA.append(room)
+        '''
+        roomListB = list(reachableRooms)
+        roomListA = list(unreachableRooms)
+    else:
+        roomListA = list(rooms)
+        roomListB = list(rooms)
+    
+    bestDistance = 0
+    if not forceAccess:
+        for roomA in roomListA:
+            possibleConnectionFound = False
+            if (roomA.connectedRooms and not forceAccess):
+                continue
+            for roomB in roomListB:
+                if roomA == roomB or roomB in roomA.connectedRooms:
+                    continue
+                else:
+                    for tileIndexA in range(0, len(roomA.borders) - 1):
+                        for tileIndexB in range(0, len(roomB.borders) - 1):
+                            (xA, yA) = roomA.borders[tileIndexA]
+                            (xB, yB) = roomB.borders[tileIndexB]
+                        distance = (xA - xB)**2 + (yA - yB)**2
+                        
+                        if distance < bestDistance or not possibleConnectionFound:
+                            bestDistance = int(distance)
+                            possibleConnectionFound = True
+                            bestTileA = (int(xA), int(yA))
+                            bestTileB = (int(xB), int(yB))
+                            bestRoomA = roomA
+                            bestRoomB = roomB
+                        
+            if possibleConnectionFound:
+                createPassage(bestRoomA, bestRoomB, bestTileA, bestTileB)
+    else:
+        updateReachLists()
+        while unreachableRooms:
+            roomA = unreachableRooms[0]
+            possibleConnectionFound = False
+            reachIndex = 0
+            print(reachIndex)
+            if len(unreachableRooms) == 1:
+                print("BREAKING")
+                break
+            else:
+                print(len(unreachableRooms))
+            for roomB in reachableRooms:
+                if roomA == roomB or roomB in roomA.connectedRooms or len(roomB.connectedRooms) > 1:
+                    continue
+                else:
+                    bestDistance = 0
+                    bestRoomA = roomA
+                    for tileIndexA in range(0, len(roomA.borders) - 1):
+                        for tileIndexB in range(0, len(roomB.borders) - 1):
+                            (xA, yA) = roomA.borders[tileIndexA]
+                            (xB, yB) = roomB.borders[tileIndexB]
+                        distance = (xA - xB)**2 + (yA - yB)**2
+                        
+                        if distance < bestDistance or not possibleConnectionFound:
+                            bestDistance = int(distance)
+                            possibleConnectionFound = True
+                            bestTileA = (int(xA), int(yA))
+                            bestTileB = (int(xB), int(yB))
+                            bestRoomB = roomB
+                        
+            if possibleConnectionFound:
+                createPassage(bestRoomA, bestRoomB, bestTileA, bestTileB)
+                updateReachLists()
+                reachIndex = 0
+            else:
+                reachIndex += 1
+                updateReachLists()
+            
+        if len(unreachableRooms) == 1:
+            updateReachLists()
+            roomA = unreachableRooms[0]
+            possibleConnectionFound = False
+            for roomB in reachableRooms:
+                if roomA == roomB or roomB in roomA.connectedRooms:
+                    print("CONTIUNING")
+                    continue
+                else:
+                    bestDistance = 0
+                    bestRoomA = roomA
+                    for tileIndexA in range(0, len(roomA.borders) - 1):
+                        (xX, yY) = roomA.borders[tileIndexA]
+                        if myMap[xX][yY].usedForPassage:
+                            continue
+                        for tileIndexB in range(0, len(roomB.borders) - 1):
+                            (xA, yA) = roomA.borders[tileIndexA]
+                            (xB, yB) = roomB.borders[tileIndexB]
+                            if myMap[xB][yB].usedForPassage:
+                                continue
+                        distance = (xA - xB)**2 + (yA - yB)**2
+                        
+                        if distance < bestDistance or not possibleConnectionFound:
+                            bestDistance = int(distance)
+                            possibleConnectionFound = True
+                            bestTileA = (int(xA), int(yA))
+                            bestTileB = (int(xB), int(yB))
+                            bestRoomB = roomB
+                    if possibleConnectionFound:
+                        createPassage(bestRoomA, bestRoomB, bestTileA, bestTileB)
+                        updateReachLists()
+                        reachIndex = 0
+                        Update()
+
+def linkRooms(room1, room2):
+    room1.connectedRooms.append(room2)
+    room2.connectedRooms.append(room1)
+    
+    if room1.reachableFromMainRoom:
+        room2.setReachable()
+    if room2.reachableFromMainRoom:
+        room1.setReachable()
+
+def createPassage(roomA, roomB, tileA, tileB):
+    '''
+    if not roomB in roomA.connectedRooms:
+        #roomA.connectedRooms.append(roomB)
+        linkRooms(roomA, roomB)
+    if not roomA in roomB.connectedRooms:
+        #roomB.connectedRooms.append(roomA)
+        linkRooms(roomB, roomA)
+    '''
+    linkRooms(roomA, roomB)
+    
+    (xA, yA) = tileA
+    (xB, yB) = tileB
+    
+    passage = tdl.map.bresenham(xA, yA, xB, yB)
+    for (x,y) in passage:
+        openTile(x,y,myMap)
+        myMap[x][y].usedForPassage = True
+    
+    otherTileA = findNeighbours(xA, yA)
+    otherTileB = findNeighbours(xB, yB)
+    bugged = False
+    try:
+        (xOA, yOA) = otherTileA
+    except TypeError:
+        traceback.print_exc()
+        root.draw_char(xB, yB, char = "X", fg = colors.green)
+        tdl.flush()
+        bugged = True
+    
+    try:
+        (xOB, yOB) = otherTileB
+    except TypeError:
+        traceback.print_exc()
+        root.draw_char(xB, yB, char = "X", fg = colors.green)
+        tdl.flush()
+        bugged = True
+
+        
+    if not bugged:
+        otherPassage = tdl.map.bresenham(xOA, yOA, xOB, yOB)
+        for (x,y) in otherPassage:
+            openTile(x,y,myMap)
+            myMap[x][y].usedForPassage = True
+                
+    
+    
+    
+def generateCave():
+    
+    global myMap, baseMap, mapToDisp, maps, visuTiles, state, visuEdges, confTiles, rooms, curRoomIndex, stairs, objects, upStairs, bossDungeonsAppeared, color_dark_wall, color_light_wall, color_dark_ground, color_light_ground, color_dark_gravel, color_light_gravel, townStairs, gluttonyStairs, stairs, upStairs, nemesisList
+    myMap = [[Tile(blocked=False, block_sight=False) for y in range(MAP_HEIGHT)] for x in range(MAP_WIDTH)]
+    visuTiles = []
+    visuEdges = []
+    confTiles = []
+    curRoomIndex = 0
+    curRoomIndex = 0
+    
+    rooms = []
+    
+    stairs = None
+    upStairs = None
+    gluttonyStairs = None
+    townStairs = None
+        
+    color_dark_wall = currentBranch.color_dark_wall
+    color_light_wall = currentBranch.color_light_wall
+    color_dark_ground = currentBranch.color_dark_ground
+    color_dark_gravel = currentBranch.color_dark_gravel
+    color_light_ground = currentBranch.color_light_ground
+    color_light_gravel = currentBranch.color_light_gravel
+
+    
+    numberRooms = 0
+    objects = [player]
+    for x in range(MAP_WIDTH):
+        myMap[x][0].setUnbreakable()
+        removeFromEmptyTiles(x,0)
+        myMap[x][MAP_HEIGHT - 1].setUnbreakable()
+        removeFromEmptyTiles(x, MAP_HEIGHT - 1)
+        for y in range(MAP_HEIGHT):
+            if not myMap[x][y].blocked and not (x,y) in emptyTiles:
+                emptyTiles.append((x,y))
+    for y in range(MAP_HEIGHT):
+        myMap[0][y].setUnbreakable()
+        removeFromEmptyTiles(0, y)
+        myMap[MAP_WIDTH - 1][y].setUnbreakable()
+        removeFromEmptyTiles(MAP_WIDTH - 1, y)
+
+    baseMap = list(deepcopy(myMap))
+
+
+    if baseMap[2][5].blocked:
+        print("WTTTTTTTTTTTTTTTTTTFFFFFFFFFF")
+        print(myMap[2][5].blocked)
+    else:
+        print("Everything is worked as intended in this part of the code")
+        
+    for x in range(1, MAP_WIDTH - 1):
+        for y in range(1, MAP_HEIGHT - 1):
+            if randint(0, 100) < CHANCE_TO_START_ALIVE:
+                closeTile(x, y, myMap)
+
+    if baseMap[2][5].blocked:
+        print("WTTTTTTTTTTTTTTTTTTFFFFFFFFFF")
+        print(myMap[2][5].blocked)
+    else:
+        print("Everything is worked as intended in this part of the code")
+    for loop in range(STEPS_NUMBER):
+        myMap = doStep(myMap)
+    maps = [myMap, baseMap]
+    refreshEmptyTiles()
+    print("Freezing")
+    state = "floodfillPrep"
+
+    if not tdl.event.is_window_closed():
+        print("Continuing")
+        state = "floodfill"
+        while emptyTiles:
+            (x,y) = emptyTiles[0]
+            #time.sleep(0.05)
+            newRoomTiles = []
+            newRoomEdges = []
+            try:
+                floodFill(x,y, newRoomTiles, newRoomEdges)
+            except RecursionError:
+                traceback.print_exc()
+                print(sys.getrecursionlimit())
+                os._exit(-1)
+            newRoom = CaveRoom(newRoomTiles, borders = newRoomEdges)
+            if len(newRoom.tiles) < MIN_ROOM_SIZE:
+                newRoom.remove()
+            else:
+                '''
+                newRoomEdges = []
+                for (x,y) in newRoom.tiles:
+                    if countNeighbours(myMap, x, y, stopAtFirst = True) > 0:
+                        newRoomEdges.append((x,y))
+                newRoom.borders = list(newRoomEdges)
+                '''
+                #visuEdges.extend(newRoom.borders)
+                pass
+                        
+        for room in rooms:
+            room.claimBorders()
+            #visuEdges.extend(room.borders)
+            confTiles.extend(room.contestedTiles)
+        state = "roomMergePrep"
+        refreshEmptyTiles()
+        tempRooms = list(rooms)
+        while tempRooms:
+            for rum in tempRooms:
+                if rum not in rooms:
+                    tempRooms.remove(rum)
+            room = tempRooms[0]
+            oldRoomBorders = []
+            if room.contestedTiles:
+                for (x,y) in room.contestedTiles:
+                    openTile(x,y, myMap)
+                    if (x,y) in visuEdges:
+                        visuEdges.remove((x,y))
+                    for owner in myMap[x][y].belongsTo:
+                        oldRoomBorders.append((x,y))
+                        owner.borders.remove((x,y))
+                        room.mergeWith(owner, oldRoomBorders)
+            tempRooms.remove(room)
+        
+        rooms[0].mainRoom = True
+        rooms[0].reachableFromMainRoom = True
+        
+        connectRooms(rooms)
+        connectRooms(rooms, True)
+        state = "normal"
+        refreshEmptyTiles()
+        checkMap()
+        (pX, pY) = rooms[0].tiles[randint(0, len(rooms[0].tiles) - 1)]
+        player.x = pX
+        player.y = pY
+        print("DONE")
+
+        
         
 def createRoom(room):
     global myMap
@@ -4747,6 +5300,20 @@ def createRoom(room):
             myMap[x][y].dark_fg = color_dark_gravel
             myMap[x][y].dark_bg = color_dark_ground
             myMap[x][y].wall = False
+            
+def checkMap():
+    for x in range(MAP_WIDTH):
+        for y in range(MAP_HEIGHT):
+            if myMap[x][y].blocked:
+                myMap[x][y].applyWallProperties()
+                myMap[x][y].wall = True
+            else:
+                myMap[x][y].fg = color_light_gravel
+                myMap[x][y].bg = color_light_ground
+                myMap[x][y].dark_fg = color_dark_gravel
+                myMap[x][y].dark_bg = color_dark_ground
+                myMap[x][y].wall = False
+            
             
 def createHorizontalTunnel(x1, x2, y):
     global myMap
@@ -5902,8 +6469,9 @@ def placeObjects(room, first = False):
         monsterChances['highCultist'] = 50
     
     for i in range(numMonsters):
-        x = randint(room.x1+1, room.x2-1)
-        y = randint(room.y1+1, room.y2-1)
+        if type(room) is Rectangle:
+            x = randint(room.x1+1, room.x2-1)
+            y = randint(room.y1+1, room.y2-1)
         
         
         if not isBlocked(x, y) and (x, y) != (player.x, player.y):
@@ -6879,6 +7447,7 @@ def initializeFOV():
     pathfinder = tdl.map.AStar(MAP_WIDTH, MAP_HEIGHT, callback = getMoveCost, diagnalCost=1, advanced=False)
     print("shortName = ", currentBranch.shortName)
     con.clear()
+    print("FOV INITIALIZED")
 
 def Update():
     global FOV_recompute
@@ -7263,6 +7832,7 @@ def saveGame():
         file["upStairsIndex"] = objects.index(upStairs)
     gluttBrLevel = dBr.gluttonyDungeon.origDepth
     townBrLevel = dBr.hiddenTown.origDepth
+    greedBrLevel = dBr.greedDungeon.origDepth
     if dungeonLevel == gluttBrLevel and currentBranch.name == 'Main':
         try:
             file["gluttStairsIndex"] = objects.index(gluttonyStairs)
@@ -7284,6 +7854,17 @@ def saveGame():
         except:
             print("Couldn't save Gluttony stairs")
             pass
+    if dungeonLevel == greedBrLevel and currentBranch.name == 'Main':
+        try:
+            file["greedStairsIndex"] = objects.index(greedStairs)
+            print('SAVED FUCKING greed STAIRS AT INDEX {}'.format(objects.index(greedStairs)))
+        except Exception as error:
+            print("===========WARNING============")
+            print("Couldn't save greed stairs")
+            print('Error : {}'.format(type(error)))
+            print('Details : {}'.format(error.args))
+            print('==============================')
+            pass
     file.close()
     
     #mapFile = open(absPicklePath, 'wb')
@@ -7296,7 +7877,7 @@ def newGame():
     DEBUG = False
     REVEL = False
     deleteSaves()
-    bossDungeonsAppeared = {'gluttony': False}
+    bossDungeonsAppeared = {'gluttony': False, 'greed': False}
     gameMsgs = []
     objects = [player]
     logMsgs = []
@@ -7340,7 +7921,7 @@ def newGame():
         highCultistHasAppeared = False #Make so more high cultists can spawn at lower levels (still only one by floor though)
 
 def loadGame():
-    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipmentList, stairs, upStairs, hiroshimanNumber, currentBranch, gluttonyStairs, logMsgs, townStairs
+    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipmentList, stairs, upStairs, hiroshimanNumber, currentBranch, gluttonyStairs, logMsgs, townStairs, greedStairs
     
     
     #myMap = [[Tile(True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)]
@@ -7363,10 +7944,13 @@ def loadGame():
         upStairs = objects[file["upStairsIndex"]]
     gluttBrLevel = dBr.gluttonyDungeon.origDepth
     townBrLevel = dBr.hiddenTown.origDepth
+    greedBrLevel = dBr.greedDungeon.origDepth
     if dungeonLevel == gluttBrLevel and currentBranch.name == 'Main':
         gluttonyStairs = objects[file["gluttStairsIndex"]]
     if dungeonLevel == townBrLevel and currentBranch.name == 'Main':
         townStairs = objects[file["townStairsIndex"]]
+    if dungeonLevel == greedBrLevel and currentBranch.name == 'Main':
+        greedStairs = objects[file["greedStairsIndex"]]
     #mapFile = open(absPicklePath, "rb")
     #myMap = pickle.load(mapFile)
     #mapFile.close()
@@ -7394,6 +7978,7 @@ def saveLevel(level = dungeonLevel):
         print('SAVED FREAKING UPSTAIRS')
     gluttBrLevel = dBr.gluttonyDungeon.origDepth
     townBrLevel = dBr.hiddenTown.origDepth
+    greedBrLevel = dBr.greedDungeon.origDepth
     if dungeonLevel == gluttBrLevel and currentBranch.name == 'Main':
         try:
             mapFile["gluttStairsIndex"] = objects.index(gluttonyStairs)
@@ -7414,6 +7999,17 @@ def saveLevel(level = dungeonLevel):
             mapFile["townStairsIndex"] = objects.index(townStairs)
         except:
             print("Couldn't save Gluttony stairs")
+            pass
+    if dungeonLevel == greedBrLevel and currentBranch.name == 'Main':
+        try:
+            mapFile["greedStairsIndex"] = objects.index(greedStairs)
+            print('SAVED FUCKING greed STAIRS AT INDEX {}'.format(objects.index(greedStairs)))
+        except Exception as error:
+            print("===========WARNING============")
+            print("Couldn't save greed stairs")
+            print('Error : {}'.format(type(error)))
+            print('Details : {}'.format(error.args))
+            print('==============================')
             pass
     mapFile["yunowork"] = "SCREW THIS"
     print("Saved level at " + mapFilePath)
@@ -7446,6 +8042,7 @@ def loadLevel(level, save = True, branch = currentBranch):
         upStairs = objects[xfile["upStairsIndex"]]
     gluttBrLevel = dBr.gluttonyDungeon.origDepth
     townBrLevel = dBr.hiddenTown.origDepth
+    greedBrLevel = dBr.greedDungeon.origDepth
     if level == gluttBrLevel and branch.name == 'Main':
         print("Branch name is {} and gluttony stairs appear in branch Main. Moreover, we are at level {} and they appear at level {}. Therefore we are loading them and NOTHING SHOULD GO FUCKING WRONG.".format(branch.name, level, gluttBrLevel))
         gluttonyStairs = objects[xfile["gluttStairsIndex"]]
@@ -7453,6 +8050,8 @@ def loadLevel(level, save = True, branch = currentBranch):
         print("We didn't load gluttony stairs because they don't exist. So the game SHOULD NOT crash at that point.")
     if level == townBrLevel and branch.name == 'Main':
         townStairs = objects[xfile["townStairsIndex"]]
+    if dungeonLevel == greedBrLevel and currentBranch.name == 'Main':
+        greedStairs = objects[file["greedStairsIndex"]]
         
     message("You climb the stairs")
     print("Loaded level " + str(level))
@@ -7513,7 +8112,10 @@ def nextLevel(boss = False, changeBranch = None, fixedMap = None):
         stairs = tempStairs
         if not boss:
             if currentBranch.fixedMap is None:
-                makeMap()
+                if currentBranch.genType == 'dungeon':
+                    makeMap()
+                elif currentBranch.genType == 'cave':
+                    generateCave()
             elif currentBranch.fixedMap == 'town':
                 makeHiddenTown()
             else:

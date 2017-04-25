@@ -36,16 +36,16 @@ if __name__ == '__main__':
 class Tile:
     def __init__(self, blocked):
         self.blocked = blocked
-        self.indestructible = False
+        self.unbreakable = False
         self.belongsTo = []
         self.usedForPassage = False
         
-    def setIndestructible(self):
+    def setUnbreakable(self):
         self.blocked = True
-        self.indestructible = True
+        self.unbreakable = True
         
     def open(self):
-        if not self.indestructible:
+        if not self.unbreakable:
             self.blocked = False
             return True
         else:
@@ -71,7 +71,7 @@ class Tile:
         return newList
 
         
-class Room:
+class CaveRoom:
     def __init__(self, tiles, borders = []):
         self.tiles = tiles
         self.borders = borders
@@ -416,33 +416,36 @@ def createPassage(roomA, roomB, tileA, tileB):
     
     otherTileA = findNeighbours(xA, yA)
     otherTileB = findNeighbours(xB, yB)
-    
+    bugged = False
     try:
         (xOA, yOA) = otherTileA
     except TypeError:
         traceback.print_exc()
         root.draw_char(xB, yB, char = "X", fg = colors.green)
-        tdl.event.key_wait()
+        tdl.flush()
+        bugged = True
     
     try:
         (xOB, yOB) = otherTileB
     except TypeError:
         traceback.print_exc()
         root.draw_char(xB, yB, char = "X", fg = colors.green)
-        tdl.event.key_wait()
+        tdl.flush()
+        bugged = True
+
         
-    
-    otherPassage = tdl.map.bresenham(xOA, yOA, xOB, yOB)
-    for (x,y) in otherPassage:
-        openTile(x,y,myMap)
-        myMap[x][y].usedForPassage = True
+    if not bugged:
+        otherPassage = tdl.map.bresenham(xOA, yOA, xOB, yOB)
+        for (x,y) in otherPassage:
+            openTile(x,y,myMap)
+            myMap[x][y].usedForPassage = True
                 
     
     
     
 def generateMap():
     global myMap, baseMap, mapToDisp, maps, visuTiles, state, visuEdges, confTiles, rooms, curRoomIndex
-    myMap = [[Tile(False) for y in range(MAP_HEIGHT)] for x in range(MAP_WIDTH)]
+    myMap = [[Tile(blocked=False) for y in range(MAP_HEIGHT)] for x in range(MAP_WIDTH)]
     visuTiles = []
     visuEdges = []
     confTiles = []
@@ -450,17 +453,17 @@ def generateMap():
     curRoomIndex = 0
     rooms = []
     for x in range(MAP_WIDTH):
-        myMap[x][0].setIndestructible()
+        myMap[x][0].setUnbreakable()
         removeFromEmptyTiles(x,0)
-        myMap[x][MAP_HEIGHT - 1].setIndestructible()
+        myMap[x][MAP_HEIGHT - 1].setUnbreakable()
         removeFromEmptyTiles(x, MAP_HEIGHT - 1)
         for y in range(MAP_HEIGHT):
             if not myMap[x][y].blocked and not (x,y) in emptyTiles:
                 emptyTiles.append((x,y))
     for y in range(MAP_HEIGHT):
-        myMap[0][y].setIndestructible()
+        myMap[0][y].setUnbreakable()
         removeFromEmptyTiles(0, y)
-        myMap[MAP_WIDTH - 1][y].setIndestructible()
+        myMap[MAP_WIDTH - 1][y].setUnbreakable()
         removeFromEmptyTiles(MAP_WIDTH - 1, y)
 
     baseMap = list(copy.deepcopy(myMap))
@@ -506,7 +509,7 @@ def generateMap():
                 traceback.print_exc()
                 print(sys.getrecursionlimit())
                 os._exit(-1)
-            newRoom = Room(newRoomTiles, borders = newRoomEdges)
+            newRoom = CaveRoom(newRoomTiles, borders = newRoomEdges)
             if len(newRoom.tiles) < MIN_ROOM_SIZE:
                 newRoom.remove()
             else:
@@ -595,8 +598,13 @@ def update(mapToUse):
                 print("Rooms length : {}".format(len(rooms)))
                 print("CurRoomIndex : {}".format(curRoomIndex))
                 print("X, Y : {} ; {}".format(x, y))
-            for (x,y) in rooms[curRoomIndex].borders:
-                root.draw_char(x, y, "#", fg = colors.orange)
+            try:
+                for (x,y) in rooms[curRoomIndex].borders:
+                    root.draw_char(x, y, "#", fg = colors.orange)
+            except IndexError:
+                print("Rooms length : {}".format(len(rooms)))
+                print("CurRoomIndex : {}".format(curRoomIndex))
+                print("X, Y : {} ; {}".format(x, y))
         elif state == "base":
             drawCentered(root, 70, "Loading...", fg = colors.gray)
     except IndexError:
