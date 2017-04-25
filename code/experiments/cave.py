@@ -421,14 +421,14 @@ def createPassage(roomA, roomB, tileA, tileB):
         (xOA, yOA) = otherTileA
     except TypeError:
         traceback.print_exc()
-        root.draw_char(xOA, yOA, char = "X", fg = colors.green)
+        root.draw_char(xB, yB, char = "X", fg = colors.green)
         tdl.event.key_wait()
     
     try:
         (xOB, yOB) = otherTileB
     except TypeError:
         traceback.print_exc()
-        root.draw_char(xOB, yOB, char = "X", fg = colors.green)
+        root.draw_char(xB, yB, char = "X", fg = colors.green)
         tdl.event.key_wait()
         
     
@@ -588,8 +588,13 @@ def update(mapToUse):
             drawCentered(root, 70, "Filling...", fg = colors.green)
         elif state == "normal":
             drawCentered(root, 70, "Done ! Press ENTER to restart or SPACE to toggle between map and canvas. ", fg = colors.green)
-            for (x,y) in rooms[curRoomIndex].tiles:
-                root.draw_char(x, y, None, bg = colors.yellow)
+            try:
+                for (x,y) in rooms[curRoomIndex].tiles:
+                    root.draw_char(x, y, None, bg = colors.yellow)
+            except IndexError:
+                print("Rooms length : {}".format(len(rooms)))
+                print("CurRoomIndex : {}".format(curRoomIndex))
+                print("X, Y : {} ; {}".format(x, y))
             for (x,y) in rooms[curRoomIndex].borders:
                 root.draw_char(x, y, "#", fg = colors.orange)
         elif state == "base":
