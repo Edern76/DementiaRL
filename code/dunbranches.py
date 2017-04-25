@@ -1,4 +1,5 @@
 import colors
+
 class Branch:
     def __init__(self, shortName, name = None, maxDepth = 99999, branchesFrom = None, branchesTo = None, lightStairsColor = colors.white, darkStairsColor = colors.dark_gray,
                  monsterChances = {'darksoul': 600, 'ogre': 200, 'snake': 50, 'cultist': 150, 'highCultist' : 0}, 
@@ -9,7 +10,7 @@ class Branch:
                  weaponChances = {'sword': 25, 'axe': 25, 'hammer': 25, 'mace': 25},
                  foodChances = {'bread' : 500, 'herbs' : 501, 'rMeat' : 300, 'pie' : 200, 'pasta' : 200, 'meat' : 100, 'hBaguette' : 10}, # TO-DO : Add dumb stuff here with very low chances of spawning (maybe more on Gluttony's branch ?) and dumb effects, aka easter eggs.
                  color_dark_wall = colors.darkest_grey, color_light_wall = colors.darker_grey, color_dark_ground = colors.darkest_sepia, color_dark_gravel = (27, 20, 0),
-                 color_light_ground = colors.darker_sepia, color_light_gravel = (50, 37, 0), bossLevels = [3, 6], bossNames = {'High Inquisitor': 3, 'Gluttony': 6}, fixedMap = None):
+                 color_light_ground = colors.darker_sepia, color_light_gravel = (50, 37, 0), bossLevels = [3, 6], bossNames = {'High Inquisitor': 3, 'Gluttony': 6}, fixedMap = None, genType = 'dungeon'):
         """
         A branch of the dungeon. Please note that the main dungeon is also considered as a branch.
         @type shortName: str
@@ -48,11 +49,14 @@ class Branch:
         self.bossLevels = bossLevels
         self.bossNames = bossNames
         self.fixedMap = fixedMap
+        self.genType = genType
 
 mainDungeon = Branch(shortName = "main", name = "Main", branchesTo = None)
 gluttonyDungeon = Branch(shortName = "glutt", name = "Gluttony Dungeon", maxDepth = 5, branchesFrom = (mainDungeon, 1), lightStairsColor = colors.desaturated_chartreuse, darkStairsColor = colors.darkest_chartreuse, monsterChances = {'darksoul': 400, 'ogre': 200, 'starveling': 250, 'cultist': 150}, itemChances = {'potion': 360, 'scroll': 20, 'weapon': 20, 'shield': 100, 'food': 500}, bossLevels = [5], bossNames = {'Gluttony': 5})
 hiddenTown = Branch(shortName = 'town',name = "Hidden Refuge", maxDepth = 1, branchesFrom = (mainDungeon, 1),lightStairsColor = colors.azure, darkStairsColor = colors.darker_azure, fixedMap = 'town')
+greedDungeon = Branch(shortName = 'greed', name = 'Greed Cavern', maxDepth = 5, branchesFrom= (mainDungeon, 2), lightStairsColor = colors.yellow, darkStairsColor = colors.darker_yellow, genType = 'cave', monsterChances = {'darksoul': 400, 'ogre': 100, 'snake': 10, 'cultist': 150, 'greedyFiend' : 200}, color_light_wall = colors.yellow, color_dark_wall = colors.darker_yellow, itemChances = {'potion': 100, 'scroll': 150, 'weapon': 50, 'shield': 50, 'food': 90, 'money' : 300})
 
 mainDungeon.branchesTo.append((gluttonyDungeon, 1))
 mainDungeon.branchesTo.append((hiddenTown, 1))
+mainDungeon.branchesTo.append((greedDungeon, 2))
     
