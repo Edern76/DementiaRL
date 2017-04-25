@@ -1726,7 +1726,7 @@ class GameObject:
         return deepcopy(self)
 
 class Fighter: #All NPCs, enemies and the player
-    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = [0], shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = None, slots = ['head', 'torso', 'left hand', 'right hand', 'legs', 'feet'], equipmentList = [], toEquip = [], attackFunctions = []):
+    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = [0], shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = None, slots = ['head', 'torso', 'left hand', 'right hand', 'legs', 'feet'], equipmentList = [], toEquip = [], attackFunctions = [], noDirectDamage = False):
         self.noVitHP = hp
         self.BASE_MAX_HP = hp
         self.hp = hp
@@ -1787,6 +1787,7 @@ class Fighter: #All NPCs, enemies and the player
         self.transferDamage = transferDamage
         
         self.attackFunctions = attackFunctions
+        self.noDirectDamage = noDirectDamage
 
     @property
     def basePower(self):
@@ -1946,51 +1947,52 @@ class Fighter: #All NPCs, enemies and the player
     def attack(self, target):
         [hit, criticalHit] = self.toHit(target)
         if hit:
-            penetratedArmor = target.Fighter.armor - self.armorPenetration
-            if penetratedArmor < 0:
-                penetratedArmor = 0
-            if criticalHit:
-                if self.owner.Player and player.Player.getTrait('trait', 'Aggressive').selected:
-                    damage = (randint(self.power - 2, self.power + 2) + 4  - penetratedArmor) * 3
-                else:
-                    damage = (randint(self.power - 2, self.power + 2) - penetratedArmor) * 3
-            else:
-                if self.owner.Player and player.Player.getTrait('trait', 'Aggressive').selected:
-                    damage = randint(self.power - 2, self.power + 2) + 4 - penetratedArmor
-                else:
-                    damage = randint(self.power - 2, self.power + 2) - penetratedArmor
-            if not 'frozen' in convertBuffsToNames(self):
-                if not self.owner.Player:
-                    if damage > 0:
-                        if target == player:
-                            if criticalHit:
-                                message(self.owner.name.capitalize() + ' critically hits you for ' + str(damage) + ' hit points!', colors.dark_orange)
-                            else:
-                                message(self.owner.name.capitalize() + ' attacks you for ' + str(damage) + ' hit points.', colors.orange)
-                        elif self.owner.AI and self.owner.AI.__class__.__name__ == "FriendlyMonster" and self.owner.AI.friendlyTowards == player:
-                            if criticalHit:
-                                message('Your fellow ' + self.owner.name + ' critically hits '+ target.name +' for ' + str(damage) + ' hit points!', colors.darker_green)
-                            else:
-                                message('Your fellow ' + self.owner.name + ' attacks '+ target.name + ' for ' + str(damage) + ' hit points.', colors.dark_green)
-                        else:
-                            if criticalHit:
-                                message(self.owner.name.capitalize() + ' critically hits '+ target.name +' for ' + str(damage) + ' hit points!')
-                            else:
-                                message(self.owner.name.capitalize() + ' attacks '+ target.name + ' for ' + str(damage) + ' hit points.')
-                        target.Fighter.takeDamage(damage, self.owner.name)
+            if not self.noDirectDamage:
+                penetratedArmor = target.Fighter.armor - self.armorPenetration
+                if penetratedArmor < 0:
+                    penetratedArmor = 0
+                if criticalHit:
+                    if self.owner.Player and player.Player.getTrait('trait', 'Aggressive').selected:
+                        damage = (randint(self.power - 2, self.power + 2) + 4  - penetratedArmor) * 3
                     else:
-                        if target == player:
-                            message(self.owner.name.capitalize() + ' attacks you but it has no effect !')
+                        damage = (randint(self.power - 2, self.power + 2) - penetratedArmor) * 3
                 else:
-                    if damage > 0:
-                        if criticalHit:
-                            message('You critically hit ' + target.name + ' for ' + str(damage) + ' hit points!', colors.darker_green)
-                        else:
-                            message('You attack ' + target.name + ' for ' + str(damage) + ' hit points.', colors.dark_green)
-                        target.Fighter.takeDamage(damage, self.owner.name)
-                    
+                    if self.owner.Player and player.Player.getTrait('trait', 'Aggressive').selected:
+                        damage = randint(self.power - 2, self.power + 2) + 4 - penetratedArmor
                     else:
-                        message('You attack ' + target.name + ' but it has no effect!', colors.grey)
+                        damage = randint(self.power - 2, self.power + 2) - penetratedArmor
+                if not 'frozen' in convertBuffsToNames(self):
+                    if not self.owner.Player:
+                        if damage > 0:
+                            if target == player:
+                                if criticalHit:
+                                    message(self.owner.name.capitalize() + ' critically hits you for ' + str(damage) + ' hit points!', colors.dark_orange)
+                                else:
+                                    message(self.owner.name.capitalize() + ' attacks you for ' + str(damage) + ' hit points.', colors.orange)
+                            elif self.owner.AI and self.owner.AI.__class__.__name__ == "FriendlyMonster" and self.owner.AI.friendlyTowards == player:
+                                if criticalHit:
+                                    message('Your fellow ' + self.owner.name + ' critically hits '+ target.name +' for ' + str(damage) + ' hit points!', colors.darker_green)
+                                else:
+                                    message('Your fellow ' + self.owner.name + ' attacks '+ target.name + ' for ' + str(damage) + ' hit points.', colors.dark_green)
+                            else:
+                                if criticalHit:
+                                    message(self.owner.name.capitalize() + ' critically hits '+ target.name +' for ' + str(damage) + ' hit points!')
+                                else:
+                                    message(self.owner.name.capitalize() + ' attacks '+ target.name + ' for ' + str(damage) + ' hit points.')
+                            target.Fighter.takeDamage(damage, self.owner.name)
+                        else:
+                            if target == player:
+                                message(self.owner.name.capitalize() + ' attacks you but it has no effect !')
+                    else:
+                        if damage > 0:
+                            if criticalHit:
+                                message('You critically hit ' + target.name + ' for ' + str(damage) + ' hit points!', colors.darker_green)
+                            else:
+                                message('You attack ' + target.name + ' for ' + str(damage) + ' hit points.', colors.dark_green)
+                            target.Fighter.takeDamage(damage, self.owner.name)
+                        
+                        else:
+                            message('You attack ' + target.name + ' but it has no effect!', colors.grey)
             self.onAttack(target)
         
         else:
@@ -6422,7 +6424,7 @@ def createGreedyFiend(x, y, friendly = False, corpse = False):
             AI_component = BasicMonster()
         else:
             AI_component = FriendlyMonster(friendlyTowards = player)
-        fighterComponent = Fighter(hp=20, armor=2, power=1, xp = 30, deathFunction = deathType, accuracy = 30, evasion = 20, lootFunction=lootOnDeath, lootRate=[15], attackFunctions= [lambda ini, target : stealMoneyAndDamage(ini, target, 300)])
+        fighterComponent = Fighter(hp=20, armor=2, power=1, xp = 30, deathFunction = deathType, accuracy = 30, evasion = 20, lootFunction=lootOnDeath, lootRate=[15], attackFunctions= [lambda ini, target : stealMoneyAndDamage(ini, target, 300)], noDirectDamage = True)
         monster = GameObject(x, y, char = 'f', color = color, name = monName, blocks = True, Fighter=fighterComponent, AI = AI_component)
         return monster
     else:
