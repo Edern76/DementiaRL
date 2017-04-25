@@ -20,6 +20,8 @@ rooms = []
 visuTiles = []
 visuEdges = []
 confTiles = []
+reachableRooms = []
+unreachableRooms = []
 dispEmpty = False
 dispDebug = True
 state = "base"
@@ -229,55 +231,138 @@ def doStep(oldMap):
                 else:
                     openTile(x, y, newMap)
     return newMap
+
+def updateReachLists():
+    global reachableRooms, unreachableRooms
+    reachableRooms = []
+    unreachableRooms = []
+    for room in rooms:
+        if room.reachableFromMainRoom and not room in reachableRooms:
+            reachableRooms.append(room)
+        else:
+            if room not in unreachableRooms:
+                unreachableRooms.append(room)
+
 def connectRooms(roomList, forceAccess = False):
     roomListA = []
     roomListB = []
     
     if forceAccess:
+        '''
         for room in rooms:
             if room.reachableFromMainRoom:
                 roomListB.append(room)
             else:
                 roomListA.append(room)
+        '''
+        roomListB = list(reachableRooms)
+        roomListA = list(unreachableRooms)
     else:
         roomListA = list(rooms)
         roomListB = list(rooms)
     
     bestDistance = 0
-    for roomA in roomListA:
-        possibleConnectionFound = False
-        if (roomA.connectedRooms and not forceAccess):
-            continue
-        for roomB in roomListB:
-            if roomA == roomB or roomB in roomA.connectedRooms:
+    if not forceAccess:
+        for roomA in roomListA:
+            possibleConnectionFound = False
+            if (roomA.connectedRooms and not forceAccess):
                 continue
+            for roomB in roomListB:
+                if roomA == roomB or roomB in roomA.connectedRooms:
+                    continue
+                else:
+                    for tileIndexA in range(0, len(roomA.borders) - 1):
+                        for tileIndexB in range(0, len(roomB.borders) - 1):
+                            (xA, yA) = roomA.borders[tileIndexA]
+                            (xB, yB) = roomB.borders[tileIndexB]
+                        distance = (xA - xB)**2 + (yA - yB)**2
+                        
+                        if distance < bestDistance or not possibleConnectionFound:
+                            bestDistance = int(distance)
+                            possibleConnectionFound = True
+                            bestTileA = (int(xA), int(yA))
+                            bestTileB = (int(xB), int(yB))
+                            bestRoomA = roomA
+                            bestRoomB = roomB
+                        
+            if possibleConnectionFound:
+                createPassage(bestRoomA, bestRoomB, bestTileA, bestTileB)
+    else:
+        updateReachLists()
+        while unreachableRooms:
+            roomA = unreachableRooms[0]
+            possibleConnectionFound = False
+            reachIndex = 0
+            print(reachIndex)
+            if len(unreachableRooms) == 1:
+                print("BREAKING")
+                break
             else:
-                for tileIndexA in range(0, len(roomA.borders) - 1):
-                    for tileIndexB in range(0, len(roomB.borders) - 1):
-                        (xA, yA) = roomA.borders[tileIndexA]
-                        (xB, yB) = roomB.borders[tileIndexB]
-                    distance = (xA - xB)**2 + (yA - yB)**2
-                    
-                    if distance < bestDistance or not possibleConnectionFound:
-                        bestDistance = int(distance)
-                        possibleConnectionFound = True
-                        bestTileA = (int(xA), int(yA))
-                        bestTileB = (int(xB), int(yB))
-                        bestRoomA = roomA
-                        bestRoomB = roomB
-                    
-        if possibleConnectionFound:
-            createPassage(bestRoomA, bestRoomB, bestTileA, bestTileB)
-
+                print(len(unreachableRooms))
+            for roomB in reachableRooms:
+                if roomA == roomB or roomB in roomA.connectedRooms or len(roomB.connectedRooms) > 1:
+                    continue
+                else:
+                    bestDistance = 0
+                    bestRoomA = roomA
+                    for tileIndexA in range(0, len(roomA.borders) - 1):
+                        for tileIndexB in range(0, len(roomB.borders) - 1):
+                            (xA, yA) = roomA.borders[tileIndexA]
+                            (xB, yB) = roomB.borders[tileIndexB]
+                        distance = (xA - xB)**2 + (yA - yB)**2
+                        
+                        if distance < bestDistance or not possibleConnectionFound:
+                            bestDistance = int(distance)
+                            possibleConnectionFound = True
+                            bestTileA = (int(xA), int(yA))
+                            bestTileB = (int(xB), int(yB))
+                            bestRoomB = roomB
+                        
+            if possibleConnectionFound:
+                createPassage(bestRoomA, bestRoomB, bestTileA, bestTileB)
+                updateReachLists()
+                reachIndex = 0
+            else:
+                reachIndex += 1
+                updateReachLists()
+            
+        if len(unreachableRooms) == 1:
+            updateReachLists()
+            roomA = unreachableRooms[0]
+            possibleConnectionFound = False
+            for roomB in reachableRooms:
+                if roomA == roomB or roomB in roomA.connectedRooms:
+                    print("CONTIUNING")
+                    continue
+                else:
+                    bestDistance = 0
+                    bestRoomA = roomA
+                    for tileIndexA in range(0, len(roomA.borders) - 1):
+                        for tileIndexB in range(0, len(roomB.borders) - 1):
+                            (xA, yA) = roomA.borders[tileIndexA]
+                            (xB, yB) = roomB.borders[tileIndexB]
+                        distance = (xA - xB)**2 + (yA - yB)**2
+                        
+                        if distance < bestDistance or not possibleConnectionFound:
+                            bestDistance = int(distance)
+                            possibleConnectionFound = True
+                            bestTileA = (int(xA), int(yA))
+                            bestTileB = (int(xB), int(yB))
+                            bestRoomB = roomB
+                    if possibleConnectionFound:
+                        createPassage(bestRoomA, bestRoomB, bestTileA, bestTileB)
+                        updateReachLists()
+                        reachIndex = 0
+                        update(mapToFuckingUse)
 
 def linkRooms(room1, room2):
-    if room1.reachableFromMainRoom:
-        room2.setReachable()
-    elif room2.reachableFromMainRoom:
-        room1.setReachable()
-    
     room1.connectedRooms.append(room2)
     room2.connectedRooms.append(room1)
+    
+    if room1.reachableFromMainRoom:
+        room2.setReachable()
+    if room2.reachableFromMainRoom:
+        room1.setReachable()
 
 def createPassage(roomA, roomB, tileA, tileB):
     '''
@@ -301,11 +386,13 @@ def createPassage(roomA, roomB, tileA, tileB):
     
     
 def generateMap():
-    global myMap, baseMap, mapToDisp, maps, visuTiles, state, visuEdges, confTiles, rooms
+    global myMap, baseMap, mapToDisp, maps, visuTiles, state, visuEdges, confTiles, rooms, curRoomIndex
     myMap = [[Tile(False) for y in range(MAP_HEIGHT)] for x in range(MAP_WIDTH)]
     visuTiles = []
     visuEdges = []
     confTiles = []
+    curRoomIndex = 0
+    curRoomIndex = 0
     rooms = []
     for x in range(MAP_WIDTH):
         myMap[x][0].setIndestructible()
@@ -381,7 +468,7 @@ def generateMap():
             update(mapToFuckingUse)
         for room in rooms:
             room.claimBorders()
-            visuEdges.extend(room.borders)
+            #visuEdges.extend(room.borders)
             confTiles.extend(room.contestedTiles)
             update(mapToFuckingUse)
         state = "roomMergePrep"
@@ -398,7 +485,8 @@ def generateMap():
             if room.contestedTiles:
                 for (x,y) in room.contestedTiles:
                     openTile(x,y, myMap)
-                    visuEdges.remove((x,y))
+                    if (x,y) in visuEdges:
+                        visuEdges.remove((x,y))
                     for owner in myMap[x][y].belongsTo:
                         oldRoomBorders.append((x,y))
                         owner.borders.remove((x,y))
@@ -461,6 +549,8 @@ def getInput():
     key = tdl.event.key_wait()
     actualKey = key.keychar.upper()
     if actualKey == 'ENTER':
+        global curRoomIndex
+        curRoomIndex = 0
         generateMap()
     elif actualKey == 'SPACE':
         print('CHANGING')
