@@ -976,6 +976,25 @@ def castEnvenom(caster = None, monsterTarget = None):
     for equipment in equipmentList:
         if equipment.Equipment.meleeWeapon or equipment.Equipment.ranged:
             equipment.Equipment.enchant = Enchantment('envenomed', buffOnTarget=[poisoned])
+            
+def stealMoneyAndDamage(initiator, target, amount):
+    # To call, add to attackFunctions : "lambda ini, target : stealMoneyAndDamage(ini, target, [ENTER_DESIRED_AMOUNT_HERE])"
+    def actuallySteal(initiator, amountStolen):
+        target.Player.money -= amountStolen
+        message("{} has stolen {} of your gold pieces !".format(initiator.owner.name.capitalize(), amountStolen), colors.red)
+    leftToSteal = int(amount)
+    if target.Player.money >= leftToSteal:
+        actuallySteal(initiator, amount)
+    else:
+        leftToSteal -= target.Player.money
+        actuallySteal(initiator, target.Player.money)
+        target.Fighter.takeDamage(leftToSteal // 10, damageSource = 'greedy fiend')
+        message("You take {} damage from {} !".format(leftToSteal // 10, initiator.owner.name), colors.red)
+        
+
+
+        
+        
 
 fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 1, arg2 = 12, arg3 = 4)
 heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 20)
@@ -1707,7 +1726,7 @@ class GameObject:
         return deepcopy(self)
 
 class Fighter: #All NPCs, enemies and the player
-    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = [0], shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = None, slots = ['head', 'torso', 'left hand', 'right hand', 'legs', 'feet'], equipmentList = [], toEquip = []):
+    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = [0], shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = None, slots = ['head', 'torso', 'left hand', 'right hand', 'legs', 'feet'], equipmentList = [], toEquip = [], attackFunctions = []):
         self.noVitHP = hp
         self.BASE_MAX_HP = hp
         self.hp = hp
@@ -1766,6 +1785,8 @@ class Fighter: #All NPCs, enemies and the player
         self.spellsOnCooldown = []
         
         self.transferDamage = transferDamage
+        
+        self.attackFunctions = attackFunctions
 
     @property
     def basePower(self):
@@ -1884,6 +1905,9 @@ class Fighter: #All NPCs, enemies and the player
             if MP:
                 target.Fighter.MP -= self.leechAmount
                 castRegenMana(self.leechAmount//2, caster = self.owner)
+        if self.attackFunctions:
+            for func in self.attackFunctions:
+                func(self, target)
         if self.owner == player:
             print('attacker is player')
             for equipment in equipmentList:
@@ -6381,6 +6405,30 @@ def createOgre(x, y, friendly = False, corpse = False):
         if corpse:
             message("You briefly feel something moving beneath your feet...")
         return 'cancelled'
+
+def createGreedyFiend(x, y, friendly = False, corpse = False):
+    if x != player.x or y != player.y:
+        if not corpse:
+            deathType = monsterDeath
+            monName = "greedy fiend"
+            color = colors.dark_orange
+            lootOnDeath = None
+        else:
+            monName = "YOU_SHOULDNT_SEE_THIS"
+            deathType = zombieDeath
+            lootOnDeath = None
+            color = colors.lighter_grey
+        if not friendly:
+            AI_component = BasicMonster()
+        else:
+            AI_component = FriendlyMonster(friendlyTowards = player)
+        fighterComponent = Fighter(hp=20, armor=2, power=1, xp = 30, deathFunction = deathType, accuracy = 30, evasion = 20, lootFunction=lootOnDeath, lootRate=[15], attackFunctions= [lambda ini, target : stealMoneyAndDamage(ini, target, 300)])
+        monster = GameObject(x, y, char = 'f', color = color, name = monName, blocks = True, Fighter=fighterComponent, AI = AI_component)
+        return monster
+    else:
+        if corpse:
+            message("You briefly feel something moving beneath your feet...")
+        return 'cancelled'
     
 def createHiroshiman(x, y):
     if x != player.x or y != player.y:
@@ -6529,6 +6577,26 @@ def placeObjects(room, first = False):
                     print("Couldn't create any minion")
                 highCultistHasAppeared = True
             
+            elif monsterChoice == 'greedyFiend':
+                monster = createGreedyFiend(x, y)
+                dice = randint(0, 100)
+                if dice < 80:
+                    print("Two for the price of one !")
+                    diagonals = [(x+1, y+1), (x-1, y-1), (x-1, y+1), (x+1, y-1)]
+                    created = False
+                    for loop in range(len(diagonals)):
+                        if created:
+                            break
+                        else:
+                            (minionX, minionY) = diagonals[loop]
+                            if not isBlocked(minionX, minionY):
+                                newMinion = createGreedyFiend(minionX, minionY)
+                                objects.append(newMinion)
+                                created = True
+                                print("Created minion")
+                    if not created:
+                        print("Couldn't deliver your additional greedy friend. I know you're so sad right now.") #I'll consider replacing it with a free high inquisitor so as to console you.
+                
             elif monsterChoice == 'starveling':
                 affectedStats = [('vitality', 1), ('slow', 1)]
                 essenceComp = Essence('Gluttony', colors.darker_lime, affectedStats=affectedStats)
