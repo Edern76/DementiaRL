@@ -38,6 +38,7 @@ class Tile:
         self.blocked = blocked
         self.indestructible = False
         self.belongsTo = []
+        self.usedForPassage = False
         
     def setIndestructible(self):
         self.blocked = True
@@ -187,6 +188,31 @@ def countNeighbours(mapToUse, startX, startY, stopAtFirst = False):
         if stopAtFirst and found:
             break
     return count
+
+def findNeighbours(startX, startY):
+    if myMap[startX - 1][startY].blocked:
+        return (startX - 1, startY)
+    
+    elif myMap[startX - 1][startY - 1].blocked:
+        return (startX - 1, startY - 1)
+    
+    elif myMap[startX - 1][startY + 1].blocked:
+        return (startX - 1, startY + 1)
+    
+    elif myMap[startX + 1][startY].blocked:
+        return (startX + 1, startY)
+    
+    elif myMap[startX + 1][startY - 1].blocked:
+        return (startX + 1, startY - 1)
+    
+    elif myMap[startX + 1][startY + 1].blocked:
+        return (startX + 1, startY + 1)
+    
+    elif myMap[startX][startY - 1].blocked:
+        return (startX, startY - 1)
+    
+    elif myMap[startX][startY + 1].blocked:
+        return (startX, startY + 1)
 
 def drawCentered(cons = root , y = 1, text = "Lorem Ipsum", fg = None, bg = None):
     xCentered = (WIDTH - len(text))//2
@@ -338,9 +364,14 @@ def connectRooms(roomList, forceAccess = False):
                     bestDistance = 0
                     bestRoomA = roomA
                     for tileIndexA in range(0, len(roomA.borders) - 1):
+                        (xX, yY) = roomA.borders[tileIndexA]
+                        if myMap[xX][yY].usedForPassage:
+                            continue
                         for tileIndexB in range(0, len(roomB.borders) - 1):
                             (xA, yA) = roomA.borders[tileIndexA]
                             (xB, yB) = roomB.borders[tileIndexB]
+                            if myMap[xB][yB].usedForPassage:
+                                continue
                         distance = (xA - xB)**2 + (yA - yB)**2
                         
                         if distance < bestDistance or not possibleConnectionFound:
@@ -381,6 +412,30 @@ def createPassage(roomA, roomB, tileA, tileB):
     passage = tdl.map.bresenham(xA, yA, xB, yB)
     for (x,y) in passage:
         openTile(x,y,myMap)
+        myMap[x][y].usedForPassage = True
+    
+    otherTileA = findNeighbours(xA, yA)
+    otherTileB = findNeighbours(xB, yB)
+    
+    try:
+        (xOA, yOA) = otherTileA
+    except TypeError:
+        traceback.print_exc()
+        root.draw_char(xOA, yOA, char = "X", fg = colors.green)
+        tdl.event.key_wait()
+    
+    try:
+        (xOB, yOB) = otherTileB
+    except TypeError:
+        traceback.print_exc()
+        root.draw_char(xOB, yOB, char = "X", fg = colors.green)
+        tdl.event.key_wait()
+        
+    
+    otherPassage = tdl.map.bresenham(xOA, yOA, xOB, yOB)
+    for (x,y) in otherPassage:
+        openTile(x,y,myMap)
+        myMap[x][y].usedForPassage = True
                 
     
     
@@ -499,7 +554,9 @@ def generateMap():
         connectRooms(rooms)
         connectRooms(rooms, True)
         state = "normal"
+        refreshEmptyTiles()
         update(mapToFuckingUse)
+
         
         
     
