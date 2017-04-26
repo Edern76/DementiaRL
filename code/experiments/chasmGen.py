@@ -1,6 +1,5 @@
 import tdl, colors, copy, pdb, traceback, os, sys, time
 from random import *
-from colors import darker_sepia
 from custom_except import *
 
 
@@ -9,7 +8,7 @@ MAP_WIDTH, MAP_HEIGHT = 140, 60
 MID_MAP_WIDTH, MID_MAP_HEIGHT = MAP_WIDTH//2, MAP_HEIGHT//2
 MID_WIDTH, MID_HEIGHT = int(WIDTH/2), int(HEIGHT/2)
 
-CHANCE_TO_START_ALIVE = 55
+CHANCE_TO_START_ALIVE = 65
 DEATH_LIMIT = 3
 BIRTH_LIMIT = 4
 STEPS_NUMBER = 2
@@ -25,6 +24,11 @@ confTiles = []
 dispEmpty = False
 dispDebug = True
 state = "base"
+unchasmable = []
+lastX = 0
+lastY = 0
+firstX = 0
+firstY = 0
 
 curRoomIndex = 0
 
@@ -34,8 +38,10 @@ if __name__ == '__main__':
     root = tdl.init(WIDTH, HEIGHT, 'Dementia')
     
 class Tile:
-    def __init__(self, blocked):
+    def __init__(self, blocked, x, y):
         self.blocked = blocked
+        self.x = x
+        self.y = y
         self.indestructible = False
         self.belongsTo = []
         self.fg = colors.dark_grey
@@ -166,35 +172,33 @@ def createRoom(room):
     for x in range(room.x1 + 1, room.x2):
         for y in range(room.y1 + 1, room.y2):
             myMap[x][y].blocked = False
-            myMap[x][y].bg = colors.green
-            room.tiles.append(myMap[x][y])
-            roomTiles.append(myMap[x][y])
+            roomTiles.append((x, y))
             
 def createHorizontalTunnel(x1, x2, y):
     global myMap, tunnelTiles
     for x in range(min(x1, x2), max(x1, x2) + 1):
         myMap[x][y].blocked = False
-        tunnelTiles.append(myMap[x][y])
+        tunnelTiles.append((x, y))
             
 def createVerticalTunnel(y1, y2, x):
     global myMap, tunnelTiles
     for y in range(min(y1, y2), max(y1, y2) + 1):
         myMap[x][y].blocked = False
-        tunnelTiles.append(myMap[x][y])
+        tunnelTiles.append((x, y))
 
 def unblockTunnels():
-    global myMap, tunnelTiles
+    global myMap, tunnelTiles, roomTiles
     for x in range(MAP_WIDTH):
         for y in range(MAP_HEIGHT):
-            if myMap[x][y].chasm and myMap[x][y] in tunnelTiles:
+            if myMap[x][y].chasm and ((x, y) in unchasmable or ((x,y) in tunnelTiles and not (x, y) in roomTiles)):
                 myMap[x][y].chasm = False
                 myMap[x][y].fg = colors.lighter_grey
-                myMap[x][y].bg = colors.red
+                myMap[x][y].bg = colors.darker_sepia
     
 def makeMap():
-    global myMap, baseMap, rooms, roomTiles, tunnelTiles
+    global myMap, baseMap, rooms, roomTiles, tunnelTiles, unchasmable, firstX, firstY, lastX, lastY
 
-    myMap = [[Tile(blocked = True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
+    myMap = [[Tile(blocked = True, x = x, y = y) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
     rooms = []
     roomTiles = []
     tunnelTiles = []
@@ -229,6 +233,7 @@ def makeMap():
                 break
         if not intersection:
             createRoom(newRoom)
+            lastCreatedRoom = newRoom
             (new_x, new_y) = newRoom.center()
             if numberRooms != 0:
                 (previous_x, previous_y) = rooms[numberRooms-1].center()
@@ -238,8 +243,17 @@ def makeMap():
                 else:
                     createVerticalTunnel(previous_y, new_y, previous_x)
                     createHorizontalTunnel(previous_x, new_x, new_y)
+            else:
+                firstX, firstY = new_x, new_y
+                for x in range(newRoom.x1 + 1, newRoom.x2):
+                    for y in range(newRoom.y1 + 1, newRoom.y2):
+                        unchasmable.append((x, y))
             rooms.append(newRoom)
             numberRooms += 1
+    lastX, lastY = new_x, new_y
+    for x in range(lastCreatedRoom.x1 + 1, lastCreatedRoom.x2):
+        for y in range(lastCreatedRoom.y1 + 1, lastCreatedRoom.y2):
+            unchasmable.append((x, y))
     
     for x in range(1, MAP_WIDTH - 1):
         for y in range(1, MAP_HEIGHT - 1):
@@ -249,10 +263,6 @@ def makeMap():
                 myMap[x][y].chasm = False
     for loop in range(STEPS_NUMBER):
         myMap = doStep(myMap)
-    for tile in roomTiles:
-        tile.bg = colors.green
-    for tile in tunnelTiles:
-        tile.bg = colors.blue
     unblockTunnels()
 
 myMap = [[]]
@@ -342,6 +352,11 @@ def update(mapToUse):
                     root.draw_char(x, y, char = '#', fg = mapToUse[x][y].fg, bg = mapToUse[x][y].bg)
                 else:
                     root.draw_char(x, y, char = None, fg = mapToUse[x][y].fg, bg = mapToUse[x][y].bg)
+                if (x, y) == (firstX, firstY):
+                    root.draw_char(x, y, char = 'X', fg = colors.red, bg = mapToUse[x][y].bg)
+                if (x, y) == (lastX, lastY):
+                    root.draw_char(x, y, char = 'X', fg = colors.green, bg = mapToUse[x][y].bg)
+                    
                     
         #if dispEmpty:
         #    for (x,y) in emptyTiles:
