@@ -4721,7 +4721,7 @@ dispDebug = True
 unchasmable = []
 
 class Tile:
-    def __init__(self, blocked, block_sight = None, acid = False, acidCooldown = 5, character = None, fg = None, bg = None, dark_fg = None, dark_bg = None, chasm = False, wall = False):
+    def __init__(self, blocked, x, y, block_sight = None, acid = False, acidCooldown = 5, character = None, fg = None, bg = None, dark_fg = None, dark_bg = None, chasm = False, wall = False):
         self.blocked = blocked
         self.explored = False
         self.unbreakable = False
@@ -4736,6 +4736,8 @@ class Tile:
         self.DARK_BG = dark_bg
         self.wall = wall
         self.chasm = chasm
+        self.x = x
+        self.y = y
         self.secretWall = False
         if block_sight is None:
             block_sight = blocked
@@ -4814,11 +4816,13 @@ class Tile:
     def setUnbreakable(self):
         self.blocked = True
         self.unbreakable = True
+        self.wall = True
         
     def open(self):
         if not self.unbreakable:
             self.blocked = False
             self.block_sight = False
+            self.wall = False
             return True
         else:
             return False
@@ -4827,6 +4831,7 @@ class Tile:
         if not self.blocked:
             self.blocked = True
             self.block_sight = True
+            self.wall = True
     
     def addOwner(self, toAdd):
         if not toAdd in self.belongsTo:
@@ -5250,7 +5255,7 @@ def createPassage(roomA, roomB, tileA, tileB):
     
 def generateCave():
     global myMap, baseMap, mapToDisp, maps, visuTiles, state, visuEdges, confTiles, rooms, curRoomIndex, stairs, objects, upStairs, bossDungeonsAppeared, color_dark_wall, color_light_wall, color_dark_ground, color_light_ground, color_dark_gravel, color_light_gravel, townStairs, gluttonyStairs, stairs, upStairs, nemesisList
-    myMap = [[Tile(blocked=False, block_sight=False) for y in range(MAP_HEIGHT)] for x in range(MAP_WIDTH)]
+    myMap = [[Tile(blocked=False, x = x, y = y, block_sight=False) for y in range(MAP_HEIGHT)] for x in range(MAP_WIDTH)]
     visuTiles = []
     visuEdges = []
     confTiles = []
@@ -5406,7 +5411,8 @@ def checkMap():
         for y in range(MAP_HEIGHT):
             if myMap[x][y].wall:
                 myMap[x][y].applyWallProperties()
-                #myMap[x][y].wall = True
+                if myMap[x][y].chasm:
+                    myMap[x][y].dark_fg = colors.black
             elif myMap[x][y].chasm and not myMap[x][y].secretWall:
                 myMap[x][y].applyChasmProperties()
                 myMap[x][y].wall = False
@@ -5536,11 +5542,10 @@ def unblockTunnels():
                 elif not myMap[x][y].secretWall:
                     myMap[x][y].applyGroundProperties()
 
-def makeMap():
+def makeMap(generateChasm = False):
     global myMap, stairs, objects, upStairs, bossDungeonsAppeared, color_dark_wall, color_light_wall, color_dark_ground, color_light_ground, color_dark_gravel, color_light_gravel, townStairs, gluttonyStairs, stairs, upStairs, nemesisList, roomTiles, tunnelTiles, unchasmable
     
     nemesis = None
-    found = False
     
     found = checkFile('meta.bak', absMetaDirPath)
 
@@ -5580,7 +5585,7 @@ def makeMap():
     color_light_ground = currentBranch.color_light_ground
     color_light_gravel = currentBranch.color_light_gravel
 
-    myMap = [[Tile(True, wall = True, chasm = True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
+    myMap = [[Tile(True, x = x, y = y, wall = True, chasm = generateChasm) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
     rooms = []
     roomTiles = []
     tunnelTiles = []
@@ -5643,13 +5648,14 @@ def makeMap():
         for y in range(lastCreatedRoom.y1 + 1, lastCreatedRoom.y2):
             unchasmable.append((x, y))
     
-    for x in range(1, MAP_WIDTH - 1):
-        for y in range(1, MAP_HEIGHT - 1):
-            if randint(0, 100) < CHANCE_TO_START_ALIVE_CHASM:
-                myMap[x][y].chasm = False
-    for loop in range(STEPS_NUMBER):
-        myMap = doChasmStep(myMap)
-    unblockTunnels()
+    if generateChasm:
+        for x in range(1, MAP_WIDTH - 1):
+            for y in range(1, MAP_HEIGHT - 1):
+                if randint(0, 100) < CHANCE_TO_START_ALIVE_CHASM:
+                    myMap[x][y].chasm = False
+        for loop in range(STEPS_NUMBER):
+            myMap = doChasmStep(myMap)
+        unblockTunnels()
     checkMap()
     
     if nemesis is not None:
@@ -5746,7 +5752,7 @@ def makeMap():
          
 def makeBossLevel():
     global myMap, objects, upStairs, rooms, numberRooms
-    myMap = [[Tile(True, wall = True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
+    myMap = [[Tile(True, x = x, y = y, wall = True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
     objects = [player]
     rooms = []
     numberRooms = 0
@@ -7795,7 +7801,10 @@ def chat():
         else:
             msgString = 'You start a heated philosophical debate with yourself.'
             message(msgString)
+
 def GetNamesUnderLookCursor():
+    tile = myMap[lookCursor.x][lookCursor.y]
+    tileDisp = 'Chasm: ' + str(tile.chasm)
     names = [obj for obj in objects
                 if obj.x == lookCursor.x and obj.y == lookCursor.y and (obj.x, obj.y in visibleTiles) and obj != lookCursor]
     for loop in range(len(names)):
@@ -7810,6 +7819,7 @@ def GetNamesUnderLookCursor():
             else:
                 displayName = names[loop].name
         names[loop] = displayName
+    names.insert(0, tileDisp)
     names = ', '.join(names)
     return names.capitalize()
 

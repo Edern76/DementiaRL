@@ -312,7 +312,7 @@ def refreshEmptyTiles():
                 emptyTiles.append((x,y))
 
 def doStep(oldMap):
-    newMap = list(copy.deepcopy(myMap))
+    newMap = list(copy.deepcopy(oldMap))
     for x in range(1, MAP_WIDTH - 1):
         for y in range(1, MAP_HEIGHT - 1):
             neighbours = countNeighbours(oldMap, x, y)
