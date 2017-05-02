@@ -22,6 +22,7 @@ from code.dunbranches import gluttonyDungeon
 from code.custom_except import *
 from music import playWavSound
 from multiprocessing import freeze_support, current_process
+import code.experiments.chasmGen as chasmGen
 
 activeProcess = []
 
@@ -3972,8 +3973,8 @@ def getInput():
         for x in range(MAP_WIDTH):
             for y in range(MAP_HEIGHT):
                 try:
-                    #if not myMap[x][y].block_sight: #DO NOT REMOVE THIS CHECK. Unless you'd like to see what would happen if the game was running on an actual toaster.
-                    myMap[x][y].explored = True
+                    if not myMap[x][y].block_sight: #DO NOT REMOVE THIS CHECK. Unless you'd like to see what would happen if the game was running on an actual toaster.
+                        myMap[x][y].explored = True
                 except:
                     pass
         for spell in spells:
@@ -5897,13 +5898,7 @@ def makeMap(generateChasm = True):
             unchasmable.append((x, y))
     
     if generateChasm:
-        for x in range(1, MAP_WIDTH - 1):
-            for y in range(1, MAP_HEIGHT - 1):
-                if randint(0, 100) < CHANCE_TO_START_ALIVE_CHASM:
-                    myMap[x][y].chasm = False
-        for loop in range(STEPS_NUMBER):
-            myMap = doChasmStep(myMap)
-        unblockTunnels()
+        myMap = chasmGen.createChasms(myMap, roomTiles, tunnelTiles, unchasmable)
     checkMap()
     
     if nemesis is not None:
