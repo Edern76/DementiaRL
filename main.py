@@ -192,6 +192,7 @@ RESURECTABLE_CORPSES = ["darksoul", "ogre"]
 
 BASE_HUNGER = 500
 
+MAX_ASTAR_FAILS = 2
 
 # - Spells -
 #_____________ CONSTANTS __________________
@@ -240,6 +241,8 @@ player = None
 levelAttributes = None
 currentBranch = dBr.mainDungeon #Setting this to None causes errors. It doesn't matter tough, since this gets updated on loading or starting a game.
 dungeonLevel = 1
+
+
 
 def findCurrentDir():
     if getattr(sys, 'frozen', False):
@@ -2266,7 +2269,7 @@ class BasicMonster: #Basic monsters' AI
 
                 else:
                     print("Blocked")
-                    if self.selectedTarget and self.failCounter < 3:
+                    if self.selectedTarget and self.failCounter < MAX_ASTAR_FAILS:
                         print("Recalculating")
                         self.didRecalcThisTurn = True
                         self.failCounter += 1
@@ -2277,7 +2280,7 @@ class BasicMonster: #Basic monsters' AI
                         monster.move(randint(-1, 1), randint(-1, 1)) #wandering  
                     
             elif not monster.astarPath or pathState == "fail":
-                if self.selectedTarget and self.failCounter < 3:
+                if self.selectedTarget and self.failCounter < MAX_ASTAR_FAILS:
                     print("Trying to calculate")
                     mustCalculate = True
                     self.didRecalcThisTurn = True
@@ -2286,7 +2289,7 @@ class BasicMonster: #Basic monsters' AI
                 else:
                     print("No target")
                     monster.move(randint(-1, 1), randint(-1, 1)) #wandering
-                    if self.failCounter >= 3:
+                    if self.failCounter >= MAX_ASTAR_FAILS:
                         message("{} has a dumb expression on its face.".format(monster.name))
 
 
