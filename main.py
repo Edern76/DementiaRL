@@ -1715,6 +1715,18 @@ class GameObject:
             elif self == player:
                 return 'didnt-take-turn'
     
+    def moveTo(self, otherX, otherY):
+        if self.Fighter and 'frozen' in convertBuffsToNames(self.Fighter):
+            pass
+        elif not isBlocked(otherX, otherY) or self.ghost:
+            self.x = int(otherX)
+            self.y = int(otherY)
+        else:
+            if self.Player and self.Fighter and 'confused' in convertBuffsToNames(self.Fighter):
+                message('You bump into a wall !')
+            elif self == player:
+                return 'didnt-take-turn'
+    
     def draw(self):
         if (self.x, self.y) in visibleTiles or REVEL:
             con.draw_char(self.x, self.y, self.char, self.color, bg=None)
@@ -2127,13 +2139,28 @@ class Pathfinder(threading.Thread):
 
 class BasicMonster: #Basic monsters' AI
     def __init__(self):
-        self.selectedTarget = None 
+        self.selectedTarget = None
+        self.dumbCounter = 0
+        self.failCounter = 0
+        self.didRecalcThisTurn = False
+        for loop in range(10):
+            print("!!!!!!!! SETTING TARGET TO NONE !!!!!!!!")
+        print()
+    
+    def setFuckingTarget(self, target):
+        self.selectedTarget = target
 
     def takeTurn(self):
         global mustCalculate
         monster = self.owner
         targets = []
+        self.selectedTarget = None
+        self.setFuckingTarget(None)
+        self.dumbCounter = 0
+        self.failCounter = 0
+        self.didRecalcThisTurn = False
         priorityTargetFound = False
+        
         monsterVisibleTiles = tdl.map.quick_fov(x = monster.x, y = monster.y,callback = isVisibleTile , fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
         if not 'frozen' in convertBuffsToNames(self.owner.Fighter) and monster.distanceTo(player) <= 15:
             #print(monster.name + " is less than 15 tiles to player.")
@@ -2154,18 +2181,29 @@ class BasicMonster: #Basic monsters' AI
                     self.selectedTarget = player
                     print("PLAYER IN TARGETS")
                     print(self.selectedTarget)
-                    targets.remove(targets.index(player))
+                    try:
+                        targets.remove(targets.index(player))
+                    except:
+                        print("================ERROR==================")
+                        for target in targets:
+                            print(target.name)
+                        print("=======================================")
                     if monster.distanceTo(player) < 2:
                         priorityTargetFound = True
+                print("BEFORE PRIORITY : {}".format(self.selectedTarget.name))
                 if not priorityTargetFound:
                     for enemyIndex in range(len(targets)):
                         enemy = targets[enemyIndex]
                         if monster.distanceTo(enemy) < 2:
+                            print("PRIORITIZING ENEMY {}".format(enemy.name))
                             self.selectedTarget = enemy
                         else:
                             if self.selectedTarget == None or monster.distanceTo(self.selectedTarget) > monster.distanceTo(enemy):
                                 self.selectedTarget = enemy
+                else:
+                    print("NO PRIORITY, TARGET IS {}".format(self.selectedTarget.name))
             if self.selectedTarget is not None:
+                print("SELECTED TARGET IS NOT NONE")
                 if monster.distanceTo(self.selectedTarget) < 2:
                     monster.Fighter.attack(self.selectedTarget)
                 #else:
@@ -2178,8 +2216,11 @@ class BasicMonster: #Basic monsters' AI
                     
             #elif (monster.x, monster.y) in visibleTiles and monster.distanceTo(player) >= 2:
                 #monster.moveAstar(player.x, player.y)
+                else:
+                    print("TRYING TO MOVE")
+                    self.tryMove()
             else:
-                print("TRYING TO MOVE")
+                print("No target, still trying to move")
                 self.tryMove()
                 
         elif not 'frozen' in convertBuffsToNames(self.owner.Fighter):
@@ -2189,31 +2230,64 @@ class BasicMonster: #Basic monsters' AI
         global mustCalculate
         monster = self.owner
         if not 'frozen' in convertBuffsToNames(monster.Fighter) and monster.distanceTo(player) >= 2:
-            pathState = "complete"
+            print("IN TRYMOVE BLOCK")
+            print("SELECTED TARGET : {}".format(self.selectedTarget))
+            pathState = "fail"
             diagPathState = None
-            if monster.astarPath:
+            forceRecalculate = False
+            if monster.astarPath and ((not self.selectedTarget) or self.didRecalcThisTurn):
                 print("Found astarPath")
-                if not monster.astarPath[0].blocked:
+                potentialX = int(monster.astarPath[0].x)
+                potentialY = int(monster.astarPath[0].y)
+                '''
+                if monster.distanceToCoords(potentialX, potentialY) > monster.distanceToCoords(int(self.selectedTarget.x), int(self.selectedTarget.y)):
+                    if self.dumbCounter < 1:
+                        self.dumbCounter += 1
+                        forceRecalculate = True
+                    else:
+                        message("{} was too dumb to try to find a new path.".format(monster.name))
+                '''
+                        
+                if not monster.astarPath[0].blocked and not forceRecalculate:
                     print("Not blocked")
-                    (x, y) = monster.astarPath[0]
-                    monster.move(x,y)
+                    print("ASTARX {} | ASTARY {}".format(monster.astarPath[0].x, monster.astarPath[0].y))
+                    x = int(monster.astarPath[0].x)
+                    y = int(monster.astarPath[0].y)
+                    if x == monster.x and y == monster.y:
+                        print("Next step is identical to monster current position")
+                        if len(monster.astarPath) > 1:
+                            x = int(monster.astarPath[1].x)
+                            y = int(monster.astarPath[1].y)
+                        else:
+                            print("Astar path is way too short")
+                            print(monster.astarPath)
+                    monster.moveTo(x, y)
+                    monster.astarPath.remove(monster.astarPath[0])
+
                 else:
                     print("Blocked")
-                    if self.selectedTarget:
+                    if self.selectedTarget and self.failCounter < 3:
                         print("Recalculating")
+                        self.didRecalcThisTurn = True
+                        self.failCounter += 1
                         mustCalculate = True
                         mobsToCalculate.append(monster)
                     else:
+                        message("{} has a dumb expression on its face.".format(monster.name))
                         monster.move(randint(-1, 1), randint(-1, 1)) #wandering  
                     
             elif not monster.astarPath or pathState == "fail":
-                if self.selectedTarget:
+                if self.selectedTarget and self.failCounter < 3:
                     print("Trying to calculate")
                     mustCalculate = True
+                    self.didRecalcThisTurn = True
+                    self.failCounter += 1
                     mobsToCalculate.append(monster)
                 else:
                     print("No target")
-                    monster.move(randint(-1, 1), randint(-1, 1)) #wandering  
+                    monster.move(randint(-1, 1), randint(-1, 1)) #wandering
+                    if self.failCounter >= 3:
+                        message("{} has a dumb expression on its face.".format(monster.name))
 
 
 class Charger:
@@ -3800,6 +3874,7 @@ def quitGame(message, backToMainMenu = False):
     if backToMainMenu:
         mainMenu()
     else:
+        stopProcess()
         raise SystemExit(str(message))
     
 def stopProcess():
@@ -4673,8 +4748,14 @@ def isVisibleTile(x, y):
         return True
 
 def isBlocked(x, y): #With this function, making a check such as myMap[x][y].blocked is deprecated and should not be used anymore outside of this function (or FOV related stuff), since the latter does exactly the same job in addition to checking for blocking objects.
-    if myMap[x][y].blocked:
-        return True #If the Tile is already set as blocking, there's no point in making further checks
+    try:
+        if myMap[x][y].blocked:
+            return True #If the Tile is already set as blocking, there's no point in making further checks
+    except IndexError:
+        traceback.print_exc()
+        print("X : {} | Y : {}".format(x,y))
+        quitGame("Quitted due to error")
+        
     
     for object in objects:
         try: #As all statements starting with this, ignore PyDev warning. However, please note that objects refers to the list of objects that we created and IS NOT defined by default in any library used (so don't call it out of the blue), contrary to object.
@@ -5165,6 +5246,12 @@ def refreshEmptyTiles():
         for y in range(MAP_HEIGHT):
             if not myMap[x][y].blocked:
                 emptyTiles.append((x,y))
+                
+def updateTileCoords():
+    for x in range(MAP_WIDTH):
+        for y in range(MAP_HEIGHT):
+            myMap[x][y].x = int(x)
+            myMap[x][y].y = int(y)
 
 def doStep(oldMap):
     newMap = list(deepcopy(baseMap))
@@ -5539,9 +5626,10 @@ def generateCave():
                 placeObjects(room, True)
             else:
                 placeObjects(room, False)
+        updateTileCoords()
         print("DONE")
 
-        gameState = 'dead'
+        #gameState = 'dead' #What the hell ?
 
 
 ROOM_MAX_SIZE = 10
@@ -5904,6 +5992,7 @@ def makeMap(generateChasm = False):
         global gluttonyStairs
         print('Wrong branch for gluttony stairs')
         gluttonyStairs = None
+    updateTileCoords()
          
 def makeBossLevel():
     global myMap, objects, upStairs, rooms, numberRooms
@@ -8524,7 +8613,7 @@ def playGame():
                 print(len(mobsToCalculate))
                 for mob in mobsToCalculate:
                     newPathfinder = Pathfinder(mob, mob.AI.selectedTarget.x, mob.AI.selectedTarget.y)
-                    pathfinder.append(newPathfinder)
+                    pathfinders.append(newPathfinder)
                     
                 for pathfind in pathfinders:
                     pathfind.start()
