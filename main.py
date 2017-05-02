@@ -192,7 +192,7 @@ RESURECTABLE_CORPSES = ["darksoul", "ogre"]
 
 BASE_HUNGER = 500
 
-MAX_ASTAR_FAILS = 2
+MAX_ASTAR_FAILS = 1 #Possibly unstable at 1 (but best performance), if you get weird results with Astar (aside from freezing) try bumping this number up a LITTLE bit (3 is already way overkill)
 
 # - Spells -
 #_____________ CONSTANTS __________________
@@ -2269,7 +2269,7 @@ class BasicMonster: #Basic monsters' AI
 
                 else:
                     print("Blocked")
-                    if self.selectedTarget and self.failCounter < MAX_ASTAR_FAILS:
+                    if self.selectedTarget and self.failCounter <= MAX_ASTAR_FAILS:
                         print("Recalculating")
                         self.didRecalcThisTurn = True
                         self.failCounter += 1
@@ -2280,7 +2280,7 @@ class BasicMonster: #Basic monsters' AI
                         monster.move(randint(-1, 1), randint(-1, 1)) #wandering  
                     
             elif not monster.astarPath or pathState == "fail":
-                if self.selectedTarget and self.failCounter < MAX_ASTAR_FAILS:
+                if self.selectedTarget and self.failCounter <= MAX_ASTAR_FAILS:
                     print("Trying to calculate")
                     mustCalculate = True
                     self.didRecalcThisTurn = True
@@ -2289,7 +2289,7 @@ class BasicMonster: #Basic monsters' AI
                 else:
                     print("No target")
                     monster.move(randint(-1, 1), randint(-1, 1)) #wandering
-                    if self.failCounter >= MAX_ASTAR_FAILS:
+                    if self.failCounter > MAX_ASTAR_FAILS:
                         message("{} has a dumb expression on its face.".format(monster.name))
 
 
