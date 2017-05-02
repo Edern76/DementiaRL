@@ -1,4 +1,5 @@
-import colors, math, textwrap, time, os, sys, code, gzip, pathlib, traceback, ffmpy, pdb, copy #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
+
+import colors, math, textwrap, time, os, sys, code, gzip, pathlib, traceback, ffmpy, pdb, copy, queue #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
 import tdlib as tdl
 import code.dialog as dial
 import music as mus
@@ -11,6 +12,7 @@ from math import *
 from code.custom_except import *
 from copy import copy, deepcopy
 from os import makedirs
+from queue import *
 from code.constants import MAX_HIGH_CULTIST_MINIONS
 import code.nameGen as nameGen
 import code.xpLoaderPy3 as xpL
@@ -958,6 +960,7 @@ def castDrawRectangle(caster = None, monsterTarget = None):
     else:
         return 'cancelled'
 
+
 def castEnvenom(caster = None, monsterTarget = None):
     poisoned = Buff('poisoned', colors.purple, owner = None, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10))
     for equipment in equipmentList:
@@ -978,10 +981,21 @@ def stealMoneyAndDamage(initiator, target, amount):
         target.Fighter.takeDamage(leftToSteal // 10, damageSource = 'greedy fiend')
         message("You take {} damage from {} !".format(leftToSteal // 10, initiator.owner.name), colors.red)
         
+def castAstarPath(caster = None, monsterTarget = None):
+    global FOV_recompute
+    (goalX, goalY) = targetTile(unlimited=True)
+    if targetTile == 'cancelled':
+        return 'cancelled'
+    else:
+        path = astarPath(player.x, player.y, goalX, goalY)
+        print('astar path from spell:', path)
+        for tile in path:
+            sign = GameObject(tile.x, tile.y, '.', 'astarsign', colors.green, blocks = False, Ghost=True)
+            objects.append(sign)
+        FOV_recompute = True
+        Update()
+        return
 
-
-        
-        
 
 fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 1, arg2 = 12, arg3 = 4)
 heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 20)
@@ -994,8 +1008,9 @@ ressurect = Spell(ressourceCost = 10, cooldown = 15, useFunction=castRessurect, 
 placeTag = Spell(ressourceCost = 0, cooldown = 0, useFunction=castPlaceTag, name = 'DEBUG : Place tag', ressource = 'MP', type = 'Occult')
 drawRect = Spell(ressourceCost = 0, cooldown = 0, useFunction=castDrawRectangle, name = 'DEBUG : Draw Rectangle', ressource = 'MP', type = 'Occult')
 envenom = Spell(ressourceCost= 3, cooldown = 20, useFunction=castEnvenom, name = 'Envenom weapons', ressource='MP', type = 'Racial')
+drawAstarPath = Spell(ressourceCost = 0, cooldown = 0, useFunction=castAstarPath, name = 'DEBUG : Draw A* path', ressource = 'MP', type = 'Occult')
 
-spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect])
+spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath])
 #_____________SPELLS_____________
 
 #______________CHARACTER GENERATION____________
@@ -1562,6 +1577,62 @@ def enterName(race):
         elif key.keychar.upper() == 'ESCAPE':
             mainMenu()
 #______________CHARACTER GENERATION____________
+def heuristic(sourceX, sourceY, targetX, targetY):
+    return abs(sourceX - targetX) + abs(sourceY - targetY)
+
+def astarPath(startX, startY, goalX, goalY):
+    start = myMap[startX][startY]
+    goal = myMap[goalX][goalY]
+    frontier = [(start, 0)]
+    cameFrom = {}
+    costSoFar = {}
+    cameFrom[start] = None
+    costSoFar[start] = 0
+    
+    print('frontier:', frontier)
+    while len(frontier) != 0:
+        prioTile = None
+        lastPrio = 9999
+        for tile, prio in frontier:
+            if prio < lastPrio:
+                lastPrio = prio
+                prioTile = tile
+
+        frontier.remove((prioTile, lastPrio))
+        current = prioTile
+        print('tile:', prioTile.x, prioTile.y, '  prio:', lastPrio)
+        if current == goal:
+            print('arrived to goal')
+            break
+        for next in current.neighbors():
+            print('neighbor:', next.x, next.y)
+            if not isBlocked(next.x, next.y) or next == goal:
+                newCost = costSoFar[current] + myMap[next.x][next.y].moveCost
+                if next not in costSoFar or newCost < costSoFar[next]:
+                    costSoFar[next] = newCost
+                    heurCost = heuristic(next.x, next.y, goal.x, goal.y)
+                    priority = newCost + heurCost
+                    print('next:', next.x, next.y, '  prio = G + H', '  G=', newCost, '  H=', heurCost)
+                    frontier.append((next, priority))
+                    cameFrom[next] = current
+                elif next in costSoFar:
+                    print('next was already explored')
+            else:
+                print('next is blocked')
+    
+    current = goal
+    path = [goal]
+    print('start:', startX, startY, ' goal:', goalX, goalY)
+    while current != start:
+        former = current
+        print('former:', former.x, former.y)
+        current = cameFrom[former]
+        print('current:', current.x, current.y)
+        path.append(current)
+    print('not reversed path:', path)
+    path.reverse()
+    print('reversed path:', path)
+    return path
 
 def closestMonster(max_range):
     closestEnemy = None
@@ -1686,7 +1757,7 @@ class GameObject:
         global tilesinPath, pathfinder
         #TODO : Add another path check using another pathfinder accounting enemies as blocking (so as to try to find a way around them), then if no path is found using this way (e.g tunnel), use the normal pathfinder, and if there is still path found , use moveTowards()
         #if destX is not None and destY is not None and destX == self.lastTargetX and destY == self.lastTargetY and self.astarPath:
-            #self.moveNextStepOnPath()
+            #self.moveAstar()
             #print(self.name.capitalize() + " : Following old path")
         #else:
         print(self.name.capitalize() + " : No path found, trying to create new")
@@ -1700,7 +1771,7 @@ class GameObject:
                 for (x,y) in self.astarPath:
                     print (str(x) + "/" + str(y) + ";", end = " ", sep = " ")
                     print()
-            self.moveNextStepOnPath()  
+            #self.moveAstar()
                 
         elif fallback:
             self.moveTowards(destX, destY)
@@ -1711,6 +1782,19 @@ class GameObject:
         
     def duplicate(self):
         return deepcopy(self)
+    
+    def moveOnAstarPath(self, goal = player):
+        self.astarPath = astarPath(self.x, self.y, goal.x, goal.y)
+        if self.astarPath is not None:
+            nextTile = self.astarPath.pop(0)
+            (self.x, self.y) = (nextTile.x, nextTile.y)
+            tilesinPath.extend(self.astarPath)
+            print(self.name + "'s path :", end = " ")
+            for (x,y) in self.astarPath:
+                print (str(x) + "/" + str(y) + ";", end = " ", sep = " ")
+                print()
+        else:
+            self.moveTowards(goal.x, goal.y)
 
 class Fighter: #All NPCs, enemies and the player
     def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = [0], shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = None, slots = ['head', 'torso', 'left hand', 'right hand', 'legs', 'feet'], equipmentList = [], toEquip = [], attackFunctions = [], noDirectDamage = False):
@@ -2064,12 +2148,14 @@ class BasicMonster: #Basic monsters' AI
             if selectedTarget is not None:
                 if monster.distanceTo(selectedTarget) < 2:
                     monster.Fighter.attack(selectedTarget)
-                else:
-                    state = monster.moveAstar(selectedTarget.x, selectedTarget.y, fallback = False)
-                    if state == "fail":
-                        diagState = checkDiagonals(monster, selectedTarget)
-                        if diagState is None:
-                            monster.moveTowards(selectedTarget.x, selectedTarget.y)
+                #else:
+                    #state = monster.moveAstar(selectedTarget.x, selectedTarget.y, fallback = False)
+                    #if state == "fail":
+                    #   diagState = checkDiagonals(monster, selectedTarget)
+                    #    if diagState is None:
+                    #        monster.moveTowards(selectedTarget.x, selectedTarget.y)
+                    #monster.moveOnAstarPath(goal = selectedTarget)
+                    
             #elif (monster.x, monster.y) in visibleTiles and monster.distanceTo(player) >= 2:
                 #monster.moveAstar(player.x, player.y)
             else:
@@ -2077,7 +2163,7 @@ class BasicMonster: #Basic monsters' AI
                     pathState = "complete"
                     diagPathState = None
                     if monster.astarPath:
-                        pathState = monster.moveNextStepOnPath()
+                        pathState = monster.moveAstar()
                     elif not monster.astarPath or pathState == "fail":
                             if monster.distanceTo(player) <= 15 and not (monster.x == player.x and monster.y == player.y):
                                 diagPathState = checkDiagonals(monster, player)
@@ -2261,7 +2347,7 @@ class FastMonster:
                         pathState = "complete"
                         diagPathState = None
                         if monster.astarPath:
-                            pathState = monster.moveNextStepOnPath()
+                            pathState = monster.moveAstar()
                         elif not monster.astarPath or pathState == "fail":
                                 if monster.distanceTo(player) <= 15 and not (monster.x == player.x and monster.y == player.y):
                                     diagPathState = checkDiagonals(monster, player)
@@ -2487,7 +2573,7 @@ class Spellcaster():
                     pathState = "complete"
                     diagPathState = None
                     if monster.astarPath:
-                        pathState = monster.moveNextStepOnPath()
+                        pathState = monster.moveAstar()
                     elif not monster.astarPath or pathState == "fail":
                             if monster.distanceTo(player) <= 15 and not (monster.x == player.x and monster.y == player.y):
                                 diagPathState = checkDiagonals(monster, player)
@@ -4721,7 +4807,7 @@ dispDebug = True
 unchasmable = []
 
 class Tile:
-    def __init__(self, blocked, x, y, block_sight = None, acid = False, acidCooldown = 5, character = None, fg = None, bg = None, dark_fg = None, dark_bg = None, chasm = False, wall = False):
+    def __init__(self, blocked, x, y, block_sight = None, acid = False, acidCooldown = 5, character = None, fg = None, bg = None, dark_fg = None, dark_bg = None, chasm = False, wall = False, moveCost = 1):
         self.blocked = blocked
         self.explored = False
         self.unbreakable = False
@@ -4769,6 +4855,20 @@ class Tile:
             self.dark_fg = colors.black
             self.DARK_BG = (0, 0, 16)
             self.dark_bg = (0, 0, 16)
+         self.moveCost = moveCost
+        
+    def neighbors(self):
+        x = self.x
+        y = self.y
+        upperLeft = myMap[x - 1][y - 1]
+        up = myMap[x][y - 1]
+        upperRight = myMap[x + 1][y - 1]
+        left = myMap[x - 1][y]
+        right = myMap[x + 1][y]
+        lowerLeft = myMap[x - 1][y + 1]
+        low = myMap[x][y + 1]
+        lowerRight = myMap[x + 1][y + 1]
+        return [upperLeft, up, upperRight, left, right, lowerLeft, low, lowerRight]
     
     def applyWallProperties(self):
         if not self.secretWall:
@@ -5397,6 +5497,15 @@ def generateCave():
                 placeObjects(room, False)
         print("DONE")
 
+        gameState = 'dead'
+
+
+ROOM_MAX_SIZE = 10
+ROOM_MIN_SIZE = 6
+MAX_ROOMS = 30
+
+
+
         
         
 def createRoom(room):
@@ -5585,7 +5694,9 @@ def makeMap(generateChasm = False):
     color_light_ground = currentBranch.color_light_ground
     color_light_gravel = currentBranch.color_light_gravel
 
+
     myMap = [[Tile(True, x = x, y = y, wall = True, chasm = generateChasm) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
+
     rooms = []
     roomTiles = []
     tunnelTiles = []
@@ -6153,7 +6264,7 @@ class HighInquisitor:
                     pathState = "complete"
                     diagPathState = None
                     if monster.astarPath:
-                        pathState = monster.moveNextStepOnPath()
+                        pathState = monster.moveAstar()
                     elif not monster.astarPath or pathState == "fail":
                             if monster.distanceTo(player) <= 15 and not (monster.x == player.x and monster.y == player.y):
                                 diagPathState = checkDiagonals(monster, player)
