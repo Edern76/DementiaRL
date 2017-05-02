@@ -5028,21 +5028,38 @@ class Tile:
             self.dark_bg = (0, 0, 16)
     
     def applyGroundProperties(self, explode = False):
-        if not self.secretWall or explode:
-            gravelChoice = randint(0, 5)
-            self.blocked = False
-            self.block_sight = False
-            if gravelChoice == 0:
-                self.character = chr(177)
-            elif gravelChoice == 1:
-                self.character = chr(176)
-            else:
-                self.character = None
-            self.fg = color_light_gravel
-            self.bg = color_light_ground
-            self.dark_fg = color_dark_gravel
-            self.dark_bg = color_dark_ground
-            self.wall = False
+        if explode:
+            if not self.chasm:
+                gravelChoice = randint(0, 5)
+                self.blocked = False
+                self.block_sight = False
+                if gravelChoice == 0:
+                    self.character = chr(177)
+                elif gravelChoice == 1:
+                    self.character = chr(176)
+                else:
+                    self.character = None
+                self.fg = color_light_gravel
+                self.bg = color_light_ground
+                self.dark_fg = color_dark_gravel
+                self.dark_bg = color_dark_ground
+                self.wall = False
+        else:
+            if not self.secretWall:
+                gravelChoice = randint(0, 5)
+                self.blocked = False
+                self.block_sight = False
+                if gravelChoice == 0:
+                    self.character = chr(177)
+                elif gravelChoice == 1:
+                    self.character = chr(176)
+                else:
+                    self.character = None
+                self.fg = color_light_gravel
+                self.bg = color_light_ground
+                self.dark_fg = color_dark_gravel
+                self.dark_bg = color_dark_ground
+                self.wall = False
     
     def setUnbreakable(self):
         self.blocked = True
@@ -5658,8 +5675,6 @@ def checkMap():
         for y in range(MAP_HEIGHT):
             if myMap[x][y].wall:
                 myMap[x][y].applyWallProperties()
-                if myMap[x][y].chasm:
-                    myMap[x][y].dark_fg = colors.black
             elif myMap[x][y].chasm and not myMap[x][y].secretWall:
                 myMap[x][y].applyChasmProperties()
                 myMap[x][y].wall = False
