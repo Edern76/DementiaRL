@@ -27,6 +27,8 @@ def formatText(text, w):
     
     return outputText
 
+creditText = "Created by Erwan CASTIONI and Gawein LE GOFF. \n \n Using a modified version of the TDL module by Kyle Stewart and a modified version of the XpLoader module by Sean Hagar \n This software uses libraries from the FFmpeg project under the LGPLv2.1 \n Made with Python 3. \n \n Music from Jukedeck - create your own at http://jukedeck.com \n \n Special thanks to Francesco V. who launched the game once."
+
 class DialogTree:
     def __init__(self, screenList, name, origScreen):
         self.screenList = screenList
@@ -74,6 +76,8 @@ class DialogChoice:
                 raise AttributeError('No previous screen found')
         elif self.idT == 'END':
             return 'END'
+        elif self.idT == 'SHOP':
+            return 'SHOP'
         
         else:
             for screen in rootTree.screenList:
@@ -86,6 +90,13 @@ class DialogChoice:
             
          
 ######################PUKIL THE DEBUGGER#########################
+'''
+@race : Human
+@gender : Male
+@age : Old/Very old
+@profession : Former 'debugger'
+'''
+
 
 #######Intro Screen########
 pukIntText = "'It is a rare event to encounter a new face around here, and a even rarer one to find a new face which doesn't belongs to something which wants nothing but your death. \n I am Pukil the Debugger, but you can call me Pukil if you want. Make yourself at home here, but please tell me if you see any bug'"
@@ -157,3 +168,25 @@ pukStpScr = DialogScreen(idT = pukStpId, dialogText = pukStpText, choicesList = 
 pukScrList = [pukIntScr, pukStrScr, pukDbgScr, pukBugScr, pukDgrScr, pukStpScr]
 
 pukTree = DialogTree(screenList= pukScrList, name = 'Pukil', origScreen= pukScrList[0])
+
+
+######################AYETH THE INSECTOID MERCHANT#########################
+'''
+@race : Insectoid
+@gender : Female
+@age : Child
+@profession : Merchant
+
+TO-DO : Add more dialog than jusy the 'enter shop' option     
+'''
+
+ayeIntText = 'Greetings adventurer ! Would you buy me a little something ? I make the best pies of all [INSERT WORLD NAME HERE] !'
+ayeIntId = 'intro'
+ayeIntCh1 = DialogChoice(idT= 'SHOP', text = 'Sure, let me take a look at your wares. (Enter shop)')
+ayeIntCh2 = DialogChoice(idT = 'END', text = "I'm busy right now, maybe at a later time ? (End conversation)")
+
+ayeIntClist = [ayeIntCh1, ayeIntCh2]
+ayeIntScr = DialogScreen(idT= 'intro', dialogText= ayeIntText, choicesList = ayeIntClist)
+
+ayeScrList = [ayeIntScr]
+ayeTree = DialogTree(screenList = ayeScrList, name = 'Ayeth', origScreen= ayeScrList[0])
