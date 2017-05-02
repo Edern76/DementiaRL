@@ -1,4 +1,5 @@
-import colors, math, textwrap, time, os, sys, code, gzip, pathlib, traceback, ffmpy, pdb, copy #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
+
+import colors, math, textwrap, time, os, sys, code, gzip, pathlib, traceback, ffmpy, pdb, copy, queue #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
 import tdlib as tdl
 import code.dialog as dial
 import music as mus
@@ -11,6 +12,7 @@ from math import *
 from code.custom_except import *
 from copy import copy, deepcopy
 from os import makedirs
+from queue import *
 from code.constants import MAX_HIGH_CULTIST_MINIONS
 import code.nameGen as nameGen
 import code.xpLoaderPy3 as xpL
@@ -861,20 +863,7 @@ def castArmageddon(radius = 4, damage = 80, caster = None, monsterTarget = None)
         for y in range (player.y - radmax, player.y + radmax):
             try: #Execute code below try if no error is encountered
                 if tileDistance(player.x, player.y, x, y) <= radius and not myMap[x][y].unbreakable:
-                    gravelChoice = randint(0, 5)
-                    myMap[x][y].blocked = False
-                    myMap[x][y].block_sight = False
-                    if gravelChoice == 0:
-                        myMap[x][y].character = chr(177)
-                    elif gravelChoice == 1:
-                        myMap[x][y].character = chr(176)
-                    else:
-                        myMap[x][y].character = None
-                    myMap[x][y].fg = color_light_gravel
-                    myMap[x][y].bg = color_light_ground
-                    myMap[x][y].dark_fg = color_dark_gravel
-                    myMap[x][y].dark_bg = color_dark_ground
-                    myMap[x][y].wall = False
+                    myMap[x][y].applyGroundProperties(explode = True)
                     if x in range (1, MAP_WIDTH-1) and y in range (1,MAP_HEIGHT - 1):
                         explodingTiles.append((x,y))
                     for obj in objects:
@@ -971,6 +960,7 @@ def castDrawRectangle(caster = None, monsterTarget = None):
     else:
         return 'cancelled'
 
+
 def castEnvenom(caster = None, monsterTarget = None):
     poisoned = Buff('poisoned', colors.purple, owner = None, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10))
     for equipment in equipmentList:
@@ -991,10 +981,21 @@ def stealMoneyAndDamage(initiator, target, amount):
         target.Fighter.takeDamage(leftToSteal // 10, damageSource = 'greedy fiend')
         message("You take {} damage from {} !".format(leftToSteal // 10, initiator.owner.name), colors.red)
         
+def castAstarPath(caster = None, monsterTarget = None):
+    global FOV_recompute
+    (goalX, goalY) = targetTile(unlimited=True)
+    if targetTile == 'cancelled':
+        return 'cancelled'
+    else:
+        path = astarPath(player.x, player.y, goalX, goalY)
+        print('astar path from spell:', path)
+        for tile in path:
+            sign = GameObject(tile.x, tile.y, '.', 'astarsign', colors.green, blocks = False, Ghost=True)
+            objects.append(sign)
+        FOV_recompute = True
+        Update()
+        return
 
-
-        
-        
 
 fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 1, arg2 = 12, arg3 = 4)
 heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 20)
@@ -1007,8 +1008,9 @@ ressurect = Spell(ressourceCost = 10, cooldown = 15, useFunction=castRessurect, 
 placeTag = Spell(ressourceCost = 0, cooldown = 0, useFunction=castPlaceTag, name = 'DEBUG : Place tag', ressource = 'MP', type = 'Occult')
 drawRect = Spell(ressourceCost = 0, cooldown = 0, useFunction=castDrawRectangle, name = 'DEBUG : Draw Rectangle', ressource = 'MP', type = 'Occult')
 envenom = Spell(ressourceCost= 3, cooldown = 20, useFunction=castEnvenom, name = 'Envenom weapons', ressource='MP', type = 'Racial')
+drawAstarPath = Spell(ressourceCost = 0, cooldown = 0, useFunction=castAstarPath, name = 'DEBUG : Draw A* path', ressource = 'MP', type = 'Occult')
 
-spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect])
+spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath])
 #_____________SPELLS_____________
 
 #______________CHARACTER GENERATION____________
@@ -1575,6 +1577,62 @@ def enterName(race):
         elif key.keychar.upper() == 'ESCAPE':
             mainMenu()
 #______________CHARACTER GENERATION____________
+def heuristic(sourceX, sourceY, targetX, targetY):
+    return abs(sourceX - targetX) + abs(sourceY - targetY)
+
+def astarPath(startX, startY, goalX, goalY):
+    start = myMap[startX][startY]
+    goal = myMap[goalX][goalY]
+    frontier = [(start, 0)]
+    cameFrom = {}
+    costSoFar = {}
+    cameFrom[start] = None
+    costSoFar[start] = 0
+    
+    print('frontier:', frontier)
+    while len(frontier) != 0:
+        prioTile = None
+        lastPrio = 9999
+        for tile, prio in frontier:
+            if prio < lastPrio:
+                lastPrio = prio
+                prioTile = tile
+
+        frontier.remove((prioTile, lastPrio))
+        current = prioTile
+        print('tile:', prioTile.x, prioTile.y, '  prio:', lastPrio)
+        if current == goal:
+            print('arrived to goal')
+            break
+        for next in current.neighbors():
+            print('neighbor:', next.x, next.y)
+            if not isBlocked(next.x, next.y) or next == goal:
+                newCost = costSoFar[current] + myMap[next.x][next.y].moveCost
+                if next not in costSoFar or newCost < costSoFar[next]:
+                    costSoFar[next] = newCost
+                    heurCost = heuristic(next.x, next.y, goal.x, goal.y)
+                    priority = newCost + heurCost
+                    print('next:', next.x, next.y, '  prio = G + H', '  G=', newCost, '  H=', heurCost)
+                    frontier.append((next, priority))
+                    cameFrom[next] = current
+                elif next in costSoFar:
+                    print('next was already explored')
+            else:
+                print('next is blocked')
+    
+    current = goal
+    path = [goal]
+    print('start:', startX, startY, ' goal:', goalX, goalY)
+    while current != start:
+        former = current
+        print('former:', former.x, former.y)
+        current = cameFrom[former]
+        print('current:', current.x, current.y)
+        path.append(current)
+    print('not reversed path:', path)
+    path.reverse()
+    print('reversed path:', path)
+    return path
 
 def closestMonster(max_range):
     closestEnemy = None
@@ -1699,7 +1757,7 @@ class GameObject:
         global tilesinPath, pathfinder
         #TODO : Add another path check using another pathfinder accounting enemies as blocking (so as to try to find a way around them), then if no path is found using this way (e.g tunnel), use the normal pathfinder, and if there is still path found , use moveTowards()
         #if destX is not None and destY is not None and destX == self.lastTargetX and destY == self.lastTargetY and self.astarPath:
-            #self.moveNextStepOnPath()
+            #self.moveAstar()
             #print(self.name.capitalize() + " : Following old path")
         #else:
         print(self.name.capitalize() + " : No path found, trying to create new")
@@ -1713,7 +1771,7 @@ class GameObject:
                 for (x,y) in self.astarPath:
                     print (str(x) + "/" + str(y) + ";", end = " ", sep = " ")
                     print()
-            self.moveNextStepOnPath()  
+            #self.moveAstar()
                 
         elif fallback:
             self.moveTowards(destX, destY)
@@ -1724,6 +1782,19 @@ class GameObject:
         
     def duplicate(self):
         return deepcopy(self)
+    
+    def moveOnAstarPath(self, goal = player):
+        self.astarPath = astarPath(self.x, self.y, goal.x, goal.y)
+        if self.astarPath is not None:
+            nextTile = self.astarPath.pop(0)
+            (self.x, self.y) = (nextTile.x, nextTile.y)
+            tilesinPath.extend(self.astarPath)
+            print(self.name + "'s path :", end = " ")
+            for (x,y) in self.astarPath:
+                print (str(x) + "/" + str(y) + ";", end = " ", sep = " ")
+                print()
+        else:
+            self.moveTowards(goal.x, goal.y)
 
 class Fighter: #All NPCs, enemies and the player
     def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = [0], shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = None, slots = ['head', 'torso', 'left hand', 'right hand', 'legs', 'feet'], equipmentList = [], toEquip = [], attackFunctions = [], noDirectDamage = False):
@@ -2077,12 +2148,14 @@ class BasicMonster: #Basic monsters' AI
             if selectedTarget is not None:
                 if monster.distanceTo(selectedTarget) < 2:
                     monster.Fighter.attack(selectedTarget)
-                else:
-                    state = monster.moveAstar(selectedTarget.x, selectedTarget.y, fallback = False)
-                    if state == "fail":
-                        diagState = checkDiagonals(monster, selectedTarget)
-                        if diagState is None:
-                            monster.moveTowards(selectedTarget.x, selectedTarget.y)
+                #else:
+                    #state = monster.moveAstar(selectedTarget.x, selectedTarget.y, fallback = False)
+                    #if state == "fail":
+                    #   diagState = checkDiagonals(monster, selectedTarget)
+                    #    if diagState is None:
+                    #        monster.moveTowards(selectedTarget.x, selectedTarget.y)
+                    #monster.moveOnAstarPath(goal = selectedTarget)
+                    
             #elif (monster.x, monster.y) in visibleTiles and monster.distanceTo(player) >= 2:
                 #monster.moveAstar(player.x, player.y)
             else:
@@ -2090,7 +2163,7 @@ class BasicMonster: #Basic monsters' AI
                     pathState = "complete"
                     diagPathState = None
                     if monster.astarPath:
-                        pathState = monster.moveNextStepOnPath()
+                        pathState = monster.moveAstar()
                     elif not monster.astarPath or pathState == "fail":
                             if monster.distanceTo(player) <= 15 and not (monster.x == player.x and monster.y == player.y):
                                 diagPathState = checkDiagonals(monster, player)
@@ -2274,7 +2347,7 @@ class FastMonster:
                         pathState = "complete"
                         diagPathState = None
                         if monster.astarPath:
-                            pathState = monster.moveNextStepOnPath()
+                            pathState = monster.moveAstar()
                         elif not monster.astarPath or pathState == "fail":
                                 if monster.distanceTo(player) <= 15 and not (monster.x == player.x and monster.y == player.y):
                                     diagPathState = checkDiagonals(monster, player)
@@ -2500,7 +2573,7 @@ class Spellcaster():
                     pathState = "complete"
                     diagPathState = None
                     if monster.astarPath:
-                        pathState = monster.moveNextStepOnPath()
+                        pathState = monster.moveAstar()
                     elif not monster.astarPath or pathState == "fail":
                             if monster.distanceTo(player) <= 15 and not (monster.x == player.x and monster.y == player.y):
                                 diagPathState = checkDiagonals(monster, player)
@@ -4387,6 +4460,8 @@ def levelUpScreen(skillpoint = 3):
                     notConfirmed[skill] = skill.amount
                 skill.amount += 1
                 skillpoint -= 1
+                for newSkill in skill.allowsSelection:
+                    newSkill.selectable = True
         elif key.keychar.upper() == 'BACKSPACE':
             skill = player.Player.skills[index]
             if skill in notConfirmed and skill.amount > notConfirmed[skill]:
@@ -4396,6 +4471,8 @@ def levelUpScreen(skillpoint = 3):
                     del notConfirmed[skill]
                 if skill.amount <= 0:
                     skill.selected = False
+                    for newSkill in skill.allowsSelection:
+                        newSkill.selectable = False
 
         if index >= len(player.Player.skills):
             index = 0
@@ -4710,6 +4787,7 @@ ROOM_MIN_SIZE = 6
 MAX_ROOMS = 30
 
 CHANCE_TO_START_ALIVE = 55
+CHANCE_TO_START_ALIVE_CHASM = 65
 DEATH_LIMIT = 3
 BIRTH_LIMIT = 4
 STEPS_NUMBER = 2
@@ -4717,6 +4795,8 @@ MIN_ROOM_SIZE = 6
 
 emptyTiles = [] #List of tuples of the coordinates of emptytiles not yet processed by the floodfill algorithm
 rooms = []
+roomTiles = []
+tunnelTiles = []
 visuTiles = []
 visuEdges = []
 confTiles = []
@@ -4724,18 +4804,27 @@ reachableRooms = []
 unreachableRooms = []
 dispEmpty = False
 dispDebug = True
+unchasmable = []
 
 class Tile:
-    def __init__(self, blocked, block_sight = None, acid = False, acidCooldown = 5, character = None, fg = None, bg = None, dark_fg = None, dark_bg = None, wall = False):
+    def __init__(self, blocked, x, y, block_sight = None, acid = False, acidCooldown = 5, character = None, fg = None, bg = None, dark_fg = None, dark_bg = None, chasm = False, wall = False, moveCost = 1):
         self.blocked = blocked
         self.explored = False
         self.unbreakable = False
         self.character = character
         self.fg = fg
+        self.FG = fg
         self.bg = bg
+        self.BG = bg
         self.dark_fg = dark_fg
+        self.DARK_FG = dark_fg
         self.dark_bg = dark_bg
+        self.DARK_BG = dark_bg
         self.wall = wall
+        self.chasm = chasm
+        self.x = x
+        self.y = y
+        self.secretWall = False
         if block_sight is None:
             block_sight = blocked
             self.block_sight = block_sight
@@ -4756,27 +4845,84 @@ class Tile:
             self.dark_fg = color_dark_wall
             self.DARK_BG = color_dark_ground
             self.dark_bg = color_dark_ground
+        if self.chasm:
+            self.character = None
+            self.FG = colors.black
+            self.fg = colors.black
+            self.BG = (0, 0, 16)
+            self.bg = (0, 0, 16)
+            self.DARK_FG = colors.black
+            self.dark_fg = colors.black
+            self.DARK_BG = (0, 0, 16)
+            self.dark_bg = (0, 0, 16)
+         self.moveCost = moveCost
+        
+    def neighbors(self):
+        x = self.x
+        y = self.y
+        upperLeft = myMap[x - 1][y - 1]
+        up = myMap[x][y - 1]
+        upperRight = myMap[x + 1][y - 1]
+        left = myMap[x - 1][y]
+        right = myMap[x + 1][y]
+        lowerLeft = myMap[x - 1][y + 1]
+        low = myMap[x][y + 1]
+        lowerRight = myMap[x + 1][y + 1]
+        return [upperLeft, up, upperRight, left, right, lowerLeft, low, lowerRight]
     
     def applyWallProperties(self):
-        self.character = '#'
-        self.FG = color_light_wall
-        self.fg = color_light_wall
-        self.BG = color_light_ground
-        self.bg = color_light_ground
-        self.DARK_FG = color_dark_wall
-        self.dark_fg = color_dark_wall
-        self.DARK_BG = color_dark_ground
-        self.dark_bg = color_dark_ground
+        if not self.secretWall:
+            self.wall = True
+            self.character = '#'
+            self.FG = color_light_wall
+            self.fg = color_light_wall
+            self.BG = color_light_ground
+            self.bg = color_light_ground
+            self.DARK_FG = color_dark_wall
+            self.dark_fg = color_dark_wall
+            self.DARK_BG = color_dark_ground
+            self.dark_bg = color_dark_ground
     
+    def applyChasmProperties(self):
+        if not self.secretWall:
+            self.chasm = True
+            self.character = None
+            self.FG = colors.black
+            self.fg = colors.black
+            self.BG = (0, 0, 16)
+            self.bg = (0, 0, 16)
+            self.DARK_FG = colors.black
+            self.dark_fg = colors.black
+            self.DARK_BG = (0, 0, 16)
+            self.dark_bg = (0, 0, 16)
+    
+    def applyGroundProperties(self, explode = False):
+        if not self.secretWall or explode:
+            gravelChoice = randint(0, 5)
+            self.blocked = False
+            self.block_sight = False
+            if gravelChoice == 0:
+                self.character = chr(177)
+            elif gravelChoice == 1:
+                self.character = chr(176)
+            else:
+                self.character = None
+            self.fg = color_light_gravel
+            self.bg = color_light_ground
+            self.dark_fg = color_dark_gravel
+            self.dark_bg = color_dark_ground
+            self.wall = False
     
     def setUnbreakable(self):
         self.blocked = True
         self.unbreakable = True
+        self.wall = True
         
     def open(self):
         if not self.unbreakable:
             self.blocked = False
             self.block_sight = False
+            self.wall = False
             return True
         else:
             return False
@@ -4785,6 +4931,7 @@ class Tile:
         if not self.blocked:
             self.blocked = True
             self.block_sight = True
+            self.wall = True
     
     def addOwner(self, toAdd):
         if not toAdd in self.belongsTo:
@@ -4905,7 +5052,7 @@ def floodFill(x, y, listToAppend, edgeList):
         edgeList.append((x,y))
         return
     
-def countNeighbours(mapToUse, startX, startY, stopAtFirst = False):
+def countNeighbours(mapToUse, startX, startY, stopAtFirst = False, searchBlock = True, searchChasm = False):
     count = 0
     found = False
     for x in range(-1, 2):
@@ -4915,7 +5062,12 @@ def countNeighbours(mapToUse, startX, startY, stopAtFirst = False):
             else:
                 otherX = startX + x
                 otherY = startY + y
-                if mapToUse[otherX][otherY].blocked:
+                if mapToUse[otherX][otherY].blocked and searchBlock:
+                    count += 1
+                    found = True
+                    if stopAtFirst:
+                        break
+                if mapToUse[otherX][otherY].chasm and searchChasm:
                     count += 1
                     found = True
                     if stopAtFirst:
@@ -4987,6 +5139,33 @@ def doStep(oldMap):
                     print('Blocking')
                 else:
                     openTile(x, y, newMap)
+    return newMap
+
+def doChasmStep(oldMap):
+    newMap = list(deepcopy(oldMap))
+    for x in range(1, MAP_WIDTH - 1):
+        for y in range(1, MAP_HEIGHT - 1):
+            neighbours = countNeighbours(oldMap, x, y, searchBlock=False, searchChasm= True)
+            if not oldMap[x][y].chasm:
+                if neighbours < DEATH_LIMIT:
+                    newMap[x][y].chasm = True
+                    #newMap[x][y].applyChasmProperties()
+                else:
+                    newMap[x][y].chasm = False
+                    #if myMap[x][y].wall:
+                    #    myMap[x][y].applyWallProperties()
+                    #elif not myMap[x][y].secretWall:
+                    #    newMap[x][y].applyGroundProperties()
+            else:
+                if neighbours > BIRTH_LIMIT:
+                    newMap[x][y].chasm = False
+                    #if myMap[x][y].wall:
+                    #    myMap[x][y].applyWallProperties()
+                    #elif not myMap[x][y].secretWall:
+                    #    newMap[x][y].applyGroundProperties()
+                else:
+                    newMap[x][y].chasm = True
+                    #newMap[x][y].applyChasmProperties()
     return newMap
 
 def updateReachLists():
@@ -5175,9 +5354,8 @@ def createPassage(roomA, roomB, tileA, tileB):
     
     
 def generateCave():
-    
     global myMap, baseMap, mapToDisp, maps, visuTiles, state, visuEdges, confTiles, rooms, curRoomIndex, stairs, objects, upStairs, bossDungeonsAppeared, color_dark_wall, color_light_wall, color_dark_ground, color_light_ground, color_dark_gravel, color_light_gravel, townStairs, gluttonyStairs, stairs, upStairs, nemesisList
-    myMap = [[Tile(blocked=False, block_sight=False) for y in range(MAP_HEIGHT)] for x in range(MAP_WIDTH)]
+    myMap = [[Tile(blocked=False, x = x, y = y, block_sight=False) for y in range(MAP_HEIGHT)] for x in range(MAP_WIDTH)]
     visuTiles = []
     visuEdges = []
     confTiles = []
@@ -5319,76 +5497,50 @@ def generateCave():
                 placeObjects(room, False)
         print("DONE")
 
+        gameState = 'dead'
+
+
+ROOM_MAX_SIZE = 10
+ROOM_MIN_SIZE = 6
+MAX_ROOMS = 30
+
+
+
         
         
 def createRoom(room):
-    global myMap
+    global myMap, roomTiles
     for x in range(room.x1 + 1, room.x2):
         for y in range(room.y1 + 1, room.y2):
-            gravelChoice = randint(0, 5)
-            myMap[x][y].blocked = False
-            myMap[x][y].block_sight = False
-            if gravelChoice == 0:
-                myMap[x][y].character = chr(177)
-            elif gravelChoice == 1:
-                myMap[x][y].character = chr(176)
-            else:
-                myMap[x][y].character = None
-            myMap[x][y].fg = color_light_gravel
-            myMap[x][y].bg = color_light_ground
-            myMap[x][y].dark_fg = color_dark_gravel
-            myMap[x][y].dark_bg = color_dark_ground
-            myMap[x][y].wall = False
+            myMap[x][y].applyGroundProperties()
+            roomTiles.append((x, y))
             
 def checkMap():
     for x in range(MAP_WIDTH):
         for y in range(MAP_HEIGHT):
-            if myMap[x][y].blocked:
+            if myMap[x][y].wall:
                 myMap[x][y].applyWallProperties()
-                myMap[x][y].wall = True
-            else:
-                myMap[x][y].fg = color_light_gravel
-                myMap[x][y].bg = color_light_ground
-                myMap[x][y].dark_fg = color_dark_gravel
-                myMap[x][y].dark_bg = color_dark_ground
+                if myMap[x][y].chasm:
+                    myMap[x][y].dark_fg = colors.black
+            elif myMap[x][y].chasm and not myMap[x][y].secretWall:
+                myMap[x][y].applyChasmProperties()
+                myMap[x][y].wall = False
+            elif not myMap[x][y].secretWall:
+                myMap[x][y].applyGroundProperties()
                 myMap[x][y].wall = False
             
             
 def createHorizontalTunnel(x1, x2, y):
-    global myMap
+    global myMap, tunnelTiles
     for x in range(min(x1, x2), max(x1, x2) + 1):
-        gravelChoice = randint(0, 5)
-        myMap[x][y].blocked = False
-        myMap[x][y].block_sight = False
-        if gravelChoice == 0:
-            myMap[x][y].character = chr(177)
-        elif gravelChoice == 1:
-            myMap[x][y].character = chr(176)
-        else:
-            myMap[x][y].character = None
-        myMap[x][y].fg = color_light_gravel
-        myMap[x][y].bg = color_light_ground
-        myMap[x][y].dark_fg = color_dark_gravel
-        myMap[x][y].dark_bg = color_dark_ground
-        myMap[x][y].wall = False
+        myMap[x][y].applyGroundProperties()
+        tunnelTiles.append((x, y))
             
 def createVerticalTunnel(y1, y2, x):
-    global myMap
+    global myMap, tunnelTiles
     for y in range(min(y1, y2), max(y1, y2) + 1):
-        gravelChoice = randint(0, 5)
-        myMap[x][y].blocked = False
-        myMap[x][y].block_sight = False
-        if gravelChoice == 0:
-            myMap[x][y].character = chr(177)
-        elif gravelChoice == 1:
-            myMap[x][y].character = chr(176)
-        else:
-            myMap[x][y].character = None
-        myMap[x][y].fg = color_light_gravel
-        myMap[x][y].bg = color_light_ground
-        myMap[x][y].dark_fg = color_dark_gravel
-        myMap[x][y].dark_bg = color_dark_ground
-        myMap[x][y].wall = False
+        myMap[x][y].applyGroundProperties()
+        tunnelTiles.append((x, y))
 
 def secretRoomTest(startingX, endX, startingY, endY):
     for x in range(startingX, endX):
@@ -5437,7 +5589,7 @@ def secretRoomTest(startingX, endX, startingY, endY):
                             return x - 2, y - 5, x, y - 1
 
 def secretRoom():
-    global myMap
+    global myMap, unchasmable
     quarter = randint(1, 4)
     if quarter == 1:
         minX = 1
@@ -5463,6 +5615,9 @@ def secretRoom():
     if not (x == 'cancelled' or y == 'cancelled' or entryX == 'cancelled' or entryY == 'cancelled'):
         secretRoom = Rectangle(x, y, 4, 4)
         createRoom(secretRoom)
+        for x in range(secretRoom.x1 + 1, secretRoom.x2):
+            for y in range(secretRoom.y1 + 1, secretRoom.y2):
+                unchasmable.append((x, y))
         myMap[entryX][entryY].blocked = False
         myMap[entryX][entryY].block_sight = True
         myMap[entryX][entryY].character = '#'
@@ -5470,6 +5625,7 @@ def secretRoom():
         myMap[entryX][entryY].bg = color_light_ground
         myMap[entryX][entryY].dark_fg = color_dark_wall
         myMap[entryX][entryY].dark_bg = color_dark_ground
+        myMap[x][y].secretWall = True
         myMap[x][y].wall = False
         print("created secret room at x ", entryX, " y ", entryY, " in quarter ", quarter)
 
@@ -5484,11 +5640,21 @@ def checkFile(file, folder):
             break 
     return False
 
-def makeMap():
-    global myMap, stairs, objects, upStairs, bossDungeonsAppeared, color_dark_wall, color_light_wall, color_dark_ground, color_light_ground, color_dark_gravel, color_light_gravel, townStairs, gluttonyStairs, stairs, upStairs, nemesisList
+def unblockTunnels():
+    global myMap, tunnelTiles, roomTiles
+    for x in range(MAP_WIDTH):
+        for y in range(MAP_HEIGHT):
+            if myMap[x][y].chasm and ((x, y) in unchasmable or ((x,y) in tunnelTiles and not (x, y) in roomTiles)):
+                myMap[x][y].chasm = False
+                if myMap[x][y].wall and not myMap[x][y].secretWall:
+                    myMap[x][y].applyWallProperties()
+                elif not myMap[x][y].secretWall:
+                    myMap[x][y].applyGroundProperties()
+
+def makeMap(generateChasm = False):
+    global myMap, stairs, objects, upStairs, bossDungeonsAppeared, color_dark_wall, color_light_wall, color_dark_ground, color_light_ground, color_dark_gravel, color_light_gravel, townStairs, gluttonyStairs, stairs, upStairs, nemesisList, roomTiles, tunnelTiles, unchasmable
     
     nemesis = None
-    found = False
     
     found = checkFile('meta.bak', absMetaDirPath)
 
@@ -5528,8 +5694,13 @@ def makeMap():
     color_light_ground = currentBranch.color_light_ground
     color_light_gravel = currentBranch.color_light_gravel
 
-    myMap = [[Tile(True, wall = True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
+
+    myMap = [[Tile(True, x = x, y = y, wall = True, chasm = generateChasm) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
+
     rooms = []
+    roomTiles = []
+    tunnelTiles = []
+    unchasmable = []
     numberRooms = 0
     objects = [player]
 
@@ -5553,11 +5724,15 @@ def makeMap():
                 break
         if not intersection:
             createRoom(newRoom)
+            lastCreatedRoom = newRoom
             (new_x, new_y) = newRoom.center()
  
             if numberRooms == 0:
                 player.x = new_x
                 player.y = new_y
+                for x in range(newRoom.x1 + 1, newRoom.x2):
+                    for y in range(newRoom.y1 + 1, newRoom.y2):
+                        unchasmable.append((x, y))
                 if dungeonLevel > 1 or currentBranch.name != 'Main':
                     upStairs = GameObject(new_x, new_y, '<', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor)
                     objects.append(upStairs)
@@ -5580,6 +5755,19 @@ def makeMap():
     stairs = GameObject(new_x, new_y, '>', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor)
     objects.append(stairs)
     stairs.sendToBack()
+    for x in range(lastCreatedRoom.x1 + 1, lastCreatedRoom.x2):
+        for y in range(lastCreatedRoom.y1 + 1, lastCreatedRoom.y2):
+            unchasmable.append((x, y))
+    
+    if generateChasm:
+        for x in range(1, MAP_WIDTH - 1):
+            for y in range(1, MAP_HEIGHT - 1):
+                if randint(0, 100) < CHANCE_TO_START_ALIVE_CHASM:
+                    myMap[x][y].chasm = False
+        for loop in range(STEPS_NUMBER):
+            myMap = doChasmStep(myMap)
+        unblockTunnels()
+    checkMap()
     
     if nemesis is not None:
         randRoom = randint(0, len(rooms) - 1)
@@ -5675,7 +5863,7 @@ def makeMap():
          
 def makeBossLevel():
     global myMap, objects, upStairs, rooms, numberRooms
-    myMap = [[Tile(True, wall = True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
+    myMap = [[Tile(True, x = x, y = y, wall = True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
     objects = [player]
     rooms = []
     numberRooms = 0
@@ -6076,7 +6264,7 @@ class HighInquisitor:
                     pathState = "complete"
                     diagPathState = None
                     if monster.astarPath:
-                        pathState = monster.moveNextStepOnPath()
+                        pathState = monster.moveAstar()
                     elif not monster.astarPath or pathState == "fail":
                             if monster.distanceTo(player) <= 15 and not (monster.x == player.x and monster.y == player.y):
                                 diagPathState = checkDiagonals(monster, player)
@@ -7724,7 +7912,10 @@ def chat():
         else:
             msgString = 'You start a heated philosophical debate with yourself.'
             message(msgString)
+
 def GetNamesUnderLookCursor():
+    tile = myMap[lookCursor.x][lookCursor.y]
+    tileDisp = 'Chasm: ' + str(tile.chasm)
     names = [obj for obj in objects
                 if obj.x == lookCursor.x and obj.y == lookCursor.y and (obj.x, obj.y in visibleTiles) and obj != lookCursor]
     for loop in range(len(names)):
@@ -7739,6 +7930,7 @@ def GetNamesUnderLookCursor():
             else:
                 displayName = names[loop].name
         names[loop] = displayName
+    names.insert(0, tileDisp)
     names = ', '.join(names)
     return names.capitalize()
 
