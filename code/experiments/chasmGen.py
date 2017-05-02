@@ -194,9 +194,19 @@ def unblockTunnels():
                 myMap[x][y].chasm = False
                 myMap[x][y].fg = colors.lighter_grey
                 myMap[x][y].bg = colors.darker_sepia
+
+def checkMap():
+    for x in range(MAP_WIDTH):
+        for y in range(MAP_HEIGHT):
+            if myMap[x][y].chasm:
+                myMap[x][y].fg = colors.dark_grey
+                myMap[x][y].bg = colors.black
+            else:
+                myMap[x][y].fg = colors.lighter_grey
+                myMap[x][y].bg = colors.dark_sepia
     
 def makeMap():
-    global myMap, baseMap, rooms, roomTiles, tunnelTiles, unchasmable, firstX, firstY, lastX, lastY
+    global myMap, rooms, roomTiles, tunnelTiles, unchasmable, firstX, firstY, lastX, lastY
 
     myMap = [[Tile(blocked = True, x = x, y = y) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
     rooms = []
@@ -217,8 +227,6 @@ def makeMap():
         removeFromEmptyTiles(0, y)
         myMap[MAP_WIDTH - 1][y].setIndestructible()
         removeFromEmptyTiles(MAP_WIDTH - 1, y)
-
-    baseMap = list(copy.deepcopy(myMap))
  
     for r in range(30):
         w = randint(6, 10)
@@ -266,11 +274,6 @@ def makeMap():
     unblockTunnels()
 
 myMap = [[]]
-baseMap = [[]]
-
-
-maps = [myMap, baseMap]
-mapIndex = 0
 
 def countNeighbours(mapToUse, startX, startY, stopAtFirst = False):
     count = 0

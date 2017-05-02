@@ -19,7 +19,7 @@ import code.xpLoaderPy3 as xpL
 import code.dunbranches as dBr
 import code.dilledShelve as shelve
 from code.dunbranches import gluttonyDungeon
-from code.custom_except import UnusableMethodException
+from code.custom_except import *
 from music import playWavSound
 from multiprocessing import freeze_support, current_process
 
@@ -3850,8 +3850,8 @@ def getInput():
         for x in range(MAP_WIDTH):
             for y in range(MAP_HEIGHT):
                 try:
-                    if not myMap[x][y].block_sight: #DO NOT REMOVE THIS CHECK. Unless you'd like to see what would happen if the game was running on an actual toaster.
-                        myMap[x][y].explored = True
+                    #if not myMap[x][y].block_sight: #DO NOT REMOVE THIS CHECK. Unless you'd like to see what would happen if the game was running on an actual toaster.
+                    myMap[x][y].explored = True
                 except:
                     pass
         for spell in spells:
@@ -4698,7 +4698,7 @@ def applyBurn(target, chance = 70):
                     buff.removeBuff()
                     message('The ' + target.name + "'s ice melts away.")
     
-def monsterArmageddon(monsterName ,monsterX, monsterY, radius = 4, damage = 40, selfHit = True):
+def monsterArmageddon(monsterName, monsterX, monsterY, radius = 4, damage = 40, selfHit = True):
     radmax = radius + 2
     message(monsterName.capitalize() + ' recites an arcane formula and explodes !', colors.red)
     global explodingTile
@@ -4711,6 +4711,8 @@ def monsterArmageddon(monsterName ,monsterX, monsterY, radius = 4, damage = 40, 
                 if tileDistance(monsterX, monsterY, x, y) <= radius and not myMap[x][y].unbreakable:
                     myMap[x][y].blocked = False
                     myMap[x][y].block_sight = False
+                    myMap[x][y].wall = False
+                    myMap[x][y].applyGroundProperties()
                     if x in range (1, MAP_WIDTH-1) and y in range (1,MAP_HEIGHT - 1):
                         explodingTiles.append((x,y))
                     for obj in objects:
@@ -5651,7 +5653,7 @@ def unblockTunnels():
                 elif not myMap[x][y].secretWall:
                     myMap[x][y].applyGroundProperties()
 
-def makeMap(generateChasm = False):
+def makeMap(generateChasm = True):
     global myMap, stairs, objects, upStairs, bossDungeonsAppeared, color_dark_wall, color_light_wall, color_dark_ground, color_light_ground, color_dark_gravel, color_light_gravel, townStairs, gluttonyStairs, stairs, upStairs, nemesisList, roomTiles, tunnelTiles, unchasmable
     
     nemesis = None
@@ -6168,6 +6170,10 @@ class Wrath(Charger):
                     self.flurryCooldown = 21
                 else:
                     boss.Fighter.attack(player)
+            elif boss.distanceTo(player) <= 4:
+                if self.explodeCooldown <= 0:
+                    monsterArmageddon('Wrath', boss.x, boss.y, 4, 30, False)
+                    self.explodeCooldown = 31
             elif self.chargeCooldown <= 0 and not self.charging:
                 self.defineChargePath(player)
                 self.chargeCooldown = 16
