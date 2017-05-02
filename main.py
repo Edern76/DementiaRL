@@ -174,6 +174,8 @@ BOSS_SIGHT_RADIUS = 20
 bossDungeonsAppeared = {'gluttony': False, 'greed' : False}
 lastHitter = None
 nemesisList = []
+mobsToCalculate = []
+mustCalculate = False
 currentMusic = 'No_Music.wav'
 
 # - Spells -
@@ -189,6 +191,8 @@ FIREBALL_SPELL_BASE_RANGE = 4
 RESURECTABLE_CORPSES = ["darksoul", "ogre"]
 
 BASE_HUNGER = 500
+
+
 # - Spells -
 #_____________ CONSTANTS __________________
 
@@ -983,7 +987,7 @@ def stealMoneyAndDamage(initiator, target, amount):
         
 def castAstarPath(caster = None, monsterTarget = None):
     global FOV_recompute
-    (goalX, goalY) = targetTile(unlimited=True)
+    (goalX, goalY) = targetAnyTile(startX = player.x, startY = player.y)
     if targetTile == 'cancelled':
         return 'cancelled'
     else:
@@ -2110,16 +2114,29 @@ class Fighter: #All NPCs, enemies and the player
         self.acidifiedCooldown = cooldown
         curArmor = self.armor - self.baseArmor
         self.baseArmor = -curArmor
+        
+class Pathfinder(threading.Thread):
+    def __init__(self, mob, goalX, goalY):
+        threading.Thread.__init__(self)
+        self.mob = mob
+        self.goalX = goalX
+        self.goalY = goalY
+        
+    def run(self):
+        self.mob.astarPath = astarPath(self.mob.x, self.mob.y, self.goalX, self.goalY)
 
 class BasicMonster: #Basic monsters' AI
+    def __init__(self):
+        self.selectedTarget = None 
+
     def takeTurn(self):
+        global mustCalculate
         monster = self.owner
         targets = []
-        selectedTarget = None
         priorityTargetFound = False
         monsterVisibleTiles = tdl.map.quick_fov(x = monster.x, y = monster.y,callback = isVisibleTile , fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
         if not 'frozen' in convertBuffsToNames(self.owner.Fighter) and monster.distanceTo(player) <= 15:
-            print(monster.name + " is less than 15 tiles to player.")
+            #print(monster.name + " is less than 15 tiles to player.")
             for object in objects:
                 if (object.x, object.y) in monsterVisibleTiles and (object == player or (object.AI and object.AI.__class__.__name__ == "FriendlyMonster" and object.AI.friendlyTowards == player)):
                     targets.append(object)
@@ -2127,50 +2144,77 @@ class BasicMonster: #Basic monsters' AI
                 print(monster.name.capitalize() + " can target", end=" ")
                 if targets:
                     for loop in range (len(targets)):
+                        pass
                         print(targets[loop].name.capitalize() + ", ", sep ="", end ="")
                 else:
+                    pass
                     print("absolutely nothing but nothingness.", end ="")
-                print()
             if targets:
                 if player in targets: #Target player in priority
-                    selectedTarget = player
-                    del targets[targets.index(player)]
+                    self.selectedTarget = player
+                    print("PLAYER IN TARGETS")
+                    print(self.selectedTarget)
+                    targets.remove(targets.index(player))
                     if monster.distanceTo(player) < 2:
                         priorityTargetFound = True
                 if not priorityTargetFound:
                     for enemyIndex in range(len(targets)):
                         enemy = targets[enemyIndex]
                         if monster.distanceTo(enemy) < 2:
-                            selectedTarget = enemy
+                            self.selectedTarget = enemy
                         else:
-                            if selectedTarget == None or monster.distanceTo(selectedTarget) > monster.distanceTo(enemy):
-                                selectedTarget = enemy
-            if selectedTarget is not None:
-                if monster.distanceTo(selectedTarget) < 2:
-                    monster.Fighter.attack(selectedTarget)
+                            if self.selectedTarget == None or monster.distanceTo(self.selectedTarget) > monster.distanceTo(enemy):
+                                self.selectedTarget = enemy
+            if self.selectedTarget is not None:
+                if monster.distanceTo(self.selectedTarget) < 2:
+                    monster.Fighter.attack(self.selectedTarget)
                 #else:
-                    #state = monster.moveAstar(selectedTarget.x, selectedTarget.y, fallback = False)
+                    #state = monster.moveAstar(self.selectedTarget.x, self.selectedTarget.y, fallback = False)
                     #if state == "fail":
-                    #   diagState = checkDiagonals(monster, selectedTarget)
+                    #   diagState = checkDiagonals(monster, self.selectedTarget)
                     #    if diagState is None:
-                    #        monster.moveTowards(selectedTarget.x, selectedTarget.y)
-                    #monster.moveOnAstarPath(goal = selectedTarget)
+                    #        monster.moveTowards(self.selectedTarget.x, self.selectedTarget.y)
+                    #monster.moveOnAstarPath(goal = self.selectedTarget)
                     
             #elif (monster.x, monster.y) in visibleTiles and monster.distanceTo(player) >= 2:
                 #monster.moveAstar(player.x, player.y)
             else:
-                if not 'frozen' in convertBuffsToNames(monster.Fighter) and monster.distanceTo(player) >= 2:
-                    pathState = "complete"
-                    diagPathState = None
-                    if monster.astarPath:
-                        pathState = monster.moveAstar()
-                    elif not monster.astarPath or pathState == "fail":
-                            if monster.distanceTo(player) <= 15 and not (monster.x == player.x and monster.y == player.y):
-                                diagPathState = checkDiagonals(monster, player)
-                            elif diagPathState is None or monster.distanceTo(player) > 15:
-                                monster.move(randint(-1, 1), randint(-1, 1)) #wandering
+                print("TRYING TO MOVE")
+                self.tryMove()
+                
         elif not 'frozen' in convertBuffsToNames(self.owner.Fighter):
             monster.move(randint(-1, 1), randint(-1, 1)) #wandering
+    
+    def tryMove(self):
+        global mustCalculate
+        monster = self.owner
+        if not 'frozen' in convertBuffsToNames(monster.Fighter) and monster.distanceTo(player) >= 2:
+            pathState = "complete"
+            diagPathState = None
+            if monster.astarPath:
+                print("Found astarPath")
+                if not monster.astarPath[0].blocked:
+                    print("Not blocked")
+                    (x, y) = monster.astarPath[0]
+                    monster.move(x,y)
+                else:
+                    print("Blocked")
+                    if self.selectedTarget:
+                        print("Recalculating")
+                        mustCalculate = True
+                        mobsToCalculate.append(monster)
+                    else:
+                        monster.move(randint(-1, 1), randint(-1, 1)) #wandering  
+                    
+            elif not monster.astarPath or pathState == "fail":
+                if self.selectedTarget:
+                    print("Trying to calculate")
+                    mustCalculate = True
+                    mobsToCalculate.append(monster)
+                else:
+                    print("No target")
+                    monster.move(randint(-1, 1), randint(-1, 1)) #wandering  
+
 
 class Charger:
     def __init__(self):
@@ -4855,7 +4899,7 @@ class Tile:
             self.dark_fg = colors.black
             self.DARK_BG = (0, 0, 16)
             self.dark_bg = (0, 0, 16)
-         self.moveCost = moveCost
+        self.moveCost = moveCost
         
     def neighbors(self):
         x = self.x
@@ -8451,6 +8495,9 @@ def playGame():
                     quitGame('Player pressed escape', True)
         FOV_recompute = True #So as to avoid the blackscreen bug no matter which key we press
         if gameState == 'playing' and playerAction != 'didnt-take-turn':
+            global mobsToCalculate
+            global mustCalculate
+            mobsToCalculate = []
             for object in objects:
                 if object.AI:
                     try:
@@ -8470,7 +8517,25 @@ def playGame():
                             print(object.name)
                             print("============================================")
                         print("============================================")
-                        
+            while mustCalculate:
+                print("Calculating")
+                pathfinders = []
+                mustCalculate = False
+                print(len(mobsToCalculate))
+                for mob in mobsToCalculate:
+                    newPathfinder = Pathfinder(mob, mob.AI.selectedTarget.x, mob.AI.selectedTarget.y)
+                    pathfinder.append(newPathfinder)
+                    
+                for pathfind in pathfinders:
+                    pathfind.start()
+                for pathfind in pathfinders:
+                    pathfind.join()
+                
+                for mob in mobsToCalculate:
+                    mob.AI.tryMove()
+                
+                
+                    
                 
                 if object.Fighter and object.Fighter.baseShootCooldown > 0 and object.Fighter is not None:
                     object.Fighter.curShootCooldown -= 1
