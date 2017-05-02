@@ -1,6 +1,6 @@
 from cx_Freeze import setup, Executable #, version
 
-build_exe_options = {"packages": ["cffi", "colors", "dbm", "shelve"], "excludes": ["jupyter", "scipy", "numpy","nose","email","http","html", "xml", "xmlrpc"], "include_files" : ['assets/']}
+build_exe_options = {"packages": ["cffi", "colors", "dbm", "shelve"], "excludes": ["jupyter", "scipy", "numpy","nose","email","http","html", "xml", "xmlrpc"], "include_files" : ['assets/', 'code/ffmpeg.exe', 'code/ffmpeg_licenses']}
 bdist_msi_options = {'add_to_path' : True}
 
 setup(

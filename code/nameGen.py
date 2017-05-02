@@ -79,7 +79,26 @@ def humanLike(length = randint(6, 12)):
     finalNameString = "".join(finalName).capitalize()
     return finalNameString
 
+def nemesisSuffix(race, classe):
+    choice = randint(0, 3)
+    finalSuffix = []
+    finalSuffix.extend(' the ')
+    if not choice: #class 
+        finalSuffix.extend(classe + ' ')
+    else:
+        finalSuffix.extend(race + ' ')
+    finalSuffix.extend(killerSyn[randint(0, len(killerSyn) - 1)])
+    finalSuffixString = "".join(finalSuffix)
+    return finalSuffixString
+
+def nemesisName(human = True, race = 'human', classe = 'knight'):
+    name = ""
+    if human:
+        name += humanLike(randint(4, 10))
+    name += nemesisSuffix(race, classe)
+    return name
+
 if __name__ == "__main__":
     for loop in range(10):
-        print(humanLike(8))
+        print(nemesisName())
             
