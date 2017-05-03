@@ -1588,7 +1588,7 @@ def enterName(race):
 def heuristic(sourceX, sourceY, targetX, targetY):
     return abs(sourceX - targetX) + abs(sourceY - targetY)
 
-def astarPath(startX, startY, goalX, goalY):
+def astarPath(startX, startY, goalX, goalY, flying = False):
     start = myMap[startX][startY]
     goal = myMap[goalX][goalY]
     frontier = [(start, 0)]
@@ -1614,19 +1614,22 @@ def astarPath(startX, startY, goalX, goalY):
             break
         for next in current.neighbors():
             print('neighbor:', next.x, next.y)
-            if not isBlocked(next.x, next.y) or next == goal:
-                newCost = costSoFar[current] + myMap[next.x][next.y].moveCost
-                if next not in costSoFar or newCost < costSoFar[next]:
-                    costSoFar[next] = newCost
-                    heurCost = heuristic(next.x, next.y, goal.x, goal.y)
-                    priority = newCost + heurCost
-                    print('next:', next.x, next.y, '  prio = G + H', '  G=', newCost, '  H=', heurCost)
-                    frontier.append((next, priority))
-                    cameFrom[next] = current
-                elif next in costSoFar:
-                    print('next was already explored')
+            if  flying or not myMap[next.x][next.y].chasm:
+                if not isBlocked(next.x, next.y) or next == goal:
+                    newCost = costSoFar[current] + myMap[next.x][next.y].moveCost
+                    if next not in costSoFar or newCost < costSoFar[next]:
+                        costSoFar[next] = newCost
+                        heurCost = heuristic(next.x, next.y, goal.x, goal.y)
+                        priority = newCost + heurCost
+                        print('next:', next.x, next.y, '  prio = G + H', '  G=', newCost, '  H=', heurCost)
+                        frontier.append((next, priority))
+                        cameFrom[next] = current
+                    elif next in costSoFar:
+                        print('next was already explored')
+                else:
+                    print('next is blocked')
             else:
-                print('next is blocked')
+                print('next is chasm')
     
     current = goal
     path = [goal]
@@ -1662,7 +1665,7 @@ class Nemesis:
 
 class GameObject:
     "A generic object, represented by a character"
-    def __init__(self, x, y, char, name, color = colors.white, blocks = False, Fighter = None, AI = None, Player = None, Ghost = False, Item = None, alwaysVisible = False, darkColor = None, Equipment = None, pName = None, Essence = None, socialComp = None, shopComp = None, questList = []):
+    def __init__(self, x, y, char, name, color = colors.white, blocks = False, Fighter = None, AI = None, Player = None, Ghost = False, flying = False, Item = None, alwaysVisible = False, darkColor = None, Equipment = None, pName = None, Essence = None, socialComp = None, shopComp = None, questList = []):
         self.x = x
         self.y = y
         self.char = char
@@ -1675,6 +1678,7 @@ class GameObject:
         self.Item = Item
         self.alwaysVisible = alwaysVisible
         self.darkColor = darkColor
+        self.flying = flying
         if self.Fighter:  #let the fighter component know who owns it
             self.Fighter.owner = self
         self.AI = AI
@@ -2228,7 +2232,12 @@ class BasicMonster: #Basic monsters' AI
                 self.tryMove()
                 
         elif not 'frozen' in convertBuffsToNames(self.owner.Fighter):
-            monster.move(randint(-1, 1), randint(-1, 1)) #wandering
+            dx, dy = randint(-1, 1), randint(-1, 1)
+            x, y = self.owner.x + dx, self.owner.y + dy
+            print('wandering, chasm:', myMap[x][y].chasm)
+            if self.owner.flying or not myMap[x][y].chasm:
+                print('moving')
+                monster.move(dx, dy) #wandering
     
     def tryMove(self):
         global mustCalculate
@@ -5805,8 +5814,7 @@ def unblockTunnels():
                     myMap[x][y].applyGroundProperties()
 
 def makeMap(generateChasm = True):
-    global myMap, stairs, objects, upStairs, bossDungeonsAppeared, color_dark_wall, color_light_wall, color_dark_ground, color_light_ground, color_dark_gravel, color_light_gravel, townStairs, gluttonyStairs, stairs, upStairs, nemesisList, roomTiles, tunnelTiles, unchasmable
-    
+    global myMap, stairs, objects, upStairs, bossDungeonsAppeared, color_dark_wall, color_light_wall, color_dark_ground, color_light_ground, color_dark_gravel, color_light_gravel, townStairs, gluttonyStairs, stairs, upStairs, nemesisList, roomTiles, tunnelTiles, unchasmable, rooms
     nemesis = None
     
     found = checkFile('meta.bak', absMetaDirPath)
@@ -5898,10 +5906,6 @@ def makeMap(generateChasm = True):
                 else:
                     createVerticalTunnel(previous_y, new_y, previous_x)
                     createHorizontalTunnel(previous_x, new_x, new_y)
-            if r == 0:
-                placeObjects(newRoom, first = True)
-            else:
-                placeObjects(newRoom)
             rooms.append(newRoom)
             numberRooms += 1
     secretRoom()
@@ -5915,6 +5919,13 @@ def makeMap(generateChasm = True):
     if generateChasm:
         myMap = chasmGen.createChasms(myMap, roomTiles, tunnelTiles, unchasmable)
     checkMap()
+    
+    r = 0
+    for room in rooms:
+        if r == 0:
+            placeObjects(room, True)
+        else:
+            placeObjects(room)
     
     if nemesis is not None:
         randRoom = randint(0, len(rooms) - 1)
@@ -5936,13 +5947,21 @@ def makeMap(generateChasm = True):
                 while not createdStairs:
                     randRoom = randint(0, len(rooms) - 1)
                     room = rooms[randRoom]
+                    chasmedRoom = False
+                    for x in range(room.x1 + 1, room.x2):
+                        for y in range(room.y1 + 1, room.y2):
+                            if myMap[x][y].chasm:
+                                chasmedRoom = True
+                                break
+                        if chasmedRoom:
+                            break
                     (x, y) = room.center()
                     wrongCentre = False
                     for object in objects:
                         if object.x == x and object.y == y:
                             wrongCentre = True
                             break
-                    if not wrongCentre:
+                    if not wrongCentre and not chasmedRoom:
                         global gluttonyStairs
                         gluttonyStairs = GameObject(x, y, '>', 'stairs to Gluttony', branch.lightStairsColor, alwaysVisible = True, darkColor = branch.darkStairsColor)
                         objects.append(gluttonyStairs)
@@ -5956,13 +5975,21 @@ def makeMap(generateChasm = True):
                 while not createdStairs:
                     randRoom = randint(0, len(rooms) - 1)
                     room = rooms[randRoom]
+                    chasmedRoom = False
+                    for x in range(room.x1 + 1, room.x2):
+                        for y in range(room.y1 + 1, room.y2):
+                            if myMap[x][y].chasm:
+                                chasmedRoom = True
+                                break
+                        if chasmedRoom:
+                            break
                     (x, y) = room.center()
                     wrongCentre = False
                     for object in objects:
                         if object.x == x and object.y == y:
                             wrongCentre = True
                             break
-                    if not wrongCentre:
+                    if not wrongCentre and not chasmedRoom:
                         global greedStairs
                         greedStairs = GameObject(x, y, '>', 'stairs to Greed', branch.lightStairsColor, alwaysVisible = True, darkColor = branch.darkStairsColor)
                         objects.append(greedStairs)
@@ -5980,13 +6007,21 @@ def makeMap(generateChasm = True):
                 while not createdStairs:
                     randRoom = randint(0, len(rooms) - 1)
                     room = rooms[randRoom]
-                    (x, y) = room.center()
+                    chasmedRoom = False
+                    for x in range(room.x1 + 1, room.x2):
+                        for y in range(room.y1 + 1, room.y2):
+                            if myMap[x][y].chasm:
+                                chasmedRoom = True
+                                break
+                        if chasmedRoom:
+                            break
                     wrongCentre = False
                     for object in objects:
                         if object.x == x and object.y == y:
                             wrongCentre = True
                             break
-                    if not wrongCentre:
+                    (x, y) = room.center()
+                    if not wrongCentre and not chasmedRoom:
                         global townStairs
                         townStairs = GameObject(x, y, '>', 'glowing portal', branch.lightStairsColor, alwaysVisible = True, darkColor = branch.darkStairsColor)
                         objects.append(townStairs)
@@ -6879,7 +6914,7 @@ def placeObjects(room, first = False):
             (x,y) = room.tiles[randint(0, len(room.tiles) - 1)]
         
         
-        if not isBlocked(x, y) and (x, y) != (player.x, player.y):
+        if not isBlocked(x, y) and (x, y) != (player.x, player.y) and not myMap[x][y].chasm:
             monsterChoice = randomChoice(monsterChances)
             if monsterChoice == 'darksoul':
                 monster = createDarksoul(x, y)
@@ -6960,7 +6995,7 @@ def placeObjects(room, first = False):
         elif type(room) is CaveRoom:
             (x,y) = room.tiles[randint(0, len(room.tiles) - 1)]
         item = None
-        if not isBlocked(x, y):
+        if not isBlocked(x, y) and not myMap[x][y].chasm:
             itemChoice = randomChoice(itemChances)
             if itemChoice == 'potion':
                 potionChoice = randomChoice(potionChances)
