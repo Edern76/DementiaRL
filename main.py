@@ -22,7 +22,7 @@ from code.dunbranches import gluttonyDungeon
 from code.custom_except import *
 from music import playWavSound
 from multiprocessing import freeze_support, current_process
-import code.experiments.chasmGen as chasmGen
+import code.chasmGen as chasmGen
 
 activeProcess = []
 
