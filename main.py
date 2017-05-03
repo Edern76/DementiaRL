@@ -4345,6 +4345,12 @@ def moveOrAttack(dx, dy):
     if not 'confused' in convertBuffsToNames(player.Fighter):
         x = player.x + dx
         y = player.y + dy
+        if myMap[x][y].chasm:
+            temporaryBox('You fall deeper into the dungeon...')
+            if dungeonLevel + 1 in currentBranch.bossLevels:
+                nextLevel(boss = True, fall = True)
+            else:
+                nextLevel(fall = True)
     else:
         possibleDirections = [(1, 1), (1,0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1), (0, 1)]
         index = randint(0, len(possibleDirections) - 1)
@@ -5038,7 +5044,7 @@ class Tile:
     
     def applyGroundProperties(self, explode = False):
         if explode:
-            if not self.chasm:
+            if not self.chasm or self.wall:
                 gravelChoice = randint(0, 5)
                 self.blocked = False
                 self.block_sight = False
@@ -5053,6 +5059,7 @@ class Tile:
                 self.dark_fg = color_dark_gravel
                 self.dark_bg = color_dark_ground
                 self.wall = False
+                self.chasm = False
         else:
             if not self.secretWall:
                 gravelChoice = randint(0, 5)
@@ -5516,7 +5523,7 @@ def createPassage(roomA, roomB, tileA, tileB):
     
     
     
-def generateCave():
+def generateCave(fall = False):
     global myMap, baseMap, mapToDisp, maps, visuTiles, state, visuEdges, confTiles, rooms, curRoomIndex, stairs, objects, upStairs, bossDungeonsAppeared, color_dark_wall, color_light_wall, color_dark_ground, color_light_ground, color_dark_gravel, color_light_gravel, townStairs, gluttonyStairs, stairs, upStairs, nemesisList
     myMap = [[Tile(blocked=False, x = x, y = y, block_sight=False) for y in range(MAP_HEIGHT)] for x in range(MAP_WIDTH)]
     visuTiles = []
@@ -5643,8 +5650,9 @@ def generateCave():
         refreshEmptyTiles()
         checkMap()
         (pX, pY) = rooms[0].tiles[randint(0, len(rooms[0].tiles) - 1)]
-        player.x = pX
-        player.y = pY
+        if not fall:
+            player.x = pX
+            player.y = pY
         upStairs = GameObject(pX, pY, '<', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor)
         objects.append(upStairs)
         upStairs.sendToBack()
@@ -5658,6 +5666,14 @@ def generateCave():
                 placeObjects(room, True)
             else:
                 placeObjects(room, False)
+    
+        if fall:
+            fallen = False
+            while not fallen:
+                x, y = randint(1, MAP_WIDTH - 1), randint(1, MAP_HEIGHT - 1)
+                if not myMap[x][y].chasm and not isBlocked(x, y):
+                    player.x, player.y = x, y
+                    fallen = True
         updateTileCoords()
         print("DONE")
 
@@ -5813,7 +5829,7 @@ def unblockTunnels():
                 elif not myMap[x][y].secretWall:
                     myMap[x][y].applyGroundProperties()
 
-def makeMap(generateChasm = True):
+def makeMap(generateChasm = True, fall = False):
     global myMap, stairs, objects, upStairs, bossDungeonsAppeared, color_dark_wall, color_light_wall, color_dark_ground, color_light_ground, color_dark_gravel, color_light_gravel, townStairs, gluttonyStairs, stairs, upStairs, nemesisList, roomTiles, tunnelTiles, unchasmable, rooms
     nemesis = None
     
@@ -5889,8 +5905,9 @@ def makeMap(generateChasm = True):
             (new_x, new_y) = newRoom.center()
  
             if numberRooms == 0:
-                player.x = new_x
-                player.y = new_y
+                if not fall:
+                    player.x = new_x
+                    player.y = new_y
                 for x in range(newRoom.x1 + 1, newRoom.x2):
                     for y in range(newRoom.y1 + 1, newRoom.y2):
                         unchasmable.append((x, y))
@@ -6042,9 +6059,17 @@ def makeMap(generateChasm = True):
         global gluttonyStairs
         print('Wrong branch for gluttony stairs')
         gluttonyStairs = None
+    
+    if fall:
+        fallen = False
+        while not fallen:
+            x, y = randint(1, MAP_WIDTH - 1), randint(1, MAP_HEIGHT - 1)
+            if not myMap[x][y].chasm and not isBlocked(x, y):
+                player.x, player.y = x, y
+                fallen = True
     updateTileCoords()
          
-def makeBossLevel():
+def makeBossLevel(fall = False):
     global myMap, objects, upStairs, rooms, numberRooms
     myMap = [[Tile(True, x = x, y = y, wall = True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
     objects = [player]
@@ -6072,10 +6097,12 @@ def makeBossLevel():
         if not intersection:
             createRoom(newRoom)
             (new_x, new_y) = newRoom.center()
+            (previous_x, previous_y) = newRoom.center()
  
             if numberRooms == 0:
-                player.x = new_x
-                player.y = new_y
+                if not fall:
+                    player.x = new_x
+                    player.y = new_y
                 if dungeonLevel > 1:
                     upStairs = GameObject(new_x, new_y, '<', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor)
                     objects.append(upStairs)
@@ -6116,8 +6143,16 @@ def makeBossLevel():
     (previous_x, previous_y) = bossRoom.center()
     rooms.append(bossRoom)
     numberRooms += 1
+    
+    if fall:
+        fallen = False
+        while not fallen:
+            x, y = randint(1, MAP_WIDTH - 1), randint(1, MAP_HEIGHT - 1)
+            if not myMap[x][y].chasm and not isBlocked(x, y):
+                player.x, player.y = x, y
+                fallen = True
 
-def makeHiddenTown():
+def makeHiddenTown(fall = False):
     global myMap, objects, upStairs, rooms, numberRooms
     myMap = [[Tile(True, wall = True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
     objects = [player]
@@ -6133,8 +6168,17 @@ def makeHiddenTown():
     
     newRoom = Rectangle(10, 10, 20, 10)
     createRoom(newRoom)
-    (player.x, player.y) = newRoom.center()
-    upStairs = GameObject(int(player.x), int(player.y), '<', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor)
+    x, y = newRoom.center()
+    if not fall:
+        player.x, player.y = x, y
+    else:
+        fallen = False
+        while not fallen:
+            x, y = randint(1, MAP_WIDTH - 1), randint(1, MAP_HEIGHT - 1)
+            if not myMap[x][y].chasm and not isBlocked(x, y):
+                player.x, player.y = x, y
+                fallen = True
+    upStairs = GameObject(x, y, '<', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor)
     objects.append(upStairs)
     upStairs.sendToBack()
     
@@ -8102,7 +8146,10 @@ def chat():
 
 def GetNamesUnderLookCursor():
     tile = myMap[lookCursor.x][lookCursor.y]
-    tileDisp = 'Chasm: ' + str(tile.chasm)
+    if tile.secretWall:
+        tileDisp = 'Something is off with this wall'
+    else:
+        tileDisp = None
     names = [obj for obj in objects
                 if obj.x == lookCursor.x and obj.y == lookCursor.y and (obj.x, obj.y in visibleTiles) and obj != lookCursor]
     for loop in range(len(names)):
@@ -8117,7 +8164,8 @@ def GetNamesUnderLookCursor():
             else:
                 displayName = names[loop].name
         names[loop] = displayName
-    names.insert(0, tileDisp)
+    if tileDisp is not None:
+        names.insert(0, tileDisp)
     names = ', '.join(names)
     return names.capitalize()
 
@@ -8520,7 +8568,7 @@ def loadLevel(level, save = True, branch = currentBranch):
     if level == townBrLevel and branch.name == 'Main':
         townStairs = objects[xfile["townStairsIndex"]]
     if dungeonLevel == greedBrLevel and currentBranch.name == 'Main':
-        greedStairs = objects[file["greedStairsIndex"]]
+        greedStairs = objects[xfile["greedStairsIndex"]]
         
     message("You climb the stairs")
     print("Loaded level " + str(level))
@@ -8529,7 +8577,7 @@ def loadLevel(level, save = True, branch = currentBranch):
     currentBranch = branch
     initializeFOV()
 
-def nextLevel(boss = False, changeBranch = None, fixedMap = None):
+def nextLevel(boss = False, changeBranch = None, fixedMap = None, fall = False):
     global dungeonLevel, currentBranch, currentMusic
     if boss:
         currentMusic = 'Hoxton_Princess.wav'
@@ -8582,15 +8630,15 @@ def nextLevel(boss = False, changeBranch = None, fixedMap = None):
         if not boss:
             if currentBranch.fixedMap is None:
                 if currentBranch.genType == 'dungeon':
-                    makeMap()
+                    makeMap(fall = fall)
                 elif currentBranch.genType == 'cave':
-                    generateCave()
+                    generateCave(fall = fall)
             elif currentBranch.fixedMap == 'town':
-                makeHiddenTown()
+                makeHiddenTown(fall = fall)
             else:
                 raise ValueError('Current branch fixedMap attribute is invalid ({})'.format(currentBranch.fixedMap))
         else:
-            makeBossLevel()
+            makeBossLevel(fall = fall)
         print("Created a new level")
     print("After try except block")
     if hiroshimanNumber == 1 and not hiroshimanHasAppeared:
