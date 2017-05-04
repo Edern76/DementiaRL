@@ -6104,9 +6104,9 @@ def makeMap(generateChasm = True, generateHole = False, fall = False):
                 fallen = True
     updateTileCoords()
          
-def makeBossLevel(fall = False):
+def makeBossLevel(fall = False, generateHole=False):
     global myMap, objects, upStairs, rooms, numberRooms
-    myMap = [[Tile(True, x = x, y = y, wall = True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
+    myMap = [[Tile(True, x = x, y = y, wall = True, hole = generateHole) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
     objects = [player]
     rooms = []
     numberRooms = 0
@@ -6178,6 +6178,9 @@ def makeBossLevel(fall = False):
     (previous_x, previous_y) = bossRoom.center()
     rooms.append(bossRoom)
     numberRooms += 1
+    if generateHole:
+        myMap = holeGen.createHoles(myMap)
+    checkMap()
     
     if fall:
         fallen = False
@@ -7218,11 +7221,13 @@ def getAllWeights(object):
 
 def checkLoad():
     load = getAllWeights(player)
-    burdened = Buff('burdened', colors.yellow, 99999, showCooldown=False)
     if load > player.Player.maxWeight:
+        burdened = Buff('burdened', colors.yellow, 99999, showCooldown=False)
         burdened.applyBuff(player)
-    if load < player.Player.maxWeight and 'burdened' in convertBuffsToNames(player.Fighter):
-        burdened.removeBuff()
+    if load <= player.Player.maxWeight and 'burdened' in convertBuffsToNames(player.Fighter):
+        for buff in player.Fighter.buffList:
+            if buff.name == 'burdened':
+                buff.removeBuff()
 
 def lootItem(object, x, y):
     objects.append(object)
@@ -8700,13 +8705,13 @@ def nextLevel(boss = False, changeBranch = None, fixedMap = None, fall = False):
         stairs = tempStairs
         chasmGeneration = False
         holeGeneration = False
+        for feature in currentBranch.genFeatures:
+            if feature == 'chasms':
+                chasmGeneration = True
+            if feature == 'holes':
+                holeGeneration = True
         if not boss:
             if currentBranch.fixedMap is None:
-                for feature in currentBranch.genFeatures:
-                    if feature == 'chasms':
-                        chasmGeneration = True
-                    if feature == 'holes':
-                        holeGeneration = True
                 if currentBranch.genType == 'dungeon':
                     makeMap(generateChasm=chasmGeneration, generateHole=holeGeneration, fall = fall)
                 elif currentBranch.genType == 'cave':
@@ -8716,7 +8721,7 @@ def nextLevel(boss = False, changeBranch = None, fixedMap = None, fall = False):
             else:
                 raise ValueError('Current branch fixedMap attribute is invalid ({})'.format(currentBranch.fixedMap))
         else:
-            makeBossLevel(fall = fall)
+            makeBossLevel(fall = fall, generateHole = holeGeneration)
         print("Created a new level")
     print("After try except block")
     if hiroshimanNumber == 1 and not hiroshimanHasAppeared:
