@@ -1,5 +1,5 @@
 
-import colors, math, textwrap, time, os, sys, code, gzip, pathlib, traceback, ffmpy, pdb, copy, queue #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
+import colors, math, textwrap, time, os, sys, code, gzip, pathlib, traceback, ffmpy, pdb, copy, queue, random #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
 import tdlib as tdl
 import code.dialog as dial
 import music as mus
@@ -978,6 +978,10 @@ def stealMoneyAndDamage(initiator, target, amount):
     # To call, add to attackFunctions : "lambda ini, target : stealMoneyAndDamage(ini, target, [ENTER_DESIRED_AMOUNT_HERE])"
     def actuallySteal(initiator, amountStolen):
         target.Player.money -= amountStolen
+        addCoef = round(random.uniform(0, 0.8), 3)
+        toAdd = int(amountStolen * addCoef)
+        print("To add = {} (coef = {})".format(toAdd, addCoef))
+        initiator.lootFunction[0].Item.amount += toAdd
         message("{} has stolen {} of your gold pieces !".format(initiator.owner.name.capitalize(), amountStolen), colors.red)
     leftToSteal = int(amount)
     if target.Player.money >= leftToSteal:
@@ -1587,7 +1591,7 @@ def enterName(race):
 def heuristic(sourceX, sourceY, targetX, targetY):
     return abs(sourceX - targetX) + abs(sourceY - targetY)
 
-def astarPath(startX, startY, goalX, goalY):
+def astarPath(startX, startY, goalX, goalY, silent = True):
     start = myMap[startX][startY]
     goal = myMap[goalX][goalY]
     frontier = [(start, 0)]
@@ -1607,38 +1611,49 @@ def astarPath(startX, startY, goalX, goalY):
 
         frontier.remove((prioTile, lastPrio))
         current = prioTile
-        print('tile:', prioTile.x, prioTile.y, '  prio:', lastPrio)
+        if not silent:
+            print('tile:', prioTile.x, prioTile.y, '  prio:', lastPrio)
         if current == goal:
-            print('arrived to goal')
+            if not silent:
+                print('arrived to goal')
             break
         for next in current.neighbors():
-            print('neighbor:', next.x, next.y)
+            if not silent:
+                print('neighbor:', next.x, next.y)
             if not isBlocked(next.x, next.y) or next == goal:
                 newCost = costSoFar[current] + myMap[next.x][next.y].moveCost
                 if next not in costSoFar or newCost < costSoFar[next]:
                     costSoFar[next] = newCost
                     heurCost = heuristic(next.x, next.y, goal.x, goal.y)
                     priority = newCost + heurCost
-                    print('next:', next.x, next.y, '  prio = G + H', '  G=', newCost, '  H=', heurCost)
+                    if not silent:
+                        print('next:', next.x, next.y, '  prio = G + H', '  G=', newCost, '  H=', heurCost)
                     frontier.append((next, priority))
                     cameFrom[next] = current
                 elif next in costSoFar:
-                    print('next was already explored')
+                    if not silent:
+                        print('next was already explored')
             else:
-                print('next is blocked')
+                if not silent:
+                    print('next is blocked')
     
     current = goal
     path = [goal]
-    print('start:', startX, startY, ' goal:', goalX, goalY)
+    if not silent:
+        print('start:', startX, startY, ' goal:', goalX, goalY)
     while current != start:
         former = current
-        print('former:', former.x, former.y)
+        if not silent:
+            print('former:', former.x, former.y)
         current = cameFrom[former]
-        print('current:', current.x, current.y)
+        if not silent:
+            print('current:', current.x, current.y)
         path.append(current)
-    print('not reversed path:', path)
+    if not silent:
+        print('not reversed path:', path)
     path.reverse()
-    print('reversed path:', path)
+    if not silent:
+        print('reversed path:', path)
     return path
 
 def closestMonster(max_range):
@@ -6744,7 +6759,8 @@ def createGreedyFiend(x, y, friendly = False, corpse = False):
             deathType = monsterDeath
             monName = "greedy fiend"
             color = colors.dark_orange
-            lootOnDeath = None
+            money = GameObject(x = None, y = None, char = '$', name = 'gold piece', color = colors.gold, Item=Money(0), blocks = False, pName = 'gold pieces')
+            lootOnDeath = [money]
         else:
             monName = "YOU_SHOULDNT_SEE_THIS"
             deathType = zombieDeath
@@ -6754,7 +6770,7 @@ def createGreedyFiend(x, y, friendly = False, corpse = False):
             AI_component = BasicMonster()
         else:
             AI_component = FriendlyMonster(friendlyTowards = player)
-        fighterComponent = Fighter(hp=20, armor=2, power=1, xp = 30, deathFunction = deathType, accuracy = 30, evasion = 20, lootFunction=lootOnDeath, lootRate=[15], attackFunctions= [lambda ini, target : stealMoneyAndDamage(ini, target, 300)], noDirectDamage = True)
+        fighterComponent = Fighter(hp=20, armor=2, power=1, xp = 30, deathFunction = deathType, accuracy = 30, evasion = 20, lootFunction=lootOnDeath, lootRate=[100], attackFunctions= [lambda ini, target : stealMoneyAndDamage(ini, target, 300)], noDirectDamage = True)
         monster = GameObject(x, y, char = 'f', color = color, name = monName, blocks = True, Fighter=fighterComponent, AI = AI_component)
         return monster
     else:
@@ -7322,7 +7338,8 @@ def monsterDeath(monster):
         for item in monster.Fighter.lootFunction:
             loot = randint(1, 100)
             if loot <= monster.Fighter.lootRate[itemIndex]:
-                lootItem(item, monster.x, monster.y)
+                if not item.Item.stackable or item.Item.amount > 0:
+                    lootItem(item, monster.x, monster.y)
             itemIndex += 1
 
     monster.char = '%'
