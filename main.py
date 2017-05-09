@@ -1010,6 +1010,20 @@ def castAstarPath(caster = None, monsterTarget = None):
         Update()
         return
 
+def castTeleportTo(caster = None, monsterTarget = None):
+    global FOV_recompute
+    (goalX, goalY) = targetAnyTile(startX = player.x, startY = player.y)
+    if targetTile == 'cancelled':
+        return 'cancelled'
+    else:
+        if not myMap[goalX][goalY].blocked and not myMap[goalX][goalY].chasm:
+            player.x = goalX
+            player.y = goalY
+            return
+        else:
+            message("Cannot teleport there !", colors.red)
+            return 'cancelled'
+
 
 fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 1, arg2 = 12, arg3 = 4)
 heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 20)
@@ -1019,12 +1033,13 @@ lightning = Spell(ressourceCost = 10, cooldown = 7, useFunction = castLightning,
 confuse = Spell(ressourceCost = 5, cooldown = 4, useFunction = castConfuse, name = 'Confusion', ressource = 'MP', type = 'Magic', magicLevel = 1)
 ice = Spell(ressourceCost = 9, cooldown = 5, useFunction = castFreeze, name = 'Ice bolt', ressource = 'MP', type = 'Magic', magicLevel = 2)
 ressurect = Spell(ressourceCost = 10, cooldown = 15, useFunction=castRessurect, name = "Dark ressurection", ressource = 'MP', type = "Occult", arg1 = 4)
-placeTag = Spell(ressourceCost = 0, cooldown = 0, useFunction=castPlaceTag, name = 'DEBUG : Place tag', ressource = 'MP', type = 'Occult')
-drawRect = Spell(ressourceCost = 0, cooldown = 0, useFunction=castDrawRectangle, name = 'DEBUG : Draw Rectangle', ressource = 'MP', type = 'Occult')
+placeTag = Spell(ressourceCost = 0, cooldown = 1, useFunction=castPlaceTag, name = 'DEBUG : Place tag', ressource = 'MP', type = 'Occult')
+drawRect = Spell(ressourceCost = 0, cooldown = 1, useFunction=castDrawRectangle, name = 'DEBUG : Draw Rectangle', ressource = 'MP', type = 'Occult')
 envenom = Spell(ressourceCost= 3, cooldown = 20, useFunction=castEnvenom, name = 'Envenom weapons', ressource='MP', type = 'Racial')
-drawAstarPath = Spell(ressourceCost = 0, cooldown = 0, useFunction=castAstarPath, name = 'DEBUG : Draw A* path', ressource = 'MP', type = 'Occult')
+drawAstarPath = Spell(ressourceCost = 0, cooldown = 1, useFunction=castAstarPath, name = 'DEBUG : Draw A* path', ressource = 'MP', type = 'Occult')
+teleport = Spell(ressourceCost = 0, cooldown = 1, useFunction=castTeleportTo, name = 'DEBUG : Teleport', ressource = 'HP', type = 'Occult')
 
-spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath])
+spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport])
 #_____________SPELLS_____________
 
 #______________CHARACTER GENERATION____________
@@ -8791,31 +8806,11 @@ def playGame():
                             print(object.name)
                             print("============================================")
                         print("============================================")
-            while mustCalculate:
-                print("Calculating")
-                pathfinders = []
-                mustCalculate = False
-                print(len(mobsToCalculate))
-                for mob in mobsToCalculate:
-                    newPathfinder = Pathfinder(mob, mob.AI.selectedTarget.x, mob.AI.selectedTarget.y)
-                    pathfinders.append(newPathfinder)
-                    
-                for pathfind in pathfinders:
-                    pathfind.start()
-                for pathfind in pathfinders:
-                    pathfind.join()
-                
-                for mob in mobsToCalculate:
-                    mob.AI.tryMove()
-                
-                
-                    
-                
                 if object.Fighter and object.Fighter.baseShootCooldown > 0 and object.Fighter is not None:
                     object.Fighter.curShootCooldown -= 1
                 if object.Fighter and object.Fighter.baseLandCooldown > 0 and object.Fighter is not None:
                     object.Fighter.curLandCooldown -= 1
-
+    
                 if object.Fighter and object.Fighter.spellsOnCooldown and object.Fighter is not None:
                     try:
                         for spell in object.Fighter.spellsOnCooldown:
@@ -8827,8 +8822,14 @@ def playGame():
                                 object.Fighter.knownSpells.append(spell)
                                 if object == player:
                                     message(spell.name + " is now ready.")
-                    except:
+                    except Exception as error:
+                        traceback.print_exc()
+                        message("OMG SPELLS NOT WORKING SEE CONSOLE", colors.red)
                         continue
+                else:
+                    if object.Fighter:
+                        print("{} has no spell on cooldown".format(object.name))
+                
                 if object.Fighter and object.Fighter.MP < object.Fighter.maxMP and object.Fighter is not None:
                     object.Fighter.MPRegenCountdown -= 1
                     if object.Fighter.MPRegenCountdown < 0:
@@ -8842,7 +8843,7 @@ def playGame():
                         else:
                             object.Fighter.MPRegenCountdown = 10
                         object.Fighter.MP += 1
-
+    
                 if object.Player is not None:
                     if NATURAL_REGEN:
                         monsterInSight = False
@@ -8857,7 +8858,7 @@ def playGame():
                             if player.Fighter.healCountdown == 0:
                                 player.Fighter.heal(1)
                                 player.Fighter.healCountdown= 25 - player.Player.vitality
-
+    
                 if object.Player and object.Player.race == 'Werewolf':
                     def shapeshift(fighter, fromWolf = False, fromHuman = True):
                         if fromWolf:
@@ -8866,7 +8867,7 @@ def playGame():
                         if fromHuman:
                             player.Player.shapeshift = 'wolf'
                             object.Player.shapeshifted = True
-
+    
                     human = Buff('human', colors.lightest_yellow, cooldown = player.Player.human, showBuff = False, applyFunction = lambda fighter: setFighterStatsBack(fighter), removeFunction = lambda fighter: shapeshift(fighter))
                     wolf = Buff('in wolf form', colors.amber, cooldown = player.Player.wolf, applyFunction = lambda fighter: modifyFighterStats(fighter, str = 5, dex = 3, vit = 4, will = -5), removeFunction = lambda fighter: shapeshift(fighter, fromHuman=False, fromWolf=True))
                     if object.Player.shapeshifted:
@@ -8906,7 +8907,26 @@ def playGame():
                 if object.Fighter and object.Fighter is not None:
                     for buff in object.Fighter.buffList:
                         buff.passTurn()
-
+    
+                
+            while mustCalculate:
+                print("Calculating")
+                pathfinders = []
+                mustCalculate = False
+                print(len(mobsToCalculate))
+                for mob in mobsToCalculate:
+                    newPathfinder = Pathfinder(mob, mob.AI.selectedTarget.x, mob.AI.selectedTarget.y)
+                    pathfinders.append(newPathfinder)
+                    
+                for pathfind in pathfinders:
+                    pathfind.start()
+                for pathfind in pathfinders:
+                    pathfind.join()
+                
+                for mob in mobsToCalculate:
+                    mob.AI.tryMove()
+                
+                
             for x in range(MAP_WIDTH):
                 for y in range(MAP_HEIGHT):
                     if myMap[x][y].acid:
@@ -8951,7 +8971,9 @@ def playGame():
                 prevStatus = player.Player.hungerStatus
                 player.Player.hungerStatus = "full"
                 if prevStatus != "full":
-                    message("You feel way less hungry")
+                    message("You feel way less hungry")        
+                
+            
         
         actions = 1
         if player.Player.speed == 'fast' and randint(1, 100) <= player.Player.speedChance:
