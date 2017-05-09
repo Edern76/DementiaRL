@@ -4376,7 +4376,7 @@ def moveOrAttack(dx, dy):
     if not 'confused' in convertBuffsToNames(player.Fighter):
         x = player.x + dx
         y = player.y + dy
-        if myMap[x][y].chasm:
+        if myMap[x][y].chasm and not myMap[x][y].wall:
             temporaryBox('You fall deeper into the dungeon...')
             if dungeonLevel + 1 in currentBranch.bossLevels:
                 nextLevel(boss = True, fall = True)
