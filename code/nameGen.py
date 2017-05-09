@@ -1,6 +1,42 @@
 from random import randint
 from code.constants import *
 
+class SpellTemplate:
+    def __init__(self):
+        self.type = None
+        self.targeting = None
+        self.zone = None
+        self.eff1 = None
+        self.eff2 = None
+        self.eff3 = None
+
+class NumberedEffect:
+    def __init__(self, name, amount):
+        self.name = name
+        self.amount = amount
+
+class DoubleNumberedEffect:
+    def __init__(self, name, initAmount, doubleAmount):
+        self.name = name
+        self.initAmount = initAmount
+        self.doubleAmount = doubleAmount
+        
+
+class BetterList(list):
+    def __init__(self):
+        list.__init__()
+    def removeFrom(self, element):
+        ind = self.index(element)
+        self.remove(self[ind])
+
+
+def createSpell():
+    typeList = ["Attack", "Buff", "Heal", "Mixed"]
+    targetList = ["Select", "Self", "Closest", "Farthest"]
+    zoneList = ["SingleTile", "Cross", "AOE"]
+    
+    attackList = [""]
+    
 
 def humanLike(length = randint(6, 12)):
     #Generates pronouncable, human sounding like names (in theory)
