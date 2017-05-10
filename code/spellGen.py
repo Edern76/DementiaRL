@@ -43,3 +43,4 @@ def createEffect():
     buffList = BetterList("Hunger", "AttackUp")
     healList = BetterList("HP", "MP", "CureFire", "CurePoison")
     
+    
