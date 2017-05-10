@@ -1,5 +1,6 @@
 from random import randint
 from code.constants import *
+from nameGen import BetterList
 
 class SpellTemplate:
     def __init__(self):
@@ -16,26 +17,34 @@ class NumberedEffect:
         self.amount = amount
 
 class DoubleNumberedEffect:
-    def __init__(self, name, initAmount, doubleAmount):
+    def __init__(self, name, initAmount, overtimeAmount):
         self.name = name
         self.initAmount = initAmount
-        self.doubleAmount = doubleAmount
+        self.overtimeAmount = overtimeAmount
         
-
 class BetterList(list):
-    def __init__(self):
-        list.__init__()
+    def __init__(self, *args):
+        super(BetterList, self).__init__(args[0])
+    
     def removeFrom(self, element):
         ind = self.index(element)
         self.remove(self[ind])
+        
+    def randFrom(self):
+        ind = randint(0, len(self) - 1)
+        return self[ind]
 
 
-def createSpell():
-    typeList = ["Attack", "Buff", "Heal", "Mixed"]
-    targetList = ["Select", "Self", "Closest", "Farthest"]
-    zoneList = ["SingleTile", "Cross", "AOE"]
+def createEffect():
+    typeList = BetterList("Attack", "Buff", "Heal")
+    targetList = BetterList("Select", "Self", "Closest", "Farthest")
+    zoneList = BetterList("SingleTile", "Cross", "AOE")
     
-    attackList = [""]
+    attackList = BetterList("Fire", "Physical", "Poison")
+    buffList = BetterList("Hunger", "AttackUp")
+    healList = BetterList("HP", "MP", "CureFire", "CurePoison")
+    
+    
     
 
 def humanLike(length = randint(6, 12)):
