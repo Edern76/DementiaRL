@@ -1736,6 +1736,16 @@ class GameObject:
         self.socialComp = socialComp
         self.shopComp = shopComp
         self.questList = questList
+    
+    @property
+    def name(self):
+        if self.Item:
+            if self.Item.identified:
+                return self.name
+            else:
+                return self.Item.unIDName
+        else:
+            return self.name
 
     def moveTowards(self, target_x, target_y):
         dx = target_x - self.x
@@ -3018,7 +3028,7 @@ class Essence:
                     player.Player.speedChance += boost
 
 class Item:
-    def __init__(self, useFunction = None,  arg1 = None, arg2 = None, arg3 = None, stackable = False, amount = 1, weight = 0, description = 'Placeholder.', pic = 'trollMace.xp', itemtype = None):
+    def __init__(self, useFunction = None,  arg1 = None, arg2 = None, arg3 = None, stackable = False, amount = 1, weight = 0, description = 'Placeholder.', pic = 'trollMace.xp', itemtype = None, identified = True, unIDName = 'Unidentified'):
         self.useFunction = useFunction
         self.arg1 = arg1
         self.arg2 = arg2
@@ -3029,7 +3039,18 @@ class Item:
         self.description = description
         self.pic = pic
         self.type = itemtype
-
+        self.identified = identified
+        self.unIDName = unIDName
+    
+    def identify(self):
+        self.identified = True
+        for object in objects:
+            if object.Item.unIDName == self.unIDName:
+                object.Item.identified = True
+        for object in inventory:
+            if object.Item.unIDName == self.unIDName:
+                object.Item.identified = True
+    
     def pickUp(self, silent = False, inObjects = True):
         if not self.stackable:
             #if len(inventory)>=26:
