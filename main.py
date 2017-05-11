@@ -226,6 +226,7 @@ hiroshimanNumber = 0
 FOV_recompute = True
 inventory = [] #Player inventory
 equipmentList = [] #Player equipment
+identifiedItems = []
 activeSounds = []
 spells = [] #List of all spells in the game
 
@@ -1705,7 +1706,7 @@ class GameObject:
         self.char = char
         self.color = color
         self.blocks = blocks
-        self.name = name
+        self.trueName = name
         self.Fighter = Fighter
         self.Player = Player
         self.ghost = Ghost
@@ -1731,8 +1732,7 @@ class GameObject:
         self.astarPath = []
         self.lastTargetX = None
         self.lastTargetY = None
-        self.pluralName = pName
-        self.pName = self.pluralName
+        self.pName = pName
         self.socialComp = socialComp
         self.shopComp = shopComp
         self.questList = questList
@@ -1741,11 +1741,21 @@ class GameObject:
     def name(self):
         if self.Item:
             if self.Item.identified:
-                return self.name
+                return self.trueName
             else:
                 return self.Item.unIDName
         else:
-            return self.name
+            return self.trueName
+    
+    @property
+    def pluralName(self):
+        if self.Item:
+            if self.Item.identified:
+                return self.pName
+            else:
+                return self.Item.unIDpName
+        else:
+            return self.pName
 
     def moveTowards(self, target_x, target_y):
         dx = target_x - self.x
@@ -3028,7 +3038,7 @@ class Essence:
                     player.Player.speedChance += boost
 
 class Item:
-    def __init__(self, useFunction = None,  arg1 = None, arg2 = None, arg3 = None, stackable = False, amount = 1, weight = 0, description = 'Placeholder.', pic = 'trollMace.xp', itemtype = None, identified = True, unIDName = 'Unidentified'):
+    def __init__(self, useFunction = None,  arg1 = None, arg2 = None, arg3 = None, stackable = False, amount = 1, weight = 0, description = 'Placeholder.', pic = 'trollMace.xp', itemtype = None, identified = True, unIDName = 'Unidentified', unIDpName = 'UnidentifiedS'):
         self.useFunction = useFunction
         self.arg1 = arg1
         self.arg2 = arg2
@@ -3041,15 +3051,20 @@ class Item:
         self.type = itemtype
         self.identified = identified
         self.unIDName = unIDName
+        self.unIDpName = unIDpName
     
     def identify(self):
+        global identifiedItems
         self.identified = True
+        identifiedItems.append(self.unIDName)
         for object in objects:
-            if object.Item.unIDName == self.unIDName:
-                object.Item.identified = True
+            if object.Item:
+                if object.Item.unIDName == self.unIDName:
+                    object.Item.identified = True
         for object in inventory:
-            if object.Item.unIDName == self.unIDName:
-                object.Item.identified = True
+            if object.Item:
+                if object.Item.unIDName == self.unIDName:
+                    object.Item.identified = True
     
     def pickUp(self, silent = False, inObjects = True):
         if not self.stackable:
@@ -3105,6 +3120,7 @@ class Item:
             if equipping == 'didnt-take-turn' or equipping == 'cancelled':
                 return 'didnt-take-turn'
             else:
+                self.identify()
                 return
         if self.useFunction is None:
             message('The ' + self.owner.name + ' cannot be used !')
@@ -3120,7 +3136,7 @@ class Item:
                             self.amount = 0
                         if self.amount == 0:
                             inventory.remove(self.owner)
-                        
+                    self.identify()    
                 else:
                     return 'cancelled'
             elif self.arg2 is None and self.arg1 is not None:
@@ -3133,6 +3149,7 @@ class Item:
                             self.amount = 0
                         if self.amount == 0:
                             inventory.remove(self.owner)
+                    self.identify()
                 else:
                     return 'cancelled'
             elif self.arg3 is None and self.arg2 is not None:
@@ -3145,6 +3162,7 @@ class Item:
                             self.amount = 0
                         if self.amount == 0:
                             inventory.remove(self.owner)
+                    self.identify()
                 else:
                     return 'cancelled'
             elif self.arg3 is not None:
@@ -3157,6 +3175,7 @@ class Item:
                             self.amount = 0
                         if self.amount == 0:
                             inventory.remove(self.owner)
+                    self.identify()
                 else:
                     return 'cancelled'
                 
@@ -3747,8 +3766,8 @@ class ShopChoice:
             raise NotEqualToExpectedValueException('ItemComp is different from the Item component of the actual object')
         '''
         if self.stock > 1:
-            if o.pName:
-                name = str(self.stock) + ' ' + o.pName
+            if o.pluralName:
+                name = str(self.stock) + ' ' + o.pluralName
             else:
                 name = str(self.stock) + ' ' + o.name + 's'
         else:
@@ -5703,6 +5722,7 @@ def generateCave(fall = False):
         stairs = GameObject(sX, sY, '>', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor)
         objects.append(stairs)
         stairs.sendToBack()
+        applyIdentification()
         for room in rooms:
             if room == rooms[0]:
                 placeObjects(room, True)
@@ -5977,6 +5997,7 @@ def makeMap(generateChasm = True, generateHole = False, fall = False):
         myMap = holeGen.createHoles(myMap)
     checkMap()
     
+    applyIdentification()
     r = 0
     for room in rooms:
         if r == 0:
@@ -6321,7 +6342,7 @@ def basicBossDeath(monster):
     monster.color = colors.dark_red
     monster.blocks = False
     monster.AI = None
-    monster.name = 'remains of ' + monster.name
+    monster.trueName = 'remains of ' + monster.name
     monster.Fighter = None
     monster.sendToBack()
     createEndRooms()
@@ -6331,7 +6352,7 @@ def fatDeath(monster):
     global deathX, deathY
     monster.char = '%'
     monster.color = colors.dark_red
-    monster.name = 'some mangled fat'
+    monster.trueName = 'some mangled fat'
     monster.blocks = False
     monster.AI = None
     monster.Fighter = None
@@ -6433,7 +6454,7 @@ def gluttonysDeath(monster):
     monster.color = colors.dark_red
     monster.blocks = False
     monster.AI = None
-    monster.name = 'remains of ' + monster.name
+    monster.trueName = 'remains of ' + monster.name
     monster.Fighter = None
     monster.sendToBack()
     for object in objects:
@@ -6606,6 +6627,11 @@ def placeBoss(name, x, y):
 #_____________ BOSS FIGHT __________________
 
 #_____________ ROOM POPULATION + ITEMS GENERATION_______________
+potionIdentify = {}
+scrollIdentify = {}
+colorDict = {'blue': colors.blue, 'red': colors.red, 'violet': colors.violet}
+nameDict = ['Ewaz', 'Vuzin', 'Armuz', 'Gowid', 'Ansuz', 'Juman', 'Ji', 'Morwen']
+
 def createSword(x, y):
     name = 'sword'
     pic = 'shortSword.xp'
@@ -6810,26 +6836,47 @@ def createWeapon(x, y):
 def createScroll(x, y):
     scrollChances = currentBranch.scrollChances
     scrollChoice = randomChoice(scrollChances)
+    unIdentifiedName = 'scroll of ' + scrollIdentify[scrollChoice]
+    pName = unIdentifiedName = 'scrolls of ' + scrollIdentify[scrollChoice]
+    identified = False
+    if unIdentifiedName in identifiedItems:
+        identified = True
     if scrollChoice == 'lightning':
-        scroll = GameObject(x, y, '~', 'scroll of lightning bolt', colors.light_yellow, Item = Item(useFunction = castLightning, weight = 0.3, stackable = True), blocks = False, pName = 'scrolls of lightning bolt')
+        scroll = GameObject(x, y, '~', 'scroll of lightning bolt', colors.light_yellow, Item = Item(useFunction = castLightning, weight = 0.3, stackable = True, unIDName=unIdentifiedName, identified=identified, unIDpName=pName), blocks = False, pName = 'scrolls of lightning bolt')
     elif scrollChoice == 'confuse':
-        scroll = GameObject(x, y, '~', 'scroll of confusion', colors.light_yellow, Item = Item(useFunction = castConfuse, weight = 0.3, stackable = True), blocks = False, pName = 'scrolls of confusion')
+        scroll = GameObject(x, y, '~', 'scroll of confusion', colors.light_yellow, Item = Item(useFunction = castConfuse, weight = 0.3, stackable = True, unIDName=unIdentifiedName, identified=identified, unIDpName=pName), blocks = False, pName = 'scrolls of confusion')
     elif scrollChoice == 'fireball':
         fireballChances = {'lesser': 20, 'normal': 50, 'greater': 20}
         fireballChoice = randomChoice(fireballChances)
         if fireballChoice == 'lesser':
-            scroll = GameObject(x, y, '~', 'scroll of lesser fireball', colors.light_yellow, Item = Item(castFireball, 2, 12, weight = 0.3, stackable = True), blocks = False, pName = 'scrolls of lesser fireball')
+            scroll = GameObject(x, y, '~', 'scroll of lesser fireball', colors.light_yellow, Item = Item(castFireball, 2, 12, weight = 0.3, stackable = True, unIDName=unIdentifiedName, identified=identified, unIDpName=pName), blocks = False, pName = 'scrolls of lesser fireball')
         elif fireballChoice == 'normal':
-            scroll = GameObject(x, y, '~', 'scroll of fireball', colors.light_yellow, Item = Item(castFireball, weight = 0.3, stackable = True), blocks = False, pName = 'scrolls of fireball')
+            scroll = GameObject(x, y, '~', 'scroll of fireball', colors.light_yellow, Item = Item(castFireball, weight = 0.3, stackable = True, unIDName=unIdentifiedName, identified=identified, unIDpName=pName), blocks = False, pName = 'scrolls of fireball')
         elif fireballChoice == 'greater':
-            scroll = GameObject(x, y, '~', 'scroll of greater fireball', colors.light_yellow, Item = Item(castFireball, 4, 48, weight = 0.3, stackable = True), blocks = False, pName = 'scrolls of greater fireball')
+            scroll = GameObject(x, y, '~', 'scroll of greater fireball', colors.light_yellow, Item = Item(castFireball, 4, 48, weight = 0.3, stackable = True, unIDName=unIdentifiedName, identified=identified, unIDpName=pName), blocks = False, pName = 'scrolls of greater fireball')
     elif scrollChoice == 'armageddon':
-        scroll = GameObject(x, y, '~', 'scroll of armageddon', colors.red, Item = Item(castArmageddon, weight = 0.3, stackable = True), blocks = False, pName = 'scrolls of armageddon')
+        scroll = GameObject(x, y, '~', 'scroll of armageddon', colors.red, Item = Item(castArmageddon, weight = 0.3, stackable = True, unIDName=unIdentifiedName, identified=identified, unIDpName=pName), blocks = False, pName = 'scrolls of armageddon')
     elif scrollChoice == 'ice':
-        scroll = GameObject(x, y, '~', 'scroll of ice bolt', colors.light_cyan, Item = Item(castFreeze, weight = 0.3, stackable = True, amount = randint(1, 3)), blocks = False, pName = 'scrolls of ice bolt')
+        scroll = GameObject(x, y, '~', 'scroll of ice bolt', colors.light_cyan, Item = Item(castFreeze, weight = 0.3, stackable = True, amount = randint(1, 3), unIDName=unIdentifiedName, identified=identified, unIDpName=pName), blocks = False, pName = 'scrolls of ice bolt')
     elif scrollChoice == 'none':
         scroll = None
     return scroll
+
+def createPotion(x, y):
+    potionChances = currentBranch.potionChances
+    potionChoice = randomChoice(potionChances)
+    name, color = potionIdentify[potionChoice]
+    unIdentifiedName = name + ' potion'
+    pName = name + ' potions'
+    identified = False
+    if unIdentifiedName in identifiedItems:
+        identified = True
+    if potionChoice == 'heal':
+        potion = GameObject(x, y, '!', 'healing potion', color, Item = Item(useFunction = castHeal, weight = 0.4, stackable=True, amount = randint(1, 2), pic = "redpotion.xp", description = "A slighly bubbling red beverage that stimulates cell growth when ingested, which allows for wounds to heal signifcantly faster. However, it also notably increases risk of cancer, but if you're in a situation where you have to drink such a potion, this is probably one of the least of your worries.", unIDName=unIdentifiedName, identified=identified, unIDpName=pName), blocks = False)
+    if potionChoice == 'mana':
+        potion = GameObject(x, y, '!', 'mana regeneration potion', color, Item = Item(useFunction = castRegenMana, arg1 = 10, weight = 0.4, stackable = True, pic = "smokybluepotion.xp", description = "The blueish smokes emanating from this potion scared more than one novice mage, but it actually tastes quite good and has no other short-term effect other than replenishing your life-force. However, the [PLACEHOLDER  WORLD (the 'normal' one, not Realm of Madness) NAME]'s Guild of Alchemists is still debating about whether or not it causes detrimental long-term effects.", unIDName=unIdentifiedName, identified=identified, unIDpName=pName), blocks = False)
+            
+    return potion
 
 def createSpellbook(x, y):
     spellbookChances = currentBranch.spellbookChances
@@ -7117,11 +7164,7 @@ def placeObjects(room, first = False):
         if not isBlocked(x, y) and not myMap[x][y].chasm:
             itemChoice = randomChoice(itemChances)
             if itemChoice == 'potion':
-                potionChoice = randomChoice(potionChances)
-                if potionChoice == 'heal':
-                    item = GameObject(x, y, '!', 'healing potion', colors.violet, Item = Item(useFunction = castHeal, weight = 0.4, stackable=True, amount = randint(1, 2), pic = "redpotion.xp", description = "A slighly bubbling red beverage that stimulates cell growth when ingested, which allows for wounds to heal signifcantly faster. However, it also notably increases risk of cancer, but if you're in a situation where you have to drink such a potion, this is probably one of the least of your worries."), blocks = False)
-                if potionChoice == 'mana':
-                    item = GameObject(x, y, '!', 'mana regeneration potion', colors.blue, Item = Item(useFunction = castRegenMana, arg1 = 10, weight = 0.4, stackable = True, pic = "smokybluepotion.xp", description = "The blueish smokes emanating from this potion scared more than one novice mage, but it actually tastes quite good and has no other short-term effect other than replenishing your life-force. However, the [PLACEHOLDER  WORLD (the 'normal' one, not Realm of Madness) NAME]'s Guild of Alchemists is still debating about whether or not it causes detrimental long-term effects."), blocks = False)
+                item = createPotion(x, y)
             elif itemChoice == 'scroll':
                 item = createScroll(x, y)
             elif itemChoice == 'none':
@@ -7208,6 +7251,21 @@ def placeObjects(room, first = False):
             if 'highCultist' in monsterChances.keys():
                 print('Reverting high cultist chances to previous value (current : {} / previous : {})'.format(monsterChances['highCultist'], previousHighCultistChances))
                 monsterChances['highCultist'] = previousHighCultistChances 
+
+def applyIdentification():
+    global potionIdentify, scrollIdentify, colorDict, nameDict
+    
+    for potion, u in currentBranch.potionChances.items():
+        if not potion in potionIdentify:
+            colorName, color = choice(list(colorDict.items()))
+            del colorDict[colorName]
+            potionIdentify[potion] = (colorName, color)
+    
+    for scroll, u in currentBranch.scrollChances.items():
+        if not scroll in scrollIdentify:
+            name = nameDict.pop(randint(0, len(nameDict) - 1))
+            scrollIdentify[scroll] = name
+
 #_____________ ROOM POPULATION + ITEMS GENERATION_______________
 
 #_____________ EQUIPMENT ________________
@@ -7273,7 +7331,7 @@ def lootItem(object, x, y):
     if object.Item and object.Item.amount <= 1:
         message('A ' + object.name + ' falls from the dead body!', colors.dark_sky)
     elif object.Item:
-        message(str(object.Item.amount) + ' ' + object.pName + ' fall from the dead body!', colors.dark_sky)
+        message(str(object.Item.amount) + ' ' + object.pluralName + ' fall from the dead body!', colors.dark_sky)
     else:
         message('A ' + object.name + ' falls from the dead body!', colors.dark_sky)
 
@@ -7488,15 +7546,14 @@ def monsterDeath(monster):
         for item in monster.Fighter.lootFunction:
             loot = randint(1, 100)
             if loot <= monster.Fighter.lootRate[itemIndex]:
-                if not item.Item.stackable or item.Item.amount > 0:
-                    lootItem(item, monster.x, monster.y)
+                lootItem(item, monster.x, monster.y)
             itemIndex += 1
 
     monster.char = '%'
     monster.color = colors.dark_red
     monster.blocks = False
     monster.AI = None
-    monster.name = 'remains of ' + monster.name
+    monster.trueName = 'remains of ' + monster.name
     monster.Fighter = None
     monster.sendToBack()
 
@@ -7508,7 +7565,7 @@ def zombieDeath(monster):
     monster.color = Ellipsis
     monster.blocks = False
     monster.AI = None
-    monster.name = None
+    monster.trueName = None
     monster.Fighter = None
 
 #_____________ GUI _______________
@@ -8479,7 +8536,7 @@ def saveGame():
     #mapFile.close()
 
 def newGame():
-    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, gameMsgs, equipmentList, currentBranch, bossDungeonsAppeared, DEBUG, REVEL, logMsgs, tilesInRange, tilesinPath, tilesInRect, menuWindows, explodingTiles, hiroshimanNumber, FOV_recompute
+    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, gameMsgs, identifiedItems, equipmentList, currentBranch, bossDungeonsAppeared, DEBUG, REVEL, logMsgs, tilesInRange, tilesinPath, tilesInRect, menuWindows, explodingTiles, hiroshimanNumber, FOV_recompute
     
     DEBUG = False
     REVEL = False
@@ -8502,6 +8559,7 @@ def newGame():
 
     inventory = []
     equipmentList = []
+    identifiedItems = []
 
     FOV_recompute = True
     initializeFOV()
