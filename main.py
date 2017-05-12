@@ -2199,28 +2199,18 @@ class Pathfinder(threading.Thread):
     def run(self):
         self.mob.astarPath = astarPath(self.mob.x, self.mob.y, self.goalX, self.goalY)
 
-class BasicMonster: #Basic monsters' AI
+class TargetSelector:
     def __init__(self):
         self.selectedTarget = None
-        self.dumbCounter = 0
-        self.failCounter = 0
-        self.didRecalcThisTurn = False
-        for loop in range(10):
-            print("!!!!!!!! SETTING TARGET TO NONE !!!!!!!!")
-        print()
-    
+
     def setFuckingTarget(self, target):
         self.selectedTarget = target
-
-    def takeTurn(self):
-        global mustCalculate
+    
+    def selectTarget(self):
         monster = self.owner
         targets = []
         self.selectedTarget = None
         self.setFuckingTarget(None)
-        self.dumbCounter = 0
-        self.failCounter = 0
-        self.didRecalcThisTurn = False
         priorityTargetFound = False
         
         monsterVisibleTiles = tdl.map.quick_fov(x = monster.x, y = monster.y,callback = isVisibleTile , fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
@@ -2264,20 +2254,30 @@ class BasicMonster: #Basic monsters' AI
                                 self.selectedTarget = enemy
                 else:
                     print("NO PRIORITY, TARGET IS {}".format(self.selectedTarget.name))
+
+class BasicMonster(TargetSelector): #Basic monsters' AI
+    def __init__(self):
+        TargetSelector.__init__(self)
+        self.dumbCounter = 0
+        self.failCounter = 0
+        self.didRecalcThisTurn = False
+    
+    def takeTurn(self):
+        self.takeBasicTurn()
+
+    def takeBasicTurn(self):
+        global mustCalculate
+        monster = self.owner
+        self.dumbCounter = 0
+        self.failCounter = 0
+        self.didRecalcThisTurn = False
+        
+        if not 'frozen' in convertBuffsToNames(self.owner.Fighter) and monster.distanceTo(player) <= 15:
+            self.selectTarget()
             if self.selectedTarget is not None:
                 print("SELECTED TARGET IS NOT NONE")
                 if monster.distanceTo(self.selectedTarget) < 2:
                     monster.Fighter.attack(self.selectedTarget)
-                #else:
-                    #state = monster.moveAstar(self.selectedTarget.x, self.selectedTarget.y, fallback = False)
-                    #if state == "fail":
-                    #   diagState = checkDiagonals(monster, self.selectedTarget)
-                    #    if diagState is None:
-                    #        monster.moveTowards(self.selectedTarget.x, self.selectedTarget.y)
-                    #monster.moveOnAstarPath(goal = self.selectedTarget)
-                    
-            #elif (monster.x, monster.y) in visibleTiles and monster.distanceTo(player) >= 2:
-                #monster.moveAstar(player.x, player.y)
                 else:
                     print("TRYING TO MOVE")
                     self.tryMove()
@@ -2478,68 +2478,15 @@ class Charger:
         FOV_recompute = True
         self.charging = False
 
-class FastMonster:
+class FastMonster(BasicMonster):
     def __init__(self, speed):
+        BasicMonster.__init__(self)
         self.speed = speed
     
     def takeTurn(self):
-        monster = self.owner
         for loop in range(self.speed):
-            targets = []
-            selectedTarget = None
-            priorityTargetFound = False
-            monsterVisibleTiles = tdl.map.quick_fov(x = monster.x, y = monster.y,callback = isVisibleTile , fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
-            if not 'frozen' in convertBuffsToNames(self.owner.Fighter) and monster.distanceTo(player) <= 15:
-                print(monster.name + " is less than 15 tiles to player.")
-                for object in objects:
-                    if (object.x, object.y) in monsterVisibleTiles and (object == player or (object.AI and object.AI.__class__.__name__ == "FriendlyMonster" and object.AI.friendlyTowards == player)):
-                        targets.append(object)
-                if DEBUG:
-                    print(monster.name.capitalize() + " can target", end=" ")
-                    if targets:
-                        for loop in range (len(targets)):
-                            print(targets[loop].name.capitalize() + ", ", sep ="", end ="")
-                    else:
-                        print("absolutely nothing but nothingness.", end ="")
-                    print()
-                if targets:
-                    if player in targets: #Target player in priority
-                        selectedTarget = player
-                        del targets[targets.index(player)]
-                        if monster.distanceTo(player) < 2:
-                            priorityTargetFound = True
-                    if not priorityTargetFound:
-                        for enemyIndex in range(len(targets)):
-                            enemy = targets[enemyIndex]
-                            if monster.distanceTo(enemy) < 2:
-                                selectedTarget = enemy
-                            else:
-                                if selectedTarget == None or monster.distanceTo(selectedTarget) > monster.distanceTo(enemy):
-                                    selectedTarget = enemy
-                if selectedTarget is not None:
-                    if monster.distanceTo(selectedTarget) < 2:
-                        monster.Fighter.attack(selectedTarget)
-                    else:
-                        state = monster.moveAstar(selectedTarget.x, selectedTarget.y, fallback = False)
-                        if state == "fail":
-                            diagState = checkDiagonals(monster, selectedTarget)
-                            if diagState is None:
-                                monster.moveTowards(selectedTarget.x, selectedTarget.y)
-                #elif (monster.x, monster.y) in visibleTiles and monster.distanceTo(player) >= 2:
-                    #monster.moveAstar(player.x, player.y)
-                else:
-                    if not 'frozen' in convertBuffsToNames(monster.Fighter) and monster.distanceTo(player) >= 2:
-                        pathState = "complete"
-                        diagPathState = None
-                        if monster.astarPath:
-                            pathState = monster.moveAstar()
-                        elif not monster.astarPath or pathState == "fail":
-                                if monster.distanceTo(player) <= 15 and not (monster.x == player.x and monster.y == player.y):
-                                    diagPathState = checkDiagonals(monster, player)
-                                elif diagPathState is None or monster.distanceTo(player) > 15:
-                                    monster.move(randint(-1, 1), randint(-1, 1)) #wandering
-            elif not 'frozen' in convertBuffsToNames(self.owner.Fighter):
-                monster.move(randint(-1, 1), randint(-1, 1)) #wandering
+            self.takeBasicTurn() #for some reason when moving only one tile it won't attack as a second action
+
 class Fleeing:
     def takeTurn(self):
         monster = self.owner
@@ -2555,43 +2502,19 @@ class Fleeing:
         if state == "fail":
             monster.moveTowards(bestX, bestY)
 
-class hostileStationnary:
+class HostileStationnary(TargetSelector):
+    def __init__(self):
+        TargetSelector.__init__(self)
+
     def takeTurn(self):
         monster = self.owner
-        targets = []
-        selectedTarget = None
-        priorityTargetFound = False
         if not 'frozen' in convertBuffsToNames(self.owner.Fighter):
-            for object in objects:
-                if (object.x, object.y) in visibleTiles and (object == player or (object.AI and object.AI.__class__.__name__ == "FriendlyMonster" and object.AI.friendlyTowards == player)):
-                    targets.append(object)
-            if DEBUG:
-                print(monster.name.capitalize() + " can target", end=" ")
-                if targets:
-                    for loop in range (len(targets)):
-                        print(targets[loop].name.capitalize() + ", ", sep ="", end ="")
-                else:
-                    print("absolutely nothing but nothingness.", end ="")
-                print()
-            if targets:
-                if player in targets: #Target player in priority
-                    selectedTarget = player
-                    del targets[targets.index(player)]
-                    if monster.distanceTo(player) < 2:
-                        priorityTargetFound = True
-                if not priorityTargetFound:
-                    for enemyIndex in range(len(targets)):
-                        enemy = targets[enemyIndex]
-                        if monster.distanceTo(enemy) < 2:
-                            selectedTarget = enemy
-                        else:
-                            if selectedTarget == None or monster.distanceTo(selectedTarget) > monster.distanceTo(enemy):
-                                selectedTarget = enemy
-            if selectedTarget is not None:
-                if monster.distanceTo(selectedTarget) < 2:
-                    monster.Fighter.attack(selectedTarget)
+            self.selectTarget()
+            if self.selectedTarget is not None:
+                if monster.distanceTo(self.selectedTarget) < 2:
+                    monster.Fighter.attack(self.selectedTarget)
 
-class immobile():
+class Immobile:
     def takeTurn(self):
         monster = self.owner
         return
@@ -2613,7 +2536,7 @@ class ConfusedMonster:
         self.numberTurns = numberTurns
  
     def takeTurn(self):
-        if self.old_AI.__class__.__name__ != 'hostileStationnary' and self.old_AI.__class__.__name__ != 'immobile':
+        if self.old_AI.__class__.__name__ != 'HostileStationnary' and self.old_AI.__class__.__name__ != 'Immobile':
             if self.numberTurns > 0:  
                 self.owner.move(randint(-1, 1), randint(-1, 1))
                 self.numberTurns -= 1
@@ -6369,7 +6292,7 @@ def fatDeath(monster):
 
 def createFat(x, y):
     fatFighterComponent = Fighter(hp = 5, armor = 0, power = 1, xp = 0, deathFunction=fatDeath, accuracy= 0, evasion=1)
-    fat_AI_component = immobile()
+    fat_AI_component = Immobile()
     fat = GameObject(x, y, char = '#', color = colors.dark_lime, name = "Gluttony's fat", blocks = True, Fighter = fatFighterComponent, AI = fat_AI_component)
     objects.append(fat)
 
@@ -6466,7 +6389,7 @@ def gluttonysDeath(monster):
     monster.Fighter = None
     monster.sendToBack()
     for object in objects:
-        if object.name == "Gluttony's fat": #or (object.AI and (object.AI.__class__.__name__ == "immobile")):
+        if object.name == "Gluttony's fat": #or (object.AI and (object.AI.__class__.__name__ == "Immobile")):
             object.Fighter.hp = 0
             fatDeath(object)
     createEndRooms()
