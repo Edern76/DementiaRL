@@ -51,6 +51,7 @@ class Branch:
         self.fixedMap = fixedMap
         self.genType = genType
         self.genFeatures = genFeatures
+        self.appeared = False
 
 mainDungeon = Branch(shortName = "main", name = "Main", branchesTo = None)
 gluttonyDungeon = Branch(shortName = "glutt", name = "Gluttony Dungeon", maxDepth = 5, branchesFrom = (mainDungeon, 1), lightStairsColor = colors.desaturated_chartreuse, darkStairsColor = colors.darkest_chartreuse, monsterChances = {'darksoul': 400, 'ogre': 200, 'starveling': 250, 'cultist': 150}, itemChances = {'potion': 360, 'scroll': 20, 'weapon': 20, 'shield': 100, 'food': 500}, bossLevels = [5], bossNames = {'Gluttony': 5})

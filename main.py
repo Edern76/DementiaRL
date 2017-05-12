@@ -1698,9 +1698,62 @@ class Nemesis:
         self.branch = branch
         self.level = level
 
+class Stairs:
+    def __init__(self, climb = 'down', branchesFrom = dBr.mainDungeon, branchesTo = dBr.mainDungeon):
+        self.climb = climb
+        self.branchesFrom = branchesFrom
+        self.branchesTo = branchesTo
+        if self.branchesFrom != self.branchesTo:
+            self.changeBranch = self.branchesTo
+        else:
+            self.changeBranch = None
+    
+    def climbStairs(self):
+        if stairCooldown == 0:
+            if self.climb == 'down':
+                global stairCooldown, currentBranch
+                temporaryBox('Loading...')
+                stairCooldown = 2
+                boss = False
+                if dungeonLevel + 1 in currentBranch.bossLevels and self.changeBranch is None:
+                    boss = True
+                if DEBUG:
+                    message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
+                nextLevel(boss, changeBranch=self.changeBranch)
+            elif self.climb == 'up':
+                if dungeonLevel > 1 or currentBranch.name != 'Main':
+                    print(currentBranch.name)
+                    if stairCooldown == 0:
+                        global stairCooldown, dungeonLevel
+                        temporaryBox('Loading...')
+                        saveLevel(dungeonLevel)
+                        chosen = False
+                        stairCooldown = 2
+                        if DEBUG:
+                            message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
+                        if dungeonLevel == 1 and currentBranch.name != 'Main':
+                            if not chosen:
+                                chosen = True
+                                print('Returning to origin branch')
+                                loadLevel(currentBranch.origDepth, save = False, branch = currentBranch.origBranch)
+                            else:
+                                print('WHY THE HECK IS THE CODE EXECUTING THIS FFS ?')
+                        else:
+                            if not chosen:
+                                chosen = True
+                                toLoad = dungeonLevel - 1
+                                loadLevel(toLoad, save = False)
+                            else:
+                                print('Chosen was equal to true. If the code ever goes here, I fucking hate all of this.')
+                    else:
+                        message("You're too tired to climb the stairs right now")
+                    return None
+        else:
+            message("You're too tired to climb down the stairs right now")
+
 class GameObject:
     "A generic object, represented by a character"
-    def __init__(self, x, y, char, name, color = colors.white, blocks = False, Fighter = None, AI = None, Player = None, Ghost = False, flying = False, Item = None, alwaysVisible = False, darkColor = None, Equipment = None, pName = None, Essence = None, socialComp = None, shopComp = None, questList = []):
+    def __init__(self, x, y, char, name, color = colors.white, blocks = False, Fighter = None, AI = None, Player = None, Ghost = False, flying = False, Item = None, alwaysVisible = False, darkColor = None, Equipment = None, pName = None, Essence = None, socialComp = None, shopComp = None, questList = [], Stairs = None):
         self.x = x
         self.y = y
         self.char = char
@@ -1729,6 +1782,9 @@ class GameObject:
         self.Essence = Essence
         if self.Essence:
             self.Essence.owner = self
+        self.Stairs = Stairs
+        if self.Stairs:
+            self.Stairs.owner = self
         self.astarPath = []
         self.lastTargetX = None
         self.lastTargetY = None
@@ -4116,6 +4172,19 @@ def getInput():
                 
         elif userInput.keychar.upper() == '<':
             print('You pressed the freaking climb up key')
+            for object in objects:
+                if object.x == player.x and object.y == player.y and not object == player:
+                    print('{} object is a the same place as the player.'.format(object.name))
+                    if object.Stairs:
+                        print('object has a stairs component')
+                        if object.Stairs.climb == 'up':
+                            print('stairs are to climb up')
+                            object.Stairs.climbStairs()
+                        else:
+                            print('stairs are to climb down but you want to go up')
+                    else:
+                        print('object has no stairs component')
+            '''
             if dungeonLevel > 1 or currentBranch.name != 'Main':
                 #saveLevel(dungeonLevel)
                 if upStairs.x == player.x and upStairs.y == player.y:
@@ -4145,8 +4214,22 @@ def getInput():
                     else:
                         message("You're too tired to climb the stairs right now")
                     return None
+            '''
             FOV_recompute = True
         elif userInput.keychar.upper() == '>':
+            for object in objects:
+                if object.x == player.x and object.y == player.y and not object == player:
+                    print('{} object is a the same place as the player.'.format(object.name))
+                    if object.Stairs:
+                        print('object has a stairs component')
+                        if object.Stairs.climb == 'down':
+                            print('stairs are to go down')
+                            object.Stairs.climbStairs()
+                        else:
+                            print('stairs are to climb up but you want to go down')
+                    else:
+                        print('object has no stairs component')
+            '''
             if stairs is not None and stairs.x == player.x and stairs.y == player.y:
                 if stairCooldown == 0:
                     global stairCooldown
@@ -4206,6 +4289,7 @@ def getInput():
                 else:
                     message("You're too tired to climb down the stairs right now")
                 return None
+            '''
         elif userInput.keychar.upper() == 'I':
             choseOrQuit = False
             while not choseOrQuit:
@@ -5645,12 +5729,12 @@ def generateCave(fall = False):
         if not fall:
             player.x = pX
             player.y = pY
-        upStairs = GameObject(pX, pY, '<', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor)
+        upStairs = GameObject(pX, pY, '<', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor, Stairs = Stairs(climb='up'))
         objects.append(upStairs)
         upStairs.sendToBack()
         stairsRoom = rooms[randint(1, len(rooms) - 1)]
         (sX, sY) = stairsRoom.tiles[randint(0, len(stairsRoom.tiles) - 1)]
-        stairs = GameObject(sX, sY, '>', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor)
+        stairs = GameObject(sX, sY, '>', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor, Stairs = Stairs(climb='down', branchesFrom=currentBranch, branchesTo=currentBranch))
         objects.append(stairs)
         stairs.sendToBack()
         applyIdentification()
@@ -5901,7 +5985,7 @@ def makeMap(generateChasm = True, generateHole = False, fall = False):
                     for y in range(newRoom.y1 + 1, newRoom.y2):
                         unchasmable.append((x, y))
                 if dungeonLevel > 1 or currentBranch.name != 'Main':
-                    upStairs = GameObject(new_x, new_y, '<', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor)
+                    upStairs = GameObject(new_x, new_y, '<', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor, Stairs=Stairs(climb='up'))
                     objects.append(upStairs)
                     upStairs.sendToBack()
             else:
@@ -5915,7 +5999,7 @@ def makeMap(generateChasm = True, generateHole = False, fall = False):
             rooms.append(newRoom)
             numberRooms += 1
     secretRoom()
-    stairs = GameObject(new_x, new_y, '>', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor)
+    stairs = GameObject(new_x, new_y, '>', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor, Stairs=Stairs('down', currentBranch, currentBranch))
     objects.append(stairs)
     stairs.sendToBack()
     for x in range(lastCreatedRoom.x1 + 1, lastCreatedRoom.x2):
@@ -5950,6 +6034,34 @@ def makeMap(generateChasm = True, generateHole = False, fall = False):
     branches = []
     for (branch, level) in currentBranch.branchesTo:
         branches.append(branch)
+        if dungeonLevel == level and not branch.appeared:
+            createdStairs = False
+            while not createdStairs:
+                randRoom = randint(0, len(rooms) - 1)
+                room = rooms[randRoom]
+                chasmedRoom = False
+                for x in range(room.x1 + 1, room.x2):
+                    for y in range(room.y1 + 1, room.y2):
+                        if myMap[x][y].chasm:
+                            chasmedRoom = True
+                            break
+                    if chasmedRoom:
+                        break
+                (x, y) = room.center()
+                wrongCentre = False
+                for object in objects:
+                    if object.x == x and object.y == y:
+                        wrongCentre = True
+                        break
+                if not wrongCentre and not chasmedRoom:
+                    newStairs = GameObject(x, y, '>', 'stairs to ' + branch.name, branch.lightStairsColor, alwaysVisible = True, darkColor = branch.darkStairsColor, Stairs=Stairs('down', currentBranch, branch))
+                    objects.append(newStairs)
+                    newStairs.sendToBack()
+                    branch.appeared = True
+                    createdStairs = True
+                    print('created {} stairs at {}, {}'.format(branch.shortName, str(x), str(y)))
+        
+        '''
         if branch == dBr.gluttonyDungeon:
             if dungeonLevel == level and not bossDungeonsAppeared['gluttony']:
                 createdStairs = False
@@ -6069,6 +6181,7 @@ def makeMap(generateChasm = True, generateHole = False, fall = False):
                         bossDungeonsAppeared['wrath'] = True
                         createdStairs = True
                         print('created wraths stairs at ' + str(x) + ', ' + str(y))
+        '''
     
     if not dBr.hiddenTown in branches:
         global townStairs
@@ -6127,7 +6240,7 @@ def makeBossLevel(fall = False, generateHole=False):
                     player.x = new_x
                     player.y = new_y
                 if dungeonLevel > 1:
-                    upStairs = GameObject(new_x, new_y, '<', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor)
+                    upStairs = GameObject(new_x, new_y, '<', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor, Stairs = Stairs(climb='up'))
                     objects.append(upStairs)
                     upStairs.sendToBack()
             else:
@@ -6180,7 +6293,7 @@ def makeBossLevel(fall = False, generateHole=False):
 
 def makeHiddenTown(fall = False):
     global myMap, objects, upStairs, rooms, numberRooms
-    myMap = [[Tile(True, wall = True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
+    myMap = [[Tile(True, wall = True, x = x, y = y) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
     objects = [player]
     rooms = []
     numberRooms = 0
@@ -6204,7 +6317,7 @@ def makeHiddenTown(fall = False):
             if not myMap[x][y].chasm and not isBlocked(x, y):
                 player.x, player.y = x, y
                 fallen = True
-    upStairs = GameObject(x, y, '<', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor)
+    upStairs = GameObject(x, y, '<', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor, Stairs = Stairs(climb='up'))
     objects.append(upStairs)
     upStairs.sendToBack()
     
@@ -6248,7 +6361,7 @@ def createEndRooms():
                 createHorizontalTunnel(previous_x, new_x, new_y)
             rooms.append(newRoom)
             numberRooms += 1
-    stairs = GameObject(new_x, new_y, '>', 'stairs', colors.white, alwaysVisible = True, darkColor = colors.dark_grey)
+    stairs = GameObject(new_x, new_y, '>', 'stairs', colors.white, alwaysVisible = True, darkColor = colors.dark_grey, Stairs=Stairs(climb='down'))
     objects.append(stairs)
     stairs.sendToBack()
     
@@ -8410,6 +8523,10 @@ def saveGame():
     file["logMsgs"] = logMsgs
     file["gameState"] = gameState
     file["hiroshimanNumber"] = hiroshimanNumber
+    file['potionIdentify'] = potionIdentify
+    file['scrollIdentify'] = scrollIdentify
+    file['colorDict'] = colorDict
+    file['nameDict'] = nameDict
     if dungeonLevel > 1 or currentBranch.name != 'Main':
         print(currentBranch.name)
         print(currentBranch.shortName)
@@ -8518,9 +8635,9 @@ def newGame():
         highCultistHasAppeared = False #Make so more high cultists can spawn at lower levels (still only one by floor though)
 
 def loadGame():
-    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipmentList, stairs, upStairs, hiroshimanNumber, currentBranch, gluttonyStairs, logMsgs, townStairs, greedStairs, wrathStairs
+    global FOV_recompute, objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipmentList, stairs, upStairs, hiroshimanNumber, currentBranch, gluttonyStairs, logMsgs, townStairs, greedStairs, wrathStairs, potionIdentify, scrollIdentify, nameDict, colorDict
     
-    
+    FOV_recompute = True
     #myMap = [[Tile(True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)]
     file = shelve.open(absFilePath, "r")
     dungeonLevel = file["dungeonLevel"]
@@ -8536,6 +8653,10 @@ def loadGame():
     gameState = file["gameState"]
     logMsgs = file["logMsgs"]
     hiroshimanNumber = file["hiroshimanNumber"]
+    potionIdentify = file['potionIdentify']
+    scrollIdentify = file['scrollIdentify']
+    colorDict = file['colorDict']
+    nameDict = file['nameDict']
     if dungeonLevel > 1 or currentBranch.name != 'Main':
         print(currentBranch.name)
         upStairs = objects[file["upStairsIndex"]]
@@ -8679,7 +8800,7 @@ def loadLevel(level, save = True, branch = currentBranch):
     currentBranch = branch
     initializeFOV()
 
-def nextLevel(boss = False, changeBranch = None, fixedMap = None, fall = False):
+def nextLevel(boss = False, changeBranch = None, fall = False):
     global dungeonLevel, currentBranch, currentMusic
     if boss:
         currentMusic = 'Hoxton_Princess.wav'
