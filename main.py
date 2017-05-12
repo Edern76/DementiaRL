@@ -3038,7 +3038,7 @@ class Essence:
                     player.Player.speedChance += boost
 
 class Item:
-    def __init__(self, useFunction = None,  arg1 = None, arg2 = None, arg3 = None, stackable = False, amount = 1, weight = 0, description = 'Placeholder.', pic = 'trollMace.xp', itemtype = None, identified = True, unIDName = 'Unidentified', unIDpName = 'UnidentifiedS'):
+    def __init__(self, useFunction = None,  arg1 = None, arg2 = None, arg3 = None, stackable = False, amount = 1, weight = 0, description = 'Placeholder.', pic = 'trollMace.xp', itemtype = None, identified = True, unIDName = 'Unidentified', unIDpName = 'UnidentifiedS', unIDdesc='Unidentified placeholder.'):
         self.useFunction = useFunction
         self.arg1 = arg1
         self.arg2 = arg2
@@ -3046,12 +3046,20 @@ class Item:
         self.stackable = stackable
         self.amount = amount
         self.weight = weight
-        self.description = description
+        self.desc = description
         self.pic = pic
         self.type = itemtype
         self.identified = identified
         self.unIDName = unIDName
         self.unIDpName = unIDpName
+        self.unIDdesc = unIDdesc
+    
+    @property
+    def description(self):
+        if self.identified:
+            return self.desc
+        else:
+            return self.unIDdesc
     
     def identify(self):
         global identifiedItems
@@ -6629,7 +6637,7 @@ def placeBoss(name, x, y):
 #_____________ ROOM POPULATION + ITEMS GENERATION_______________
 potionIdentify = {}
 scrollIdentify = {}
-colorDict = {'blue': colors.blue, 'red': colors.red, 'violet': colors.violet}
+colorDict = {'blue': (colors.blue, 'smokybluepotion.xp', 'The blueish smokes emanating from this potion is not very reassuring about what effects it could bring.'), 'red': (colors.red, 'redpotion.xp', 'A slighly bubbling red beverage.'), 'violet': (colors.violet, 'violetpotion.xp', 'A slighly bubbling violet beverage.')}
 nameDict = ['Ewaz', 'Vuzin', 'Armuz', 'Gowid', 'Ansuz', 'Juman', 'Ji', 'Morwen']
 
 def createSword(x, y):
@@ -6837,7 +6845,7 @@ def createScroll(x, y):
     scrollChances = currentBranch.scrollChances
     scrollChoice = randomChoice(scrollChances)
     unIdentifiedName = 'scroll of ' + scrollIdentify[scrollChoice]
-    pName = unIdentifiedName = 'scrolls of ' + scrollIdentify[scrollChoice]
+    pName = 'scrolls of ' + scrollIdentify[scrollChoice]
     identified = False
     if unIdentifiedName in identifiedItems:
         identified = True
@@ -6865,16 +6873,16 @@ def createScroll(x, y):
 def createPotion(x, y):
     potionChances = currentBranch.potionChances
     potionChoice = randomChoice(potionChances)
-    name, color = potionIdentify[potionChoice]
+    name, color, pic, desc = potionIdentify[potionChoice]
     unIdentifiedName = name + ' potion'
     pName = name + ' potions'
     identified = False
     if unIdentifiedName in identifiedItems:
         identified = True
     if potionChoice == 'heal':
-        potion = GameObject(x, y, '!', 'healing potion', color, Item = Item(useFunction = castHeal, weight = 0.4, stackable=True, amount = randint(1, 2), pic = "redpotion.xp", description = "A slighly bubbling red beverage that stimulates cell growth when ingested, which allows for wounds to heal signifcantly faster. However, it also notably increases risk of cancer, but if you're in a situation where you have to drink such a potion, this is probably one of the least of your worries.", unIDName=unIdentifiedName, identified=identified, unIDpName=pName), blocks = False)
+        potion = GameObject(x, y, '!', 'healing potion', color, Item = Item(useFunction = castHeal, weight = 0.4, stackable=True, amount = randint(1, 2), pic = pic, description = "A potion that stimulates cell growth when ingested, which allows for wounds to heal signifcantly faster. However, it also notably increases risk of cancer, but if you're in a situation where you have to drink such a potion, this is probably one of the least of your worries.", unIDName=unIdentifiedName, identified=identified, unIDpName=pName, unIDdesc = desc), blocks = False)
     if potionChoice == 'mana':
-        potion = GameObject(x, y, '!', 'mana regeneration potion', color, Item = Item(useFunction = castRegenMana, arg1 = 10, weight = 0.4, stackable = True, pic = "smokybluepotion.xp", description = "The blueish smokes emanating from this potion scared more than one novice mage, but it actually tastes quite good and has no other short-term effect other than replenishing your life-force. However, the [PLACEHOLDER  WORLD (the 'normal' one, not Realm of Madness) NAME]'s Guild of Alchemists is still debating about whether or not it causes detrimental long-term effects.", unIDName=unIdentifiedName, identified=identified, unIDpName=pName), blocks = False)
+        potion = GameObject(x, y, '!', 'mana regeneration potion', color, Item = Item(useFunction = castRegenMana, arg1 = 10, weight = 0.4, stackable = True, pic = pic, description = "The awkward look of this potion scared more than one novice mage, but it actually tastes quite good and has no other short-term effect other than replenishing your life-force. However, the [PLACEHOLDER  WORLD (the 'normal' one, not Realm of Madness) NAME]'s Guild of Alchemists is still debating about whether or not it causes detrimental long-term effects.", unIDName=unIdentifiedName, identified=identified, unIDpName=pName, unIDdesc = desc), blocks = False)
             
     return potion
 
@@ -7255,11 +7263,12 @@ def placeObjects(room, first = False):
 def applyIdentification():
     global potionIdentify, scrollIdentify, colorDict, nameDict
     
-    for potion, u in currentBranch.potionChances.items():
+    for potion in currentBranch.potionChances.keys():
         if not potion in potionIdentify:
-            colorName, color = choice(list(colorDict.items()))
+            colorName, colorPicDesc = choice(list(colorDict.items()))
+            color, pic, desc = colorPicDesc
             del colorDict[colorName]
-            potionIdentify[potion] = (colorName, color)
+            potionIdentify[potion] = (colorName, color, pic, desc)
     
     for scroll, u in currentBranch.scrollChances.items():
         if not scroll in scrollIdentify:
