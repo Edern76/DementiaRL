@@ -8515,8 +8515,8 @@ def saveGame():
     print("Saved myMap_level{}".format(dungeonLevel))
     file["objects_level{}".format(dungeonLevel)] = objects
     file["playerIndex"] = objects.index(player)
-    if currentBranch.shortName != 'town':
-        file["stairsIndex"] = objects.index(stairs)
+    #if currentBranch.shortName != 'town':
+    #    file["stairsIndex"] = objects.index(stairs)
     file["inventory"] = inventory
     file["equipmentList"] = equipmentList
     file["gameMsgs"] = gameMsgs
@@ -8527,6 +8527,8 @@ def saveGame():
     file['scrollIdentify'] = scrollIdentify
     file['colorDict'] = colorDict
     file['nameDict'] = nameDict
+    
+    '''
     if dungeonLevel > 1 or currentBranch.name != 'Main':
         print(currentBranch.name)
         print(currentBranch.shortName)
@@ -8578,6 +8580,7 @@ def saveGame():
             print('Details : {}'.format(error.args))
             print('==============================')
             pass
+    '''
     file.close()
     
     #mapFile = open(absPicklePath, 'wb')
@@ -8590,7 +8593,7 @@ def newGame():
     DEBUG = False
     REVEL = False
     deleteSaves()
-    bossDungeonsAppeared = {'gluttony': False, 'greed': False, 'wrath': False}
+    #bossDungeonsAppeared = {'gluttony': False, 'greed': False, 'wrath': False}
     gameMsgs = []
     objects = [player]
     logMsgs = []
@@ -8645,8 +8648,8 @@ def loadGame():
     myMap = file["myMap_level{}".format(dungeonLevel)]
     objects = file["objects_level{}".format(dungeonLevel)]
     player = objects[file["playerIndex"]]
-    if currentBranch.shortName != 'town':
-        stairs = objects[file["stairsIndex"]]
+    #if currentBranch.shortName != 'town':
+    #    stairs = objects[file["stairsIndex"]]
     inventory = file["inventory"]
     equipmentList = file["equipmentList"]
     gameMsgs = file["gameMsgs"]
@@ -8657,6 +8660,8 @@ def loadGame():
     scrollIdentify = file['scrollIdentify']
     colorDict = file['colorDict']
     nameDict = file['nameDict']
+    
+    '''
     if dungeonLevel > 1 or currentBranch.name != 'Main':
         print(currentBranch.name)
         upStairs = objects[file["upStairsIndex"]]
@@ -8675,6 +8680,7 @@ def loadGame():
     #mapFile = open(absPicklePath, "rb")
     #myMap = pickle.load(mapFile)
     #mapFile.close()
+    '''
 
 def saveLevel(level = dungeonLevel):
     #if not os.path.exists(absDirPath):
@@ -8692,6 +8698,7 @@ def saveLevel(level = dungeonLevel):
     mapFile["myMap"] = myMap
     mapFile["objects"] = objects
     mapFile["playerIndex"] = objects.index(player)
+    '''
     if currentBranch.shortName != 'town':
         mapFile["stairsIndex"] = objects.index(stairs)
     if (level > 1 or currentBranch.name != 'Main') and upStairs in objects:
@@ -8748,6 +8755,7 @@ def saveLevel(level = dungeonLevel):
         print("DIDNT SAVE wrath STAIRS")
         print("DungeonLevel : {} / WrathLevel : {}".format(dungeonLevel, wrathBrLevel))
         print('Current branch : {}'.format(currentBranch.name))
+    '''
     mapFile["yunowork"] = "SCREW THIS"
     print("Saved level at " + mapFilePath)
     mapFile.sync()
@@ -8772,6 +8780,7 @@ def loadLevel(level, save = True, branch = currentBranch):
     player.x = int(tempPlayer.x)
     player.y = int(tempPlayer.y)
     objects[xfile["playerIndex"]] = player
+    '''
     if branch.shortName != 'town':
         stairs = objects[xfile["stairsIndex"]]
     if level > 1 or branch.name != 'Main':
@@ -8792,7 +8801,8 @@ def loadLevel(level, save = True, branch = currentBranch):
         greedStairs = objects[xfile["greedStairsIndex"]]
     if dungeonLevel == wrathBrLevel and currentBranch.name == 'Main':
         wrathStairs = objects[xfile['wrathStairsIndex']]
-        
+    '''
+    
     message("You climb the stairs")
     print("Loaded level " + str(level))
     xfile.close()
