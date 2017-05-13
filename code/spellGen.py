@@ -1,5 +1,7 @@
+import copy
 from random import randint
 from code.constants import *
+
 
 class SpellTemplate:
     def __init__(self):
@@ -33,14 +35,23 @@ class BetterList(list):
         ind = randint(0, len(self) - 1)
         return self[ind]
 
+baseTypeList = BetterList("Attack", "Buff", "Heal")
+baseTargetList = BetterList("Select", "Self", "Closest", "Farthest")
+baseZoneList = BetterList("SingleTile", "Cross", "AOE")
+
+baseAttackList = BetterList("Fire", "Physical", "Poison")
+baseBuffList = BetterList("Hunger", "AttackUp")
+baseHealList = BetterList("HP", "MP", "CureFire", "CurePoison")
+
 
 def createEffect():
-    typeList = BetterList("Attack", "Buff", "Heal")
-    targetList = BetterList("Select", "Self", "Closest", "Farthest")
-    zoneList = BetterList("SingleTile", "Cross", "AOE")
+    typeList = copy.copy(baseTypeList)
+    targetList = copy.copy(baseTargetList)
+    zoneList = copy.copy(baseZoneList)
     
-    attackList = BetterList("Fire", "Physical", "Poison")
-    buffList = BetterList("Hunger", "AttackUp")
-    healList = BetterList("HP", "MP", "CureFire", "CurePoison")
+    attackList = copy.copy(baseAttackList)
+    buffList = copy.copy(baseBuffList)
+    healList = copy.copy(baseHealList)
+    
     
     
