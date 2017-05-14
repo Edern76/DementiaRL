@@ -1,5 +1,7 @@
 import colors
 
+branches = []
+
 class Branch:
     def __init__(self, shortName, name = None, maxDepth = 99999, branchesFrom = None, branchesTo = None, lightStairsColor = colors.white, darkStairsColor = colors.dark_gray,
                  monsterChances = {'darksoul': 600, 'ogre': 200, 'snake': 50, 'cultist': 150, 'highCultist' : 0}, 
@@ -52,6 +54,8 @@ class Branch:
         self.genType = genType
         self.genFeatures = genFeatures
         self.appeared = False
+        
+        branches.append(self)
 
 mainDungeon = Branch(shortName = "main", name = "Main", branchesTo = None)
 gluttonyDungeon = Branch(shortName = "glutt", name = "Gluttony Dungeon", maxDepth = 5, branchesFrom = (mainDungeon, 1), lightStairsColor = colors.desaturated_chartreuse, darkStairsColor = colors.darkest_chartreuse, monsterChances = {'darksoul': 400, 'ogre': 200, 'starveling': 250, 'cultist': 150}, itemChances = {'potion': 360, 'scroll': 20, 'weapon': 20, 'shield': 100, 'food': 500}, bossLevels = [5], bossNames = {'Gluttony': 5})
@@ -63,4 +67,9 @@ mainDungeon.branchesTo.append((gluttonyDungeon, 1))
 mainDungeon.branchesTo.append((hiddenTown, 1))
 mainDungeon.branchesTo.append((greedDungeon, 2))
 mainDungeon.branchesTo.append((wrathDungeon, 2))
+
+def reinitializeBranches():
+    for branch in branches:
+        print("Reinitializing {}".format(branch.name))
+        branch.appeared = False
     

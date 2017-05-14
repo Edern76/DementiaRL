@@ -8689,7 +8689,8 @@ def newGame():
     DEBUG = False
     REVEL = False
     deleteSaves()
-    #bossDungeonsAppeared = {'gluttony': False, 'greed': False, 'wrath': False}
+    bossDungeonsAppeared = {'gluttony': False, 'greed': False, 'wrath': False}
+    dBr.reinitializeBranches()
     gameMsgs = []
     objects = [player]
     logMsgs = []
@@ -8700,6 +8701,7 @@ def newGame():
     menuWindows = []
     hiroshimanNumber = 0
     FOV_recompute = True
+    
     currentBranch = dBr.mainDungeon
     dungeonLevel = 1 
     makeMap()
