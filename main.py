@@ -3425,6 +3425,14 @@ class Equipment:
         self.meleeWeapon = meleeWeapon
         self.slow = slow
         self.enchant = enchant
+    
+    def updateState(self):
+        if self.owner in equipmentList:
+            print("EQUIPPED")
+            self.isEquipped = True
+        else:
+            print("NOT EQUIPPED")
+            self.isEquipped = False
 
     @property
     def powerBonus(self):
@@ -3539,6 +3547,7 @@ class Equipment:
             return self.baseWillpowerBonus
 
     def toggleEquip(self):
+        self.updateState()
         if self.isEquipped:
             self.unequip()
         else:
@@ -5975,7 +5984,7 @@ def makeMap(generateChasm = True, generateHole = False, fall = False):
 
 
     myMap = [[Tile(True, x = x, y = y, wall = True, chasm = generateChasm, hole = generateHole) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
-    removeAllChasms() #Erase this when no longer needed
+    #removeAllChasms()
     rooms = []
     roomTiles = []
     tunnelTiles = []
@@ -6041,10 +6050,7 @@ def makeMap(generateChasm = True, generateHole = False, fall = False):
     print("BEFORE CHASM")
     
     if generateChasm:
-        #NOTE : RESTORE THIS AFTER TRAILER
-        #myMap = chasmGen.createChasms(myMap, roomTiles, tunnelTiles, unchasmable)
-        pass
-        print("PASSING")
+        myMap = chasmGen.createChasms(myMap, roomTiles, tunnelTiles, unchasmable)
     if generateHole:
         myMap = holeGen.createHoles(myMap)
     print("AFTER CHASM")
@@ -8350,8 +8356,9 @@ def chat():
                     NPC.shopComp.browse()
                     break
                 elif state != 'QUEST0':
-                    NPC.questList[0].take()
-                    tree.currentScreen = NPC.questList[0].screenGive
+                    #NPC.questList[0].take()
+                    #tree.currentScreen = NPC.questList[0].screenGive
+                    pass
                 con.clear()
                 dialLength = len(tree.currentScreen.dialogText) - 1
                 ty = (CON_HEIGHT // 2) - (dialLength // 2)
