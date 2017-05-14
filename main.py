@@ -4025,6 +4025,8 @@ def getInput():
         FOV_recompute = True
     elif userInput.keychar.upper() == "F6" and DEBUG and not tdl.event.isWindowClosed():
         player.Fighter.xp += 1000
+        for spell in spells:
+            learnSpell(spell)
         FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'F7' and DEBUG and not tdl.event.isWindowClosed():
