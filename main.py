@@ -3993,7 +3993,8 @@ def getInput():
             return 'didnt-take-turn'
         '''
     elif userInput.keychar.upper() == 'F2' and gameState != 'looking':
-        player.Fighter.takeDamage(1, 'debug damage')
+        #player.Fighter.takeDamage(1, 'debug damage')
+        nextLevel()
         FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'F1':
