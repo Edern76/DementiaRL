@@ -4116,9 +4116,17 @@ def getInput():
             return 'didnt-take-turn'
         else:
             if chosenSpell.magicLevel > player.Player.getTrait(searchedType = 'skill', name = 'Magic ').amount:
+                '''
                 FOV_recompute = True
                 message('Your arcane knowledge is not high enough to cast ' + chosenSpell.name + '.')
                 return 'didnt-take-turn'
+                '''
+                action = chosenSpell.cast(caster = player)
+                if action == 'cancelled':
+                    FOV_recompute = True
+                    return 'didnt-take-turn'
+                else:
+                    return
             else:
                 action = chosenSpell.cast(caster = player)
                 if action == 'cancelled':
@@ -5913,6 +5921,15 @@ def checkFile(file, folder):
             break 
     return False
 
+def removeAllChasms():
+    '''
+    For when they are truly making you lose your sanity and you want to erase all trace of the existence of every single of these fuckers because they are preventing you from testing what you want to test
+    And then after hours of banging your head against the nearest wall you realize that chasms were never the cause of your problem. FML.
+    '''
+    for x in range(MAP_WIDTH):
+        for y in range(MAP_HEIGHT):
+            myMap[x][y].chasm = False
+
 def makeMap(generateChasm = True, generateHole = False, fall = False):
     global myMap, stairs, objects, upStairs, bossDungeonsAppeared, color_dark_wall, color_light_wall, color_dark_ground, color_light_ground, color_dark_gravel, color_light_gravel, townStairs, gluttonyStairs, stairs, upStairs, nemesisList, roomTiles, tunnelTiles, unchasmable, rooms, wrathStairs
     nemesis = None
@@ -5958,7 +5975,7 @@ def makeMap(generateChasm = True, generateHole = False, fall = False):
 
 
     myMap = [[Tile(True, x = x, y = y, wall = True, chasm = generateChasm, hole = generateHole) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
-
+    removeAllChasms() #Erase this when no longer needed
     rooms = []
     roomTiles = []
     tunnelTiles = []
@@ -6021,34 +6038,52 @@ def makeMap(generateChasm = True, generateHole = False, fall = False):
     for x in range(lastCreatedRoom.x1 + 1, lastCreatedRoom.x2):
         for y in range(lastCreatedRoom.y1 + 1, lastCreatedRoom.y2):
             unchasmable.append((x, y))
+    print("BEFORE CHASM")
     
     if generateChasm:
-        myMap = chasmGen.createChasms(myMap, roomTiles, tunnelTiles, unchasmable)
+        #NOTE : RESTORE THIS AFTER TRAILER
+        #myMap = chasmGen.createChasms(myMap, roomTiles, tunnelTiles, unchasmable)
+        pass
+        print("PASSING")
     if generateHole:
         myMap = holeGen.createHoles(myMap)
+    print("AFTER CHASM")
     checkMap()
-    
+    print("PREPING IDENTIFIYING")
     applyIdentification()
+    print("DONE IDING")
     r = 0
+    roomCounter = 0
     for room in rooms:
+        roomCounter += 1
+        print("ROOMS LENGTH = {} AND SWE ARE AT THE {}TH TIME PLACING FREAKING OBJECTS".format(len(rooms), roomCounter))
         if r == 0:
             placeObjects(room, True)
         else:
             placeObjects(room)
     
+    print("DONE ITEMS")
+    
     if nemesis is not None:
         randRoom = randint(0, len(rooms) - 1)
+        print("DONE NEM RAND")
         room = rooms[randRoom]
+        print("DONE NEM ROOM")
         x = randint(room.x1 + 1, room.x2)
         y = randint(room.y1 + 1, room.y2)
+        print("DONE NEM COORDS")
         nemesisMonster = nemesis.nemesisObject
+        print("DONE NEM")
         nemesisMonster.x = x
         nemesisMonster.y = y
+        print("DONE NEM POS")
         objects.append(nemesisMonster)
         print('created nemesis', nemesisMonster.name, x, y)
     
+    print("DONE NEMESIS")
     branches = []
     for (branch, level) in currentBranch.branchesTo:
+        print("IN BRANCH LEVEL LOOP")
         branches.append(branch)
         if dungeonLevel == level and not branch.appeared:
             createdStairs = False
@@ -7132,13 +7167,18 @@ def placeObjects(room, first = False):
             monsterChances['ogre'] -= 50
         monsterChances['highCultist'] = 50
     
+    monCount = 0
     for i in range(numMonsters):
+        monCount += 1
+        print("{}th ITERATION OF MONSTER LOOP WTF IS THIS FREEZING WHY DID REMOVING CHASMS MAKE THIS BREAK".format(monCount))
         if type(room) is Rectangle:
+            print("THIS IS A RECTANGE")
             x = randint(room.x1+1, room.x2-1)
             y = randint(room.y1+1, room.y2-1)
         elif type(room) is CaveRoom:
             (x,y) = room.tiles[randint(0, len(room.tiles) - 1)]
-        
+            print("THIS IS A CAVE")
+        print("X : {} | Y : {}".format(x,y))
         
         if not isBlocked(x, y) and (x, y) != (player.x, player.y) and not myMap[x][y].chasm:
             monsterChoice = randomChoice(monsterChances)
@@ -7209,38 +7249,55 @@ def placeObjects(room, first = False):
                             
             else:
                 monster = None
+        else:
+            if isBlocked(x, y):
+                print("IT IS BLOCKEEED")
 
         if monster != 'cancelled' and monster != None:
             objects.append(monster)
 
     num_items = randint(0, MAX_ROOM_ITEMS)
+    itemCount = 0
     for i in range(num_items):
+        itemCount += 1
+        print("{}th ITERATION OF ITEM LOOP".format(itemCount))
         if type(room) is Rectangle:
             x = randint(room.x1+1, room.x2-1)
             y = randint(room.y1+1, room.y2-1)
+            print("ITEM ROOM IS RECTANGLE")
         elif type(room) is CaveRoom:
             (x,y) = room.tiles[randint(0, len(room.tiles) - 1)]
+            print("ITEM ROOM IS CAVE")
         item = None
         if not isBlocked(x, y) and not myMap[x][y].chasm:
             itemChoice = randomChoice(itemChances)
+            print("DONE RANDOM")
             if itemChoice == 'potion':
                 item = createPotion(x, y)
+                print("POT")
             elif itemChoice == 'scroll':
                 item = createScroll(x, y)
+                print("SCR")
             elif itemChoice == 'none':
                 item = None
+                print("NO")
             elif itemChoice == 'weapon':
                 item = createWeapon(x, y)
+                print("WEP")
             elif itemChoice == 'money':
                 item = GameObject(x, y, char = '$', name = 'gold piece', color = colors.gold, Item=Money(randint(15, 30)), blocks = False, pName = 'gold pieces')
+                print("MON")
             elif itemChoice == 'shield':
                 equipmentComponent = Equipment(slot = 'one handed', type = 'shield', armorBonus=3)
                 item = GameObject(x, y, '[', 'shield', colors.darker_orange, Equipment=equipmentComponent, Item=Item(weight = 3.0, pic = 'shield.xp'))
+                print("SHI")
             elif itemChoice == 'spellbook':
                 item = createSpellbook(x, y)
+                print("SPELL")
             elif itemChoice == "food":
                 foodChances = currentBranch.foodChances
                 foodChoice = randomChoice(foodChances)
+                print("FOOD")
                 if foodChoice == 'bread':
                     item = GameObject(x, y, ',', "slice of bread", colors.yellow, Item = Item(useFunction=satiateHunger, arg1 = 20, arg2 = "a slice of bread", weight = 0.2, stackable=True, amount = randint(1, 5), description = "This has probably been lying on the ground for ages, but you'll have to deal with it if you don't want to starve.", itemtype = 'food'), blocks = False, pName = "slices of bread") 
                 elif foodChoice == 'herbs':
@@ -7298,7 +7355,9 @@ def placeObjects(room, first = False):
                     item = None
             else:
                 item = None
-            if item is not None:            
+                
+            if item is not None:
+                print("ITEM NOT NONE") 
                 objects.append(item)
                 item.sendToBack()
             
@@ -7311,6 +7370,16 @@ def placeObjects(room, first = False):
             if 'highCultist' in monsterChances.keys():
                 print('Reverting high cultist chances to previous value (current : {} / previous : {})'.format(monsterChances['highCultist'], previousHighCultistChances))
                 monsterChances['highCultist'] = previousHighCultistChances 
+        else:
+            print("COULDNT DO ITEM BECAUSE REASONS")
+            if isBlocked(x, y):
+                print("ITEM IS BLOCKEEED")
+            else:
+                print("WAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAT")
+            print("CONTINUING FUCKING LOOP BECAUSE WE ARE NOT SUPPOSED TO FREEZE THE WHOLE FUCKING PROGRAM")
+            continue
+            print("THIS SHOULD NOT DISPLAY")
+            return 'I-am-fucking-done-with-this'
 
 def applyIdentification():
     global potionIdentify, scrollIdentify, colorDict, nameDict
