@@ -1,7 +1,7 @@
 import tdl, colors, copy, pdb, traceback, os, sys, time
 from random import *
-from custom_except import *
 from copy import deepcopy
+from code.custom_except import *
 
 
 WIDTH, HEIGHT, LIMIT = 150, 80, 20
