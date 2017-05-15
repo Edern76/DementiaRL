@@ -1,7 +1,6 @@
 from random import randint
 from code.constants import *
 
-
 def humanLike(length = randint(6, 12)):
     #Generates pronouncable, human sounding like names (in theory)
     finalName = []

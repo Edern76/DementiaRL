@@ -18,12 +18,6 @@ emptyTiles = [] #List of tuples of the coordinates of emptytiles not yet process
 rooms = []
 roomTiles = []
 tunnelTiles = []
-visuTiles = []
-visuEdges = []
-confTiles = []
-dispEmpty = False
-dispDebug = True
-state = "base"
 unchasmable = []
 lastX = 0
 lastY = 0
@@ -78,77 +72,6 @@ class Tile:
         newList.remove(base)
         return newList
 
-        
-class Room:
-    def __init__(self, tiles, borders = []):
-        self.tiles = tiles
-        self.borders = borders
-        rooms.append(self)
-        self.contestedTiles = []
-        self.collidingRooms = []
-        self.connectedRooms = []
-        self.protect = False
-        self.mainRoom = False
-        self.reachableFromMainRoom = False
-        
-    def remove(self):
-        for (x,y) in self.tiles:
-            closeTile(x, y, myMap)
-        rooms.remove(self)
-        del self
-        
-    def claimTile(self, x, y):
-        if (x,y) in self.tiles or (x,y) in self.borders:
-            conflict = myMap[x][y].addOwner(self)
-            if conflict:
-                print("CONFLICT")
-                self.contestedTiles.append((x,y))
-                for contester in conflict:
-                    if not contester in self.collidingRooms:
-                        self.collidingRooms.append(contester)
-        else:
-            raise IllegalTileInvasion("At {} {}".format(x, y))
-        
-    def claimBorders(self):
-        for (x, y) in self.borders:
-            self.claimTile(x, y)
-            
-    def mergeWith(self, other, arbitraryTiles = []):
-        self.protect = True
-        if not other.protect:
-            if self in self.collidingRooms:
-                self.collidingRooms.remove(self)
-                print("REMOVED SELF FROM COLLROOMS")
-            for (x,y) in other.tiles:
-                if not (x,y) in self.tiles:
-                    self.tiles.append((x,y))
-    
-            for (x,y) in arbitraryTiles:
-                if not (x,y) in self.tiles:
-                    self.tiles.append((x,y))
-            
-            for (x,y) in other.borders:
-                if not (x,y) in self.borders:
-                    self.borders.append((x,y))
-    
-            if other in rooms:
-                rooms.remove(other)
-            else:
-                print("Other room not in rooms")
-            if other in self.collidingRooms:
-                self.collidingRooms.remove(other)
-            else:
-                print("Other room not in colliding rooms")
-            del other
-        else:
-            print("OTHER ROOM IS FUCKING PROTECTED, DO NOT MERGE")
-            
-    def setReachable(self):
-        if not self.reachableFromMainRoom:
-            self.reachableFromMainRoom = True
-            for room in self.connectedRooms:
-                room.setReachable()
-
 
 class Rectangle:
     def __init__(self, x, y, w, h):
@@ -186,17 +109,39 @@ def createVerticalTunnel(y1, y2, x):
         myMap[x][y].blocked = False
         tunnelTiles.append((x, y))
 
-def unblockTunnels():
-    global myMap, tunnelTiles, roomTiles
+def unblockTunnels(mapToUse, roomTiles, tunnelTiles, unchasmable):
     for x in range(MAP_WIDTH):
         for y in range(MAP_HEIGHT):
-            if myMap[x][y].chasm and ((x, y) in unchasmable or ((x,y) in tunnelTiles and not (x, y) in roomTiles)):
-                myMap[x][y].chasm = False
+            if mapToUse[x][y].chasm and ((x, y) in unchasmable or ((x,y) in tunnelTiles and not (x, y) in roomTiles)):
+                mapToUse[x][y].chasm = False
+                mapToUse[x][y].fg = colors.lighter_grey
+                mapToUse[x][y].bg = colors.darker_sepia
+    return mapToUse
+
+def checkMap():
+    for x in range(MAP_WIDTH):
+        for y in range(MAP_HEIGHT):
+            if myMap[x][y].chasm:
+                myMap[x][y].fg = colors.dark_grey
+                myMap[x][y].bg = colors.black
+            else:
                 myMap[x][y].fg = colors.lighter_grey
-                myMap[x][y].bg = colors.darker_sepia
+                myMap[x][y].bg = colors.dark_sepia
+
+def createChasms(mapToUse, roomTiles, tunnelTiles, unchasmable):
+    for x in range(1, MAP_WIDTH - 1):
+        for y in range(1, MAP_HEIGHT - 1):
+            if randint(0, 100) < CHANCE_TO_START_ALIVE:
+                #mapToUse[x][y].fg = colors.lighter_grey
+                #mapToUse[x][y].bg = colors.dark_sepia
+                mapToUse[x][y].chasm = False
+    for loop in range(STEPS_NUMBER):
+        mapToUse = doStep(mapToUse)
+    newMap = unblockTunnels(mapToUse, roomTiles, tunnelTiles, unchasmable)
+    return newMap
     
 def makeMap():
-    global myMap, baseMap, rooms, roomTiles, tunnelTiles, unchasmable, firstX, firstY, lastX, lastY
+    global myMap, rooms, roomTiles, tunnelTiles, unchasmable, firstX, firstY, lastX, lastY
 
     myMap = [[Tile(blocked = True, x = x, y = y) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
     rooms = []
@@ -206,19 +151,13 @@ def makeMap():
     
     for x in range(MAP_WIDTH):
         myMap[x][0].setIndestructible()
-        removeFromEmptyTiles(x,0)
         myMap[x][MAP_HEIGHT - 1].setIndestructible()
-        removeFromEmptyTiles(x, MAP_HEIGHT - 1)
         for y in range(MAP_HEIGHT):
             if not myMap[x][y].blocked and not (x,y) in emptyTiles:
                 emptyTiles.append((x,y))
     for y in range(MAP_HEIGHT):
         myMap[0][y].setIndestructible()
-        removeFromEmptyTiles(0, y)
         myMap[MAP_WIDTH - 1][y].setIndestructible()
-        removeFromEmptyTiles(MAP_WIDTH - 1, y)
-
-    baseMap = list(copy.deepcopy(myMap))
  
     for r in range(30):
         w = randint(6, 10)
@@ -255,6 +194,8 @@ def makeMap():
         for y in range(lastCreatedRoom.y1 + 1, lastCreatedRoom.y2):
             unchasmable.append((x, y))
     
+    myMap = createChasms(myMap, roomTiles, tunnelTiles, unchasmable)
+    '''
     for x in range(1, MAP_WIDTH - 1):
         for y in range(1, MAP_HEIGHT - 1):
             if randint(0, 100) < CHANCE_TO_START_ALIVE:
@@ -264,13 +205,9 @@ def makeMap():
     for loop in range(STEPS_NUMBER):
         myMap = doStep(myMap)
     unblockTunnels()
+    '''
 
 myMap = [[]]
-baseMap = [[]]
-
-
-maps = [myMap, baseMap]
-mapIndex = 0
 
 def countNeighbours(mapToUse, startX, startY, stopAtFirst = False):
     count = 0
@@ -290,26 +227,6 @@ def countNeighbours(mapToUse, startX, startY, stopAtFirst = False):
         if stopAtFirst and found:
             break
     return count
-def removeFromEmptyTiles(x, y):
-    if (x,y) in emptyTiles:
-        emptyTiles.remove((x,y))
-
-def openTile(x, y, mapToUse):
-    if mapToUse[x][y].open() and not (x,y) in emptyTiles:
-        #emptyTiles.append((x,y))
-        pass
-
-def closeTile(x, y, mapToUse):
-    mapToUse[x][y].close()
-    #removeFromEmptyTiles(x,y)
-    
-def refreshEmptyTiles():
-    global emptyTiles
-    emptyTiles = []
-    for x in range(MAP_WIDTH):
-        for y in range(MAP_HEIGHT):
-            if not myMap[x][y].blocked:
-                emptyTiles.append((x,y))
 
 def doStep(oldMap):
     newMap = list(copy.deepcopy(oldMap))
@@ -318,31 +235,24 @@ def doStep(oldMap):
             neighbours = countNeighbours(oldMap, x, y)
             if not oldMap[x][y].chasm:
                 if neighbours < DEATH_LIMIT:
-                    newMap[x][y].fg = colors.dark_grey
-                    newMap[x][y].bg = colors.black
+                    #newMap[x][y].fg = colors.dark_grey
+                    #newMap[x][y].bg = colors.black
                     newMap[x][y].chasm = True
                 else:
-                    newMap[x][y].fg = colors.lighter_grey
-                    newMap[x][y].bg = colors.dark_sepia
+                    #newMap[x][y].fg = colors.lighter_grey
+                    #newMap[x][y].bg = colors.dark_sepia
                     newMap[x][y].chasm = False
             else:
                 if neighbours > BIRTH_LIMIT:
-                    newMap[x][y].fg = colors.lighter_grey
-                    newMap[x][y].bg = colors.dark_sepia
+                    #newMap[x][y].fg = colors.lighter_grey
+                    #newMap[x][y].bg = colors.dark_sepia
                     newMap[x][y].chasm = False
                 else:
-                    newMap[x][y].fg = colors.dark_grey
-                    newMap[x][y].bg = colors.black
+                    #newMap[x][y].fg = colors.dark_grey
+                    #newMap[x][y].bg = colors.black
                     newMap[x][y].chasm = True
     return newMap
 
-def drawCentered(cons = root , y = 1, text = "Lorem Ipsum", fg = None, bg = None):
-    xCentered = (WIDTH - len(text))//2
-    cons.draw_str(xCentered, y, text, fg, bg)
-
-
-        
-    
 def update(mapToUse):
     root.clear()
     try:
