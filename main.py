@@ -2321,6 +2321,15 @@ class BasicMonster(TargetSelector): #Basic monsters' AI
     
     def takeTurn(self):
         self.takeBasicTurn()
+    
+    def wander(self):
+        monster = self.owner
+        dx, dy = randint(-1, 1), randint(-1, 1)
+        x, y = self.owner.x + dx, self.owner.y + dy
+        print('wandering, chasm:', myMap[x][y].chasm)
+        if self.owner.flying or not myMap[x][y].chasm:
+            print('moving')
+            monster.move(dx, dy) #wandering
 
     def takeBasicTurn(self):
         global mustCalculate
@@ -2343,12 +2352,7 @@ class BasicMonster(TargetSelector): #Basic monsters' AI
                 self.tryMove()
                 
         elif not 'frozen' in convertBuffsToNames(self.owner.Fighter):
-            dx, dy = randint(-1, 1), randint(-1, 1)
-            x, y = self.owner.x + dx, self.owner.y + dy
-            print('wandering, chasm:', myMap[x][y].chasm)
-            if self.owner.flying or not myMap[x][y].chasm:
-                print('moving')
-                monster.move(dx, dy) #wandering
+            self.wander()
     
     def tryMove(self):
         global mustCalculate
@@ -2398,7 +2402,7 @@ class BasicMonster(TargetSelector): #Basic monsters' AI
                         mobsToCalculate.append(monster)
                     else:
                         message("{} has a dumb expression on its face.".format(monster.name))
-                        monster.move(randint(-1, 1), randint(-1, 1)) #wandering  
+                        self.wander()
                     
             elif not monster.astarPath or pathState == "fail":
                 if self.selectedTarget and self.failCounter <= MAX_ASTAR_FAILS:
@@ -2409,7 +2413,7 @@ class BasicMonster(TargetSelector): #Basic monsters' AI
                     mobsToCalculate.append(monster)
                 else:
                     print("No target")
-                    monster.move(randint(-1, 1), randint(-1, 1)) #wandering
+                    self.wander()
                     if self.failCounter > MAX_ASTAR_FAILS:
                         message("{} has a dumb expression on its face.".format(monster.name))
 
@@ -2544,20 +2548,41 @@ class FastMonster(BasicMonster):
         for loop in range(self.speed):
             self.takeBasicTurn() #for some reason when moving only one tile it won't attack as a second action
 
-class Fleeing:
-    def takeTurn(self):
+class Fleeing(BasicMonster):
+    def __init__(self):
+        BasicMonster.__init__(self)
+
+    def flee(self):
         monster = self.owner
         monsterVisibleTiles = tdl.map.quick_fov(x = monster.x, y = monster.y,callback = isVisibleTile , fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
-        bestX = 0
-        bestY = 0
-        for x in range(MAP_WIDTH):
-            for y in range(MAP_HEIGHT):
-                if (x, y) in monsterVisibleTiles and monster.distanceToCoords(x, y) > monster.distanceToCoords(bestX, bestY) and not isBlocked(x, y):
-                    bestX = x
-                    bestY = y
-        state = monster.moveAstar(bestX, bestY, fallback = False)
-        if state == "fail":
-            monster.moveTowards(bestX, bestY)
+        bestX = monster.x
+        bestY = monster.y
+        if not 'frozen' in convertBuffsToNames(self.owner.Fighter) and monster.distanceTo(player) <= 15:
+            for x in range(monster.x - SIGHT_RADIUS - 1, monster.x + SIGHT_RADIUS + 1):
+                for y in range(monster.y - SIGHT_RADIUS - 1, monster.y + SIGHT_RADIUS + 1):
+                    if (x, y) in monsterVisibleTiles and player.distanceToCoords(x, y) > player.distanceToCoords(bestX, bestY) and not isBlocked(x, y):
+                        bestX = x
+                        bestY = y
+            fleePoint = GameObject(bestX, bestY, char = None, name = 'fleePoint', color = None, Ghost = True)
+            self.selectedTarget = fleePoint
+            if self.selectedTarget is not None:
+                print("SELECTED TARGET IS NOT NONE")
+                if monster.distanceTo(self.selectedTarget) < 2:
+                    monster.Fighter.attack(self.selectedTarget)
+                else:
+                    print("TRYING TO MOVE")
+                    self.tryMove()
+            else:
+                print("No target, still trying to move")
+                self.tryMove()
+    
+    def takeTurn(self):
+        monster = self.owner
+        if not 'frozen' in convertBuffsToNames(self.owner.Fighter) and monster.distanceTo(player) <= 15:
+            self.flee()
+                
+        elif not 'frozen' in convertBuffsToNames(self.owner.Fighter):
+            self.wander()
 
 class HostileStationnary(TargetSelector):
     def __init__(self):
@@ -5962,7 +5987,8 @@ def makeMap(generateChasm = True, generateHole = False, fall = False):
                 print(nemesis.level, dungeonLevel)
                 if nemesis.branch == currentBranch.shortName and nemesis.level == dungeonLevel:
                     dice = randint(1, 100)
-                    target = int(5 + (dungeonLevel * dungeonLevel) / 10)
+                    TARGET_CONSTANT = 5
+                    target = int(TARGET_CONSTANT + (dungeonLevel * dungeonLevel) / 10)
                     print(dice, target)
                     if dice <= target:
                         break
@@ -6079,8 +6105,12 @@ def makeMap(generateChasm = True, generateHole = False, fall = False):
         print("DONE NEM RAND")
         room = rooms[randRoom]
         print("DONE NEM ROOM")
-        x = randint(room.x1 + 1, room.x2)
-        y = randint(room.y1 + 1, room.y2)
+        created = False
+        while not created:
+            x = randint(room.x1 + 1, room.x2)
+            y = randint(room.y1 + 1, room.y2)
+            if isBlocked(x, y) and myMap[x][y].chasm:
+                created = True
         print("DONE NEM COORDS")
         nemesisMonster = nemesis.nemesisObject
         print("DONE NEM")
@@ -6617,42 +6647,16 @@ class Wrath(Charger):
 #--Wrath--
 
 #-- High Inquisitor --
-class HighInquisitor:
+class HighInquisitor(Fleeing):
+    def __init__(self):
+        Fleeing.__init__(self)
+
     def takeTurn(self):
         global FOV_recompute
         monster = self.owner
-        monsterVisibleTiles = tdl.map.quick_fov(x = monster.x, y = monster.y,callback = isVisibleTile , fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
-        
-        targets = []
         selectedTarget = None
-        priorityTargetFound = False
         if not 'frozen' in convertBuffsToNames(self.owner.Fighter) and monster.distanceTo(player) <= 15:
-            print(monster.name + " is less than 15 tiles to player.")
-            for object in objects:
-                if (object.x, object.y) in monsterVisibleTiles and (object == player or (object.AI and object.AI.__class__.__name__ == "FriendlyMonster" and object.AI.friendlyTowards == player)):
-                    targets.append(object)
-            if DEBUG:
-                print(monster.name.capitalize() + " can target", end=" ")
-                if targets:
-                    for loop in range (len(targets)):
-                        print(targets[loop].name.capitalize() + ", ", sep ="", end ="")
-                else:
-                    print("absolutely nothing but nothingness.", end ="")
-                print()
-            if targets:
-                if player in targets: #Target player in priority
-                    selectedTarget = player
-                    del targets[targets.index(player)]
-                    if monster.distanceTo(player) < 2:
-                        priorityTargetFound = True
-                if not priorityTargetFound:
-                    for enemyIndex in range(len(targets)):
-                        enemy = targets[enemyIndex]
-                        if monster.distanceTo(enemy) < 2:
-                            selectedTarget = enemy
-                        else:
-                            if selectedTarget == None or monster.distanceTo(selectedTarget) > monster.distanceTo(enemy):
-                                selectedTarget = enemy
+            self.selectTarget()
             if selectedTarget is not None:
                 choseSpell = True
                 if len(monster.Fighter.knownSpells) > 0:
@@ -6677,34 +6681,12 @@ class HighInquisitor:
                     if monster.distanceTo(selectedTarget) < 2:
                         monster.Fighter.attack(selectedTarget)
                     else:
-                        monsterVisibleTiles = tdl.map.quick_fov(x = monster.x, y = monster.y,callback = isVisibleTile , fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
-                        bestX = 0
-                        bestY = 0
-                        for x in range(MAP_WIDTH):
-                            for y in range(MAP_HEIGHT):
-                                if (x, y) in monsterVisibleTiles and monster.distanceToCoords(x, y) > monster.distanceToCoords(bestX, bestY) and not isBlocked(x, y):
-                                    bestX = x
-                                    bestY = y
-                        state = monster.moveAstar(bestX, bestY, fallback = False)
-                        if state == "fail":
-                            print("astar failed")
-                            monster.moveTowards(bestX, bestY)
-                            #diagState = checkDiagonals(monster, selectedTarget)
-                            #if diagState is None:
-                            #    monster.moveTowards(selectedTarget.x, selectedTarget.y)
-            #elif (monster.x, monster.y) in visibleTiles and monster.distanceTo(player) >= 2:
-                #monster.moveAstar(player.x, player.y)
+                        self.flee()
             else:
                 if not 'frozen' in convertBuffsToNames(monster.Fighter) and monster.distanceTo(player) >= 2:
-                    pathState = "complete"
-                    diagPathState = None
-                    if monster.astarPath:
-                        pathState = monster.moveAstar()
-                    elif not monster.astarPath or pathState == "fail":
-                            if monster.distanceTo(player) <= 15 and not (monster.x == player.x and monster.y == player.y):
-                                diagPathState = checkDiagonals(monster, player)
-                            elif diagPathState is None or monster.distanceTo(player) > 15:
-                                monster.move(randint(-1, 1), randint(-1, 1)) #wandering
+                    self.wander()
+        elif not 'frozen' in convertBuffsToNames(monster.Fighter):
+            self.wander()
         FOV_recompute = True
 #-- High Inquisitor --
 
@@ -7483,8 +7465,14 @@ def turnIntoNemesis():
     global lastHitter, nemesisList
     nemesis = None
     if lastHitter == 'darksoul':
-        fightComp = Fighter(hp=60, armor=3, power=12, accuracy=50, evasion=15, xp=70, deathFunction=monsterDeath, armorPenetration=3)
+        fightComp = Fighter(hp=60, armor=1, power=7, accuracy=50, evasion=15, xp=70, deathFunction=monsterDeath, armorPenetration=3)
         objComp = GameObject(0, 0, 'P', nameGen.nemesisName(race = player.Player.race, classe = player.Player.classes), color = colors.dark_gray, blocks=True, Fighter=fightComp, AI = BasicMonster())
+        for equipment in equipmentList:
+            if randint(1, 100) <= 60 and not equipment.Equipment.ranged:
+                equipment.Equipment.equip(objComp.Fighter)
+                objComp.Fighter.lootFunction.append(equipment)
+                objComp.Fighter.lootRate.append(60)
+                print('nemesis equipped ' + equipment.name)
         nemesis = Nemesis(objComp, currentBranch.shortName, dungeonLevel)
         print('created', objComp.name)
     if nemesis is not None:
