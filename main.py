@@ -5693,23 +5693,12 @@ def generateCave(fall = False):
 
     baseMap = list(deepcopy(myMap))
 
-
-    if baseMap[2][5].blocked:
-        print("WTTTTTTTTTTTTTTTTTTFFFFFFFFFF")
-        print(myMap[2][5].blocked)
-    else:
-        print("Everything is worked as intended in this part of the code")
         
     for x in range(1, MAP_WIDTH - 1):
         for y in range(1, MAP_HEIGHT - 1):
             if randint(0, 100) < CHANCE_TO_START_ALIVE:
                 closeTile(x, y, myMap)
 
-    if baseMap[2][5].blocked:
-        print("WTTTTTTTTTTTTTTTTTTFFFFFFFFFF")
-        print(myMap[2][5].blocked)
-    else:
-        print("Everything is worked as intended in this part of the code")
     for loop in range(STEPS_NUMBER):
         myMap = doStep(myMap)
     maps = [myMap, baseMap]
