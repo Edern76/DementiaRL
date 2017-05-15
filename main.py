@@ -592,7 +592,8 @@ def addSlot(fighter, slot):
     fighter.slots.append(slot)
 
 class Buff: #also (and mainly) used for debuffs
-    def __init__(self, name, color, owner = None, cooldown = 20, showCooldown = True, showBuff = True, applyFunction = None, continuousFunction = None, removeFunction = None):
+    def __init__(self, name, color, owner = None, cooldown = 20, showCooldown = True, showBuff = True,
+                 applyFunction = None, continuousFunction = None, removeFunction = None):
         self.name = name
         self.color = color
         self.baseCooldown = cooldown
@@ -6439,7 +6440,11 @@ def basicBossDeath(monster):
         for item in monster.Fighter.lootFunction:
             loot = randint(1, 100)
             if loot <= monster.Fighter.lootRate[itemIndex]:
-                lootItem(item, monster.x, monster.y)
+                if loot.Item:
+                    if loot.Item.amount > 0 or not loot.Item.stackable:
+                        lootItem(item, monster.x, monster.y)
+                else:
+                    lootItem(item, monster.x, monster.y)
             itemIndex += 1
 
     monster.char = '%'
@@ -6959,9 +6964,9 @@ def createScroll(x, y):
         elif fireballChoice == 'greater':
             scroll = GameObject(x, y, '~', 'scroll of greater fireball', colors.light_yellow, Item = Item(castFireball, 4, 48, weight = 0.3, stackable = True, unIDName=unIdentifiedName, identified=identified, unIDpName=pName), blocks = False, pName = 'scrolls of greater fireball')
     elif scrollChoice == 'armageddon':
-        scroll = GameObject(x, y, '~', 'scroll of armageddon', colors.red, Item = Item(castArmageddon, weight = 0.3, stackable = True, unIDName=unIdentifiedName, identified=identified, unIDpName=pName), blocks = False, pName = 'scrolls of armageddon')
+        scroll = GameObject(x, y, '~', 'scroll of armageddon', colors.light_yellow, Item = Item(castArmageddon, weight = 0.3, stackable = True, unIDName=unIdentifiedName, identified=identified, unIDpName=pName), blocks = False, pName = 'scrolls of armageddon')
     elif scrollChoice == 'ice':
-        scroll = GameObject(x, y, '~', 'scroll of ice bolt', colors.light_cyan, Item = Item(castFreeze, weight = 0.3, stackable = True, amount = randint(1, 3), unIDName=unIdentifiedName, identified=identified, unIDpName=pName), blocks = False, pName = 'scrolls of ice bolt')
+        scroll = GameObject(x, y, '~', 'scroll of ice bolt', colors.light_yellow, Item = Item(castFreeze, weight = 0.3, stackable = True, amount = randint(1, 3), unIDName=unIdentifiedName, identified=identified, unIDpName=pName), blocks = False, pName = 'scrolls of ice bolt')
     elif scrollChoice == 'none':
         scroll = None
     return scroll
@@ -8034,7 +8039,7 @@ def controlBox():
     FOV_recompute = True
     Update()
     width = 45
-    height = 29
+    height = 31
     window = NamedConsole('controlBox', width, height)
     assert isinstance(window, tdl.Console)
     
@@ -9167,7 +9172,8 @@ def playGame():
                     if object.Fighter.acidifiedCooldown <= 0:
                         object.Fighter.acidified = False
                         object.Fighter.baseArmor = object.Fighter.BASE_ARMOR
-                
+            
+            #for object in objects:    
                 if object.Fighter and object.Fighter is not None:
                     for buff in object.Fighter.buffList:
                         buff.passTurn()
