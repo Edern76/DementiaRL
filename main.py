@@ -1237,7 +1237,7 @@ def toggleDrawDjik(caster = None, target = None):
 def findNeighbouringDjikAndSetValue(x,y):
     found = False
     curLow = 0
-    for tile in myMap[x][y].cardinalNeighbors():
+    for tile in myMap[x][y].neighbors():
         if tile.djikValue is not None and (not found or tile.djikValue < curLow):
             found = True
             curLow = tile.djikValue
@@ -1252,7 +1252,7 @@ def findTileNeighbouringDjik(startTile):
     found = False
     curLow = 0
     curLowTile = None
-    for tile in startTile.cardinalNeighbors():
+    for tile in startTile.neighbors():
         if tile is not None and not (tile.blocked or tile.chasm or tile.wall) and (not found or tile.djikValue < curLow):
             found = True
             curLow = tile.djikValue
@@ -5410,15 +5410,47 @@ class Tile:
     def neighbors(self):
         x = self.x
         y = self.y
-        upperLeft = myMap[x - 1][y - 1]
-        up = myMap[x][y - 1]
-        upperRight = myMap[x + 1][y - 1]
-        left = myMap[x - 1][y]
-        right = myMap[x + 1][y]
-        lowerLeft = myMap[x - 1][y + 1]
-        low = myMap[x][y + 1]
-        lowerRight = myMap[x + 1][y + 1]
-        return [upperLeft, up, upperRight, left, right, lowerLeft, low, lowerRight]
+        try:
+            upperLeft = myMap[x - 1][y - 1]
+        except IndexError:
+            upperLeft = None
+            
+        try:
+            up = myMap[x][y - 1]
+        except IndexError:
+            up = None
+            
+        try:
+            upperRight = myMap[x + 1][y - 1]
+        except IndexError:
+            upperRight = None
+            
+        try:
+            left = myMap[x - 1][y]
+        except IndexError:
+            left = None
+            
+        try:
+            right = myMap[x + 1][y]
+        except IndexError:
+            right = None
+            
+        try:
+            lowerLeft = myMap[x - 1][y + 1]
+        except IndexError:
+            lowerLeft = None
+        
+        try:
+            low = myMap[x][y + 1]
+        except IndexError:
+            low = None
+
+        try:
+            lowerRight = myMap[x + 1][y + 1]
+        except IndexError:
+            lowerRight = None
+        
+        return [i for i in [upperLeft, up, upperRight, left, right, lowerLeft, low, lowerRight] if i is not None]
     
     def cardinalNeighbors(self):
         x = self.x
@@ -5967,6 +5999,7 @@ def generateCave(fall = False):
         
     for x in range(1, MAP_WIDTH - 1):
         for y in range(1, MAP_HEIGHT - 1):
+            myMap[x][y].djikValue = None
             if randint(0, 100) < CHANCE_TO_START_ALIVE:
                 closeTile(x, y, myMap)
 
@@ -6093,6 +6126,7 @@ def createRoom(room):
 def checkMap():
     for x in range(MAP_WIDTH):
         for y in range(MAP_HEIGHT):
+            myMap[x][y].djikCost = None
             if myMap[x][y].hole and not myMap[x][y].unbreakable:
                 myMap[x][y].wall = False
                 if myMap[x][y].chasm:
