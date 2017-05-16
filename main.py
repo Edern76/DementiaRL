@@ -1,5 +1,5 @@
 
-import colors, math, textwrap, time, os, sys, code, gzip, pathlib, traceback, ffmpy, pdb, copy, queue, random #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
+import colors, math, textwrap, time, os, sys, code, gzip, pathlib, traceback, ffmpy, pdb, copy, queue, random, cProfile #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
 import tdlib as tdl
 import code.dialog as dial
 import music as mus
@@ -1036,8 +1036,11 @@ def resetDjik():
     djikVisitedTiles = []
     for x in range(MAP_WIDTH):
         for y in range(MAP_HEIGHT):
-            myMap[x][y].djikValue = None
-            myMap[x][y].doNotPropagateDjik = False
+            #myMap[x][y].djikValue = None*
+            tile = myMap[x][y]
+            if not (tile.blocked or tile.chasm or tile.wall):
+                tile.djikValue = 90000000
+            tile.doNotPropagateDjik = False
 
 def applyDjik(x,y, value, visible = False):
     try:
@@ -1058,7 +1061,92 @@ def applyDjik(x,y, value, visible = False):
         print('Index Error')
         pass
 
-def calcDjikPlayer(caster = None, target = None ):
+'''
+class DjikSquareMaker(threading.Thread):
+    def __init__(self, x, y, value = 1):
+        threading.Thread.__init__(self)
+        self.x = x
+        self.y = y
+        self.value = value
+    
+    def run(self):
+        turtle = GameObject(self.x, self.y, name = 'Turtle', char = None)
+        turtle.y += self.value #Place the turtle Z-1 (where Z is the self.value of the variable named self.value, don't ask why -1 it doesn't work if it is not there) tiles higher than the center (given by the x and y variables)
+        for i in range(self.value): #Move Z tiles left and apply wanted Djikstra self.value to them
+            applyDjik(turtle.x, turtle.y, self.value, False)
+            if not turtle.x < 0:
+                turtle.x -= 1
+        applyDjik(turtle.x, turtle.y, self.value, False)
+        for loop in range(2): #Move twice 2Z times down and apply self.value to tiles
+            for innerLoop in range(self.value):
+                applyDjik(turtle.x, turtle.y, self.value, False)
+                turtle.y -= 1
+        applyDjik(turtle.x, turtle.y, self.value, False)
+        #turtle.y -= 1 #Move once more down
+        applyDjik(turtle.x, turtle.y, self.value, False)
+        for otherLoop in range(2): #Move 2Z times right
+            for otherInnerLoop in range(self.value):
+                applyDjik(turtle.x, turtle.y, self.value, False)
+                turtle.x += 1
+            applyDjik(turtle.x, turtle.y, self.value, False)
+        for yetAnotherLoop in range(2): #Move 2Z times up
+            for yetAnotherInnerLoop in range(self.value):
+                applyDjik(turtle.x, turtle.y, self.value, False)
+                turtle.y += 1
+            applyDjik(turtle.x, turtle.y, self.value, False)
+        #turtle.y += 1
+        applyDjik(turtle.x, turtle.y, self.value, False)
+        for finalLoop in range(self.value): #Move Z times left
+            applyDjik(turtle.x, turtle.y, self.value, False)
+            turtle.x -= 1
+        applyDjik(turtle.x, turtle.y, self.value, False)
+        del turtle #RIP
+
+'''
+'''
+def djikSquare(x, y, value = 1):
+        turtle = GameObject(x, y, name = 'Turtle', char = None)
+        turtle.y += value #Place the turtle Z-1 (where Z is the value of the variable named value, don't ask why -1 it doesn't work if it is not there) tiles higher than the center (given by the x and y variables)
+        for i in range(value): #Move Z tiles left and apply wanted Djikstra value to them
+            applyDjik(turtle.x, turtle.y, value, False)
+            turtle.x -= 1
+        applyDjik(turtle.x, turtle.y, value, False)
+        for loop in range(2): #Move twice 2Z times down and apply value to tiles
+            for innerLoop in range(value):
+                applyDjik(turtle.x, turtle.y, value, False)
+                turtle.y -= 1
+        applyDjik(turtle.x, turtle.y, value, False)
+        #turtle.y -= 1 #Move once more down
+        applyDjik(turtle.x, turtle.y, value, False)
+        for otherLoop in range(2): #Move 2Z times right
+            for otherInnerLoop in range(value):
+                applyDjik(turtle.x, turtle.y, value, False)
+                turtle.x += 1
+            applyDjik(turtle.x, turtle.y, value, False)
+        for yetAnotherLoop in range(2): #Move 2Z times up
+            for yetAnotherInnerLoop in range(value):
+                applyDjik(turtle.x, turtle.y, value, False)
+                turtle.y += 1
+            applyDjik(turtle.x, turtle.y, value, False)
+        #turtle.y += 1
+        applyDjik(turtle.x, turtle.y, value, False)
+        for finalLoop in range(value): #Move Z times left
+            applyDjik(turtle.x, turtle.y, value, False)
+            turtle.x -= 1
+        applyDjik(turtle.x, turtle.y, value, False)
+        del turtle #RIP
+
+#        for marker in markers:
+#            marker.clear()
+#            try:
+#                objects.remove(marker)
+#            except ValueError:
+#                pass
+#            del marker
+
+'''
+
+def calcDjikPlayer(caster = None, target = None, profile = False):
     '''
     def doStuff(pX, pY, recursLevel = 1):
         if recursLevel < 500:
@@ -1090,60 +1178,98 @@ def calcDjikPlayer(caster = None, target = None ):
     resetDjik()
     (pX, pY) = player.x, player.y
     '''
-    def djikSquare(x, y, value = 1):
-        turtle = GameObject(x, y, name = 'Turtle', char = None)
-        turtle.y += value #Place the turtle Z-1 (where Z is the value of the variable named value, don't ask why -1 it doesn't work if it is not there) tiles higher than the center (given by the x and y variables)
-        for i in range(value): #Move Z tiles left and apply wanted Djikstra value to them
-            applyDjik(turtle.x, turtle.y, value, False)
-            turtle.x -= 1
-        applyDjik(turtle.x, turtle.y, value, False)
-        for loop in range(2): #Move twice 2Z times down and apply value to tiles
-            for innerLoop in range(value):
-                applyDjik(turtle.x, turtle.y, value, False)
-                turtle.y -= 1
-        applyDjik(turtle.x, turtle.y, value, False)
-        #turtle.y -= 1 #Move once more down
-        applyDjik(turtle.x, turtle.y, value, False)
-        for otherLoop in range(2): #Move 2Z times right
-            for otherInnerLoop in range(value):
-                applyDjik(turtle.x, turtle.y, value, False)
-                turtle.x += 1
-            applyDjik(turtle.x, turtle.y, value, False)
-        for yetAnotherLoop in range(2): #Move 2Z times up
-            for yetAnotherInnerLoop in range(value):
-                applyDjik(turtle.x, turtle.y, value, False)
-                turtle.y += 1
-            applyDjik(turtle.x, turtle.y, value, False)
-        #turtle.y += 1
-        applyDjik(turtle.x, turtle.y, value, False)
-        for finalLoop in range(value): #Move Z times left
-            applyDjik(turtle.x, turtle.y, value, False)
-            turtle.x -= 1
-        applyDjik(turtle.x, turtle.y, value, False)
-        del turtle #RIP
+    
         
-        '''
-        for marker in markers:
-            marker.clear()
-            try:
-                objects.remove(marker)
-            except ValueError:
-                pass
-            del marker
-        '''
+
         
     
     resetDjik()
     (pX, pY) = player.x, player.y
     myMap[pX][pY].djikValue = 0
-    for loop in range(1, 50):
-        djikSquare(pX, pY, loop)
+    '''
+    makers = []
+    for loop in range(1, 150):
+        maker = DjikSquareMaker(x = pX, y = pY, value = loop)
+        makers.append(maker)
+    
+    for maker in makers:
+        maker.start()
+    for maker in makers:
+        maker.join()
+    '''
+    
+    if not profile:
+        actuallyDoDjik(False)
+    else:
+        cProfile.run('actuallyDoDjik()', filename = os.path.join(curDir, 'djikDetail.profile'))
+                
+def getWalkableTiles():
+    newList = []
+    for x in range(MAP_WIDTH):
+        for y in range(MAP_HEIGHT):
+            tile = myMap[x][y]
+            if tile.djikValue is not None:
+                newList.append(tile)
+    return newList
 
+
+def actuallyDoDjik(profile = True):
+    change = True
+    walkableTiles = getWalkableTiles()
+    while change:
+        change = False
+        '''
+        for x in range(MAP_WIDTH):
+            for y in range(MAP_HEIGHT):
+                tile = myMap[x][y]
+                if not (tile.blocked or tile.chasm or tile.wall):
+                    if findNeighbouringDjikAndSetValue(x, y):
+                        change = True    
+        '''
+        for tile in walkableTiles:
+            if findTileNeighbouringDjik(tile):
+                change = True
 
 def toggleDrawDjik(caster = None, target = None):
     global drawDjik
     drawDjik = not drawDjik
 
+def findNeighbouringDjikAndSetValue(x,y):
+    found = False
+    curLow = 0
+    for tile in myMap[x][y].cardinalNeighbors():
+        if tile.djikValue is not None and (not found or tile.djikValue < curLow):
+            found = True
+            curLow = tile.djikValue
+    
+    if myMap[x][y].djikValue - curLow >= 2:
+        myMap[x][y].djikValue = curLow + 1
+        return True
+    else:
+        return False
+
+def findTileNeighbouringDjik(startTile):
+    found = False
+    curLow = 0
+    curLowTile = None
+    for tile in startTile.cardinalNeighbors():
+        if tile is not None and not (tile.blocked or tile.chasm or tile.wall) and (not found or tile.djikValue < curLow):
+            found = True
+            curLow = tile.djikValue
+            curLowTile = tile
+    
+    if startTile.djikValue - curLow >= 2:
+        startTile.djikValue = curLow + 1
+        return True
+    else:
+        return False
+        
+def profileDjik(caster = None, target = None):
+    cProfile.run('calcDjikPlayer()', filename = os.path.join(curDir, 'djikstra.profile'))
+    
+def detailedProfilerWrapperDjik(caster = None, target = None):
+    calcDjikPlayer(profile = True)
+    
 fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 1, arg2 = 12, arg3 = 4)
 heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 20)
 darkPact = Spell(ressourceCost = DARK_PACT_DAMAGE, cooldown = 8, useFunction = castDarkRitual, name = "Dark ritual", ressource = 'HP', type = "Occult", magicLevel = 2, arg1 = 5, arg2 = DARK_PACT_DAMAGE)
@@ -1158,9 +1284,11 @@ envenom = Spell(ressourceCost= 3, cooldown = 20, useFunction=castEnvenom, name =
 drawAstarPath = Spell(ressourceCost = 0, cooldown = 1, useFunction=castAstarPath, name = 'DEBUG : Draw A* path', ressource = 'MP', type = 'Occult')
 teleport = Spell(ressourceCost = 0, cooldown = 1, useFunction=castTeleportTo, name = 'DEBUG : Teleport', ressource = 'HP', type = 'Occult')
 djik = Spell(ressourceCost= 0, cooldown = 1, useFunction=calcDjikPlayer, name = 'DEBUG : Calculate Djikstra Map', ressource='MP', type = 'Occult')
+djikProf = Spell(ressourceCost= 0, cooldown = 1, useFunction=profileDjik, name = 'DEBUG : Calculate Djikstra Map (with Profiler)', ressource='MP', type = 'Occult')
 dispDjik = Spell(ressourceCost= 0, cooldown = 1, useFunction=toggleDrawDjik, name = 'DEBUG : Draw Djikstra Map', ressource='MP', type = 'Occult')
+detDjik = Spell(ressourceCost= 0, cooldown = 1, useFunction=detailedProfilerWrapperDjik, name = 'DEBUG : Calculate Djikstra Map (with detailed Profiler)', ressource='MP', type = 'Occult')
 
-spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport, djik, dispDjik])
+spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport, djik, dispDjik, djikProf, detDjik])
 #_____________SPELLS_____________
 
 #______________CHARACTER GENERATION____________
@@ -5292,6 +5420,27 @@ class Tile:
         lowerRight = myMap[x + 1][y + 1]
         return [upperLeft, up, upperRight, left, right, lowerLeft, low, lowerRight]
     
+    def cardinalNeighbors(self):
+        x = self.x
+        y = self.y
+        try:
+            up = myMap[x][y - 1]
+        except IndexError:
+            up = None
+        try:
+            left = myMap[x - 1][y]
+        except IndexError:
+            left = None
+        try:
+            right = myMap[x + 1][y]
+        except IndexError:
+            right = None
+        try:
+            low = myMap[x][y + 1]
+        except IndexError:
+            low = None
+        return [i for i in [up, left, right, low] if i is not None]
+
     def applyWallProperties(self):
         if not self.secretWall:
             self.wall = True
