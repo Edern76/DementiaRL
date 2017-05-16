@@ -33,7 +33,7 @@ class Tile:
         self.blocked = blocked
         self.x = x
         self.y = y
-        self.char = char
+        self.character = char
         self.indestructible = False
         self.belongsTo = []
         self.fg = colors.lighter_grey
@@ -105,43 +105,43 @@ def createRoom(room):
     for x in range(room.x1 + 1, room.x2):
         for y in range(room.y1 + 1, room.y2):
             myMap[x][y].blocked = False
-            myMap[x][y].char = None
+            myMap[x][y].character = None
     centerPillar = randint(0, 2)
     if centerPillar != 0:
         myMap[room.x1 + 2][room.y1 + 2].pillar = True
-        myMap[room.x1 + 2][room.y1 + 2].char = 'o'
+        myMap[room.x1 + 2][room.y1 + 2].character = 'o'
         myMap[room.x1 + 2][room.y2 - 2].pillar = True
-        myMap[room.x1 + 2][room.y2 - 2].char = 'o'
+        myMap[room.x1 + 2][room.y2 - 2].character = 'o'
         myMap[room.x2 - 2][room.y1 + 2].pillar = True
-        myMap[room.x2 - 2][room.y1 + 2].char = 'o'
+        myMap[room.x2 - 2][room.y1 + 2].character = 'o'
         myMap[room.x2 - 2][room.y2 - 2].pillar = True
-        myMap[room.x2 - 2][room.y2 - 2].char = 'o'
+        myMap[room.x2 - 2][room.y2 - 2].character = 'o'
     else:
         x, y = room.center()
         myMap[x][y].pillar = True
-        myMap[x][y].char = 'o'
+        myMap[x][y].character = 'o'
             
 def createHorizontalTunnel(x1, x2, y, big = False):
     global myMap
     for x in range(min(x1, x2), max(x1, x2) + 1):
         myMap[x][y].blocked = False
-        if myMap[x][y].char == '#':
-            myMap[x][y].char = None
+        if myMap[x][y].character == '#':
+            myMap[x][y].character = None
     if big:
         #pillar = 0
         for x in range(min(x1, x2) - 1, max(x1, x2) + 2):
             myMap[x][y + 1].blocked = False
-            if myMap[x][y + 1].char == '#':
-                myMap[x][y + 1].char = None
+            if myMap[x][y + 1].character == '#':
+                myMap[x][y + 1].character = None
             myMap[x][y - 1].blocked = False
-            if myMap[x][y - 1].char == '#':
-                myMap[x][y - 1].char = None
+            if myMap[x][y - 1].character == '#':
+                myMap[x][y - 1].character = None
             #if pillar == 2:
             #    if findNeighbours(myMap, x, y - 1, True, True) and findNeighbours(myMap, x, y + 1, True, True):
             #        myMap[x][y - 1].pillar = True
-            #        myMap[x][y - 1].char = 'o'
+            #        myMap[x][y - 1].character = 'o'
             #        myMap[x][y + 1].pillar = True
-            #        myMap[x][y + 1].char = 'o'
+            #        myMap[x][y + 1].character = 'o'
             #        pillar = 0
             #else:
             #    pillar += 1
@@ -150,23 +150,23 @@ def createVerticalTunnel(y1, y2, x, big = False):
     global myMap
     for y in range(min(y1, y2), max(y1, y2) + 1):
         myMap[x][y].blocked = False
-        if myMap[x][y].char == '#':
-            myMap[x][y].char = None
+        if myMap[x][y].character == '#':
+            myMap[x][y].character = None
     if big:
         #pillar = 0
         for y in range(min(y1, y2) - 1, max(y1, y2) + 2):
             myMap[x - 1][y].blocked = False
-            if myMap[x - 1][y].char == '#':
-                myMap[x - 1][y].char = None
+            if myMap[x - 1][y].character == '#':
+                myMap[x - 1][y].character = None
             myMap[x + 1][y].blocked = False
-            if myMap[x + 1][y].char == '#':
-                myMap[x + 1][y].char = None
+            if myMap[x + 1][y].character == '#':
+                myMap[x + 1][y].character = None
             #if pillar == 2:
             #    if findNeighbours(myMap, x - 1, y, True, True) and findNeighbours(myMap, x + 1, y, True, True):
             #        myMap[x - 1][y].pillar = True
-            #        myMap[x - 1][y].char = 'o'
+            #        myMap[x - 1][y].character = 'o'
             #        myMap[x + 1][y].pillar = True
-            #        myMap[x + 1][y].char = 'o'
+            #        myMap[x + 1][y].character = 'o'
             #        pillar = 0
             #else:
             #    pillar += 1
@@ -245,13 +245,13 @@ def secretRoom():
         secretRoom = Rectangle(x, y, 8, 8)
         createRoom(secretRoom)
         myMap[entryX][entryY].blocked = False
-        myMap[entryX][entryY].char = '#'
+        myMap[entryX][entryY].character = '#'
         myMap[entryX][entryY].fg = colors.red
         myMap[x][y].blocked = False
         for X in range(7):
             for Y in range(7):
                 if not myMap[x + 1 + X][y + 1 + Y].pillar:
-                    myMap[x + 1 + X][y + 1 + Y].char = '-'
+                    myMap[x + 1 + X][y + 1 + Y].character = '-'
                     myMap[x + 1 + X][y + 1 + Y].fg = colors.sepia
                 else:
                     myMap[x + 1 + X][y + 1 + Y].fg = colors.darker_sepia
@@ -263,7 +263,7 @@ def secretRoom():
                     sideFalse = True
             if not sideFalse:
                 for k in range(7):
-                    myMap[x + 8][y + 1 + k].char = '='
+                    myMap[x + 8][y + 1 + k].character = '='
                     myMap[x + 8][y + 1 + k].fg = colors.dark_sepia
                     myMap[x + 8][y + 1 + k].bg = colors.sepia
         if side != 'right':
@@ -273,7 +273,7 @@ def secretRoom():
                     sideFalse = True
             if not sideFalse:
                 for k in range(7):
-                    myMap[x][y + 1 + k].char = '='
+                    myMap[x][y + 1 + k].character = '='
                     myMap[x][y + 1 + k].fg = colors.dark_sepia
                     myMap[x][y + 1 + k].bg = colors.sepia
         if side != 'under':
@@ -283,7 +283,7 @@ def secretRoom():
                     sideFalse = True
             if not sideFalse:
                 for k in range(7):
-                    myMap[x + 1 + k][y].char = '='
+                    myMap[x + 1 + k][y].character = '='
                     myMap[x + 1 + k][y].fg = colors.dark_sepia
                     myMap[x + 1 + k][y].bg = colors.sepia
         if side != 'above':
@@ -293,17 +293,10 @@ def secretRoom():
                     sideFalse = True
             if not sideFalse:
                 for k in range(7):
-                    myMap[x + 1 + k][y + 8].char = '='
+                    myMap[x + 1 + k][y + 8].character = '='
                     myMap[x + 1 + k][y + 8].fg = colors.dark_sepia
                     myMap[x + 1 + k][y + 8].bg = colors.sepia
         print("created secret room at x ", entryX, " y ", entryY, " in quarter ", quarter)
-                
-def checkMap():
-    global myMap
-    for x in range(MAP_WIDTH):
-        for y in range(MAP_HEIGHT):
-            if myMap[x][y].hole and not myMap[x][y].indestructible:
-                myMap[x][y].blocked = False
     
 def makeMap():
     global myMap, rooms, firstX, firstY, lastX, lastY
@@ -356,18 +349,18 @@ def makeMap():
             '''
             if countNeighbours(myMap, x, y) == 7:
                 myMap[x][y].pillar = True
-                myMap[x][y].char = 'O'
+                myMap[x][y].character = 'O'
             '''
             if 0 <= countNeighbours(myMap, x, y) <= 2 and not myMap[x][y].pillar and not (x == 0 or x == MAP_WIDTH - 1 or y == 0 or y == MAP_HEIGHT - 1):
                 if myMap[x][y].blocked:
                     #baseMap[x][y].bg = colors.red
                     baseMap[x][y].blocked = False
-                    baseMap[x][y].char = None
+                    baseMap[x][y].character = None
             if countNeighbours(myMap, x, y) == 3 and not myMap[x][y].pillar and not (x == 0 or x == MAP_WIDTH - 1 or y == 0 or y == MAP_HEIGHT - 1):
                 if myMap[x][y].blocked:
                     baseMap[x][y].pillar = True
                     baseMap[x][y].blocked = True
-                    baseMap[x][y].char = 'o'
+                    baseMap[x][y].character = 'o'
     myMap = baseMap
     secretRoom()
     for x in range(MAP_WIDTH):
@@ -376,7 +369,6 @@ def makeMap():
                 if (x, y) == (lastX, lastY) or (x, y) == (firstX, firstY):
                     myMap[x][y].blocked = False
                     myMap[x][y].pillar = False
-    #checkMap()
 
 myMap = [[]]
 
@@ -385,7 +377,7 @@ def update(mapToUse):
     try:
         for x in range(MAP_WIDTH):
             for y in range(MAP_HEIGHT):
-                root.draw_char(x, y, char = mapToUse[x][y].char, fg = mapToUse[x][y].fg, bg = mapToUse[x][y].bg)
+                root.draw_char(x, y, char = mapToUse[x][y].character, fg = mapToUse[x][y].fg, bg = mapToUse[x][y].bg)
                 if (x, y) == (firstX, firstY):
                     root.draw_char(x, y, char = 'X', fg = colors.red, bg = mapToUse[x][y].bg)
                 if (x, y) == (lastX, lastY):

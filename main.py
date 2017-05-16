@@ -206,6 +206,9 @@ color_dark_ground = dBr.mainDungeon.color_dark_ground
 color_dark_gravel = dBr.mainDungeon.color_dark_gravel
 color_light_ground = dBr.mainDungeon.color_light_ground
 color_light_gravel = dBr.mainDungeon.color_light_gravel
+maxRooms = dBr.mainDungeon.maxRooms
+roomMinSize = dBr.mainDungeon.roomMinSize
+roomMaxSize = dBr.mainDungeon.roomMaxSize
 
 gameState = 'playing'
 playerAction = None
@@ -5330,9 +5333,11 @@ def explode():
         gameState = 'dead'
 
 #_____________ MAP CREATION __________________
+'''
 ROOM_MAX_SIZE = 10
 ROOM_MIN_SIZE = 6
 MAX_ROOMS = 30
+'''
 
 CHANCE_TO_START_ALIVE = 55
 CHANCE_TO_START_ALIVE_CHASM = 65
@@ -5374,6 +5379,7 @@ class Tile:
         self.x = x
         self.y = y
         self.secretWall = False
+        self.pillar = False
         if block_sight is None:
             block_sight = blocked
             self.block_sight = block_sight
@@ -5519,7 +5525,7 @@ class Tile:
                 self.wall = False
                 self.chasm = False
         else:
-            if not self.secretWall:
+            if not self.secretWall or self.pillar:
                 gravelChoice = randint(0, 5)
                 self.blocked = False
                 self.block_sight = False
@@ -5684,16 +5690,17 @@ def countNeighbours(mapToUse, startX, startY, stopAtFirst = False, searchBlock =
             else:
                 otherX = startX + x
                 otherY = startY + y
-                if mapToUse[otherX][otherY].blocked and searchBlock:
-                    count += 1
-                    found = True
-                    if stopAtFirst:
-                        break
-                if mapToUse[otherX][otherY].chasm and searchChasm:
-                    count += 1
-                    found = True
-                    if stopAtFirst:
-                        break
+                if 0 <= otherX < MAP_WIDTH and 0 <= otherY < MAP_HEIGHT:
+                    if mapToUse[otherX][otherY].blocked and searchBlock:
+                        count += 1
+                        found = True
+                        if stopAtFirst:
+                            break
+                    if mapToUse[otherX][otherY].chasm and searchChasm:
+                        count += 1
+                        found = True
+                        if stopAtFirst:
+                            break
         if stopAtFirst and found:
             break
     return count
@@ -6107,22 +6114,28 @@ def generateCave(fall = False):
         print("DONE")
 
         #gameState = 'dead' #What the hell ?
-
-
-ROOM_MAX_SIZE = 10
-ROOM_MIN_SIZE = 6
-MAX_ROOMS = 30
-
-
-
         
-        
-def createRoom(room):
+def createRoom(room, pillar=False):
     global myMap, roomTiles
     for x in range(room.x1 + 1, room.x2):
         for y in range(room.y1 + 1, room.y2):
             myMap[x][y].applyGroundProperties()
             roomTiles.append((x, y))
+    if pillar:
+        centerPillar = randint(0, 2)
+        if centerPillar != 0:
+            myMap[room.x1 + 2][room.y1 + 2].pillar = True
+            myMap[room.x1 + 2][room.y1 + 2].character = 'o'
+            myMap[room.x1 + 2][room.y2 - 2].pillar = True
+            myMap[room.x1 + 2][room.y2 - 2].character = 'o'
+            myMap[room.x2 - 2][room.y1 + 2].pillar = True
+            myMap[room.x2 - 2][room.y1 + 2].character = 'o'
+            myMap[room.x2 - 2][room.y2 - 2].pillar = True
+            myMap[room.x2 - 2][room.y2 - 2].character = 'o'
+        else:
+            x, y = room.center()
+            myMap[x][y].pillar = True
+            myMap[x][y].character = 'o'
             
 def checkMap():
     for x in range(MAP_WIDTH):
@@ -6134,27 +6147,41 @@ def checkMap():
                     myMap[x][y].applyChasmProperties()
                 else:
                     myMap[x][y].applyGroundProperties()
-            elif myMap[x][y].wall:
+            elif myMap[x][y].wall and not myMap[x][y].pillar:
                 myMap[x][y].applyWallProperties()
             elif myMap[x][y].chasm and not myMap[x][y].secretWall:
                 myMap[x][y].applyChasmProperties()
                 myMap[x][y].wall = False
+            elif myMap[x][y].pillar:
+                myMap[x][y].character = 'o'
             elif not myMap[x][y].secretWall:
                 myMap[x][y].applyGroundProperties()
                 myMap[x][y].wall = False
             
             
-def createHorizontalTunnel(x1, x2, y):
+def createHorizontalTunnel(x1, x2, y, big = False):
     global myMap, tunnelTiles
     for x in range(min(x1, x2), max(x1, x2) + 1):
         myMap[x][y].applyGroundProperties()
         tunnelTiles.append((x, y))
+    if big:
+        for x in range(min(x1, x2) - 1, max(x1, x2) + 2):
+            myMap[x][y + 1].applyGroundProperties()
+            tunnelTiles.append((x, y + 1))
+            myMap[x][y - 1].applyGroundProperties()
+            tunnelTiles.append((x, y - 1))
             
-def createVerticalTunnel(y1, y2, x):
+def createVerticalTunnel(y1, y2, x, big = False):
     global myMap, tunnelTiles
     for y in range(min(y1, y2), max(y1, y2) + 1):
         myMap[x][y].applyGroundProperties()
         tunnelTiles.append((x, y))
+    if big:
+        for y in range(min(y1, y2) - 1, max(y1, y2) + 2):
+            myMap[x + 1][y].applyGroundProperties()
+            tunnelTiles.append((x + 1, y))
+            myMap[x - 1][y].applyGroundProperties()
+            tunnelTiles.append((x - 1, y))
 
 def secretRoomTest(startingX, endX, startingY, endY):
     for x in range(startingX, endX):
@@ -6170,7 +6197,7 @@ def secretRoomTest(startingX, endX, startingY, endY):
                                     break
                         if not intersect:
                             print("right")
-                            return x + 1, y - 2, x + 1, y
+                            return x + 1, y - 2, x + 1, y, 'right'
                     if myMap[x - 1][y].wall: #left
                         intersect = False
                         for indexX in range(5):
@@ -6180,7 +6207,7 @@ def secretRoomTest(startingX, endX, startingY, endY):
                                     break
                         if not intersect:
                             print("left")
-                            return x - 5, y - 2, x - 1, y
+                            return x - 5, y - 2, x - 1, y, 'left'
                     if myMap[x][y + 1].wall: #under
                         intersect = False
                         for indexX in range(5):
@@ -6190,7 +6217,7 @@ def secretRoomTest(startingX, endX, startingY, endY):
                                     break
                         if not intersect:
                             print("under")
-                            return x - 2, y + 1, x, y + 1
+                            return x - 2, y + 1, x, y + 1, 'under'
                     if myMap[x][y - 1].wall: #above
                         intersect = False
                         for indexX in range(5):
@@ -6200,9 +6227,9 @@ def secretRoomTest(startingX, endX, startingY, endY):
                                     break
                         if not intersect:
                             print("above")
-                            return x - 2, y - 5, x, y - 1
+                            return x - 2, y - 5, x, y - 1, 'above'
 
-def secretRoom():
+def secretRoom(temple):
     global myMap, unchasmable
     quarter = randint(1, 4)
     if quarter == 1:
@@ -6225,10 +6252,14 @@ def secretRoom():
         maxX = MAP_WIDTH
         minY = MID_MAP_HEIGHT + 1
         maxY = MAP_HEIGHT
-    [x, y, entryX, entryY] = secretRoomTest(minX, maxX, minY, maxY)
+    x, y, entryX, entryY, side = secretRoomTest(minX, maxX, minY, maxY)
     if not (x == 'cancelled' or y == 'cancelled' or entryX == 'cancelled' or entryY == 'cancelled'):
-        secretRoom = Rectangle(x, y, 4, 4)
-        createRoom(secretRoom)
+        if temple:
+            width = 8
+        else:
+            width = False
+        secretRoom = Rectangle(x, y, width, width)
+        createRoom(secretRoom, pillar = temple)
         for x in range(secretRoom.x1 + 1, secretRoom.x2):
             for y in range(secretRoom.y1 + 1, secretRoom.y2):
                 unchasmable.append((x, y))
@@ -6241,6 +6272,55 @@ def secretRoom():
         myMap[entryX][entryY].dark_bg = color_dark_ground
         myMap[x][y].secretWall = True
         myMap[x][y].wall = False
+        if temple:
+            for X in range(7):
+                for Y in range(7):
+                    if not myMap[x + 1 + X][y + 1 + Y].pillar:
+                        myMap[x + 1 + X][y + 1 + Y].character = '-'
+                        myMap[x + 1 + X][y + 1 + Y].fg = colors.sepia
+                    else:
+                        myMap[x + 1 + X][y + 1 + Y].fg = colors.darker_sepia
+                    myMap[x + 1 + X][y + 1 + Y].bg = colors.light_sepia
+            if side != 'left':
+                sideFalse = False
+                for k in range(7):
+                    if not 5 <= countNeighbours(myMap, x + 8, y + 1 + k) <= 6:
+                        sideFalse = True
+                if not sideFalse:
+                    for k in range(7):
+                        myMap[x + 8][y + 1 + k].character = '='
+                        myMap[x + 8][y + 1 + k].fg = colors.dark_sepia
+                        myMap[x + 8][y + 1 + k].bg = colors.sepia
+            if side != 'right':
+                sideFalse = False
+                for k in range(7):
+                    if not 5 <= countNeighbours(myMap, x, y + 1 + k) <= 6:
+                        sideFalse = True
+                if not sideFalse:
+                    for k in range(7):
+                        myMap[x][y + 1 + k].character = '='
+                        myMap[x][y + 1 + k].fg = colors.dark_sepia
+                        myMap[x][y + 1 + k].bg = colors.sepia
+            if side != 'under':
+                sideFalse = False
+                for k in range(7):
+                    if not 5 <= countNeighbours(myMap, x + 1 + k, y) <= 6:
+                        sideFalse = True
+                if not sideFalse:
+                    for k in range(7):
+                        myMap[x + 1 + k][y].character = '='
+                        myMap[x + 1 + k][y].fg = colors.dark_sepia
+                        myMap[x + 1 + k][y].bg = colors.sepia
+            if side != 'above':
+                sideFalse = False
+                for k in range(7):
+                    if not 5 <= countNeighbours(myMap, x + 1 + k, y + 8) <= 6:
+                        sideFalse = True
+                if not sideFalse:
+                    for k in range(7):
+                        myMap[x + 1 + k][y + 8].character = '='
+                        myMap[x + 1 + k][y + 8].fg = colors.dark_sepia
+                        myMap[x + 1 + k][y + 8].bg = colors.sepia
         print("created secret room at x ", entryX, " y ", entryY, " in quarter ", quarter)
 
 def checkFile(file, folder):
@@ -6263,8 +6343,8 @@ def removeAllChasms():
         for y in range(MAP_HEIGHT):
             myMap[x][y].chasm = False
 
-def makeMap(generateChasm = True, generateHole = False, fall = False):
-    global myMap, stairs, objects, upStairs, bossDungeonsAppeared, color_dark_wall, color_light_wall, color_dark_ground, color_light_ground, color_dark_gravel, color_light_gravel, townStairs, gluttonyStairs, stairs, upStairs, nemesisList, roomTiles, tunnelTiles, unchasmable, rooms, wrathStairs
+def makeMap(generateChasm = True, generateHole = False, fall = False, temple = False):
+    global myMap, stairs, objects, upStairs, bossDungeonsAppeared, color_dark_wall, color_light_wall, color_dark_ground, color_light_ground, color_dark_gravel, color_light_gravel, townStairs, gluttonyStairs, stairs, upStairs, nemesisList, roomTiles, tunnelTiles, unchasmable, rooms, wrathStairs, maxRooms, roomMaxSize, roomMinSize
     nemesis = None
     
     found = checkFile('meta.bak', absMetaDirPath)
@@ -6306,7 +6386,9 @@ def makeMap(generateChasm = True, generateHole = False, fall = False):
     color_dark_gravel = currentBranch.color_dark_gravel
     color_light_ground = currentBranch.color_light_ground
     color_light_gravel = currentBranch.color_light_gravel
-
+    maxRooms = currentBranch.maxRooms
+    roomMinSize = currentBranch.roomMinSize
+    roomMaxSize = currentBranch.roomMaxSize
 
     myMap = [[Tile(True, x = x, y = y, wall = True, chasm = generateChasm, hole = generateHole) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
     #removeAllChasms()
@@ -6324,9 +6406,9 @@ def makeMap(generateChasm = True, generateHole = False, fall = False):
         myMap[x][0].unbreakable = True
         myMap[x][MAP_HEIGHT-1].unbreakable = True #Borders of the map cannot be broken
  
-    for r in range(MAX_ROOMS):
-        w = randint(ROOM_MIN_SIZE, ROOM_MAX_SIZE)
-        h = randint(ROOM_MIN_SIZE, ROOM_MAX_SIZE)
+    for r in range(maxRooms):
+        w = randint(roomMinSize, roomMaxSize)
+        h = randint(roomMinSize, roomMaxSize)
         x = randint(0, MAP_WIDTH-w-1)
         y = randint(0, MAP_HEIGHT-h-1)
         newRoom = Rectangle(x, y, w, h)
@@ -6357,15 +6439,38 @@ def makeMap(generateChasm = True, generateHole = False, fall = False):
                     upStairs.sendToBack()
             else:
                 (previous_x, previous_y) = rooms[numberRooms-1].center()
+                bigTunnel = randint(0, 4)
+                big = bigTunnel == 0 and temple
                 if randint(0, 1):
-                    createHorizontalTunnel(previous_x, new_x, previous_y)
-                    createVerticalTunnel(previous_y, new_y, new_x)
+                    createHorizontalTunnel(previous_x, new_x, previous_y, big)
+                    createVerticalTunnel(previous_y, new_y, new_x, big)
                 else:
-                    createVerticalTunnel(previous_y, new_y, previous_x)
-                    createHorizontalTunnel(previous_x, new_x, new_y)
+                    createVerticalTunnel(previous_y, new_y, previous_x, big)
+                    createHorizontalTunnel(previous_x, new_x, new_y, big)
             rooms.append(newRoom)
             numberRooms += 1
-    secretRoom()
+    if temple:
+        baseMap = list(deepcopy(myMap))
+        for x in range(MAP_WIDTH):
+            for y in range(MAP_HEIGHT):
+                '''
+                if countNeighbours(myMap, x, y) == 7:
+                    myMap[x][y].pillar = True
+                    myMap[x][y].character = 'O'
+                '''
+                if 0 <= countNeighbours(myMap, x, y) <= 2 and not myMap[x][y].pillar and not (x == 0 or x == MAP_WIDTH - 1 or y == 0 or y == MAP_HEIGHT - 1):
+                    if myMap[x][y].blocked:
+                        #baseMap[x][y].bg = colors.red
+                        baseMap[x][y].blocked = False
+                        baseMap[x][y].character = None
+                if countNeighbours(myMap, x, y) == 3 and not myMap[x][y].pillar and not (x == 0 or x == MAP_WIDTH - 1 or y == 0 or y == MAP_HEIGHT - 1):
+                    if myMap[x][y].blocked:
+                        baseMap[x][y].pillar = True
+                        baseMap[x][y].blocked = True
+                        baseMap[x][y].character = 'o'
+        myMap = baseMap
+    
+    secretRoom(temple)
     stairs = GameObject(new_x, new_y, '>', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor, Stairs=Stairs('down', currentBranch, currentBranch))
     objects.append(stairs)
     stairs.sendToBack()
@@ -6609,8 +6714,8 @@ def makeBossLevel(fall = False, generateHole=False):
         myMap[x][MAP_HEIGHT-1].unbreakable = True #Borders of the map cannot be broken
  
     for r in range(5): #first rooms
-        w = randint(ROOM_MIN_SIZE, ROOM_MAX_SIZE)
-        h = randint(ROOM_MIN_SIZE, ROOM_MAX_SIZE)
+        w = randint(roomMinSize, roomMaxSize)
+        h = randint(roomMinSize, roomMaxSize)
         x = randint(0, 50-w-1)
         y = randint(0, 20-h-1)
         newRoom = Rectangle(x, y, w, h)
@@ -6728,8 +6833,8 @@ def makeHiddenTown(fall = False):
 def createEndRooms():
     global rooms, stairs, myMap, objects, numberRooms
     for r in range(4): #final rooms
-        w = randint(ROOM_MIN_SIZE, ROOM_MAX_SIZE)
-        h = randint(ROOM_MIN_SIZE, ROOM_MAX_SIZE)
+        w = randint(roomMinSize, roomMaxSize)
+        h = randint(roomMinSize, roomMaxSize)
         x = randint(100, MAP_WIDTH-w-1)
         y = randint(0, MAP_HEIGHT-h-1)
         newRoom = Rectangle(x, y, w, h)
@@ -7231,22 +7336,22 @@ def createScroll(x, y):
     if unIdentifiedName in identifiedItems:
         identified = True
     if scrollChoice == 'lightning':
-        scroll = GameObject(x, y, '~', 'scroll of lightning bolt', colors.light_yellow, Item = Item(useFunction = castLightning, weight = 0.3, stackable = True, unIDName=unIdentifiedName, identified=identified, unIDpName=pName), blocks = False, pName = 'scrolls of lightning bolt')
+        scroll = GameObject(x, y, '~', 'scroll of lightning bolt', colors.light_yellow, Item = Item(useFunction = castLightning, weight = 0.3, stackable = True, unIDName=unIdentifiedName, identified=identified, unIDpName=pName, pic = 'scroll.xp'), blocks = False, pName = 'scrolls of lightning bolt')
     elif scrollChoice == 'confuse':
-        scroll = GameObject(x, y, '~', 'scroll of confusion', colors.light_yellow, Item = Item(useFunction = castConfuse, weight = 0.3, stackable = True, unIDName=unIdentifiedName, identified=identified, unIDpName=pName), blocks = False, pName = 'scrolls of confusion')
+        scroll = GameObject(x, y, '~', 'scroll of confusion', colors.light_yellow, Item = Item(useFunction = castConfuse, weight = 0.3, stackable = True, unIDName=unIdentifiedName, identified=identified, unIDpName=pName, pic = 'scroll.xp'), blocks = False, pName = 'scrolls of confusion')
     elif scrollChoice == 'fireball':
         fireballChances = {'lesser': 20, 'normal': 50, 'greater': 20}
         fireballChoice = randomChoice(fireballChances)
         if fireballChoice == 'lesser':
-            scroll = GameObject(x, y, '~', 'scroll of lesser fireball', colors.light_yellow, Item = Item(castFireball, 2, 12, weight = 0.3, stackable = True, unIDName=unIdentifiedName, identified=identified, unIDpName=pName), blocks = False, pName = 'scrolls of lesser fireball')
+            scroll = GameObject(x, y, '~', 'scroll of lesser fireball', colors.light_yellow, Item = Item(castFireball, 2, 12, weight = 0.3, stackable = True, unIDName=unIdentifiedName, identified=identified, unIDpName=pName, pic = 'scroll.xp'), blocks = False, pName = 'scrolls of lesser fireball')
         elif fireballChoice == 'normal':
-            scroll = GameObject(x, y, '~', 'scroll of fireball', colors.light_yellow, Item = Item(castFireball, weight = 0.3, stackable = True, unIDName=unIdentifiedName, identified=identified, unIDpName=pName), blocks = False, pName = 'scrolls of fireball')
+            scroll = GameObject(x, y, '~', 'scroll of fireball', colors.light_yellow, Item = Item(castFireball, weight = 0.3, stackable = True, unIDName=unIdentifiedName, identified=identified, unIDpName=pName, pic = 'scroll.xp'), blocks = False, pName = 'scrolls of fireball')
         elif fireballChoice == 'greater':
-            scroll = GameObject(x, y, '~', 'scroll of greater fireball', colors.light_yellow, Item = Item(castFireball, 4, 48, weight = 0.3, stackable = True, unIDName=unIdentifiedName, identified=identified, unIDpName=pName), blocks = False, pName = 'scrolls of greater fireball')
+            scroll = GameObject(x, y, '~', 'scroll of greater fireball', colors.light_yellow, Item = Item(castFireball, 4, 48, weight = 0.3, stackable = True, unIDName=unIdentifiedName, identified=identified, unIDpName=pName, pic = 'scroll.xp'), blocks = False, pName = 'scrolls of greater fireball')
     elif scrollChoice == 'armageddon':
-        scroll = GameObject(x, y, '~', 'scroll of armageddon', colors.light_yellow, Item = Item(castArmageddon, weight = 0.3, stackable = True, unIDName=unIdentifiedName, identified=identified, unIDpName=pName), blocks = False, pName = 'scrolls of armageddon')
+        scroll = GameObject(x, y, '~', 'scroll of armageddon', colors.light_yellow, Item = Item(castArmageddon, weight = 0.3, stackable = True, unIDName=unIdentifiedName, identified=identified, unIDpName=pName, pic = 'scroll.xp'), blocks = False, pName = 'scrolls of armageddon')
     elif scrollChoice == 'ice':
-        scroll = GameObject(x, y, '~', 'scroll of ice bolt', colors.light_yellow, Item = Item(castFreeze, weight = 0.3, stackable = True, amount = randint(1, 3), unIDName=unIdentifiedName, identified=identified, unIDpName=pName), blocks = False, pName = 'scrolls of ice bolt')
+        scroll = GameObject(x, y, '~', 'scroll of ice bolt', colors.light_yellow, Item = Item(castFreeze, weight = 0.3, stackable = True, amount = randint(1, 3), unIDName=unIdentifiedName, identified=identified, unIDpName=pName, pic = 'scroll.xp'), blocks = False, pName = 'scrolls of ice bolt')
     elif scrollChoice == 'none':
         scroll = None
     return scroll
@@ -9287,15 +9392,18 @@ def nextLevel(boss = False, changeBranch = None, fall = False, fromStairs = None
         stairs = tempStairs
         chasmGeneration = False
         holeGeneration = False
+        temple = False
         for feature in currentBranch.genFeatures:
             if feature == 'chasms':
                 chasmGeneration = True
             if feature == 'holes':
                 holeGeneration = True
+            if feature == 'temple':
+                temple = True
         if not boss:
             if currentBranch.fixedMap is None:
                 if currentBranch.genType == 'dungeon':
-                    makeMap(generateChasm=chasmGeneration, generateHole=holeGeneration, fall = fall)
+                    makeMap(generateChasm=chasmGeneration, generateHole=holeGeneration, fall = fall, temple=temple)
                 elif currentBranch.genType == 'cave':
                     generateCave(fall = fall)
             elif currentBranch.fixedMap == 'town':
