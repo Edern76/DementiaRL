@@ -211,6 +211,7 @@ gameState = 'playing'
 playerAction = None
 DEBUG = False #If true, enables debug messages
 REVEL = False #If true, revels all items
+drawDjik = False
 
 lookCursor = None
 cursor = None
@@ -229,6 +230,9 @@ equipmentList = [] #Player equipment
 identifiedItems = []
 activeSounds = []
 spells = [] #List of all spells in the game
+
+djikVisitedTiles = []
+markers = []
 
 ########
 # These need to be globals because otherwise Python will flip out when we try to look for some kind of stairs in the object lists.
@@ -316,10 +320,11 @@ def convertMusics():
                 print('MUSIC_CONV_ERR : Path {} doesnt exists, skipping...'.format(mp3Path))
         print()
         
-def animStep(waitTime = .125):
+def animStep(waitTime = .125, doUpdate = True):
     global FOV_recompute
     FOV_recompute = True
-    Update()
+    if doUpdate:
+        Update()
     tdl.flush()
     time.sleep(waitTime)
 
@@ -1026,6 +1031,118 @@ def castTeleportTo(caster = None, monsterTarget = None):
             message("Cannot teleport there !", colors.red)
             return 'cancelled'
 
+def resetDjik():
+    global djikVisitedTiles
+    djikVisitedTiles = []
+    for x in range(MAP_WIDTH):
+        for y in range(MAP_HEIGHT):
+            myMap[x][y].djikValue = None
+            myMap[x][y].doNotPropagateDjik = False
+
+def applyDjik(x,y, value, visible = False):
+    try:
+        if not isBlocked(x, y):
+            myMap[x][y].djikValue = value
+            if visible:
+                if value >= 0:
+                    if value < 10:
+                        toDisp = str(value)
+                    else:
+                        toDisp = '+'
+                else:
+                    toDisp = '-'
+                marker = GameObject(x,y, name = 'DEBUG : Djik Marker', char=toDisp, blocks = False, Ghost = True)
+                objects.append(marker)
+                markers.append(marker)
+    except IndexError:
+        print('Index Error')
+        pass
+
+def calcDjikPlayer(caster = None, target = None ):
+    '''
+    def doStuff(pX, pY, recursLevel = 1):
+        if recursLevel < 500:
+            tilesToDo = [myMap[pX - 1][pY], myMap[pX - 1][pY - 1], myMap[pX][pY - 1], myMap[pX + 1][pY -1], myMap[pX + 1][pY], myMap[pX + 1][pY + 1], myMap[pX][pY + 1], myMap[pX - 1][pY + 1]]
+            for tile in tilesToDo:
+                if not tile.blocked and not tile.wall and not tile.chasm:
+                    if tile.djikValue is None:
+                        tile.djikValue = recursLevel
+                    else:
+                        print("Already has value {}".format(tile.djikValue))
+                        tile.doNotPropagateDjik = True
+            for tilee in tilesToDo:
+                if not tilee in djikVisitedTiles:
+                    if not tilee.blocked and not tilee.wall and not tilee.chasm:
+                        if not tile.doNotPropagateDjik:
+                            print("Doing stuff at recursLevel {}".format(recursLevel))
+                            doStuff(tilee.x, tilee.y, recursLevel + 1)
+                        else:
+                            print("Not propagating from there")
+                            return
+                    else:
+                        print("Hit wall/chasm")
+                    djikVisitedTiles.append(tilee)
+                else:
+                    print("Already visited")
+        else:
+            return
+    
+    resetDjik()
+    (pX, pY) = player.x, player.y
+    '''
+    def djikSquare(x, y, value = 1):
+        turtle = GameObject(x, y, name = 'Turtle', char = None)
+        turtle.y += value #Place the turtle Z-1 (where Z is the value of the variable named value, don't ask why -1 it doesn't work if it is not there) tiles higher than the center (given by the x and y variables)
+        for i in range(value): #Move Z tiles left and apply wanted Djikstra value to them
+            applyDjik(turtle.x, turtle.y, value, False)
+            turtle.x -= 1
+        applyDjik(turtle.x, turtle.y, value, False)
+        for loop in range(2): #Move twice 2Z times down and apply value to tiles
+            for innerLoop in range(value):
+                applyDjik(turtle.x, turtle.y, value, False)
+                turtle.y -= 1
+        applyDjik(turtle.x, turtle.y, value, False)
+        #turtle.y -= 1 #Move once more down
+        applyDjik(turtle.x, turtle.y, value, False)
+        for otherLoop in range(2): #Move 2Z times right
+            for otherInnerLoop in range(value):
+                applyDjik(turtle.x, turtle.y, value, False)
+                turtle.x += 1
+            applyDjik(turtle.x, turtle.y, value, False)
+        for yetAnotherLoop in range(2): #Move 2Z times up
+            for yetAnotherInnerLoop in range(value):
+                applyDjik(turtle.x, turtle.y, value, False)
+                turtle.y += 1
+            applyDjik(turtle.x, turtle.y, value, False)
+        #turtle.y += 1
+        applyDjik(turtle.x, turtle.y, value, False)
+        for finalLoop in range(value): #Move Z times left
+            applyDjik(turtle.x, turtle.y, value, False)
+            turtle.x -= 1
+        applyDjik(turtle.x, turtle.y, value, False)
+        del turtle #RIP
+        
+        '''
+        for marker in markers:
+            marker.clear()
+            try:
+                objects.remove(marker)
+            except ValueError:
+                pass
+            del marker
+        '''
+        
+    
+    resetDjik()
+    (pX, pY) = player.x, player.y
+    myMap[pX][pY].djikValue = 0
+    for loop in range(1, 50):
+        djikSquare(pX, pY, loop)
+
+
+def toggleDrawDjik(caster = None, target = None):
+    global drawDjik
+    drawDjik = not drawDjik
 
 fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 1, arg2 = 12, arg3 = 4)
 heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 20)
@@ -1040,8 +1157,10 @@ drawRect = Spell(ressourceCost = 0, cooldown = 1, useFunction=castDrawRectangle,
 envenom = Spell(ressourceCost= 3, cooldown = 20, useFunction=castEnvenom, name = 'Envenom weapons', ressource='MP', type = 'Racial')
 drawAstarPath = Spell(ressourceCost = 0, cooldown = 1, useFunction=castAstarPath, name = 'DEBUG : Draw A* path', ressource = 'MP', type = 'Occult')
 teleport = Spell(ressourceCost = 0, cooldown = 1, useFunction=castTeleportTo, name = 'DEBUG : Teleport', ressource = 'HP', type = 'Occult')
+djik = Spell(ressourceCost= 0, cooldown = 1, useFunction=calcDjikPlayer, name = 'DEBUG : Calculate Djikstra Map', ressource='MP', type = 'Occult')
+dispDjik = Spell(ressourceCost= 0, cooldown = 1, useFunction=toggleDrawDjik, name = 'DEBUG : Draw Djikstra Map', ressource='MP', type = 'Occult')
 
-spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport])
+spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport, djik, dispDjik])
 #_____________SPELLS_____________
 
 #______________CHARACTER GENERATION____________
@@ -4925,9 +5044,10 @@ def isBlocked(x, y): #With this function, making a check such as myMap[x][y].blo
             return True #If the Tile is already set as blocking, there's no point in making further checks
     except IndexError:
         traceback.print_exc()
+        '''
         print("X : {} | Y : {}".format(x,y))
         quitGame("Quitted due to error")
-        
+        '''
     
     for object in objects:
         try: #As all statements starting with this, ignore PyDev warning. However, please note that objects refers to the list of objects that we created and IS NOT defined by default in any library used (so don't call it out of the blue), contrary to object.
@@ -5156,6 +5276,8 @@ class Tile:
             self.DARK_BG = (0, 0, 16)
             self.dark_bg = (0, 0, 16)
         self.moveCost = moveCost
+        self.djikValue = None
+        self.doNotPropagateDjik = False
         
     def neighbors(self):
         x = self.x
@@ -7109,6 +7231,9 @@ def createSnake(x, y):
     else:
         return 'cancelled'
 
+
+
+
 def randomChoiceIndex(chances):
     dice = randint(1, sum(chances))
     runningSum = 0
@@ -8274,8 +8399,26 @@ def Update():
     player.draw()
     for x in range(WIDTH):
         con.draw_char(x, PANEL_Y - 1, chr(196))
-    root.blit(con, 0, 0, WIDTH, HEIGHT, 0, 0)
+
     panel.clear(fg=colors.white, bg=colors.black)
+    
+    if drawDjik:
+        print("MUST DRAW")
+        for x in range(MAP_WIDTH):
+            for y in range(MAP_HEIGHT):
+                if myMap[x][y].djikValue is not None:
+                    print("Found dValue")
+                    if myMap[x][y].djikValue < 10:
+                        if myMap[x][y].djikValue > 0:
+                            con.draw_char(x,y, str(myMap[x][y].djikValue), fg = colors.white)
+                        else:
+                            con.draw_char(x,y, '-', fg = colors.white, bg = colors.cyan)
+                    else:
+                        con.draw_char(x,y,'+', fg= colors.white, bg = colors.red)
+                else:
+                    print("No Djik Value")
+
+    root.blit(con, 0, 0, WIDTH, HEIGHT, 0, 0)
     # Draw log
     
     msgY = 1
@@ -9240,3 +9383,11 @@ if (__name__ == '__main__' or __name__ == 'main__main__') and root is not None:
 else:
     print(__name__)
 #input()
+
+#XXX
+#XOX
+#XXX
+
+#    XXX
+# X  XXX  5x5  7x7
+#    XXX
