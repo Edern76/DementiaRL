@@ -1951,6 +1951,7 @@ class Stairs:
         self.climb = climb
         self.branchesFrom = branchesFrom
         self.branchesTo = branchesTo
+        self.stairsOf = self.branchesTo.shortName
         if self.branchesFrom != self.branchesTo:
             self.changeBranch = self.branchesTo
         else:
@@ -1967,7 +1968,7 @@ class Stairs:
                     boss = True
                 if DEBUG:
                     message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
-                nextLevel(boss, changeBranch=self.changeBranch)
+                nextLevel(boss, changeBranch=self.changeBranch, fromStairs=self)
             elif self.climb == 'up':
                 if dungeonLevel > 1 or currentBranch.name != 'Main':
                     print(currentBranch.name)
@@ -1983,14 +1984,14 @@ class Stairs:
                             if not chosen:
                                 chosen = True
                                 print('Returning to origin branch')
-                                loadLevel(currentBranch.origDepth, save = False, branch = currentBranch.origBranch)
+                                loadLevel(currentBranch.origDepth, save = False, branch = currentBranch.origBranch, fromStairs = self)
                             else:
                                 print('WHY THE HECK IS THE CODE EXECUTING THIS FFS ?')
                         else:
                             if not chosen:
                                 chosen = True
                                 toLoad = dungeonLevel - 1
-                                loadLevel(toLoad, save = False, branch=currentBranch)
+                                loadLevel(toLoad, save = False, branch=currentBranch, fromStairs = self)
                             else:
                                 print('Chosen was equal to true. If the code ever goes here, I fucking hate all of this.')
                     else:
@@ -6400,19 +6401,22 @@ def makeMap(generateChasm = True, generateHole = False, fall = False):
         room = rooms[randRoom]
         print("DONE NEM ROOM")
         created = False
-        while not created:
+        counter = 0
+        while not created and counter <= 25:
+            counter += 1
             x = randint(room.x1 + 1, room.x2)
             y = randint(room.y1 + 1, room.y2)
             if isBlocked(x, y) and myMap[x][y].chasm:
                 created = True
-        print("DONE NEM COORDS")
-        nemesisMonster = nemesis.nemesisObject
-        print("DONE NEM")
-        nemesisMonster.x = x
-        nemesisMonster.y = y
-        print("DONE NEM POS")
-        objects.append(nemesisMonster)
-        print('created nemesis', nemesisMonster.name, x, y)
+        if created:
+            print("DONE NEM COORDS")
+            nemesisMonster = nemesis.nemesisObject
+            print("DONE NEM")
+            nemesisMonster.x = x
+            nemesisMonster.y = y
+            print("DONE NEM POS")
+            objects.append(nemesisMonster)
+            print('created nemesis', nemesisMonster.name, x, y)
     
     print("DONE NEMESIS")
     branches = []
@@ -9170,21 +9174,10 @@ def saveLevel(level = dungeonLevel):
     
     return "completed"
 
-def loadLevel(level, save = True, branch = currentBranch, fall = False, fromStairs = True):
+def loadLevel(level, save = True, branch = currentBranch, fall = False, fromStairs = None):
     global objects, player, myMap, stairs, dungeonLevel, gluttonyStairs, townStairs, currentBranch, wrathStairs, greedStairs
-    '''
     if fall:
-        fromStairs = False
-    if currentBranch != branch:
-        changeBranch = True
-        climbing = 'change'
-    else:
-        if level > dungeonLevel:
-            climbing = 'down'
-        else:
-            climbing = 'up'
-        changeBranch = False
-    '''
+        fromStairs = None
     if save:
         try:
             saveLevel(dungeonLevel)
@@ -9194,14 +9187,15 @@ def loadLevel(level, save = True, branch = currentBranch, fall = False, fromStai
     xfile = shelve.open(mapFilePath, "r")
     print(xfile["yunowork"])
     myMap = xfile["myMap"]
-    objects = xfile["objects"]
+    newObjects = xfile["objects"]
     tempPlayer = objects[xfile["playerIndex"]]
-    #if fromStairs:
-    #    for object in objects:
-    #        if object.Stairs:
-    #            if (object.Stairs.climb == 'up' and climbing == 'down' and object.Stairs.branchesFrom == currentBranch) or (object.Stairs.climb == 'down' and climbing == 'up' and object.Stairs.branchesTo == currentBranch): # or (changeBranch and object.Stairs.climb == 'down' and object.Stairs.branchesTo == branch):
-    #                player.x, player.y = object.x, object.y
-    if not fall:
+    if fromStairs:
+        for object in newObjects:
+            print(object.name)
+            if object.Stairs is not None:
+                if object.Stairs.stairsOf == fromStairs.stairsOf:
+                    player.x, player.y = object.x, object.y
+    elif not fall:
         player.x = int(tempPlayer.x)
         player.y = int(tempPlayer.y)
     else:
@@ -9209,7 +9203,7 @@ def loadLevel(level, save = True, branch = currentBranch, fall = False, fromStai
         while isBlocked(x, y) or myMap[x][y].chasm:
             x, y = randint(0, MAP_WIDTH), randint(0, MAP_HEIGHT)
         player.x, player.y = x, y
-    objects[xfile["playerIndex"]] = player
+    newObjects[xfile["playerIndex"]] = player
     '''
     if branch.shortName != 'town':
         stairs = objects[xfile["stairsIndex"]]
@@ -9238,9 +9232,10 @@ def loadLevel(level, save = True, branch = currentBranch, fall = False, fromStai
     xfile.close()
     dungeonLevel = level
     currentBranch = branch
+    objects = newObjects
     initializeFOV()
 
-def nextLevel(boss = False, changeBranch = None, fall = False):
+def nextLevel(boss = False, changeBranch = None, fall = False, fromStairs = None):
     global dungeonLevel, currentBranch, currentMusic
     if boss:
         currentMusic = 'Hoxton_Princess.wav'
@@ -9276,7 +9271,7 @@ def nextLevel(boss = False, changeBranch = None, fall = False):
     tempStairs = stairs
     print("Before try/except block")
     try:
-        loadLevel(dungeonLevel, save = False, branch = changeBranch, fall = fall)
+        loadLevel(dungeonLevel, save = False, branch = changeBranch, fall = fall, fromStairs=fromStairs)
         print("Loaded existing level {}".format(dungeonLevel))
     except Exception as error:
         global myMap, objects, player, stairs
