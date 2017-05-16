@@ -5358,6 +5358,7 @@ unreachableRooms = []
 dispEmpty = False
 dispDebug = True
 unchasmable = []
+noCheckTiles = []
 
 class Tile:
     def __init__(self, blocked, x, y, block_sight = None, acid = False, acidCooldown = 5, character = None, fg = None, bg = None, dark_fg = None, dark_bg = None, chasm = False, wall = False, hole = False, moveCost = 1):
@@ -6141,22 +6142,23 @@ def checkMap():
     for x in range(MAP_WIDTH):
         for y in range(MAP_HEIGHT):
             myMap[x][y].djikCost = None
-            if myMap[x][y].hole and not myMap[x][y].unbreakable:
-                myMap[x][y].wall = False
-                if myMap[x][y].chasm:
+            if not (x, y) in noCheckTiles:
+                if myMap[x][y].hole and not myMap[x][y].unbreakable:
+                    myMap[x][y].wall = False
+                    if myMap[x][y].chasm:
+                        myMap[x][y].applyChasmProperties()
+                    else:
+                        myMap[x][y].applyGroundProperties()
+                elif myMap[x][y].wall and not myMap[x][y].pillar:
+                    myMap[x][y].applyWallProperties()
+                elif myMap[x][y].chasm and not myMap[x][y].secretWall:
                     myMap[x][y].applyChasmProperties()
-                else:
+                    myMap[x][y].wall = False
+                elif myMap[x][y].pillar:
+                    myMap[x][y].character = 'o'
+                elif not myMap[x][y].secretWall:
                     myMap[x][y].applyGroundProperties()
-            elif myMap[x][y].wall and not myMap[x][y].pillar:
-                myMap[x][y].applyWallProperties()
-            elif myMap[x][y].chasm and not myMap[x][y].secretWall:
-                myMap[x][y].applyChasmProperties()
-                myMap[x][y].wall = False
-            elif myMap[x][y].pillar:
-                myMap[x][y].character = 'o'
-            elif not myMap[x][y].secretWall:
-                myMap[x][y].applyGroundProperties()
-                myMap[x][y].wall = False
+                    myMap[x][y].wall = False
             
             
 def createHorizontalTunnel(x1, x2, y, big = False):
@@ -6183,54 +6185,54 @@ def createVerticalTunnel(y1, y2, x, big = False):
             myMap[x - 1][y].applyGroundProperties()
             tunnelTiles.append((x - 1, y))
 
-def secretRoomTest(startingX, endX, startingY, endY):
+def secretRoomTest(startingX, endX, startingY, endY, width = 4):
     for x in range(startingX, endX):
         for y in range(startingY, endY):
             if not myMap[x][y].block_sight:
-                if x >= 6 and x <= MAP_WIDTH - 6 and y >= 6 and y <= MAP_HEIGHT -6:
+                if x >= width + 2 and x <= MAP_WIDTH - width + 2 and y >= width + 2 and y <= MAP_HEIGHT -width + 2:
                     if myMap[x + 1][y].wall: #right of the current tile
                         intersect = False
-                        for indexX in range(5):
-                            for indexY in range(5):
-                                if not myMap[x + 1 + indexX][y - 2 + indexY].wall:
+                        for indexX in range(width + 1):
+                            for indexY in range(width + 1):
+                                if not myMap[x + 1 + indexX][y - width//2 + indexY].wall:
                                     intersect = True
                                     break
                         if not intersect:
                             print("right")
-                            return x + 1, y - 2, x + 1, y, 'right'
+                            return x + 1, y - width//2, x + 1, y, 'right'
                     if myMap[x - 1][y].wall: #left
                         intersect = False
-                        for indexX in range(5):
-                            for indexY in range(5):
-                                if not myMap[x - 1 - indexX][y - 2 + indexY].wall:
+                        for indexX in range(width + 1):
+                            for indexY in range(width + 1):
+                                if not myMap[x - 1 - indexX][y - width//2 + indexY].wall:
                                     intersect = True
                                     break
                         if not intersect:
                             print("left")
-                            return x - 5, y - 2, x - 1, y, 'left'
+                            return x - (width + 1), y - width//2, x - 1, y, 'left'
                     if myMap[x][y + 1].wall: #under
                         intersect = False
-                        for indexX in range(5):
-                            for indexY in range(5):
-                                if not myMap[x - 2 + indexX][y + 1 + indexY].wall:
+                        for indexX in range(width + 1):
+                            for indexY in range(width + 1):
+                                if not myMap[x - width//2 + indexX][y + 1 + indexY].wall:
                                     intersect = True
                                     break
                         if not intersect:
                             print("under")
-                            return x - 2, y + 1, x, y + 1, 'under'
+                            return x - width//2, y + 1, x, y + 1, 'under'
                     if myMap[x][y - 1].wall: #above
                         intersect = False
-                        for indexX in range(5):
-                            for indexY in range(5):
-                                if not myMap[x - 2 + indexX][y - 1 - indexY].wall:
+                        for indexX in range(width + 1):
+                            for indexY in range(width + 1):
+                                if not myMap[x - width//2 + indexX][y - 1 - indexY].wall:
                                     intersect = True
                                     break
                         if not intersect:
                             print("above")
-                            return x - 2, y - 5, x, y - 1, 'above'
+                            return x - width//2, y - (width + 1), x, y - 1, 'above'
 
 def secretRoom(temple):
-    global myMap, unchasmable
+    global myMap, unchasmable, noCheckTiles
     quarter = randint(1, 4)
     if quarter == 1:
         minX = 1
@@ -6252,17 +6254,19 @@ def secretRoom(temple):
         maxX = MAP_WIDTH
         minY = MID_MAP_HEIGHT + 1
         maxY = MAP_HEIGHT
-    x, y, entryX, entryY, side = secretRoomTest(minX, maxX, minY, maxY)
+    
+    if temple:
+        width = 8
+    else:
+        width = False
+    x, y, entryX, entryY, side = secretRoomTest(minX, maxX, minY, maxY, width)
     if not (x == 'cancelled' or y == 'cancelled' or entryX == 'cancelled' or entryY == 'cancelled'):
-        if temple:
-            width = 8
-        else:
-            width = False
         secretRoom = Rectangle(x, y, width, width)
         createRoom(secretRoom, pillar = temple)
-        for x in range(secretRoom.x1 + 1, secretRoom.x2):
-            for y in range(secretRoom.y1 + 1, secretRoom.y2):
-                unchasmable.append((x, y))
+        for X in range(secretRoom.x1, secretRoom.x2):
+            for Y in range(secretRoom.y1, secretRoom.y2):
+                unchasmable.append((X, Y))
+                noCheckTiles.append((X, Y))
         myMap[entryX][entryY].blocked = False
         myMap[entryX][entryY].block_sight = True
         myMap[entryX][entryY].character = '#'
@@ -6270,17 +6274,20 @@ def secretRoom(temple):
         myMap[entryX][entryY].bg = color_light_ground
         myMap[entryX][entryY].dark_fg = color_dark_wall
         myMap[entryX][entryY].dark_bg = color_dark_ground
-        myMap[x][y].secretWall = True
-        myMap[x][y].wall = False
+        myMap[entryX][entryY].secretWall = True
+        myMap[entryX][entryY].wall = False
         if temple:
             for X in range(7):
                 for Y in range(7):
                     if not myMap[x + 1 + X][y + 1 + Y].pillar:
                         myMap[x + 1 + X][y + 1 + Y].character = '-'
                         myMap[x + 1 + X][y + 1 + Y].fg = colors.sepia
+                        myMap[x + 1 + X][y + 1 + Y].dark_fg = colors.darker_sepia
                     else:
                         myMap[x + 1 + X][y + 1 + Y].fg = colors.darker_sepia
+                        myMap[x + 1 + X][y + 1 + Y].dark_fg = colors.darkest_sepia
                     myMap[x + 1 + X][y + 1 + Y].bg = colors.light_sepia
+                    myMap[x + 1 + X][y + 1 + Y].dark_bg = colors.dark_sepia
             if side != 'left':
                 sideFalse = False
                 for k in range(7):
@@ -6291,6 +6298,8 @@ def secretRoom(temple):
                         myMap[x + 8][y + 1 + k].character = '='
                         myMap[x + 8][y + 1 + k].fg = colors.dark_sepia
                         myMap[x + 8][y + 1 + k].bg = colors.sepia
+                        myMap[x + 8][y + 1 + k].dark_fg = colors.darkest_sepia
+                        myMap[x + 8][y + 1 + k].dark_bg = colors.darker_sepia
             if side != 'right':
                 sideFalse = False
                 for k in range(7):
@@ -6301,6 +6310,8 @@ def secretRoom(temple):
                         myMap[x][y + 1 + k].character = '='
                         myMap[x][y + 1 + k].fg = colors.dark_sepia
                         myMap[x][y + 1 + k].bg = colors.sepia
+                        myMap[x + 8][y + 1 + k].dark_fg = colors.darkest_sepia
+                        myMap[x + 8][y + 1 + k].dark_bg = colors.darker_sepia
             if side != 'under':
                 sideFalse = False
                 for k in range(7):
@@ -6311,6 +6322,8 @@ def secretRoom(temple):
                         myMap[x + 1 + k][y].character = '='
                         myMap[x + 1 + k][y].fg = colors.dark_sepia
                         myMap[x + 1 + k][y].bg = colors.sepia
+                        myMap[x + 8][y + 1 + k].dark_fg = colors.darkest_sepia
+                        myMap[x + 8][y + 1 + k].dark_bg = colors.darker_sepia
             if side != 'above':
                 sideFalse = False
                 for k in range(7):
@@ -6321,6 +6334,8 @@ def secretRoom(temple):
                         myMap[x + 1 + k][y + 8].character = '='
                         myMap[x + 1 + k][y + 8].fg = colors.dark_sepia
                         myMap[x + 1 + k][y + 8].bg = colors.sepia
+                        myMap[x + 8][y + 1 + k].dark_fg = colors.darkest_sepia
+                        myMap[x + 8][y + 1 + k].dark_bg = colors.darker_sepia
         print("created secret room at x ", entryX, " y ", entryY, " in quarter ", quarter)
 
 def checkFile(file, folder):
@@ -6344,7 +6359,7 @@ def removeAllChasms():
             myMap[x][y].chasm = False
 
 def makeMap(generateChasm = True, generateHole = False, fall = False, temple = False):
-    global myMap, stairs, objects, upStairs, bossDungeonsAppeared, color_dark_wall, color_light_wall, color_dark_ground, color_light_ground, color_dark_gravel, color_light_gravel, townStairs, gluttonyStairs, stairs, upStairs, nemesisList, roomTiles, tunnelTiles, unchasmable, rooms, wrathStairs, maxRooms, roomMaxSize, roomMinSize
+    global myMap, noCheckTiles, stairs, objects, upStairs, bossDungeonsAppeared, color_dark_wall, color_light_wall, color_dark_ground, color_light_ground, color_dark_gravel, color_light_gravel, townStairs, gluttonyStairs, stairs, upStairs, nemesisList, roomTiles, tunnelTiles, unchasmable, rooms, wrathStairs, maxRooms, roomMaxSize, roomMinSize
     nemesis = None
     
     found = checkFile('meta.bak', absMetaDirPath)
@@ -6396,6 +6411,7 @@ def makeMap(generateChasm = True, generateHole = False, fall = False, temple = F
     roomTiles = []
     tunnelTiles = []
     unchasmable = []
+    noCheckTiles = []
     numberRooms = 0
     objects = [player]
 
@@ -6461,6 +6477,7 @@ def makeMap(generateChasm = True, generateHole = False, fall = False, temple = F
                 if 0 <= countNeighbours(myMap, x, y) <= 2 and not myMap[x][y].pillar and not (x == 0 or x == MAP_WIDTH - 1 or y == 0 or y == MAP_HEIGHT - 1):
                     if myMap[x][y].blocked:
                         #baseMap[x][y].bg = colors.red
+                        baseMap[x][y].wall = False
                         baseMap[x][y].blocked = False
                         baseMap[x][y].character = None
                 if countNeighbours(myMap, x, y) == 3 and not myMap[x][y].pillar and not (x == 0 or x == MAP_WIDTH - 1 or y == 0 or y == MAP_HEIGHT - 1):
@@ -8954,7 +8971,7 @@ def targetAnyTile(startX = None, startY = None, drawRectangle = False):
             del cursor
             con.clear()
             Update()
-            return 'cancelled'
+            return 'cancelled', 'cancelled'
         elif key.keychar.upper() in MOVEMENT_KEYS:
             dx, dy = MOVEMENT_KEYS[key.keychar.upper()]
             if not myMap[cursor.x + dx][cursor.y + dy].unbreakable and (not drawRectangle or (not ((cursor.x+dx) < startX) and not ((cursor.y + dy) < startY))) :
