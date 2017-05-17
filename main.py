@@ -215,6 +215,7 @@ drawDjik = False
 
 lookCursor = None
 cursor = None
+bossTiles = None
 
 gameMsgs = [] #List of game messages
 logMsgs = []
@@ -728,7 +729,7 @@ class Spell:
                 return 'cancelled'
 
 def learnSpell(spell):
-    if spell not in player.Fighter.knownSpells:
+    if not (spell in player.Fighter.knownSpells or spell.name in player.Fighter.knownSpellsToNames):
         player.Fighter.knownSpells.append(spell)
         message("You learn " + spell.name + " !", colors.green)
     else:
@@ -1030,7 +1031,26 @@ def castTeleportTo(caster = None, monsterTarget = None):
         else:
             message("Cannot teleport there !", colors.red)
             return 'cancelled'
-
+        
+def castMakeTileYellow(caster = None, monsterTarget = None):
+    global FOV_recompute
+    (goalX, goalY) = targetAnyTile(startX = player.x, startY = player.y)
+    if targetTile == 'cancelled':
+        return 'cancelled'
+    else:
+        if not myMap[goalX][goalY].blocked and not myMap[goalX][goalY].chasm:
+            tile = myMap[goalX][goalY]
+            assert isinstance(tile, Tile)
+            tile.bg = colors.yellow
+            tile.BG = colors.yellow
+            tile.dark_bg = colors.dark_yellow
+            tile.DARK_BG = colors.dark_yellow
+            message("Made tile look yellow !")
+            return
+        else:
+            message("Invalid tile !", colors.red)
+            return 'cancelled'
+    
 def resetDjik():
     global djikVisitedTiles
     djikVisitedTiles = []
@@ -1040,6 +1060,11 @@ def resetDjik():
             tile = myMap[x][y]
             if not (tile.blocked or tile.chasm or tile.wall):
                 tile.djikValue = 90000000
+            tile.doNotPropagateDjik = False
+    
+    if bossTiles:
+        for tile in bossTiles:
+            tile.djikValue = 90000000
             tile.doNotPropagateDjik = False
 
 def applyDjik(x,y, value, visible = False):
@@ -1215,7 +1240,12 @@ def getWalkableTiles():
 
 def actuallyDoDjik(profile = True):
     change = True
-    walkableTiles = getWalkableTiles()
+    if not bossTiles:
+        walkableTiles = getWalkableTiles()
+        print("No boss room, getting walkable tiles by hand")
+    else:
+        walkableTiles = list(bossTiles)
+        message('Found boss room !')
     while change:
         change = False
         '''
@@ -1287,8 +1317,9 @@ djik = Spell(ressourceCost= 0, cooldown = 1, useFunction=calcDjikPlayer, name = 
 djikProf = Spell(ressourceCost= 0, cooldown = 1, useFunction=profileDjik, name = 'DEBUG : Calculate Djikstra Map (with Profiler)', ressource='MP', type = 'Occult')
 dispDjik = Spell(ressourceCost= 0, cooldown = 1, useFunction=toggleDrawDjik, name = 'DEBUG : Draw Djikstra Map', ressource='MP', type = 'Occult')
 detDjik = Spell(ressourceCost= 0, cooldown = 1, useFunction=detailedProfilerWrapperDjik, name = 'DEBUG : Calculate Djikstra Map (with detailed Profiler)', ressource='MP', type = 'Occult')
+yellowify = Spell(ressourceCost= 0, cooldown = 1, useFunction=castMakeTileYellow, name = 'DEBUG : Make tile look yellow', ressource='MP', type = 'Occult')
 
-spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport, djik, dispDjik, djikProf, detDjik])
+spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport, djik, dispDjik, djikProf, detDjik, yellowify])
 #_____________SPELLS_____________
 
 #______________CHARACTER GENERATION____________
@@ -1398,7 +1429,8 @@ class Trait():
             player.Fighter.baseArmorPenetration += self.ap
             player.Fighter.BASE_ARMOR_PENETRATION += self.ap
             if self.spells is not None:
-                player.Player.knownSpells.extend(self.spells)
+                #player.Player.knownSpells.extend(self.spells)
+                player.Fighter.knownSpells.extend(self.spells)
             player.Player.baseMaxWeight += self.load
             self.amount += 1
             self.selected = True
@@ -2276,7 +2308,14 @@ class Fighter: #All NPCs, enemies and the player
         if self.owner == player:
             bonus = 5 * player.Player.willpower
         return self.noWillMP + bonus
-
+    
+    @property
+    def knownSpellsToNames(self):
+        '''
+        Convert list of fighter's known spells to list of names of said spells.
+        This doesn't necessarily respects alphabetical order
+        '''
+        return [spell.name for spell in self.knownSpells]
 
     @property
     def power(self):
@@ -5584,7 +5623,20 @@ class Rectangle:
     def intersect(self, other):
         return (self.x1 <= other.x2 and self.x2 >= other.x1 and
                 self.y1 <= other.y2 and self.y2 >= other.y1)
-        
+    
+    @property
+    def tiles(self):
+        tileList = [myMap[x][y] for x in range (self.x1 + 1, self.x2) for y in range (self.y1 + 1, self.y2)]
+        print("PRINTING LIST")
+        print("GOING TO PRINT TILES LIST")
+        print("PRINTING A LOT OF CAPITALIZED MESAGE SO IM SURE I WILL SEE THEM")
+        print("ACTUALLY PRINTING NEXT MESSAGE")
+        print(tileList)
+        print("LIST IS JUST HIGHER")
+        print("LIST IS TWO MESSAGES HIGHER")
+        return tileList
+    
+
 class CaveRoom:
     def __init__(self, tiles, borders = []):
         self.tiles = tiles
@@ -5954,7 +6006,7 @@ def createPassage(roomA, roomB, tileA, tileB):
     
     
 def generateCave(fall = False):
-    global myMap, baseMap, mapToDisp, maps, visuTiles, state, visuEdges, confTiles, rooms, curRoomIndex, stairs, objects, upStairs, bossDungeonsAppeared, color_dark_wall, color_light_wall, color_dark_ground, color_light_ground, color_dark_gravel, color_light_gravel, townStairs, gluttonyStairs, stairs, upStairs, nemesisList, wrathStairs
+    global myMap, bossTiles, baseMap, mapToDisp, maps, visuTiles, state, visuEdges, confTiles, rooms, curRoomIndex, stairs, objects, upStairs, bossDungeonsAppeared, color_dark_wall, color_light_wall, color_dark_ground, color_light_ground, color_dark_gravel, color_light_gravel, townStairs, gluttonyStairs, stairs, upStairs, nemesisList, wrathStairs
     myMap = [[Tile(blocked=False, x = x, y = y, block_sight=False) for y in range(MAP_HEIGHT)] for x in range(MAP_WIDTH)]
     visuTiles = []
     visuEdges = []
@@ -5969,6 +6021,7 @@ def generateCave(fall = False):
     gluttonyStairs = None
     townStairs = None
     wrathStairs = None
+    bossTiles = None
         
     color_dark_wall = currentBranch.color_dark_wall
     color_light_wall = currentBranch.color_light_wall
@@ -6263,7 +6316,7 @@ def removeAllChasms():
             myMap[x][y].chasm = False
 
 def makeMap(generateChasm = True, generateHole = False, fall = False):
-    global myMap, stairs, objects, upStairs, bossDungeonsAppeared, color_dark_wall, color_light_wall, color_dark_ground, color_light_ground, color_dark_gravel, color_light_gravel, townStairs, gluttonyStairs, stairs, upStairs, nemesisList, roomTiles, tunnelTiles, unchasmable, rooms, wrathStairs
+    global myMap, bossTiles, stairs, objects, upStairs, bossDungeonsAppeared, color_dark_wall, color_light_wall, color_dark_ground, color_light_ground, color_dark_gravel, color_light_gravel, townStairs, gluttonyStairs, stairs, upStairs, nemesisList, roomTiles, tunnelTiles, unchasmable, rooms, wrathStairs
     nemesis = None
     
     found = checkFile('meta.bak', absMetaDirPath)
@@ -6298,6 +6351,7 @@ def makeMap(generateChasm = True, generateHole = False, fall = False):
     gluttonyStairs = None
     townStairs = None
     wrathStairs = None
+    bossTiles = None
         
     color_dark_wall = currentBranch.color_dark_wall
     color_light_wall = currentBranch.color_light_wall
@@ -6403,7 +6457,7 @@ def makeMap(generateChasm = True, generateHole = False, fall = False):
         while not created:
             x = randint(room.x1 + 1, room.x2)
             y = randint(room.y1 + 1, room.y2)
-            if isBlocked(x, y) and myMap[x][y].chasm:
+            if not (isBlocked(x, y) or myMap[x][y].chasm):
                 created = True
         print("DONE NEM COORDS")
         nemesisMonster = nemesis.nemesisObject
@@ -6591,7 +6645,7 @@ def makeMap(generateChasm = True, generateHole = False, fall = False):
     updateTileCoords()
          
 def makeBossLevel(fall = False, generateHole=False):
-    global myMap, objects, upStairs, rooms, numberRooms
+    global myMap, objects, upStairs, rooms, numberRooms, bossTiles
     myMap = [[Tile(True, x = x, y = y, wall = True, hole = generateHole) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
     objects = [player]
     rooms = []
@@ -6646,16 +6700,18 @@ def makeBossLevel(fall = False, generateHole=False):
     y = randint(20, 60-h-1)
     bossRoom = Rectangle(x, y, w, h)
     createRoom(bossRoom)
-    (new_x, new_y) = bossRoom.center()
-    createVerticalTunnel(previous_y, new_y, previous_x)
-    createHorizontalTunnel(previous_x, new_x, new_y)
-
-    levels = currentBranch.bossNames.values()
-    names = list(currentBranch.bossNames.keys())
-    index = 0
-    for level in levels:
-        if level == dungeonLevel:
-            bossName = names[index]
+    bossTiles = bossRoom.tiles
+    print(bossTiles)
+    
+    (new_x, new_y) = bossRoom.center()                    
+    createVerticalTunnel(previous_y, new_y, previous_x)   
+    createHorizontalTunnel(previous_x, new_x, new_y)      
+    levels = currentBranch.bossNames.values()             
+    names = list(currentBranch.bossNames.keys())          
+    index = 0                                             
+    for level in levels:                                  
+        if level == dungeonLevel:                         
+            bossName = names[index]                       
             break
         index += 1
 
@@ -6667,6 +6723,15 @@ def makeBossLevel(fall = False, generateHole=False):
     if generateHole:
         myMap = holeGen.createHoles(myMap)
     checkMap()
+        
+    '''
+    for tile in bossTiles: #Makes the boss room look FABULOUS for testing purposes
+        assert isinstance(tile, Tile)
+        tile.bg = colors.pink
+        tile.BG = colors.pink
+        tile.dark_bg = colors.fuchsia
+        tile.DARK_BG = colors.fuchsia
+    '''
     
     if fall:
         fallen = False
@@ -6677,10 +6742,11 @@ def makeBossLevel(fall = False, generateHole=False):
                 fallen = True
 
 def makeHiddenTown(fall = False):
-    global myMap, objects, upStairs, rooms, numberRooms
+    global myMap, objects, upStairs, rooms, numberRooms, bossRoom
     myMap = [[Tile(True, wall = True, x = x, y = y) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
     objects = [player]
     rooms = []
+    bossRoom = None
     numberRooms = 0
     
     for y in range (MAP_HEIGHT):
@@ -8931,6 +8997,10 @@ def saveGame():
     file['scrollIdentify'] = scrollIdentify
     file['colorDict'] = colorDict
     file['nameDict'] = nameDict
+    if bossTiles is not None:
+        file['bossTiles'] = bossTiles
+    else:
+        print("CANNOT SAVE BOSS TILES CAUSE NO BOSS TILES")
     
     '''
     if dungeonLevel > 1 or currentBranch.name != 'Main':
@@ -8992,7 +9062,7 @@ def saveGame():
     #mapFile.close()
 
 def newGame():
-    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, gameMsgs, identifiedItems, equipmentList, currentBranch, bossDungeonsAppeared, DEBUG, REVEL, logMsgs, tilesInRange, tilesinPath, tilesInRect, menuWindows, explodingTiles, hiroshimanNumber, FOV_recompute
+    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, gameMsgs, identifiedItems, equipmentList, currentBranch, bossDungeonsAppeared, DEBUG, REVEL, logMsgs, tilesInRange, tilesinPath, tilesInRect, menuWindows, explodingTiles, hiroshimanNumber, FOV_recompute, bossTiles
     
     DEBUG = False
     REVEL = False
@@ -9009,6 +9079,7 @@ def newGame():
     menuWindows = []
     hiroshimanNumber = 0
     FOV_recompute = True
+    bossTiles = None
     
     currentBranch = dBr.mainDungeon
     dungeonLevel = 1 
@@ -9044,7 +9115,7 @@ def newGame():
         highCultistHasAppeared = False #Make so more high cultists can spawn at lower levels (still only one by floor though)
 
 def loadGame():
-    global FOV_recompute, objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipmentList, stairs, upStairs, hiroshimanNumber, currentBranch, gluttonyStairs, logMsgs, townStairs, greedStairs, wrathStairs, potionIdentify, scrollIdentify, nameDict, colorDict
+    global FOV_recompute, objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipmentList, stairs, upStairs, hiroshimanNumber, currentBranch, gluttonyStairs, logMsgs, townStairs, greedStairs, wrathStairs, potionIdentify, scrollIdentify, nameDict, colorDict, bossTiles
     
     FOV_recompute = True
     #myMap = [[Tile(True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)]
@@ -9054,6 +9125,7 @@ def loadGame():
     myMap = file["myMap_level{}".format(dungeonLevel)]
     objects = file["objects_level{}".format(dungeonLevel)]
     player = objects[file["playerIndex"]]
+    print(player.Fighter.knownSpells)
     #if currentBranch.shortName != 'town':
     #    stairs = objects[file["stairsIndex"]]
     inventory = file["inventory"]
@@ -9066,6 +9138,11 @@ def loadGame():
     scrollIdentify = file['scrollIdentify']
     colorDict = file['colorDict']
     nameDict = file['nameDict']
+    try:
+        bossTiles = file['bossTiles']
+    except:
+        bossTiles = None
+        print("NO BOSS TILES")
     
     '''
     if dungeonLevel > 1 or currentBranch.name != 'Main':
@@ -9104,6 +9181,10 @@ def saveLevel(level = dungeonLevel):
     mapFile["myMap"] = myMap
     mapFile["objects"] = objects
     mapFile["playerIndex"] = objects.index(player)
+    if bossTiles is not None:
+        mapFile["bossTiles"] = bossTiles
+    else:
+        print("CANNOT SAVE BOSS TILES")
     '''
     if currentBranch.shortName != 'town':
         mapFile["stairsIndex"] = objects.index(stairs)
@@ -9171,7 +9252,7 @@ def saveLevel(level = dungeonLevel):
     return "completed"
 
 def loadLevel(level, save = True, branch = currentBranch, fall = False, fromStairs = True):
-    global objects, player, myMap, stairs, dungeonLevel, gluttonyStairs, townStairs, currentBranch, wrathStairs, greedStairs
+    global objects, player, myMap, stairs, dungeonLevel, gluttonyStairs, townStairs, currentBranch, wrathStairs, greedStairs, bossTiles
     '''
     if fall:
         fromStairs = False
@@ -9196,6 +9277,11 @@ def loadLevel(level, save = True, branch = currentBranch, fall = False, fromStai
     myMap = xfile["myMap"]
     objects = xfile["objects"]
     tempPlayer = objects[xfile["playerIndex"]]
+    try:
+        bossTiles = xfile["bossTiles"]
+    except:
+        print("COULDNT LOAD BOSS TILES")
+        bossTiles = None
     #if fromStairs:
     #    for object in objects:
     #        if object.Stairs:
@@ -9241,7 +9327,7 @@ def loadLevel(level, save = True, branch = currentBranch, fall = False, fromStai
     initializeFOV()
 
 def nextLevel(boss = False, changeBranch = None, fall = False):
-    global dungeonLevel, currentBranch, currentMusic
+    global dungeonLevel, currentBranch, currentMusic, bossTiles
     if boss:
         currentMusic = 'Hoxton_Princess.wav'
         stopProcess()
@@ -9254,6 +9340,7 @@ def nextLevel(boss = False, changeBranch = None, fall = False):
         music = multiprocessing.Process(target = mus.runMusic, args = (currentMusic,))
         music.start()
         activeProcess.append(music)
+    bossTiles = None
     returned = "borked"
     changeToCurrent = False
     while returned != "completed":
