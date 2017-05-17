@@ -9124,6 +9124,7 @@ def saveGame():
     file['scrollIdentify'] = scrollIdentify
     file['colorDict'] = colorDict
     file['nameDict'] = nameDict
+    file['currentMusic'] = currentMusic
     if bossTiles is not None:
         file['bossTiles'] = bossTiles
     else:
@@ -9250,12 +9251,12 @@ def newGame():
 
 def loadGame():
     '''
-    @attention : This makes so variables become exact COPIES of what they were at the moment they were saved
+    @attention : This makes so variables become exact COPIES (except for their memory adresses)of what they were at the moment they were saved
     So if you do stuff such as if X in Y, this might (read : will) break it. A workaround is not checking directly if X is in Y, but instead check if X's name is in the list of the names of the things in Y, or if X is a tile by telling Python to access the tile at (x,y) coordinates rather than accessing it directly by a variable.
     For example, this caused spells to be able to be learned multiple time after saving/loading, because we checked if the Spell object was in the spells list, though the memory adresses of the loaded Spell objects in the spell list had changed, hence why Python thought the original spells were no longer in the spells list and allowed them to be relearned.
     loadLevel() very probably has the same behaviour, though it causes less problems because we load a lesser amount of less critcal data.
     '''
-    global FOV_recompute, objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipmentList, stairs, upStairs, hiroshimanNumber, currentBranch, gluttonyStairs, logMsgs, townStairs, greedStairs, wrathStairs, potionIdentify, scrollIdentify, nameDict, colorDict, bossTiles
+    global FOV_recompute, objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipmentList, stairs, upStairs, hiroshimanNumber, currentBranch, gluttonyStairs, logMsgs, townStairs, greedStairs, wrathStairs, potionIdentify, scrollIdentify, nameDict, colorDict, bossTiles, currentMusic
     
     FOV_recompute = True
     #myMap = [[Tile(True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)]
@@ -9278,6 +9279,7 @@ def loadGame():
     scrollIdentify = file['scrollIdentify']
     colorDict = file['colorDict']
     nameDict = file['nameDict']
+    currentMusic = file['currentMusic']
     try:
         bossTiles = file['bossTiles']
         bufferTiles = reloadBossTiles() #Because of the behavior described in the docstring, we need to refresh the tiles 
@@ -9558,7 +9560,8 @@ def nextLevel(boss = False, changeBranch = None, fall = False, fromStairs = None
 
 def playGame():
     global currentMusic
-    currentMusic = 'Bumpy_Roots.wav'
+    if currentMusic is None or currentMusic in ('No_Music.wav', 'Dusty_Feelings.wav'):
+        currentMusic = 'Bumpy_Roots.wav'
     stopProcess()
     music = multiprocessing.Process(target = mus.runMusic, args = (currentMusic,))
     music.start()
