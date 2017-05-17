@@ -215,6 +215,7 @@ playerAction = None
 DEBUG = False #If true, enables debug messages
 REVEL = False #If true, revels all items
 drawDjik = False
+stopBossFF = False
 
 lookCursor = None
 cursor = None
@@ -237,6 +238,7 @@ spells = [] #List of all spells in the game
 
 djikVisitedTiles = []
 markers = []
+visuBoss = []
 
 ########
 # These need to be globals because otherwise Python will flip out when we try to look for some kind of stairs in the object lists.
@@ -1230,6 +1232,10 @@ def calcDjikPlayer(caster = None, target = None, profile = False):
         actuallyDoDjik(False)
     else:
         cProfile.run('actuallyDoDjik()', filename = os.path.join(curDir, 'djikDetail.profile'))
+        
+def bossFleeDjik():
+    calcDjikPlayer()
+    #Multiply values by -1.2 and do other stuff here
                 
 def getWalkableTiles():
     newList = []
@@ -1248,7 +1254,7 @@ def actuallyDoDjik(profile = True):
         print("No boss room, getting walkable tiles by hand")
     else:
         walkableTiles = list(bossTiles)
-        message('Found boss room !')
+        print('Found boss room !')
     while change:
         change = False
         '''
@@ -5499,6 +5505,10 @@ class Tile:
         
         return [i for i in [upperLeft, up, upperRight, left, right, lowerLeft, low, lowerRight] if i is not None]
     
+    def neighbours(self):
+        result = self.neighbors()
+        return result
+    
     def cardinalNeighbors(self):
         x = self.x
         y = self.y
@@ -5519,6 +5529,10 @@ class Tile:
         except IndexError:
             low = None
         return [i for i in [up, left, right, low] if i is not None]
+    
+    def cardinalNeighbours(self):
+        result = self.cardinalNeighbors()
+        return result
 
     def applyWallProperties(self):
         if not self.secretWall:
@@ -5732,6 +5746,74 @@ def floodFill(x, y, listToAppend, edgeList):
         
         edgeList.append((x,y))
         return
+
+def bossFFWrapper(x,y, listToAppend, dependsOnList):
+    global stopBossFF, visuBoss
+    stopBossFF = False
+    visuBoss = []
+    bossFloodfill(x,y, listToAppend, dependsOnList)
+
+def bossFloodfill(x,y, listToAppend, dependsOnList):
+    if not myMap[x][y].blocked:
+        if (x,y) in dependsOnList:
+            dependsOnList.remove((x,y))
+            visuBoss.append(myMap[x][y])
+            
+            for tile in myMap[x][y].neighbors(): #I don't know why it doesn't work with just the vanilla floodfill, but this is necessary so as to find the entrance
+                if not (tile.blocked or tile in bossTiles):
+                    global stopBossFF
+                    listToAppend.append(tile)
+                    stopBossFF = True
+                    print("FF STOP BECAUSE {};{} NOT IN BOSS TILES".format(tile.x, tile.y))
+                    return
+            
+            if not myMap[x][y] in bossTiles: #As said above, I don't know why but this alone doesn't work
+                global stopBossFF
+                listToAppend.append(myMap[x][y])
+                stopBossFF = True
+                print("FF STOP BECAUSE {};{} NOT IN BOSS TILES".format(x,y))
+                #raise ValueError('Actually found a value, stopping the program to show we found one')
+                return
+            elif not stopBossFF:
+                bossFloodfill(x+1, y, listToAppend, dependsOnList)
+                bossFloodfill(x-1, y, listToAppend, dependsOnList)
+                bossFloodfill(x, y+1, listToAppend, dependsOnList)
+                bossFloodfill(x, y-1, listToAppend, dependsOnList)
+                bossFloodfill(x+1, y+1, listToAppend, dependsOnList)
+                bossFloodfill(x-1, y+1, listToAppend, dependsOnList)
+                bossFloodfill(x+1, y-1, listToAppend, dependsOnList)
+                bossFloodfill(x-1, y-1, listToAppend, dependsOnList)
+            else:
+                print("FF STOP BECAUSE BOSS STOP {};{}".format(x,y))
+            '''
+            if myMap[x][y] in bossTiles:
+                if not stopBossFF:
+                    bossFloodfill(x+1, y, listToAppend, dependsOnList)
+                    bossFloodfill(x-1, y, listToAppend, dependsOnList)
+                    bossFloodfill(x, y+1, listToAppend, dependsOnList)
+                    bossFloodfill(x, y-1, listToAppend, dependsOnList)
+                    bossFloodfill(x+1, y+1, listToAppend, dependsOnList)
+                    bossFloodfill(x-1, y+1, listToAppend, dependsOnList)
+                    bossFloodfill(x+1, y-1, listToAppend, dependsOnList)
+                    bossFloodfill(x-1, y-1, listToAppend, dependsOnList)
+                else:
+                    print("FF STOP BECAUSE BOSS STOP {};{}".format(x,y))
+            else:
+                global stopBossFF
+                listToAppend.append(myMap[x][y])
+                stopBossFF = True
+                print("FF STOP BECAUSE {};{} NOT IN BOSS TILES".format(x,y))
+                raise ValueError('Actually found a value, stopping the program to show we found one')
+                return
+            '''
+                
+        else:
+            print("FF STOP BECAUSE {};{} NOT IN EMPTY TILES".format(x,y))
+            return
+    else:
+        print("FF STOP BECAUSE {};{} BLOCKED".format(x,y))
+        return
+                
     
 def countNeighbours(mapToUse, startX, startY, stopAtFirst = False, searchBlock = True, searchChasm = False):
     count = 0
@@ -6772,6 +6854,10 @@ def makeMap(generateChasm = True, generateHole = False, fall = False, temple = F
     updateTileCoords()
          
 def makeBossLevel(fall = False, generateHole=False):
+    '''
+    Creates boss level
+    Function alias (for search function, because Edern (me) always types in makeBossRoom instead of makeBossLevel) : makeBossRoom
+    '''
     global myMap, objects, upStairs, rooms, numberRooms, bossTiles
     myMap = [[Tile(True, x = x, y = y, wall = True, hole = generateHole) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
     objects = [player]
@@ -6830,11 +6916,23 @@ def makeBossLevel(fall = False, generateHole=False):
     bossTiles = bossRoom.tiles
     print(bossTiles)
     
+    refreshEmptyTiles()
+    for tile in emptyTiles:
+        (x,y) = tile
+        print("EMPTY : {};{}".format(x, y))
+    copyBoss = list(emptyTiles)
+    entrance = []
+    startTile = bossTiles[4]
+    sX, sY = startTile.x, startTile.y
+    
     (new_x, new_y) = bossRoom.center()                    
     createVerticalTunnel(previous_y, new_y, previous_x)   
     createHorizontalTunnel(previous_x, new_x, new_y)      
     levels = currentBranch.bossNames.values()             
-    names = list(currentBranch.bossNames.keys())          
+    names = list(currentBranch.bossNames.keys())
+    
+
+            
     index = 0                                             
     for level in levels:                                  
         if level == dungeonLevel:                         
@@ -6859,6 +6957,26 @@ def makeBossLevel(fall = False, generateHole=False):
         tile.dark_bg = colors.fuchsia
         tile.DARK_BG = colors.fuchsia
     '''
+    
+    bossFFWrapper(sX, sY, entrance, copyBoss) #PSA : It works better if you place it AFTER you create the entrance (because this function is supposed to find the entrance). I may or may not have spent one hour before figuring that out.
+    print(entrance)
+    for tilE in entrance:
+        print("{};{}".format(tilE.x, tilE.y))
+    
+    for tile in entrance:
+        tile.character = 'X'
+        tile.fg = colors.blue
+        tile.FG = colors.blue
+        tile.bg = colors.light_pink
+        tile.BG = colors.light_pink
+        tile.dark_bg = colors.light_pink
+        tile.DARK_BG = colors.light_pink
+        
+    for stuff in visuBoss:
+        stuff.bg = colors.light_yellow
+        stuff.BG = colors.light_yellow
+        stuff.dark_bg = colors.light_yellow
+        stuff.DARK_BG = colors.light_yellow
     
     if fall:
         fallen = False
@@ -8793,7 +8911,13 @@ def Update():
                         con.draw_char(x,y,'+', fg= colors.white, bg = colors.red)
                 else:
                     print("No Djik Value")
-
+    
+    '''
+    if bossTiles:
+        for tile in bossTiles:
+            con.draw_char(tile.x, tile.y, 'X')
+    '''
+    
     root.blit(con, 0, 0, WIDTH, HEIGHT, 0, 0)
     # Draw log
     
@@ -9583,6 +9707,9 @@ def playGame():
         else:
             for loop in range(actions):
                 playerAction = getInput()
+                if bossTiles:
+                    bossFleeDjik()
+                    print("Did Boss Djik")
                 if actions > 1:
                     FOV_recompute = True
                     Update()
