@@ -9188,6 +9188,13 @@ def saveGame():
     #pickle.dump(myMap, mapFile)
     #mapFile.close()
 
+def reloadBossTiles():
+    newTiles = []
+    for tile in bossTiles:
+        newTiles.append(myMap[tile.x][tile.y])
+    return newTiles
+        
+
 def newGame():
     global objects, inventory, gameMsgs, gameState, player, dungeonLevel, gameMsgs, identifiedItems, equipmentList, currentBranch, bossDungeonsAppeared, DEBUG, REVEL, logMsgs, tilesInRange, tilesinPath, tilesInRect, menuWindows, explodingTiles, hiroshimanNumber, FOV_recompute, bossTiles
     
@@ -9267,7 +9274,9 @@ def loadGame():
     nameDict = file['nameDict']
     try:
         bossTiles = file['bossTiles']
-    except:
+        bufferTiles = reloadBossTiles()
+        bossTiles = list(bufferTiles)
+    except KeyError:
         bossTiles = None
         print("NO BOSS TILES")
     
@@ -9291,6 +9300,7 @@ def loadGame():
     #myMap = pickle.load(mapFile)
     #mapFile.close()
     '''
+
 
 def saveLevel(level = dungeonLevel):
     #if not os.path.exists(absDirPath):
@@ -9395,7 +9405,9 @@ def loadLevel(level, save = True, branch = currentBranch, fall = False, fromStai
     tempPlayer = objects[xfile["playerIndex"]]
     try:
         bossTiles = xfile["bossTiles"]
-    except:
+        bufferTiles = reloadBossTiles()
+        bossTiles = list(bufferTiles)
+    except KeyError:
         print("COULDNT LOAD BOSS TILES")
         bossTiles = None
     #if fromStairs:
