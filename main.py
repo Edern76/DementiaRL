@@ -1250,7 +1250,7 @@ def bossFleeDjik():
     #Multiply values by -1.2 and do other stuff here
     for tile in bossTiles:
         tile.djikValue = float(tile.djikValue) * (-1.2)
-    #actuallyDoDjik(negative = True)
+    actuallyDoDjik(negative = True)
                 
 def getWalkableTiles():
     newList = []
@@ -1312,7 +1312,7 @@ def findTileNeighbouringDjik(startTile, negative = False):
             curLow = tile.djikValue
             curLowTile = tile
     
-    if ((not negative) and startTile.djikValue - curLow >= 2) or (negative and startTile.djikValue - curLow >= 1.2):
+    if startTile.djikValue - curLow >= 2: #((not negative) and startTile.djikValue - curLow >= 2): #or (negative and startTile.djikValue - curLow >= 1.2):
         startTile.djikValue = curLow + 1
         return True
     else:
