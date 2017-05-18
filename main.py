@@ -542,6 +542,12 @@ def convertBuffsToNames(fighter):
         names.append(buff.name)
     return names
 
+def convertTilesToCoords(tilesList):
+    newList = []
+    for tile in tilesList:
+        newList.append((tile.x, tile.y))
+    return newList
+
 def modifyFighterStats(fighter = None, pow = 0, acc = 0, evas = 0, arm = 0, hp = 0, mp = 0, crit = 0, ap = 0, str = 0, dex = 0, vit = 0, will = 0):
     hpDiff = fighter.baseMaxHP - fighter.hp
     print(fighter.baseMaxHP, fighter.hp, hpDiff)
@@ -1242,6 +1248,9 @@ def calcDjikPlayer(caster = None, target = None, profile = False):
 def bossFleeDjik():
     calcDjikPlayer()
     #Multiply values by -1.2 and do other stuff here
+    for tile in bossTiles:
+        tile.djikValue = float(tile.djikValue) * (-1.2)
+    #actuallyDoDjik(negative = True)
                 
 def getWalkableTiles():
     newList = []
@@ -1253,7 +1262,7 @@ def getWalkableTiles():
     return newList
 
 
-def actuallyDoDjik(profile = True):
+def actuallyDoDjik(profile = True, negative = False):
     change = True
     if not bossTiles:
         walkableTiles = getWalkableTiles()
@@ -1272,9 +1281,9 @@ def actuallyDoDjik(profile = True):
                         change = True    
         '''
         for tile in walkableTiles:
-            if findTileNeighbouringDjik(tile):
+            if findTileNeighbouringDjik(tile, negative):
                 change = True
-
+                
 def toggleDrawDjik(caster = None, target = None):
     global drawDjik
     drawDjik = not drawDjik
@@ -1293,7 +1302,7 @@ def findNeighbouringDjikAndSetValue(x,y):
     else:
         return False
 
-def findTileNeighbouringDjik(startTile):
+def findTileNeighbouringDjik(startTile, negative = False):
     found = False
     curLow = 0
     curLowTile = None
@@ -1303,7 +1312,7 @@ def findTileNeighbouringDjik(startTile):
             curLow = tile.djikValue
             curLowTile = tile
     
-    if startTile.djikValue - curLow >= 2:
+    if ((not negative) and startTile.djikValue - curLow >= 2) or (negative and startTile.djikValue - curLow >= 1.2):
         startTile.djikValue = curLow + 1
         return True
     else:
@@ -6979,7 +6988,7 @@ def makeBossLevel(fall = False, generateHole=False):
             break
         index += 1
 
-    placeBoss(bossName, new_x, y + 1)
+    placeBoss(bossName, new_x, new_y)
     
     (previous_x, previous_y) = bossRoom.center()
     rooms.append(bossRoom)
@@ -7377,6 +7386,34 @@ class HighInquisitor(Fleeing):
         FOV_recompute = True
 #-- High Inquisitor --
 
+class TestInquisitor(BasicMonster):
+    def __init__(self):
+        BasicMonster.__init__(self)
+        
+    def takeTurn(self):
+        global FOV_recompute
+        monster = self.owner
+        if (not 'frozen' in convertBuffsToNames(self.owner.Fighter)) and ((player.x, player.y) in convertTilesToCoords(bossTiles)):
+            sX, sY = self.owner.x, self.owner.y
+            curDjik = myMap[sX][sY].djikValue
+            if curDjik < -1.2:
+                curBest = myMap[sX][sY]
+                for tile in myMap[sX][sY].neighbors():
+                    if not tile.blocked:
+                        if tile.djikValue < curBest.djikValue:
+                            curBest = tile
+                if (curBest.x, curBest.y) != (sX, sY):
+                    self.owner.moveTo(curBest.x, curBest.y)
+            else:
+                self.owner.Fighter.attack(player)
+        else:
+            if not 'frozen' in convertBuffsToNames(monster.Fighter):
+                if not (player.x, player.y) in convertTilesToCoords(bossTiles):
+                    print(player.x, player.y, sep=";")
+                    print(convertTilesToCoords(bossTiles))
+                self.wander()
+    
+
 def placeBoss(name, x, y):
     if name == 'Gluttony':
         fighterComponent = Fighter(hp=1000, armor=6, power=8, xp = 1000, deathFunction = gluttonysDeath, accuracy = 13, evasion = 1, shootCooldown = 10, landCooldown = 4)
@@ -7398,7 +7435,7 @@ def placeBoss(name, x, y):
     if name == 'High Inquisitor':
         inquisitorFireball = Spell(ressourceCost = 0, cooldown = 4, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 0, arg2 = 20, arg3 = 6)
         fighterComponent = Fighter(hp = 300, armor = 2, power = 5, xp = 1000, deathFunction = basicBossDeath, accuracy = 75, evasion = 25, maxMP = 50, knownSpells=[inquisitorFireball])
-        AI_component = HighInquisitor()
+        AI_component = TestInquisitor()
         boss = GameObject(x, y, char = 'I', color = colors.darker_magenta, name = name, blocks = True, Fighter = fighterComponent, AI = AI_component)
         objects.append(boss)
     
@@ -8965,7 +9002,43 @@ def Update():
                     if inPath:
                         con.draw_char(x, y, 'X', fg = colors.green, bg = None)
                         tilesinPath = []
-                        
+    if drawDjik:
+        print("MUST DRAW")
+        for x in range(MAP_WIDTH):
+            for y in range(MAP_HEIGHT):
+                if myMap[x][y].djikValue is not None:
+                    print("Found dValue")
+                    if myMap[x][y].djikValue < 10:
+                        if myMap[x][y].djikValue > 0:
+                            con.draw_char(x,y, str(myMap[x][y].djikValue), fg = colors.white)
+                        else:
+                            djik = myMap[x][y].djikValue
+                            if djik <= -10:
+                                color = colors.red
+                            elif djik <= -9:
+                                color = colors.light_red
+                            elif djik <= -8:
+                                color = colors.orange
+                            elif djik <= -7:
+                                color = colors.light_orange
+                            elif djik <= -6:
+                                color = colors.yellow
+                            elif djik <= -5:
+                                color = colors.light_yellow
+                            elif djik <= -4:
+                                color = colors.light_purple
+                            elif djik <= -3:
+                                color = colors.lighter_purple
+                            elif djik <= -2:
+                                color = colors.light_blue
+                            else:
+                                color = colors.blue
+                            con.draw_char(x,y, None, bg = color)
+                    else:
+                        con.draw_char(x,y,'+', fg= colors.white, bg = colors.red)
+                else:
+                    print("No Djik Value")
+                            
     for object in objects:
         if object != player:
             if (object.x, object.y) in visibleTiles or (object.alwaysVisible and myMap[object.x][object.y].explored) or REVEL:
@@ -8979,22 +9052,7 @@ def Update():
 
     panel.clear(fg=colors.white, bg=colors.black)
     
-    if drawDjik:
-        print("MUST DRAW")
-        for x in range(MAP_WIDTH):
-            for y in range(MAP_HEIGHT):
-                if myMap[x][y].djikValue is not None:
-                    print("Found dValue")
-                    if myMap[x][y].djikValue < 10:
-                        if myMap[x][y].djikValue > 0:
-                            con.draw_char(x,y, str(myMap[x][y].djikValue), fg = colors.white)
-                        else:
-                            con.draw_char(x,y, '-', fg = colors.white, bg = colors.cyan)
-                    else:
-                        con.draw_char(x,y,'+', fg= colors.white, bg = colors.red)
-                else:
-                    print("No Djik Value")
-    
+
     '''
     if bossTiles:
         for tile in bossTiles:
