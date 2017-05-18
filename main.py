@@ -195,6 +195,7 @@ RESURECTABLE_CORPSES = ["darksoul", "ogre"]
 BASE_HUNGER = 1500
 
 MAX_ASTAR_FAILS = 1 #Possibly unstable at 1 (but best performance), if you get weird results with Astar (aside from freezing) try bumping this number up a LITTLE bit (3 is already way overkill)
+REGEN_THRESHOLD = 4000 #Number of iterations of stairs placing loop before you throw away current map and regenerates another one. Setting this too high may make map generation longer. Setting this too low may provoke infinite loops or cause the game to reject potentially valid maps (also making the map gen longer). (base : 2000)
 
 # - Spells -
 #_____________ CONSTANTS __________________
@@ -220,6 +221,7 @@ stopBossFF = False
 lookCursor = None
 cursor = None
 bossTiles = None
+bossEntrance = None
 
 gameMsgs = [] #List of game messages
 logMsgs = []
@@ -239,6 +241,7 @@ spells = [] #List of all spells in the game
 djikVisitedTiles = []
 markers = []
 visuBoss = []
+
 
 ########
 # These need to be globals because otherwise Python will flip out when we try to look for some kind of stairs in the object lists.
@@ -1045,7 +1048,10 @@ def castMakeTileYellow(caster = None, monsterTarget = None):
     else:
         if not myMap[goalX][goalY].blocked and not myMap[goalX][goalY].chasm:
             tile = myMap[goalX][goalY]
-            assert isinstance(tile, Tile)
+            try:
+                assert isinstance(tile, Tile)
+            except AssertionError:
+                pass #Because saving/loading breaks assertion of tiles
             tile.bg = colors.yellow
             tile.BG = colors.yellow
             tile.dark_bg = colors.dark_yellow
@@ -2117,6 +2123,8 @@ class GameObject:
         elif not isBlocked(self.x + dx, self.y + dy) or self.ghost:
             self.x += dx
             self.y += dy
+            if self.Player:
+                myMap[self.x][self.y].triggerFunc()
         else:
             if self.Player and self.Fighter and 'confused' in convertBuffsToNames(self.Fighter):
                 message('You bump into a wall !')
@@ -2129,6 +2137,8 @@ class GameObject:
         elif not isBlocked(otherX, otherY) or self.ghost:
             self.x = int(otherX)
             self.y = int(otherY)
+            if self.Player:
+                myMap[self.x][self.y].triggerFunc()
         else:
             if self.Player and self.Fighter and 'confused' in convertBuffsToNames(self.Fighter):
                 message('You bump into a wall !')
@@ -5405,6 +5415,9 @@ dispDebug = True
 unchasmable = []
 noCheckTiles = []
 
+def printTileWhenWalked(tile):
+    print("Player walked on tile at {};{}".format(tile.x, tile.y))
+
 class Tile:
     def __init__(self, blocked, x, y, block_sight = None, acid = False, acidCooldown = 5, character = None, fg = None, bg = None, dark_fg = None, dark_bg = None, chasm = False, wall = False, hole = False, moveCost = 1):
         self.blocked = blocked
@@ -5459,6 +5472,8 @@ class Tile:
         self.moveCost = moveCost
         self.djikValue = None
         self.doNotPropagateDjik = False
+        self.onTriggerFunction = printTileWhenWalked
+        
         
     def neighbors(self):
         x = self.x
@@ -5609,11 +5624,13 @@ class Tile:
         else:
             return False
     
-    def close(self):
+    def close(self, makeIndestructible = False):
         if not self.blocked:
             self.blocked = True
             self.block_sight = True
             self.wall = True
+        if makeIndestructible:
+            self.unbreakable = True
     
     def addOwner(self, toAdd):
         if not toAdd in self.belongsTo:
@@ -5629,6 +5646,9 @@ class Tile:
         newList = list(self.belongsTo)
         newList.remove(base)
         return newList
+    
+    def triggerFunc(self):
+        self.onTriggerFunction(self)
 
 class Rectangle:
     def __init__(self, x, y, w, h):
@@ -5874,8 +5894,8 @@ def openTile(x, y, mapToUse):
         #emptyTiles.append((x,y))
         pass
 
-def closeTile(x, y, mapToUse):
-    mapToUse[x][y].close()
+def closeTile(x, y, mapToUse, makeIndestructible = False):
+    mapToUse[x][y].close(makeIndestructible)
     #removeFromEmptyTiles(x,y)
     
 def refreshEmptyTiles():
@@ -6496,367 +6516,386 @@ def removeAllChasms():
 
 def makeMap(generateChasm = True, generateHole = False, fall = False, temple = False):
     global myMap, noCheckTiles, stairs, objects, upStairs, bossDungeonsAppeared, color_dark_wall, color_light_wall, color_dark_ground, color_light_ground, color_dark_gravel, color_light_gravel, townStairs, gluttonyStairs, stairs, upStairs, nemesisList, roomTiles, tunnelTiles, unchasmable, rooms, wrathStairs, maxRooms, roomMaxSize, roomMinSize, bossTiles
-    nemesis = None
-    
-    found = checkFile('meta.bak', absMetaDirPath)
-
-    if not found:
-        file = shelve.open(absMetaPath, "c")
-        print('found no nemesis file')
-    else:
-        print('found nemesis file')
-        file = shelve.open(absMetaPath, "r")
-        try:
-            nemesisList = file['nemesis']
-            for nemesis in nemesisList:
-                print(nemesis.branch, currentBranch.shortName)
-                print(nemesis.level, dungeonLevel)
-                if nemesis.branch == currentBranch.shortName and nemesis.level == dungeonLevel:
-                    dice = randint(1, 100)
-                    TARGET_CONSTANT = 5
-                    target = int(TARGET_CONSTANT + (dungeonLevel * dungeonLevel) / 10)
-                    print(dice, target)
-                    if dice <= target:
-                        break
-                    nemesis = None
-        except KeyError:
-            print("========WARNING========")
-            print('No nemesis in file')
-            print("=======================")
-    file.close()
-    
-    stairs = None
-    upStairs = None
-    gluttonyStairs = None
-    townStairs = None
-    wrathStairs = None
-    bossTiles = None
+    regen = True
+    while regen:
+        regen = False
+        nemesis = None
         
-    color_dark_wall = currentBranch.color_dark_wall
-    color_light_wall = currentBranch.color_light_wall
-    color_dark_ground = currentBranch.color_dark_ground
-    color_dark_gravel = currentBranch.color_dark_gravel
-    color_light_ground = currentBranch.color_light_ground
-    color_light_gravel = currentBranch.color_light_gravel
-    maxRooms = currentBranch.maxRooms
-    roomMinSize = currentBranch.roomMinSize
-    roomMaxSize = currentBranch.roomMaxSize
-
-    myMap = [[Tile(True, x = x, y = y, wall = True, chasm = generateChasm, hole = generateHole) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
-    #removeAllChasms()
-    rooms = []
-    roomTiles = []
-    tunnelTiles = []
-    unchasmable = []
-    noCheckTiles = []
-    numberRooms = 0
-    objects = [player]
-
-    for y in range (MAP_HEIGHT):
-        myMap[0][y].unbreakable = True
-        myMap[MAP_WIDTH-1][y].unbreakable = True
-    for x in range(MAP_WIDTH):
-        myMap[x][0].unbreakable = True
-        myMap[x][MAP_HEIGHT-1].unbreakable = True #Borders of the map cannot be broken
- 
-    for r in range(maxRooms):
-        w = randint(roomMinSize, roomMaxSize)
-        h = randint(roomMinSize, roomMaxSize)
-        x = randint(0, MAP_WIDTH-w-1)
-        y = randint(0, MAP_HEIGHT-h-1)
-        newRoom = Rectangle(x, y, w, h)
-        intersection = False
-        for otherRoom in rooms:
-            if newRoom.intersect(otherRoom):
-                intersection = True
-                break
-        if not intersection:
-            createRoom(newRoom)
-            lastCreatedRoom = newRoom
-            (new_x, new_y) = newRoom.center()
- 
-            if numberRooms == 0:
-                if not fall:
-                    player.x = new_x
-                    player.y = new_y
-                for x in range(newRoom.x1 + 1, newRoom.x2):
-                    for y in range(newRoom.y1 + 1, newRoom.y2):
-                        unchasmable.append((x, y))
-                if dungeonLevel > 1 or currentBranch.name != 'Main':
-                    if dungeonLevel > 1:
-                        formerBranch = currentBranch
-                    elif currentBranch.name != 'Main':
-                        formerBranch = currentBranch.origBranch
-                    upStairs = GameObject(new_x, new_y, '<', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor, Stairs=Stairs(climb='up', branchesFrom=formerBranch, branchesTo=currentBranch))
-                    objects.append(upStairs)
-                    upStairs.sendToBack()
-            else:
-                (previous_x, previous_y) = rooms[numberRooms-1].center()
-                bigTunnel = randint(0, 4)
-                big = bigTunnel == 0 and temple
-                if randint(0, 1):
-                    createHorizontalTunnel(previous_x, new_x, previous_y, big)
-                    createVerticalTunnel(previous_y, new_y, new_x, big)
-                else:
-                    createVerticalTunnel(previous_y, new_y, previous_x, big)
-                    createHorizontalTunnel(previous_x, new_x, new_y, big)
-            rooms.append(newRoom)
-            numberRooms += 1
-    if temple:
-        baseMap = list(deepcopy(myMap))
-        for x in range(MAP_WIDTH):
-            for y in range(MAP_HEIGHT):
-                '''
-                if countNeighbours(myMap, x, y) == 7:
-                    myMap[x][y].pillar = True
-                    myMap[x][y].character = 'O'
-                '''
-                if 0 <= countNeighbours(myMap, x, y) <= 2 and not myMap[x][y].pillar and not (x == 0 or x == MAP_WIDTH - 1 or y == 0 or y == MAP_HEIGHT - 1):
-                    if myMap[x][y].blocked:
-                        #baseMap[x][y].bg = colors.red
-                        baseMap[x][y].wall = False
-                        baseMap[x][y].blocked = False
-                        baseMap[x][y].character = None
-                if countNeighbours(myMap, x, y) == 3 and not myMap[x][y].pillar and not (x == 0 or x == MAP_WIDTH - 1 or y == 0 or y == MAP_HEIGHT - 1):
-                    if myMap[x][y].blocked:
-                        baseMap[x][y].pillar = True
-                        baseMap[x][y].blocked = True
-                        baseMap[x][y].character = 'o'
-        myMap = baseMap
+        found = checkFile('meta.bak', absMetaDirPath)
     
-    secretRoom(temple)
-    stairs = GameObject(new_x, new_y, '>', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor, Stairs=Stairs('down', currentBranch, currentBranch))
-    objects.append(stairs)
-    stairs.sendToBack()
-    for x in range(lastCreatedRoom.x1 + 1, lastCreatedRoom.x2):
-        for y in range(lastCreatedRoom.y1 + 1, lastCreatedRoom.y2):
-            unchasmable.append((x, y))
-    print("BEFORE CHASM")
-    
-    if generateChasm:
-        myMap = chasmGen.createChasms(myMap, roomTiles, tunnelTiles, unchasmable)
-    if generateHole:
-        myMap = holeGen.createHoles(myMap)
-    print("AFTER CHASM")
-    checkMap()
-    print("PREPING IDENTIFIYING")
-    applyIdentification()
-    print("DONE IDING")
-    r = 0
-    roomCounter = 0
-    for room in rooms:
-        roomCounter += 1
-        print("ROOMS LENGTH = {} AND SWE ARE AT THE {}TH TIME PLACING FREAKING OBJECTS".format(len(rooms), roomCounter))
-        if r == 0:
-            placeObjects(room, True)
+        if not found:
+            file = shelve.open(absMetaPath, "c")
+            print('found no nemesis file')
         else:
-            placeObjects(room)
-    
-    print("DONE ITEMS")
-    
-    if nemesis is not None:
-        randRoom = randint(0, len(rooms) - 1)
-        print("DONE NEM RAND")
-        room = rooms[randRoom]
-        print("DONE NEM ROOM")
-        created = False
-        counter = 0
-        while not created and counter <= 25:
-            counter += 1
-            x = randint(room.x1 + 1, room.x2)
-            y = randint(room.y1 + 1, room.y2)
-            if not (isBlocked(x, y) or myMap[x][y].chasm):
-                created = True
-        if created:
-            print("DONE NEM COORDS")
-            nemesisMonster = nemesis.nemesisObject
-            print("DONE NEM")
-            nemesisMonster.x = x
-            nemesisMonster.y = y
-            print("DONE NEM POS")
-            objects.append(nemesisMonster)
-            print('created nemesis', nemesisMonster.name, x, y)
-    
-    print("DONE NEMESIS")
-    branches = []
-    for (branch, level) in currentBranch.branchesTo:
-        print("IN BRANCH LEVEL LOOP")
-        branches.append(branch)
-        if dungeonLevel == level and not branch.appeared:
-            createdStairs = False
-            while not createdStairs:
-                randRoom = randint(0, len(rooms) - 1)
-                room = rooms[randRoom]
-                chasmedRoom = False
-                for x in range(room.x1 + 1, room.x2):
-                    for y in range(room.y1 + 1, room.y2):
-                        if myMap[x][y].chasm:
-                            chasmedRoom = True
+            print('found nemesis file')
+            file = shelve.open(absMetaPath, "r")
+            try:
+                nemesisList = file['nemesis']
+                for nemesis in nemesisList:
+                    print(nemesis.branch, currentBranch.shortName)
+                    print(nemesis.level, dungeonLevel)
+                    if nemesis.branch == currentBranch.shortName and nemesis.level == dungeonLevel:
+                        dice = randint(1, 100)
+                        TARGET_CONSTANT = 5
+                        target = int(TARGET_CONSTANT + (dungeonLevel * dungeonLevel) / 10)
+                        print(dice, target)
+                        if dice <= target:
                             break
-                    if chasmedRoom:
-                        break
-                (x, y) = room.center()
-                wrongCentre = False
-                for object in objects:
-                    if object.x == x and object.y == y:
-                        wrongCentre = True
-                        break
-                if not wrongCentre and not chasmedRoom:
-                    newStairs = GameObject(x, y, '>', 'stairs to ' + branch.name, branch.lightStairsColor, alwaysVisible = True, darkColor = branch.darkStairsColor, Stairs=Stairs('down', currentBranch, branch))
-                    objects.append(newStairs)
-                    newStairs.sendToBack()
-                    branch.appeared = True
-                    createdStairs = True
-                    print('created {} stairs at {}, {}'.format(branch.shortName, str(x), str(y)))
+                        nemesis = None
+            except KeyError:
+                print("========WARNING========")
+                print('No nemesis in file')
+                print("=======================")
+        file.close()
         
-        '''
-        if branch == dBr.gluttonyDungeon:
-            if dungeonLevel == level and not bossDungeonsAppeared['gluttony']:
-                createdStairs = False
-                while not createdStairs:
-                    randRoom = randint(0, len(rooms) - 1)
-                    room = rooms[randRoom]
-                    chasmedRoom = False
-                    for x in range(room.x1 + 1, room.x2):
-                        for y in range(room.y1 + 1, room.y2):
-                            if myMap[x][y].chasm:
-                                chasmedRoom = True
-                                break
-                        if chasmedRoom:
-                            break
-                    (x, y) = room.center()
-                    wrongCentre = False
-                    for object in objects:
-                        if object.x == x and object.y == y:
-                            wrongCentre = True
-                            break
-                    if not wrongCentre and not chasmedRoom:
-                        global gluttonyStairs
-                        gluttonyStairs = GameObject(x, y, '>', 'stairs to Gluttony', branch.lightStairsColor, alwaysVisible = True, darkColor = branch.darkStairsColor)
-                        objects.append(gluttonyStairs)
-                        gluttonyStairs.sendToBack()
-                        bossDungeonsAppeared['gluttony'] = True
-                        createdStairs = True
-                        print('created gluttonys stairs at ' + str(x) + ', ' + str(y))
-        elif branch == dBr.greedDungeon:
-            if dungeonLevel == level and not bossDungeonsAppeared['greed']:
-                createdStairs = False
-                while not createdStairs:
-                    randRoom = randint(0, len(rooms) - 1)
-                    room = rooms[randRoom]
-                    chasmedRoom = False
-                    for x in range(room.x1 + 1, room.x2):
-                        for y in range(room.y1 + 1, room.y2):
-                            if myMap[x][y].chasm:
-                                chasmedRoom = True
-                                break
-                        if chasmedRoom:
-                            break
-                    (x, y) = room.center()
-                    wrongCentre = False
-                    for object in objects:
-                        if object.x == x and object.y == y:
-                            wrongCentre = True
-                            break
-                    if not wrongCentre and not chasmedRoom:
-                        global greedStairs
-                        greedStairs = GameObject(x, y, '>', 'stairs to Greed', branch.lightStairsColor, alwaysVisible = True, darkColor = branch.darkStairsColor)
-                        objects.append(greedStairs)
-                        greedStairs.sendToBack()
-                        bossDungeonsAppeared['greed'] = True
-                        createdStairs = True
-                        print('created greeds stairs at ' + str(x) + ', ' + str(y))
-            else:
-                global greedStairs
-                print('No greed stairs on this level')
-                greedStairs = None
-        elif branch == dBr.hiddenTown:
-            if dungeonLevel == level:
-                createdStairs = False
-                while not createdStairs:
-                    randRoom = randint(0, len(rooms) - 1)
-                    room = rooms[randRoom]
-                    chasmedRoom = False
-                    for x in range(room.x1 + 1, room.x2):
-                        for y in range(room.y1 + 1, room.y2):
-                            if myMap[x][y].chasm:
-                                chasmedRoom = True
-                                break
-                        if chasmedRoom:
-                            break
-                    wrongCentre = False
-                    for object in objects:
-                        if object.x == x and object.y == y:
-                            wrongCentre = True
-                            break
-                    (x, y) = room.center()
-                    if not wrongCentre and not chasmedRoom:
-                        global townStairs
-                        townStairs = GameObject(x, y, '>', 'glowing portal', branch.lightStairsColor, alwaysVisible = True, darkColor = branch.darkStairsColor)
-                        objects.append(townStairs)
-                        gluttonyStairs.sendToBack()
-                        createdStairs = True
-                        print('created hidden town stairs at ' + str(x) + ', ' + str(y))
-            else:
-                global townStairs
-                print('No town stairs on this level')
-                townStairs = None
-        elif branch == dBr.wrathDungeon:
-            if dungeonLevel == level and not bossDungeonsAppeared['wrath']:
-                createdStairs = False
-                while not createdStairs:
-                    randRoom = randint(0, len(rooms) - 1)
-                    room = rooms[randRoom]
-                    chasmedRoom = False
-                    for x in range(room.x1 + 1, room.x2):
-                        for y in range(room.y1 + 1, room.y2):
-                            if myMap[x][y].chasm:
-                                chasmedRoom = True
-                                break
-                        if chasmedRoom:
-                            break
-                    (x, y) = room.center()
-                    wrongCentre = False
-                    for object in objects:
-                        if object.x == x and object.y == y:
-                            wrongCentre = True
-                            break
-                    if not wrongCentre and not chasmedRoom:
-                        global wrathStairs
-                        wrathStairs = GameObject(x, y, '>', 'stairs to Wrath', branch.lightStairsColor, alwaysVisible = True, darkColor = branch.darkStairsColor)
-                        objects.append(wrathStairs)
-                        wrathStairs.sendToBack()
-                        bossDungeonsAppeared['wrath'] = True
-                        createdStairs = True
-                        print('created wraths stairs at ' + str(x) + ', ' + str(y))
-        '''
-    
-    if not dBr.hiddenTown in branches:
-        global townStairs
-        print('Wrong branch for town stairs')
-        townStairs = None
-    if not dBr.gluttonyDungeon in branches:
-        global gluttonyStairs
-        print('Wrong branch for gluttony stairs')
+        stairs = None
+        upStairs = None
         gluttonyStairs = None
-    if not dBr.wrathDungeon in branches:
-        global wrathStairs
-        print('Wrong branch for wrath stairs')
+        townStairs = None
         wrathStairs = None
+        bossTiles = None
+            
+        color_dark_wall = currentBranch.color_dark_wall
+        color_light_wall = currentBranch.color_light_wall
+        color_dark_ground = currentBranch.color_dark_ground
+        color_dark_gravel = currentBranch.color_dark_gravel
+        color_light_ground = currentBranch.color_light_ground
+        color_light_gravel = currentBranch.color_light_gravel
+        maxRooms = currentBranch.maxRooms
+        roomMinSize = currentBranch.roomMinSize
+        roomMaxSize = currentBranch.roomMaxSize
     
-    if fall:
-        fallen = False
-        while not fallen:
-            x, y = randint(1, MAP_WIDTH - 1), randint(1, MAP_HEIGHT - 1)
-            if not myMap[x][y].chasm and not isBlocked(x, y):
-                player.x, player.y = x, y
-                fallen = True
-    updateTileCoords()
-         
+        myMap = [[Tile(True, x = x, y = y, wall = True, chasm = generateChasm, hole = generateHole) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
+        #removeAllChasms()
+        rooms = []
+        roomTiles = []
+        tunnelTiles = []
+        unchasmable = []
+        noCheckTiles = []
+        numberRooms = 0
+        objects = [player]
+    
+        for y in range (MAP_HEIGHT):
+            myMap[0][y].unbreakable = True
+            myMap[MAP_WIDTH-1][y].unbreakable = True
+        for x in range(MAP_WIDTH):
+            myMap[x][0].unbreakable = True
+            myMap[x][MAP_HEIGHT-1].unbreakable = True #Borders of the map cannot be broken
+     
+        for r in range(maxRooms):
+            w = randint(roomMinSize, roomMaxSize)
+            h = randint(roomMinSize, roomMaxSize)
+            x = randint(0, MAP_WIDTH-w-1)
+            y = randint(0, MAP_HEIGHT-h-1)
+            newRoom = Rectangle(x, y, w, h)
+            intersection = False
+            for otherRoom in rooms:
+                if newRoom.intersect(otherRoom):
+                    intersection = True
+                    break
+            if not intersection:
+                createRoom(newRoom)
+                lastCreatedRoom = newRoom
+                (new_x, new_y) = newRoom.center()
+     
+                if numberRooms == 0:
+                    if not fall:
+                        player.x = new_x
+                        player.y = new_y
+                    for x in range(newRoom.x1 + 1, newRoom.x2):
+                        for y in range(newRoom.y1 + 1, newRoom.y2):
+                            unchasmable.append((x, y))
+                    if dungeonLevel > 1 or currentBranch.name != 'Main':
+                        if dungeonLevel > 1:
+                            formerBranch = currentBranch
+                        elif currentBranch.name != 'Main':
+                            formerBranch = currentBranch.origBranch
+                        upStairs = GameObject(new_x, new_y, '<', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor, Stairs=Stairs(climb='up', branchesFrom=formerBranch, branchesTo=currentBranch))
+                        objects.append(upStairs)
+                        upStairs.sendToBack()
+                else:
+                    (previous_x, previous_y) = rooms[numberRooms-1].center()
+                    bigTunnel = randint(0, 4)
+                    big = bigTunnel == 0 and temple
+                    if randint(0, 1):
+                        createHorizontalTunnel(previous_x, new_x, previous_y, big)
+                        createVerticalTunnel(previous_y, new_y, new_x, big)
+                    else:
+                        createVerticalTunnel(previous_y, new_y, previous_x, big)
+                        createHorizontalTunnel(previous_x, new_x, new_y, big)
+                rooms.append(newRoom)
+                numberRooms += 1
+        if temple:
+            baseMap = list(deepcopy(myMap))
+            for x in range(MAP_WIDTH):
+                for y in range(MAP_HEIGHT):
+                    '''
+                    if countNeighbours(myMap, x, y) == 7:
+                        myMap[x][y].pillar = True
+                        myMap[x][y].character = 'O'
+                    '''
+                    if 0 <= countNeighbours(myMap, x, y) <= 2 and not myMap[x][y].pillar and not (x == 0 or x == MAP_WIDTH - 1 or y == 0 or y == MAP_HEIGHT - 1):
+                        if myMap[x][y].blocked:
+                            #baseMap[x][y].bg = colors.red
+                            baseMap[x][y].wall = False
+                            baseMap[x][y].blocked = False
+                            baseMap[x][y].character = None
+                    if countNeighbours(myMap, x, y) == 3 and not myMap[x][y].pillar and not (x == 0 or x == MAP_WIDTH - 1 or y == 0 or y == MAP_HEIGHT - 1):
+                        if myMap[x][y].blocked:
+                            baseMap[x][y].pillar = True
+                            baseMap[x][y].blocked = True
+                            baseMap[x][y].character = 'o'
+            myMap = baseMap
+        
+        secretRoom(temple)
+        stairs = GameObject(new_x, new_y, '>', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor, Stairs=Stairs('down', currentBranch, currentBranch))
+        objects.append(stairs)
+        stairs.sendToBack()
+        for x in range(lastCreatedRoom.x1 + 1, lastCreatedRoom.x2):
+            for y in range(lastCreatedRoom.y1 + 1, lastCreatedRoom.y2):
+                unchasmable.append((x, y))
+        print("BEFORE CHASM")
+        
+        if generateChasm:
+            myMap = chasmGen.createChasms(myMap, roomTiles, tunnelTiles, unchasmable)
+        if generateHole:
+            myMap = holeGen.createHoles(myMap)
+        print("AFTER CHASM")
+        checkMap()
+        print("PREPING IDENTIFIYING")
+        applyIdentification()
+        print("DONE IDING")
+        r = 0
+        roomCounter = 0
+        for room in rooms:
+            roomCounter += 1
+            print("ROOMS LENGTH = {} AND SWE ARE AT THE {}TH TIME PLACING FREAKING OBJECTS".format(len(rooms), roomCounter))
+            if r == 0:
+                placeObjects(room, True)
+            else:
+                placeObjects(room)
+        
+        print("DONE ITEMS")
+        
+        if nemesis is not None:
+            randRoom = randint(0, len(rooms) - 1)
+            print("DONE NEM RAND")
+            room = rooms[randRoom]
+            print("DONE NEM ROOM")
+            created = False
+            counter = 0
+            while not created and counter <= 25:
+                counter += 1
+                x = randint(room.x1 + 1, room.x2)
+                y = randint(room.y1 + 1, room.y2)
+                if not (isBlocked(x, y) or myMap[x][y].chasm):
+                    created = True
+            if created:
+                print("DONE NEM COORDS")
+                nemesisMonster = nemesis.nemesisObject
+                print("DONE NEM")
+                nemesisMonster.x = x
+                nemesisMonster.y = y
+                print("DONE NEM POS")
+                objects.append(nemesisMonster)
+                print('created nemesis', nemesisMonster.name, x, y)
+        
+        print("DONE NEMESIS")
+        branches = []
+        for (branch, level) in currentBranch.branchesTo:
+            print("IN BRANCH LEVEL LOOP")
+            branches.append(branch)
+            if dungeonLevel == level and not branch.appeared:
+                createdStairs = False
+                stairsCounter = 0
+                while not createdStairs:
+                    stairsCounter += 1
+                    if stairsCounter > REGEN_THRESHOLD:
+                        regen = True
+                        print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
+                        print("SET REGEN TO TRUE !!!!!!!!!!!!")
+                        print("SEE MESSAGE ABOVE")
+                        print("IMPORTANT NOTICE ABOVE")
+                        print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
+                        break
+                    randRoom = randint(0, len(rooms) - 1)
+                    room = rooms[randRoom]
+                    chasmedRoom = False
+                    for x in range(room.x1 + 1, room.x2):
+                        for y in range(room.y1 + 1, room.y2):
+                            if myMap[x][y].chasm:
+                                chasmedRoom = True
+                                break
+                        if chasmedRoom:
+                            break
+                    (x, y) = room.center()
+                    wrongCentre = False
+                    for object in objects:
+                        if object.x == x and object.y == y:
+                            wrongCentre = True
+                            break
+                    if not wrongCentre and not chasmedRoom:
+                        newStairs = GameObject(x, y, '>', 'stairs to ' + branch.name, branch.lightStairsColor, alwaysVisible = True, darkColor = branch.darkStairsColor, Stairs=Stairs('down', currentBranch, branch))
+                        objects.append(newStairs)
+                        newStairs.sendToBack()
+                        branch.appeared = True
+                        createdStairs = True
+                        print('created {} stairs at {}, {}'.format(branch.shortName, str(x), str(y)))
+                
+            '''
+            if branch == dBr.gluttonyDungeon:
+                if dungeonLevel == level and not bossDungeonsAppeared['gluttony']:
+                    createdStairs = False
+                    while not createdStairs:
+                        randRoom = randint(0, len(rooms) - 1)
+                        room = rooms[randRoom]
+                        chasmedRoom = False
+                        for x in range(room.x1 + 1, room.x2):
+                            for y in range(room.y1 + 1, room.y2):
+                                if myMap[x][y].chasm:
+                                    chasmedRoom = True
+                                    break
+                            if chasmedRoom:
+                                break
+                        (x, y) = room.center()
+                        wrongCentre = False
+                        for object in objects:
+                            if object.x == x and object.y == y:
+                                wrongCentre = True
+                                break
+                        if not wrongCentre and not chasmedRoom:
+                            global gluttonyStairs
+                            gluttonyStairs = GameObject(x, y, '>', 'stairs to Gluttony', branch.lightStairsColor, alwaysVisible = True, darkColor = branch.darkStairsColor)
+                            objects.append(gluttonyStairs)
+                            gluttonyStairs.sendToBack()
+                            bossDungeonsAppeared['gluttony'] = True
+                            createdStairs = True
+                            print('created gluttonys stairs at ' + str(x) + ', ' + str(y))
+            elif branch == dBr.greedDungeon:
+                if dungeonLevel == level and not bossDungeonsAppeared['greed']:
+                    createdStairs = False
+                    while not createdStairs:
+                        randRoom = randint(0, len(rooms) - 1)
+                        room = rooms[randRoom]
+                        chasmedRoom = False
+                        for x in range(room.x1 + 1, room.x2):
+                            for y in range(room.y1 + 1, room.y2):
+                                if myMap[x][y].chasm:
+                                    chasmedRoom = True
+                                    break
+                            if chasmedRoom:
+                                break
+                        (x, y) = room.center()
+                        wrongCentre = False
+                        for object in objects:
+                            if object.x == x and object.y == y:
+                                wrongCentre = True
+                                break
+                        if not wrongCentre and not chasmedRoom:
+                            global greedStairs
+                            greedStairs = GameObject(x, y, '>', 'stairs to Greed', branch.lightStairsColor, alwaysVisible = True, darkColor = branch.darkStairsColor)
+                            objects.append(greedStairs)
+                            greedStairs.sendToBack()
+                            bossDungeonsAppeared['greed'] = True
+                            createdStairs = True
+                            print('created greeds stairs at ' + str(x) + ', ' + str(y))
+                else:
+                    global greedStairs
+                    print('No greed stairs on this level')
+                    greedStairs = None
+            elif branch == dBr.hiddenTown:
+                if dungeonLevel == level:
+                    createdStairs = False
+                    while not createdStairs:
+                        randRoom = randint(0, len(rooms) - 1)
+                        room = rooms[randRoom]
+                        chasmedRoom = False
+                        for x in range(room.x1 + 1, room.x2):
+                            for y in range(room.y1 + 1, room.y2):
+                                if myMap[x][y].chasm:
+                                    chasmedRoom = True
+                                    break
+                            if chasmedRoom:
+                                break
+                        wrongCentre = False
+                        for object in objects:
+                            if object.x == x and object.y == y:
+                                wrongCentre = True
+                                break
+                        (x, y) = room.center()
+                        if not wrongCentre and not chasmedRoom:
+                            global townStairs
+                            townStairs = GameObject(x, y, '>', 'glowing portal', branch.lightStairsColor, alwaysVisible = True, darkColor = branch.darkStairsColor)
+                            objects.append(townStairs)
+                            gluttonyStairs.sendToBack()
+                            createdStairs = True
+                            print('created hidden town stairs at ' + str(x) + ', ' + str(y))
+                else:
+                    global townStairs
+                    print('No town stairs on this level')
+                    townStairs = None
+            elif branch == dBr.wrathDungeon:
+                if dungeonLevel == level and not bossDungeonsAppeared['wrath']:
+                    createdStairs = False
+                    while not createdStairs:
+                        randRoom = randint(0, len(rooms) - 1)
+                        room = rooms[randRoom]
+                        chasmedRoom = False
+                        for x in range(room.x1 + 1, room.x2):
+                            for y in range(room.y1 + 1, room.y2):
+                                if myMap[x][y].chasm:
+                                    chasmedRoom = True
+                                    break
+                            if chasmedRoom:
+                                break
+                        (x, y) = room.center()
+                        wrongCentre = False
+                        for object in objects:
+                            if object.x == x and object.y == y:
+                                wrongCentre = True
+                                break
+                        if not wrongCentre and not chasmedRoom:
+                            global wrathStairs
+                            wrathStairs = GameObject(x, y, '>', 'stairs to Wrath', branch.lightStairsColor, alwaysVisible = True, darkColor = branch.darkStairsColor)
+                            objects.append(wrathStairs)
+                            wrathStairs.sendToBack()
+                            bossDungeonsAppeared['wrath'] = True
+                            createdStairs = True
+                            print('created wraths stairs at ' + str(x) + ', ' + str(y))
+            '''
+        if not regen:
+            if not dBr.hiddenTown in branches:
+                global townStairs
+                print('Wrong branch for town stairs')
+                townStairs = None
+            if not dBr.gluttonyDungeon in branches:
+                global gluttonyStairs
+                print('Wrong branch for gluttony stairs')
+                gluttonyStairs = None
+            if not dBr.wrathDungeon in branches:
+                global wrathStairs
+                print('Wrong branch for wrath stairs')
+                wrathStairs = None
+            
+            if fall:
+                fallen = False
+                while not fallen:
+                    x, y = randint(1, MAP_WIDTH - 1), randint(1, MAP_HEIGHT - 1)
+                    if not myMap[x][y].chasm and not isBlocked(x, y):
+                        player.x, player.y = x, y
+                        fallen = True
+            updateTileCoords()
+        else:
+            print("Regenerating map...")
+
+def closeAndMakeWall(x, y, mapToUse, unbreakable):
+    closeTile(x,y, mapToUse, unbreakable)
+    mapToUse[x][y].applyWallProperties()
+
 def makeBossLevel(fall = False, generateHole=False):
     '''
     Creates boss level
-    Function alias (for search function, because Edern (me) always types in makeBossRoom instead of makeBossLevel) : makeBossRoom
+    Function alias (for search function, because Edern (me) always types in makeBossRoom instead of makeBossLevel) : def makeBossRoom
     '''
     global myMap, objects, upStairs, rooms, numberRooms, bossTiles
     myMap = [[Tile(True, x = x, y = y, wall = True, hole = generateHole) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
@@ -6959,24 +6998,55 @@ def makeBossLevel(fall = False, generateHole=False):
     '''
     
     bossFFWrapper(sX, sY, entrance, copyBoss) #PSA : It works better if you place it AFTER you create the entrance (because this function is supposed to find the entrance). I may or may not have spent one hour before figuring that out.
+    for loop in range(len(entrance)):
+        if loop > 0:
+            if (entrance[loop].x, entrance[loop].y) == (entrance[loop - 1].x, entrance[loop - 1].y):
+                print("Removed duplicated tile")
+                entrance.remove(entrance[loop])
     print(entrance)
-    for tilE in entrance:
-        print("{};{}".format(tilE.x, tilE.y))
-    
-    for tile in entrance:
-        tile.character = 'X'
-        tile.fg = colors.blue
-        tile.FG = colors.blue
-        tile.bg = colors.light_pink
-        tile.BG = colors.light_pink
-        tile.dark_bg = colors.light_pink
-        tile.DARK_BG = colors.light_pink
+    if len(entrance) > 1:
+        for tile in entrance:
+            print("ERROR :")
+            print(tile.x, tile.y, sep = ";")
+        raise ValueError("Entrance list is {} long instead of 1".format(len(entrance)))
+    else:
+        global bossEntrance
+        for tilE in entrance:
+            print("{};{}".format(tilE.x, tilE.y))
         
+        bossEntrance = entrance[0]
+        #for bossEntrance in entrance:
+        '''
+        bossEntrance.character = 'X'
+        bossEntrance.fg = colors.blue
+        bossEntrance.FG = colors.blue
+        bossEntrance.bg = colors.light_pink
+        bossEntrance.BG = colors.light_pink
+        bossEntrance.dark_bg = colors.light_pink
+        bossEntrance.DARK_BG = colors.light_pink
+        '''
+        
+        for otherTile in bossEntrance.neighbors():
+            if otherTile in bossTiles and not otherTile.blocked:
+                try:
+                    assert isinstance(otherTile, Tile)
+                except:
+                    pass #Cause loading shenanigans. 
+                '''
+                otherTile.character = 1
+                otherTile.bg = colors.amber
+                otherTile.fg = colors.green
+                '''
+                otherTile.onTriggerFunction = lambda tile : closeAndMakeWall(bossEntrance.x, bossEntrance.y, myMap, True)
+    
+    
+    '''        
     for stuff in visuBoss:
         stuff.bg = colors.light_yellow
         stuff.BG = colors.light_yellow
         stuff.dark_bg = colors.light_yellow
         stuff.DARK_BG = colors.light_yellow
+    '''
     
     if fall:
         fallen = False
@@ -7081,6 +7151,18 @@ def basicBossDeath(monster):
                 else:
                     lootItem(item, monster.x, monster.y)
             itemIndex += 1
+    
+    for tile in bossTiles:
+        try:
+            assert isinstance(tile, Tile) #Just so as to have Eclipse auto-completion
+        except AssertionError:
+            pass #If tile is indeed a tile, but a save has been loaded, the assertion will fail. So, we just ignore the assertion error
+
+    
+    tile.onTriggerFunction = printTileWhenWalked
+    bossEntrance.unbreakable = False
+    bossEntrance.open()
+    bossEntrance.applyGroundProperties()
 
     monster.char = '%'
     monster.color = colors.dark_red
@@ -7319,6 +7401,7 @@ def placeBoss(name, x, y):
         AI_component = HighInquisitor()
         boss = GameObject(x, y, char = 'I', color = colors.darker_magenta, name = name, blocks = True, Fighter = fighterComponent, AI = AI_component)
         objects.append(boss)
+    
                 
 #_____________ BOSS FIGHT __________________
 
@@ -9253,6 +9336,11 @@ def saveGame():
         file['bossTiles'] = bossTiles
     else:
         print("CANNOT SAVE BOSS TILES CAUSE NO BOSS TILES")
+        
+    if bossEntrance is not None:
+        file["bossEntrance"] = bossEntrance
+    else:
+        print("CANNOT SAVE BOSS ENTRANCE")
     
     '''
     if dungeonLevel > 1 or currentBranch.name != 'Main':
@@ -9314,14 +9402,19 @@ def saveGame():
     #mapFile.close()
 
 def reloadBossTiles():
+    '''
+    Alias : resetBossTiles
+    '''
     newTiles = []
     for tile in bossTiles:
         newTiles.append(myMap[tile.x][tile.y])
     return newTiles
-        
+
+def reloadEntrance():
+    return myMap[bossEntrance.x][bossEntrance.y]
 
 def newGame():
-    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, gameMsgs, identifiedItems, equipmentList, currentBranch, bossDungeonsAppeared, DEBUG, REVEL, logMsgs, tilesInRange, tilesinPath, tilesInRect, menuWindows, explodingTiles, hiroshimanNumber, FOV_recompute, bossTiles
+    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, gameMsgs, identifiedItems, equipmentList, currentBranch, bossDungeonsAppeared, DEBUG, REVEL, logMsgs, tilesInRange, tilesinPath, tilesInRect, menuWindows, explodingTiles, hiroshimanNumber, FOV_recompute, bossTiles, bossEntrance
     
     DEBUG = False
     REVEL = False
@@ -9339,6 +9432,7 @@ def newGame():
     hiroshimanNumber = 0
     FOV_recompute = True
     bossTiles = None
+    bossEntrance = None
     
     currentBranch = dBr.mainDungeon
     dungeonLevel = 1 
@@ -9380,7 +9474,7 @@ def loadGame():
     For example, this caused spells to be able to be learned multiple time after saving/loading, because we checked if the Spell object was in the spells list, though the memory adresses of the loaded Spell objects in the spell list had changed, hence why Python thought the original spells were no longer in the spells list and allowed them to be relearned.
     loadLevel() very probably has the same behaviour, though it causes less problems because we load a lesser amount of less critcal data.
     '''
-    global FOV_recompute, objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipmentList, stairs, upStairs, hiroshimanNumber, currentBranch, gluttonyStairs, logMsgs, townStairs, greedStairs, wrathStairs, potionIdentify, scrollIdentify, nameDict, colorDict, bossTiles, currentMusic
+    global FOV_recompute, objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipmentList, stairs, upStairs, hiroshimanNumber, currentBranch, gluttonyStairs, logMsgs, townStairs, greedStairs, wrathStairs, potionIdentify, scrollIdentify, nameDict, colorDict, bossTiles, currentMusic, bossEntrance
     
     FOV_recompute = True
     #myMap = [[Tile(True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)]
@@ -9411,6 +9505,14 @@ def loadGame():
     except KeyError:
         bossTiles = None
         print("NO BOSS TILES")
+        
+    try:
+        bossEntrance = file['bossEntrance']
+        bufferEntrance = reloadEntrance()
+        bossEntrance = bufferEntrance
+    except KeyError:
+        bossEntrance = None
+        print("NO BOSS ENTRANCE")
     
     '''
     if dungeonLevel > 1 or currentBranch.name != 'Main':
@@ -9454,6 +9556,11 @@ def saveLevel(level = dungeonLevel):
         mapFile["bossTiles"] = bossTiles
     else:
         print("CANNOT SAVE BOSS TILES")
+    
+    if bossEntrance is not None:
+        mapFile["bossEntrance"] = bossEntrance
+    else:
+        print("CANNOT SAVE BOSS ENTRANCE")
     '''
     if currentBranch.shortName != 'town':
         mapFile["stairsIndex"] = objects.index(stairs)
@@ -9524,7 +9631,7 @@ def loadLevel(level, save = True, branch = currentBranch, fall = False, fromStai
     '''
     @attention : See loadGame() docstring
     '''
-    global objects, player, myMap, stairs, dungeonLevel, gluttonyStairs, townStairs, currentBranch, wrathStairs, greedStairs, bossTiles
+    global objects, player, myMap, stairs, dungeonLevel, gluttonyStairs, townStairs, currentBranch, wrathStairs, greedStairs, bossTiles, bossEntrance
     if fall:
         fromStairs = None
     if save:
@@ -9545,6 +9652,14 @@ def loadLevel(level, save = True, branch = currentBranch, fall = False, fromStai
     except KeyError:
         print("COULDNT LOAD BOSS TILES")
         bossTiles = None
+        
+    try:
+        bossEntrance = xfile["bossEntrance"]
+        bufferEntrance = reloadBossTiles()
+        bossEntrance = list(bufferTiles)
+    except KeyError:
+        print("COULDNT LOAD BOSS ENTRANCE")
+        bossEntrance = None
     #if fromStairs:
     #    for object in objects:
     #        if object.Stairs:
