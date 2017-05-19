@@ -3520,7 +3520,7 @@ class Item:
                 message('Amount is None', colors.red)
         else:
             message('You dropped a ' + self.owner.name + '.', colors.yellow)
-        if self.owner.Equipment:
+        if self.owner.Equipment and self.owner.Equipment.isEquipped:
             self.owner.Equipment.unequip()
     
     def fullDescription(self, width):
@@ -5325,7 +5325,7 @@ def monsterArmageddon(monsterName, monsterX, monsterY, radius = 4, damage = 40, 
                     myMap[x][y].blocked = False
                     myMap[x][y].block_sight = False
                     myMap[x][y].wall = False
-                    myMap[x][y].applyGroundProperties()
+                    myMap[x][y].applyGroundProperties(explode=True)
                     if x in range (1, MAP_WIDTH-1) and y in range (1,MAP_HEIGHT - 1):
                         explodingTiles.append((x,y))
                     for obj in objects:
@@ -5584,16 +5584,22 @@ class Tile:
             self.DARK_BG = (0, 0, 16)
             self.dark_bg = (0, 0, 16)
     
-    def applyGroundProperties(self, explode = False):
+    def applyGroundProperties(self, explode = False, temple = False):
+        if temple:
+            gravelChar1 = chr(250)
+            gravelChar2 = chr(254)
+        else:
+            gravelChar1 = chr(177)
+            gravelChar2 = chr(176)
         if explode:
             if not self.chasm or self.wall:
                 gravelChoice = randint(0, 5)
                 self.blocked = False
                 self.block_sight = False
                 if gravelChoice == 0:
-                    self.character = chr(177)
+                    self.character = gravelChar1
                 elif gravelChoice == 1:
-                    self.character = chr(176)
+                    self.character = gravelChar2
                 else:
                     self.character = None
                 self.fg = color_light_gravel
@@ -5608,9 +5614,9 @@ class Tile:
                 self.blocked = False
                 self.block_sight = False
                 if gravelChoice == 0:
-                    self.character = chr(177)
+                    self.character = gravelChar1
                 elif gravelChoice == 1:
-                    self.character = chr(176)
+                    self.character = gravelChar2
                 else:
                     self.character = None
                 self.fg = color_light_gravel
@@ -6284,25 +6290,30 @@ def createRoom(room, pillar=False):
     global myMap, roomTiles
     for x in range(room.x1 + 1, room.x2):
         for y in range(room.y1 + 1, room.y2):
-            myMap[x][y].applyGroundProperties()
+            myMap[x][y].applyGroundProperties(temple = pillar)
             roomTiles.append((x, y))
     if pillar:
         centerPillar = randint(0, 2)
         if centerPillar != 0:
             myMap[room.x1 + 2][room.y1 + 2].pillar = True
+            myMap[room.x1 + 2][room.y1 + 2].blocked = True
             myMap[room.x1 + 2][room.y1 + 2].character = 'o'
             myMap[room.x1 + 2][room.y2 - 2].pillar = True
+            myMap[room.x1 + 2][room.y2 - 2].blocked = True
             myMap[room.x1 + 2][room.y2 - 2].character = 'o'
             myMap[room.x2 - 2][room.y1 + 2].pillar = True
+            myMap[room.x2 - 2][room.y1 + 2].blocked = True
             myMap[room.x2 - 2][room.y1 + 2].character = 'o'
             myMap[room.x2 - 2][room.y2 - 2].pillar = True
+            myMap[room.x2 - 2][room.y2 - 2].blocked = True
             myMap[room.x2 - 2][room.y2 - 2].character = 'o'
         else:
             x, y = room.center()
+            myMap[x][y].blocked = True
             myMap[x][y].pillar = True
             myMap[x][y].character = 'o'
             
-def checkMap():
+def checkMap(temple = False):
     for x in range(MAP_WIDTH):
         for y in range(MAP_HEIGHT):
             myMap[x][y].djikCost = None
@@ -6312,41 +6323,42 @@ def checkMap():
                     if myMap[x][y].chasm:
                         myMap[x][y].applyChasmProperties()
                     else:
-                        myMap[x][y].applyGroundProperties()
+                        myMap[x][y].applyGroundProperties(temple=temple)
                 elif myMap[x][y].wall and not myMap[x][y].pillar:
                     myMap[x][y].applyWallProperties()
                 elif myMap[x][y].chasm and not myMap[x][y].secretWall:
                     myMap[x][y].applyChasmProperties()
                     myMap[x][y].wall = False
                 elif myMap[x][y].pillar:
+                    myMap[x][y].blocked = True
                     myMap[x][y].character = 'o'
                 elif not myMap[x][y].secretWall:
-                    myMap[x][y].applyGroundProperties()
+                    myMap[x][y].applyGroundProperties(temple=temple)
                     myMap[x][y].wall = False
             
             
 def createHorizontalTunnel(x1, x2, y, big = False):
     global myMap, tunnelTiles
     for x in range(min(x1, x2), max(x1, x2) + 1):
-        myMap[x][y].applyGroundProperties()
+        myMap[x][y].applyGroundProperties(temple=big)
         tunnelTiles.append((x, y))
     if big:
         for x in range(min(x1, x2) - 1, max(x1, x2) + 2):
-            myMap[x][y + 1].applyGroundProperties()
+            myMap[x][y + 1].applyGroundProperties(temple=big)
             tunnelTiles.append((x, y + 1))
-            myMap[x][y - 1].applyGroundProperties()
+            myMap[x][y - 1].applyGroundProperties(temple=big)
             tunnelTiles.append((x, y - 1))
             
 def createVerticalTunnel(y1, y2, x, big = False):
     global myMap, tunnelTiles
     for y in range(min(y1, y2), max(y1, y2) + 1):
-        myMap[x][y].applyGroundProperties()
+        myMap[x][y].applyGroundProperties(temple=big)
         tunnelTiles.append((x, y))
     if big:
         for y in range(min(y1, y2) - 1, max(y1, y2) + 2):
-            myMap[x + 1][y].applyGroundProperties()
+            myMap[x + 1][y].applyGroundProperties(temple=big)
             tunnelTiles.append((x + 1, y))
-            myMap[x - 1][y].applyGroundProperties()
+            myMap[x - 1][y].applyGroundProperties(temple=big)
             tunnelTiles.append((x - 1, y))
 
 def secretRoomTest(startingX, endX, startingY, endY, width = 4):
@@ -6358,7 +6370,11 @@ def secretRoomTest(startingX, endX, startingY, endY, width = 4):
                         intersect = False
                         for indexX in range(width + 1):
                             for indexY in range(width + 1):
-                                if not myMap[x + 1 + indexX][y - width//2 + indexY].wall:
+                                try:
+                                    if not myMap[x + 1 + indexX][y - width//2 + indexY].wall:
+                                        intersect = True
+                                        break
+                                except IndexError:
                                     intersect = True
                                     break
                         if not intersect:
@@ -6368,7 +6384,11 @@ def secretRoomTest(startingX, endX, startingY, endY, width = 4):
                         intersect = False
                         for indexX in range(width + 1):
                             for indexY in range(width + 1):
-                                if not myMap[x - 1 - indexX][y - width//2 + indexY].wall:
+                                try:
+                                    if not myMap[x - 1 - indexX][y - width//2 + indexY].wall:
+                                        intersect = True
+                                        break
+                                except IndexError:
                                     intersect = True
                                     break
                         if not intersect:
@@ -6378,7 +6398,11 @@ def secretRoomTest(startingX, endX, startingY, endY, width = 4):
                         intersect = False
                         for indexX in range(width + 1):
                             for indexY in range(width + 1):
-                                if not myMap[x - width//2 + indexX][y + 1 + indexY].wall:
+                                try:
+                                    if not myMap[x - width//2 + indexX][y + 1 + indexY].wall:
+                                        intersect = True
+                                        break
+                                except IndexError:
                                     intersect = True
                                     break
                         if not intersect:
@@ -6388,7 +6412,11 @@ def secretRoomTest(startingX, endX, startingY, endY, width = 4):
                         intersect = False
                         for indexX in range(width + 1):
                             for indexY in range(width + 1):
-                                if not myMap[x - width//2 + indexX][y - 1 - indexY].wall:
+                                try:
+                                    if not myMap[x - width//2 + indexX][y - 1 - indexY].wall:
+                                        intersect = True
+                                        break
+                                except IndexError:
                                     intersect = True
                                     break
                         if not intersect:
@@ -6452,6 +6480,32 @@ def secretRoom(temple):
                         myMap[x + 1 + X][y + 1 + Y].dark_fg = colors.darkest_sepia
                     myMap[x + 1 + X][y + 1 + Y].bg = colors.light_sepia
                     myMap[x + 1 + X][y + 1 + Y].dark_bg = colors.dark_sepia
+            
+            if countNeighbours(myMap, x, y) == 7:
+                myMap[x][y].character = 'O'
+                myMap[x][y].fg = colors.darker_sepia
+                myMap[x][y].bg = colors.dark_sepia
+                myMap[x][y].dark_fg = colors.darkest_sepia
+                myMap[x][y].dark_bg = colors.darker_sepia
+            if countNeighbours(myMap, x + 8, y) == 7:
+                myMap[x + 8][y].character = 'O'
+                myMap[x + 8][y].fg = colors.darker_sepia
+                myMap[x + 8][y].bg = colors.dark_sepia
+                myMap[x + 8][y].dark_fg = colors.darkest_sepia
+                myMap[x + 8][y].dark_bg = colors.darker_sepia
+            if countNeighbours(myMap, x, y + 8) == 7:
+                myMap[x][y + 8].character = 'O'
+                myMap[x][y + 8].fg = colors.darker_sepia
+                myMap[x][y + 8].bg = colors.dark_sepia
+                myMap[x][y + 8].dark_fg = colors.darkest_sepia
+                myMap[x][y + 8].dark_bg = colors.darker_sepia
+            if countNeighbours(myMap, x + 8, y + 8) == 7:
+                myMap[x + 8][y + 8].character = 'O'
+                myMap[x + 8][y + 8].fg = colors.darker_sepia
+                myMap[x + 8][y + 8].bg = colors.dark_sepia
+                myMap[x + 8][y + 8].dark_fg = colors.darkest_sepia
+                myMap[x + 8][y + 8].dark_bg = colors.darker_sepia
+            
             if side != 'left':
                 sideFalse = False
                 for k in range(7):
@@ -6474,8 +6528,8 @@ def secretRoom(temple):
                         myMap[x][y + 1 + k].character = '='
                         myMap[x][y + 1 + k].fg = colors.dark_sepia
                         myMap[x][y + 1 + k].bg = colors.sepia
-                        myMap[x + 8][y + 1 + k].dark_fg = colors.darkest_sepia
-                        myMap[x + 8][y + 1 + k].dark_bg = colors.darker_sepia
+                        myMap[x][y + 1 + k].dark_fg = colors.darkest_sepia
+                        myMap[x][y + 1 + k].dark_bg = colors.darker_sepia
             if side != 'under':
                 sideFalse = False
                 for k in range(7):
@@ -6486,8 +6540,8 @@ def secretRoom(temple):
                         myMap[x + 1 + k][y].character = '='
                         myMap[x + 1 + k][y].fg = colors.dark_sepia
                         myMap[x + 1 + k][y].bg = colors.sepia
-                        myMap[x + 8][y + 1 + k].dark_fg = colors.darkest_sepia
-                        myMap[x + 8][y + 1 + k].dark_bg = colors.darker_sepia
+                        myMap[x + 1 + k][y].dark_fg = colors.darkest_sepia
+                        myMap[x + 1 + k][y].dark_bg = colors.darker_sepia
             if side != 'above':
                 sideFalse = False
                 for k in range(7):
@@ -6498,8 +6552,8 @@ def secretRoom(temple):
                         myMap[x + 1 + k][y + 8].character = '='
                         myMap[x + 1 + k][y + 8].fg = colors.dark_sepia
                         myMap[x + 1 + k][y + 8].bg = colors.sepia
-                        myMap[x + 8][y + 1 + k].dark_fg = colors.darkest_sepia
-                        myMap[x + 8][y + 1 + k].dark_bg = colors.darker_sepia
+                        myMap[x + 1 + k][y + 8].dark_fg = colors.darkest_sepia
+                        myMap[x + 1 + k][y + 8].dark_bg = colors.darker_sepia
         print("created secret room at x ", entryX, " y ", entryY, " in quarter ", quarter)
 
 def checkFile(file, folder):
@@ -6670,7 +6724,7 @@ def makeMap(generateChasm = True, generateHole = False, fall = False, temple = F
         if generateHole:
             myMap = holeGen.createHoles(myMap)
         print("AFTER CHASM")
-        checkMap()
+        checkMap(temple=temple)
         print("PREPING IDENTIFIYING")
         applyIdentification()
         print("DONE IDING")
