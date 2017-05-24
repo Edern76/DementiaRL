@@ -5861,7 +5861,7 @@ def countNeighbours(mapToUse, startX, startY, stopAtFirst = False, searchBlock =
                 otherX = startX + x
                 otherY = startY + y
                 if 0 <= otherX < MAP_WIDTH and 0 <= otherY < MAP_HEIGHT:
-                    if mapToUse[otherX][otherY].blocked and searchBlock:
+                    if mapToUse[otherX][otherY].blocked or mapToUse[otherX][otherY].pillar and searchBlock:
                         count += 1
                         found = True
                         if stopAtFirst:
@@ -6332,6 +6332,8 @@ def checkMap(temple = False):
                 elif myMap[x][y].pillar:
                     myMap[x][y].blocked = True
                     myMap[x][y].character = 'o'
+                    myMap[x][y].fg = color_light_wall
+                    myMap[x][y].dark_fg = color_dark_wall
                 elif not myMap[x][y].secretWall:
                     myMap[x][y].applyGroundProperties(temple=temple)
                     myMap[x][y].wall = False
@@ -6657,7 +6659,7 @@ def makeMap(generateChasm = True, generateHole = False, fall = False, temple = F
                     intersection = True
                     break
             if not intersection:
-                createRoom(newRoom)
+                createRoom(newRoom, pillar = temple)
                 lastCreatedRoom = newRoom
                 (new_x, new_y) = newRoom.center()
      
@@ -6955,7 +6957,7 @@ def closeAndMakeWall(x, y, mapToUse, unbreakable):
     closeTile(x,y, mapToUse, unbreakable)
     mapToUse[x][y].applyWallProperties()
 
-def makeBossLevel(fall = False, generateHole=False):
+def makeBossLevel(fall = False, generateHole=False, temple = False):
     '''
     Creates boss level
     Function alias (for search function, because Edern (me) always types in makeBossRoom instead of makeBossLevel) : def makeBossRoom
@@ -6985,7 +6987,7 @@ def makeBossLevel(fall = False, generateHole=False):
                 intersection = True
                 break
         if not intersection:
-            createRoom(newRoom)
+            createRoom(newRoom, pillar=temple)
             (new_x, new_y) = newRoom.center()
             (previous_x, previous_y) = newRoom.center()
  
@@ -6999,12 +7001,14 @@ def makeBossLevel(fall = False, generateHole=False):
                     upStairs.sendToBack()
             else:
                 (previous_x, previous_y) = rooms[numberRooms-1].center()
+                bigTunnel = randint(0, 4)
+                big = bigTunnel == 0 and temple
                 if randint(0, 1):
-                    createHorizontalTunnel(previous_x, new_x, previous_y)
-                    createVerticalTunnel(previous_y, new_y, new_x)
+                    createHorizontalTunnel(previous_x, new_x, previous_y, big)
+                    createVerticalTunnel(previous_y, new_y, new_x, big)
                 else:
-                    createVerticalTunnel(previous_y, new_y, previous_x)
-                    createHorizontalTunnel(previous_x, new_x, new_y)
+                    createVerticalTunnel(previous_y, new_y, previous_x, big)
+                    createHorizontalTunnel(previous_x, new_x, new_y, big)
             rooms.append(newRoom)
             numberRooms += 1
 
@@ -7014,7 +7018,7 @@ def makeBossLevel(fall = False, generateHole=False):
     x = randint(50, 100-w-1)
     y = randint(20, 60-h-1)
     bossRoom = Rectangle(x, y, w, h)
-    createRoom(bossRoom)
+    createRoom(bossRoom, pillar=temple)
     bossTiles = bossRoom.tiles
     print(bossTiles)
     
@@ -7027,10 +7031,11 @@ def makeBossLevel(fall = False, generateHole=False):
     startTile = bossTiles[4]
     sX, sY = startTile.x, startTile.y
     
-    (new_x, new_y) = bossRoom.center()                    
-    createVerticalTunnel(previous_y, new_y, previous_x)   
-    createHorizontalTunnel(previous_x, new_x, new_y)      
-    levels = currentBranch.bossNames.values()             
+    (new_x, new_y) = bossRoom.center()
+    big = bigTunnel == 0 and temple
+    createVerticalTunnel(previous_y, new_y, previous_x, big)   
+    createHorizontalTunnel(previous_x, new_x, new_y, big)      
+    levels = currentBranch.bossNames.values()
     names = list(currentBranch.bossNames.keys())
     
 
@@ -7047,6 +7052,27 @@ def makeBossLevel(fall = False, generateHole=False):
     (previous_x, previous_y) = bossRoom.center()
     rooms.append(bossRoom)
     numberRooms += 1
+    if temple:
+        baseMap = list(deepcopy(myMap))
+        for x in range(MAP_WIDTH):
+            for y in range(MAP_HEIGHT):
+                '''
+                if countNeighbours(myMap, x, y) == 7:
+                    myMap[x][y].pillar = True
+                    myMap[x][y].character = 'O'
+                '''
+                if 0 <= countNeighbours(myMap, x, y) <= 2 and not myMap[x][y].pillar and not (x == 0 or x == MAP_WIDTH - 1 or y == 0 or y == MAP_HEIGHT - 1):
+                    if myMap[x][y].blocked:
+                        #baseMap[x][y].bg = colors.red
+                        baseMap[x][y].wall = False
+                        baseMap[x][y].blocked = False
+                        baseMap[x][y].character = None
+                if countNeighbours(myMap, x, y) == 3 and not myMap[x][y].pillar and not (x == 0 or x == MAP_WIDTH - 1 or y == 0 or y == MAP_HEIGHT - 1):
+                    if myMap[x][y].blocked:
+                        baseMap[x][y].pillar = True
+                        baseMap[x][y].blocked = True
+                        baseMap[x][y].character = 'o'
+        myMap = baseMap
     if generateHole:
         myMap = holeGen.createHoles(myMap)
     checkMap()
@@ -9896,7 +9922,7 @@ def nextLevel(boss = False, changeBranch = None, fall = False, fromStairs = None
             else:
                 raise ValueError('Current branch fixedMap attribute is invalid ({})'.format(currentBranch.fixedMap))
         else:
-            makeBossLevel(fall = fall, generateHole = holeGeneration)
+            makeBossLevel(fall = fall, generateHole = holeGeneration, temple = temple)
         print("Created a new level")
     print("After try except block")
     if hiroshimanNumber == 1 and not hiroshimanHasAppeared:
