@@ -8273,7 +8273,7 @@ def turnIntoNemesis():
     global lastHitter, nemesisList
     nemesis = None
     if lastHitter == 'darksoul':
-        fightComp = Fighter(hp=60, armor=1, power=7, accuracy=50, evasion=15, xp=70, deathFunction=monsterDeath, armorPenetration=3)
+        fightComp = Fighter(hp=60, armor=1, power=7, accuracy=50, evasion=15, xp=70, deathFunction=monsterDeath, armorPenetration=3, lootFunction=[], lootRate=[])
         objComp = GameObject(0, 0, 'P', nameGen.nemesisName(race = player.Player.race, classe = player.Player.classes), color = colors.dark_gray, blocks=True, Fighter=fightComp, AI = BasicMonster())
         for equipment in equipmentList:
             if randint(1, 100) <= 60 and not equipment.Equipment.ranged:
@@ -8283,6 +8283,27 @@ def turnIntoNemesis():
                 print('nemesis equipped ' + equipment.name)
         nemesis = Nemesis(objComp, currentBranch.shortName, dungeonLevel)
         print('created', objComp.name)
+    if lastHitter == 'cultist':
+        '''
+        robeEquipment = Equipment(slot = 'torso', type = 'light armor', maxHP_Bonus = 5, maxMP_Bonus = 25)
+        robe = GameObject(0, 0, '[', 'high cultist robe', colors.desaturated_purple, Equipment = robeEquipment, Item=Item(weight = 1.5, pic = 'cultistRobe.xp'))
+        
+        flailEquipment = Equipment(slot = 'one handed', type = 'heavy weapon', powerBonus = 13, meleeWeapon = True)
+        flail = GameObject(0, 0, '/', 'bloodsteel flail', colors.red, Equipment=flailEquipment, Item=Item(weight=5.5, pic = 'bloodsteelFlail.xp', description = "A heavy flail wielded by the high cultists and made of a heavy, blood-red metal."))
+        
+        spellbook = GameObject(x, y, '=', 'spellbook of arcane rituals', colors.violet, Item = Item(useFunction = learnSpell, arg1 = darkPact, weight = 1.0, description = "A spellbook full of arcane rituals and occult incantations. Such magic is easy to learn and to use, but comes at a great price.", pic = 'spellbook.xp'), blocks = False)
+        '''
+        fightComp = Fighter(hp=40, armor=2, power=13, accuracy=30, evasion=30, xp=80, deathFunction=monsterDeath, lootFunction=[], lootRate=[])
+        objComp = GameObject(0, 0, 'C', nameGen.nemesisName(race = player.Player.race, classe = player.Player.classes), color = colors.dark_red, blocks=True, Fighter=fightComp, AI = BasicMonster())
+        for equipment in equipmentList:
+            if randint(1, 100) <= 60 and not equipment.Equipment.ranged:
+                equipment.Equipment.equip(objComp.Fighter)
+                objComp.Fighter.lootFunction.append(equipment)
+                objComp.Fighter.lootRate.append(60)
+                print('nemesis equipped ' + equipment.name)
+        nemesis = Nemesis(objComp, currentBranch.shortName, dungeonLevel)
+        print('created', objComp.name)
+        
     if nemesis is not None:
         nemesisList.append(nemesis)
         print('added nemesis to list')
