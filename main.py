@@ -1610,22 +1610,65 @@ def characterCreation():
         counter += 1
     
     ## skills ##
-    light = Trait('Light weapons', '+20% damage per skillpoints with light weapons', type = 'skill', selectable = False, tier = 2)
-    heavy = Trait('Heavy weapons', '+20% damage per skillpoints with heavy weapons', type = 'skill', selectable = False, tier = 2)
-    missile = Trait('Missile weapons', '+20% damage per skillpoints with missile weapons', type = 'skill', selectable = False, tier = 2)
-    constitution = Trait('Constitution', 'You are a sturdy person', type = 'skill', hp = (5, 0), vit = (1, 0), selectable = False, tier = 2)
+    light = Trait('Light weapons', '+20% damage per skillpoints with light weapons', type = 'skill', selectable = False, tier = 3)
+    heavy = Trait('Heavy weapons', '+20% damage per skillpoints with heavy weapons', type = 'skill', selectable = False, tier = 3)
+    missile = Trait('Missile weapons', '+20% damage per skillpoints with missile weapons', type = 'skill', selectable = False, tier = 3)
+    armorEff = Trait('Armor efficiency', 'You know very well how to maximize the protection brought by your armor', type = 'skill', selectable = False, tier = 3)
+    dexterity = Trait('Dexterity', 'You are Dexter.', type = 'skill', selectable = False, dex=(1, 0), tier = 3)
+    critical = Trait('Critical', 'You know every weaknesses of your enemies.', type = 'skill', selectable = False, crit=(3, 0), tier = 3)
+    constitution = Trait('Constitution', 'You are a sturdy person', type = 'skill', hp = (5, 0), vit = (1, 0), selectable = False, tier = 3)
+    hunger = Trait('Hunger management', 'You are used to starve and are now resilient to hunger.', type = 'skill', selectable=False, tier = 3)
+    thirdTierSkills = [light, heavy, missile, armorEff, hunger, constitution, dexterity, critical]
+
+    melee = Trait('Melee Weaponry', 'You are trained to wreck your enemies at close range.', type = 'skill', selectable = False, tier = 2, allowsSelection=[light, heavy])
+    ranged = Trait('Ranged Weaponry', 'You shoot people in the knees.', type = 'skill', selectable = False, tier = 2, allowsSelection=[missile])
+    armorW = Trait('Armor wielding', 'You are trained to wield several types of armor.', type = 'skill', selectable = False, tier = 2, allowsSelection=[armorEff])
+    endurance = Trait('Endurance', 'You are used to live in harsh conditions', type = 'skill', selectable = False, tier = 2, allowsSelection=[hunger, constitution])
     strength = Trait('Strength', 'You are as strong as a bear', type = 'skill', str=(1, 0), selectable = False, tier = 2)
-    endurance = Trait('Endurance', 'You are used to live in harsh conditions', type = 'skill', selectable = False, tier = 2)
-    magic = Trait('Magic ', 'You can use the power of your mind to bind reality to your will', type = 'skill', selectable = False, tier = 2)
     willpower = Trait('Willpower', 'Your will is very strong', type = 'skill', mp=(5, 0), will = (1, 0), selectable = False, tier = 2)
-    intelligence = Trait('Intelligence', 'You are cunning, and can both use this to hide in the shadows, or to increase the potency of your spells', type = 'skill', selectable = False, tier = 2)
-    weapon = Trait('Weapon mastery', 'You are trained to use a wide variety of weapons', type = 'skill', acc=(10, 0), allowsSelection=[light, heavy, missile])
-    physical = Trait('Physical training', 'You are muscular and are used to physical efforts', type = 'skill', allowsSelection=[constitution, strength, endurance])
+    intelligence = Trait('Intelligence', 'You are cunning, and can both use this to hide in the shadows, or to increase the potency of your spells', type = 'skill', selectable = False, tier = 2, allowsSelection=[dexterity, critical])
+    magic = Trait('Magic ', 'You can use the power of your mind to bind reality to your will', type = 'skill', selectable = False, tier = 2)
+    secondTierSkills = [melee, ranged, armorW, strength, endurance, magic, willpower, intelligence]
+
+    martial = Trait('Martial training', 'You are trained to use a wide variety of weapons', type = 'skill', acc=(10, 0), allowsSelection=[melee, ranged, armorW])
+    physical = Trait('Physical training', 'You are muscular and are used to physical efforts', type = 'skill', allowsSelection=[strength, endurance])
     mental = Trait('Mental training', 'Your mind is as fast as an arrow and as sharp as a scalpel', type = 'skill', allowsSelection=[magic, willpower, intelligence])
-    basicSkills = [weapon, physical, mental]
-    secondTierSkills = [light, heavy, missile, constitution, strength, endurance, magic, willpower, intelligence]
+    basicSkills = [martial, physical, mental]
+    
     skills = basicSkills
     skills.extend(secondTierSkills)
+    skills.extend(thirdTierSkills)
+    
+    quarterX = (WIDTH - 2)//5
+    
+    def initiateSkill(skillList, maxHeight, heightCounter, prevMaxHeight, prevHeightCounter):
+        newHeight = maxHeight//len(skillList)
+        mid = newHeight//2
+        counter = 0
+        for skill in skillList:
+            skill.x = skill.tier * quarterX
+            skill.y = mid + counter * newHeight + heightCounter * maxHeight + prevHeightCounter * prevMaxHeight
+            print(skill.name, skill.tier, len(skill.allowsSelection), skill.x, skill.y)
+            if skill.allowsSelection and len(skill.allowsSelection) > 0:
+                print('initiating selectable skills of ' + skill.name)
+                initiateSkill(skill.allowsSelection, newHeight, counter, maxHeight, heightCounter)
+            counter += 1
+    
+    
+    newHeight = 76//3
+    mid = newHeight//2
+    counter = 0
+    for skill in basicSkills:
+        if skill.tier == 1:
+            skill.x = quarterX
+            skill.y = mid + newHeight * counter
+            print(skill.name, skill.tier, len(skill.allowsSelection), skill.x, skill.y)
+            if skill.allowsSelection and len(skill.allowsSelection) > 0:
+                print('initiating selectable skills of ' + skill.name)
+                initiateSkill(skill.allowsSelection, newHeight, counter, 76, 0)
+            counter += 1
+
+    '''
     allTraits.extend(skills)
     leftTraits.extend(skills)
     
@@ -1645,7 +1688,7 @@ def characterCreation():
         skill.y = SKILL_Y + counter
         passLine += 1
         counter += 1
-    
+    '''
     ## classes ##
     knight = Trait('Knight', 'A warrior who wears armor and wields shields', type ='class', arm=(1, 1), hp=(120, 14), mp=(30, 3))
     barb = Trait('Barbarian', 'A brutal fighter who is mighty strong', type = 'class', hp=(160, 20), mp=(30, 3), str=(1, 1), spells=[enrage])
@@ -1690,7 +1733,7 @@ def characterCreation():
     leftIndexMax = len(leftTraits) - 1
     rightIndexMin = leftIndexMax + 1
     rightIndexMax = rightIndexMin + len(rightTraits) - 1
-    maxIndex = len(allTraits) + 1
+    maxIndex = len(allTraits) + 2
     
     while not tdl.event.isWindowClosed():
         root.clear()
@@ -1738,11 +1781,12 @@ def characterCreation():
         drawCenteredOnX(cons = root, x = RIGHT_X, y = 29, text = str(traitsPoints) + '/2', fg = colors.dark_red, bg = None)
         
         drawCenteredOnX(cons = root, x = RIGHT_X, y = 9, text = '-- CLASS --', fg = colors.darker_red, bg = None)
-        
+        '''
         drawCenteredOnX(cons = root, x = LEFT_X, y = 38, text = '-- SKILLS --', fg = colors.darker_red, bg = None)
         drawCenteredOnX(cons = root, x = LEFT_X, y = 39, text = str(skillsPoints) + '/' + str(maxSkill), fg = colors.dark_red, bg = None)
-        
+        '''
         drawCentered(cons = root, y = 9, text = '-- DESCRIPTION --', fg = colors.darker_red, bg = None)
+        drawCentered(cons = root, y = 69, text = 'Continue to skills screen', fg = colors.white, bg = None)
         drawCentered(cons = root, y = 70, text = 'Start Game', fg = colors.white, bg = None)
         drawCentered(cons = root, y = 71, text = 'Cancel', fg = colors.white, bg = None)
 
@@ -1795,6 +1839,8 @@ def characterCreation():
             else:
                 trait.underCursor = False
             trait.drawTrait()
+        if index == maxIndex - 2:
+            drawCentered(cons = root, y = 69, text = 'Continue to skills screen', fg = colors.black, bg = colors.white)
         if index == maxIndex - 1:
             drawCentered(cons = root, y = 70, text = 'Start Game', fg = colors.black, bg = colors.white)
         if index == maxIndex:
@@ -1831,10 +1877,14 @@ def characterCreation():
         #adding choice bonus
         if key.keychar.upper() == 'ENTER':
             error = False
+            if index == maxIndex - 2:
+                levelUpScreen(newSkillpoints=False, skillpoint=maxSkill - skillsPoints, fromCreation=True, skills=skills)
+                error = True
             if index == maxIndex - 1:
                 if raceSelected and classSelected:
+                    allTraits.extend(skills)
                     print(createdCharacter)
-                    return createdCharacter, allTraits
+                    return createdCharacter, allTraits, maxSkill - skillsPoints
                 else:
                     playWavSound('error.wav')
                     error = True
@@ -3087,7 +3137,7 @@ class Spellcaster():
             FOV_recompute = True
 
 class Player:
-    def __init__(self, name, strength, dexterity, vitality, willpower, load, race, classes, allTraits, levelUpStats, baseHunger = BASE_HUNGER, speed = 'average', speedChance = 5):
+    def __init__(self, name, strength, dexterity, vitality, willpower, load, race, classes, allTraits, levelUpStats, baseHunger = BASE_HUNGER, speed = 'average', speedChance = 5, skillpoints = 0):
         self.name = name
 
         self.strength = strength
@@ -3120,7 +3170,7 @@ class Player:
         for trait in self.allTraits:
             if trait.type == 'trait':
                 self.traits.append(trait)
-        self.skillpoints = 0
+        self.skillpoints = skillpoints
         
         self.essences = {'Gluttony': 0, 'Wrath': 0, 'Lust': 0, 'Pride': 0, 'Envy': 0, 'Greed': 0, 'Sloth': 0}
         
@@ -4942,37 +4992,52 @@ def shoot():
         message('You have no ranged weapon equipped.')
         return 'didnt-take-turn'
 
-def levelUpScreen(newSkillpoints = True, skillpoint = 3):
+def levelUpScreen(newSkillpoints = True, skillpoint = 3, fromCreation = False, skills = None):
     global menuWindows, FOV_recompute
     quitted = False
+    
+    class PlaceHolderPlayer:
+        def __init__(self):
+            self.skillpoints = skillpoint
+            self.skills = skills
+    
+    if not fromCreation:
+        origin = player.Player
+    else:
+        origin = PlaceHolderPlayer()
     if newSkillpoints:
-        player.Player.skillpoints += skillpoint
+        origin.skillpoints += skillpoint
     if menuWindows:
         for mWindow in menuWindows:
             mWindow.clear()
         FOV_recompute = True
-        Update()
+        if not fromCreation:
+            Update()
         tdl.flush()
-    width = 80
-    height = 58
+    width = WIDTH - 2
+    height = HEIGHT - 2
     window = NamedConsole('levelUpScreen', width, height)
     menuWindows.append(window)
-    tier1X = 10
-    tier2X = 30
-    #tier3X = 50
-    #tier4X = 70
+    #quarterX = width//5
+    #tier1X = quarterX
+    #tier2X = quarterX * 2
+    #tier3X = quarterX * 3
+    #tier4X = quarterX * 4
     
     notConfirmed = {}
-    tier1list = []
-    tier2list = []
-    for skill in player.Player.skills:
-        if skill.tier == 1:
-            tier1list.append(skill)
-        elif skill.tier == 2:
-            tier2list.append(skill)
+    #tier1list = []
+    #tier2list = []
+    #tier3list = []
+    #for skill in origin.skills:
+    #    if skill.tier == 1:
+    #        tier1list.append(skill)
+    #    elif skill.tier == 2:
+    #        tier2list.append(skill)
+    #    elif skill.tier == 3:
+    #        tier3list.append(skill)
     
     index = 0
-    selectedSkill = player.Player.skills[0]
+    selectedSkill = origin.skills[0]
     selectedSkill.underCursor = True
     while not quitted:
         FOV_recompute = True
@@ -4994,22 +5059,34 @@ def levelUpScreen(newSkillpoints = True, skillpoint = 3):
         window.draw_char(0, lMax, chr(192))
         window.draw_char(kMax, lMax, chr(217))
         
-        window.draw_str(1, 1, 'Skillpoints left: ' + str(player.Player.skillpoints), fg = colors.green)
+        window.draw_str(1, 1, 'Skillpoints left: ' + str(origin.skillpoints), fg = colors.green)
         
-        counter1 = 0
-        counter2 = 0
-        groupCounter2 = 0
-        for skill in player.Player.skills:
+        #counter1 = 0
+        #counter2 = 0
+        #counter3 = 0
+        #groupCounter2 = 0
+        #groupCounter3 = 0
+        for skill in origin.skills:
             if skill != selectedSkill:
                 skill.underCursor = False
 
-            color = colors.grey
+            toAdd = ' ' + str(skill.amount) + '/5'
             if skill.selectable and not skill.selected:
                 color = colors.white
-            elif skill.selectable and skill.selected and skill in notConfirmed:
+            elif skill.selectable and skill.selected and (skill in notConfirmed or fromCreation):
                 color = colors.yellow
-            elif skill.selectable and skill.selected and not skill in notConfirmed:
+            elif skill.selectable and skill.selected and not skill in notConfirmed and not fromCreation:
                 color = colors.dark_red
+            else:
+                color = colors.grey
+                toAdd = ''
+            
+            print(skill.name, skill.x, skill.y)
+            if not skill.underCursor:
+                drawCenteredOnX(window, skill.x, skill.y, skill.name + toAdd, color)
+            else:
+                drawCenteredOnX(window, skill.x, skill.y, skill.name + toAdd, colors.black, color)
+            '''
             if skill.tier == 1:
                 if not skill.underCursor:
                     drawCenteredOnX(window, tier1X, 7 + counter1, skill.name, color)
@@ -5028,11 +5105,13 @@ def levelUpScreen(newSkillpoints = True, skillpoint = 3):
                 drawCenteredOnX(window, tier2X, 3 + counter2, str(skill.amount)+'/'+str(skill.maxAmount), color)
                 groupCounter2 += 1
                 counter2 += 5
+            '''
         
         windowX = MID_WIDTH - int(width/2)
         windowY = 1
         root.blit(window, windowX, windowY, width, height, 0, 0)
         
+        '''
         if 0 <= index < len(tier1list):
             prevList = tier2list
             currentList = tier1list
@@ -5041,6 +5120,7 @@ def levelUpScreen(newSkillpoints = True, skillpoint = 3):
             prevList = tier1list
             currentList = tier2list
             nextList = tier1list
+        '''
         
         tdl.flush()
         key = tdl.event.key_wait()
@@ -5050,41 +5130,50 @@ def levelUpScreen(newSkillpoints = True, skillpoint = 3):
             index += 1
         elif key.keychar.upper() == 'UP':
             index -= 1
-        elif key.keychar.upper() == 'RIGHT':
-            index += len(currentList)
-            if index >= len(nextList):
-                index = len(nextList) - 1
-        elif key.keychar.upper() == 'LEFT':
-            index -= len(prevList)
-            if index >= len(prevList):
-                index = len(prevList) - 1
+        #elif key.keychar.upper() == 'RIGHT':
+        #    index += len(currentList)
+        #    if index >= len(nextList):
+        #        index = len(nextList) - 1
+        #elif key.keychar.upper() == 'LEFT':
+        #    index -= len(prevList)
+        #    if index >= len(prevList):
+        #        index = len(prevList) - 1
         elif key.keychar.upper() == 'ENTER':
-            skill = player.Player.skills[index]
-            if skill.selectable and skill.amount < 5 and player.Player.skillpoints > 0:
+            skill = origin.skills[index]
+            if skill.selectable and skill.amount < 5 and origin.skillpoints > 0:
                 skill.selected = True
                 if not skill in notConfirmed:
                     notConfirmed[skill] = skill.amount
                 skill.amount += 1
-                player.Player.skillpoints -= 1
+                origin.skillpoints -= 1
                 for newSkill in skill.allowsSelection:
                     newSkill.selectable = True
         elif key.keychar.upper() == 'BACKSPACE':
-            skill = player.Player.skills[index]
-            if skill in notConfirmed and skill.amount > notConfirmed[skill]:
+            def removeSkillTree(oldSkill):
+                for skill in oldSkill.allowsSelection:
+                    if (skill in notConfirmed and skill.amount > notConfirmed[skill]) or fromCreation:
+                        skill.selected = False
+                        skill.selectable = False
+                        origin.skillpoints += skill.amount
+                        skill.amount = 0
+                        removeSkillTree(skill)
+                
+            skill = origin.skills[index]
+            if (skill in notConfirmed and skill.amount > notConfirmed[skill]) or (fromCreation and skill.selected):
                 skill.amount -= 1
-                player.Player.skillpoints += 1
-                if skill.amount == notConfirmed[skill]:
-                    del notConfirmed[skill]
+                origin.skillpoints += 1
+                if not fromCreation:
+                    if skill.amount == notConfirmed[skill]:
+                        del notConfirmed[skill]
                 if skill.amount <= 0:
                     skill.selected = False
-                    for newSkill in skill.allowsSelection:
-                        newSkill.selectable = False
+                    removeSkillTree(skill)
 
-        if index >= len(player.Player.skills):
+        if index >= len(origin.skills):
             index = 0
         if index < 0:
-            index = len(player.Player.skills) - 1
-        selectedSkill = player.Player.skills[index]
+            index = len(origin.skills) - 1
+        selectedSkill = origin.skills[index]
         selectedSkill.underCursor = True
 
 def checkLevelUp():
@@ -8951,7 +9040,7 @@ def mainMenu():
                 index = 0
             if key.keychar.upper() == "ENTER":
                 if index == 0:
-                    (playerComponent, allTraits) = characterCreation()
+                    (playerComponent, allTraits, skillpoints) = characterCreation()
                     if playerComponent != 'cancelled':
                         for trait in allTraits:
                             if trait.type == 'race' and trait.selected:
@@ -8961,7 +9050,7 @@ def mainMenu():
                                 chosenClass = trait.name
                         name = enterName(chosenRace)
                         LvlUp = {'pow': createdCharacter['powLvl'], 'acc': createdCharacter['accLvl'], 'ev': createdCharacter['evLvl'], 'arm': createdCharacter['armLvl'], 'hp': createdCharacter['hpLvl'], 'mp': createdCharacter['mpLvl'], 'crit': createdCharacter['critLvl'], 'str': createdCharacter['strLvl'], 'dex': createdCharacter['dexLvl'], 'vit': createdCharacter['vitLvl'], 'will': createdCharacter['willLvl'], 'ap': createdCharacter['apLvl']}
-                        playComp = Player(name, playerComponent['str'], playerComponent['dex'], playerComponent['vit'], playerComponent['will'], playerComponent['load'], chosenRace, chosenClass, allTraits, LvlUp)
+                        playComp = Player(name, playerComponent['str'], playerComponent['dex'], playerComponent['vit'], playerComponent['will'], playerComponent['load'], chosenRace, chosenClass, allTraits, LvlUp, skillpoints=skillpoints)
                         playFight = Fighter(hp = playerComponent['hp'], power= playerComponent['pow'], armor= playerComponent['arm'], deathFunction=playerDeath, xp=0, evasion = playerComponent['ev'], accuracy = playerComponent['acc'], maxMP= playerComponent['mp'], knownSpells=playerComponent['spells'], critical = playerComponent['crit'], armorPenetration = playerComponent['ap'])
                         player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = name, color = (0, 210, 0))
                         player.level = 1
