@@ -1613,16 +1613,17 @@ def characterCreation():
     light = Trait('Light weapons', '+20% damage per skillpoints with light weapons', type = 'skill', selectable = False, tier = 3)
     heavy = Trait('Heavy weapons', '+20% damage per skillpoints with heavy weapons', type = 'skill', selectable = False, tier = 3)
     missile = Trait('Missile weapons', '+20% damage per skillpoints with missile weapons', type = 'skill', selectable = False, tier = 3)
+    shield = Trait('Shield mastery', 'You trained to master shield wielding.', type = 'skill', selectable = False, tier = 3)
     armorEff = Trait('Armor efficiency', 'You know very well how to maximize the protection brought by your armor', type = 'skill', selectable = False, tier = 3)
     dexterity = Trait('Dexterity', 'You are Dexter.', type = 'skill', selectable = False, dex=(1, 0), tier = 3)
     critical = Trait('Critical', 'You know every weaknesses of your enemies.', type = 'skill', selectable = False, crit=(3, 0), tier = 3)
     constitution = Trait('Constitution', 'You are a sturdy person', type = 'skill', hp = (5, 0), vit = (1, 0), selectable = False, tier = 3)
     hunger = Trait('Hunger management', 'You are used to starve and are now resilient to hunger.', type = 'skill', selectable=False, tier = 3)
-    thirdTierSkills = [light, heavy, missile, armorEff, hunger, constitution, dexterity, critical]
+    thirdTierSkills = [light, heavy, missile, armorEff, shield, hunger, constitution, dexterity, critical]
 
     melee = Trait('Melee Weaponry', 'You are trained to wreck your enemies at close range.', type = 'skill', selectable = False, tier = 2, allowsSelection=[light, heavy])
     ranged = Trait('Ranged Weaponry', 'You shoot people in the knees.', type = 'skill', selectable = False, tier = 2, allowsSelection=[missile])
-    armorW = Trait('Armor wielding', 'You are trained to wield several types of armor.', type = 'skill', selectable = False, tier = 2, allowsSelection=[armorEff])
+    armorW = Trait('Armor wielding', 'You are trained to wield several types of armor.', type = 'skill', selectable = False, tier = 2, allowsSelection=[armorEff, shield])
     endurance = Trait('Endurance', 'You are used to live in harsh conditions', type = 'skill', selectable = False, tier = 2, allowsSelection=[hunger, constitution])
     strength = Trait('Strength', 'You are as strong as a bear', type = 'skill', str=(1, 0), selectable = False, tier = 2)
     willpower = Trait('Willpower', 'Your will is very strong', type = 'skill', mp=(5, 0), will = (1, 0), selectable = False, tier = 2)
@@ -1889,7 +1890,7 @@ def characterCreation():
                     playWavSound('error.wav')
                     error = True
             if index == maxIndex:
-                return 'cancelled', 'cancelled'
+                return 'cancelled', 'cancelled', 'cancelled'
 
             if not error:
                 trait = allTraits[index]
@@ -5061,6 +5062,22 @@ def levelUpScreen(newSkillpoints = True, skillpoint = 3, fromCreation = False, s
         
         window.draw_str(1, 1, 'Skillpoints left: ' + str(origin.skillpoints), fg = colors.green)
         
+        def drawTreeLines(origSkill):
+            if origSkill.allowsSelection:
+                for skill in origSkill.allowsSelection:
+                    addition = 2
+                    if skill.selectable and not skill.selected:
+                        color = colors.white
+                    elif skill.selectable and skill.selected and (skill in notConfirmed or fromCreation):
+                        color = colors.yellow
+                    elif skill.selectable and skill.selected and not skill in notConfirmed and not fromCreation:
+                        color = colors.dark_red
+                    else:
+                        color = colors.grey
+                        addition = 0
+                    for (x, y) in tdl.map.bresenham(origSkill.x + len(origSkill.name)//2 + 2, origSkill.y, skill.x - len(skill.name)//2 - addition, skill.y):
+                        window.draw_str(x, y, '-', color, None)
+                    drawTreeLines(skill)
         #counter1 = 0
         #counter2 = 0
         #counter3 = 0
@@ -5081,6 +5098,7 @@ def levelUpScreen(newSkillpoints = True, skillpoint = 3, fromCreation = False, s
                 color = colors.grey
                 toAdd = ''
             
+            drawTreeLines(skill)
             print(skill.name, skill.x, skill.y)
             if not skill.underCursor:
                 drawCenteredOnX(window, skill.x, skill.y, skill.name + toAdd, color)
