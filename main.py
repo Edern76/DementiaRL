@@ -9672,8 +9672,9 @@ def reloadBossTiles():
     Alias : resetBossTiles
     '''
     newTiles = []
-    for tile in bossTiles:
-        newTiles.append(myMap[tile.x][tile.y])
+    if bossTiles:
+        for tile in bossTiles:
+            newTiles.append(myMap[tile.x][tile.y])
     return newTiles
 
 def reloadEntrance():
@@ -9936,7 +9937,7 @@ def loadLevel(level, save = True, branch = currentBranch, fall = False, fromStai
         for object in newObjects:
             print(object.name)
             if object.Stairs is not None:
-                if object.Stairs.stairsOf == fromStairs.stairsOf:
+                if object.Stairs.stairsOf == fromStairs.stairsOf and object.Stairs.climb != fromStairs.climb:
                     player.x, player.y = object.x, object.y
     elif not fall:
         player.x = int(tempPlayer.x)
