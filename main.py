@@ -1355,7 +1355,7 @@ class Trait():
     '''
     Actually used for everything in the character creation, from race to skills etc
     '''
-    def __init__(self, name, description, type, x = 0, y = 0, underCursor = False, selectable = True, selected = False, allowsSelection = [], amount = 0, maxAmount = 1, tier = 1, pow = (0, 0), acc = (0, 0), ev = (0, 0), arm = (0, 0), hp = (0, 0), mp = (0, 0), crit = (0, 0), str = (0, 0), dex = (0, 0), vit = (0, 0), will = (0, 0), spells = None, load = 0, ap = (0, 0)):
+    def __init__(self, name, description, type, x = 0, y = 0, underCursor = False, selectable = True, selected = False, allowsSelection = [], amount = 0, maxAmount = 1, tier = 1, power = (0, 0), acc = (0, 0), ev = (0, 0), arm = (0, 0), hp = (0, 0), mp = (0, 0), crit = (0, 0), stren = (0, 0), dex = (0, 0), vit = (0, 0), will = (0, 0), spells = None, load = 0, ap = (0, 0)):
         self.name = name
         self.desc = description
         self.type = type
@@ -1367,14 +1367,14 @@ class Trait():
         self.allowsSelection = allowsSelection
         self.amount = amount
         self.maxAmount = maxAmount
-        self.pow, self.powPerLvl = pow
+        self.pow, self.powPerLvl = power
         self.acc, self.accPerLvl = acc
         self.ev, self.evPerLvl = ev
         self.arm, self.armPerLvl = arm
         self.hp, self.hpPerLvl = hp
         self.mp, self.mpPerLvl = mp
         self.crit, self.critPerLvl = crit
-        self.str, self.strPerLvl = str
+        self.str, self.strPerLvl = stren
         self.dex, self.dexPerLvl = dex
         self.vit, self.vitPerLvl = vit
         self.will,self.willPerLvl = will
@@ -1382,6 +1382,9 @@ class Trait():
         self.load = load
         self.spells = spells
         self.tier = tier
+        self.owner = None
+        for skill in self.allowsSelection:
+            skill.owner = self
         
     def description(self):
         wrappedText = textwrap.wrap(self.desc, 25)
@@ -1428,35 +1431,46 @@ class Trait():
         else:
             player.Fighter.noStrengthPower += self.pow
             player.Fighter.BASE_POWER += self.pow
+            #player.Player.levelUpStats['pow'] += self.powPerLvl
             player.Fighter.noDexAccuracy += self.acc
             player.Fighter.BASE_ACCURACY += self.acc
+            #player.Player.levelUpStats['acc'] += self.accPerLvl
             player.Fighter.noDexEvasion += self.ev
             player.Fighter.BASE_EVASION += self.ev
+            #player.Player.levelUpStats['ev'] += self.evPerLvl
             player.Fighter.baseArmor += self.arm
             player.Fighter.BASE_ARMOR += self.arm
+            #player.Player.levelUpStats['arm'] += self.armPerLvl
             player.Fighter.noVitHP += self.hp
             player.Fighter.hp += self.hp
             player.Fighter.BASE_MAX_HP += self.hp
+            #player.Player.levelUpStats['hp'] += self.hpPerLvl
             player.Fighter.noWillMP += self.mp
             player.Fighter.MP += self.mp
             player.Fighter.BASE_MAX_MP += self.mp
+            #player.Player.levelUpStats['mp'] += self.mpPerLvl
             player.Fighter.baseCritical += self.crit
             player.Fighter.BASE_CRITICAL += self.crit
+            #player.Player.levelUpStats['crit'] += self.critPerLvl
             player.Player.strength += self.str
             player.Player.BASE_STRENGTH += self.str
+            #player.Player.levelUpStats['str'] += self.strPerLvl
             player.Player.dexterity += self.dex
             player.Player.BASE_DEXTERITY += self.dex
+            #player.Player.levelUpStats['dex'] += self.dexPerLvl
             player.Player.vitality += self.vit
             player.Player.BASE_VITALITY += self.vit
+            #player.Player.levelUpStats['vit'] += self.vitPerLvl
             player.Player.willpower += self.will
             player.Player.BASE_WILLPOWER += self.will
+            #player.Player.levelUpStats['will'] += self.willPerLvl
             player.Fighter.baseArmorPenetration += self.ap
             player.Fighter.BASE_ARMOR_PENETRATION += self.ap
+            #player.Player.levelUpStats['ap'] += self.apPerLvl
             if self.spells is not None:
-                #player.Player.knownSpells.extend(self.spells)
-                player.Fighter.knownSpells.extend(self.spells)
+                for spell in self.spells:
+                    learnSpell(spell)
             player.Player.baseMaxWeight += self.load
-            self.amount += 1
             self.selected = True
             for trait in self.allowsSelection:
                 trait.selectable = True
@@ -1575,13 +1589,13 @@ def characterCreation():
     
     ## races ##
     human = Trait('Human', 'Humans are the most common race. They have no special characteristic, and are neither better or worse at anything. However, they are good learners and gain experience faster.', type = 'race', allowsSelection=[fastLearn, skilled])
-    mino = Trait('Minotaur', 'Minotaurs, whose muscular bodies are topped with a taurine head, are tougher and stronger than humans, but are way less smart. They are uncontrollable and, when angered, can become a wrecking ball of muscles and thorns.', type= 'race', allowsSelection=[rage, horns], str=(5, 0), dex=(-4, 0), vit=(4, 0), will=(-3, 0))
-    insect = Trait('Insectoid', 'Insectoids are a rare race of bipedal insects which are stronger than human but, more importantly, very good at arcane arts. They come in all kinds of forms, from the slender mantis to the bulky beetle.', type = 'race', allowsSelection=[carapace], str=(1, 0), dex=(-1, 0), vit=(-2, 0), will=(2, 0))
-    cat = Trait('Felis', 'Felis, kinds of humanoid cats, are sneaky thieves and assassins. They usually move silently and can see in the dark.', type ='race', allowsSelection=[silence], str = (2, 0), vit = (-2, 0))
-    rept = Trait('Reptilian', 'Reptilians are very agile but absurdly weak. Their scaled skin, however, sometimes provides them with natural camouflage, and they might use their natural venom on their daggers or arrows to make them even more deadly.', type = 'race', allowsSelection=[venom, mimesis], ev=(20, 0), str=(-4, 0), dex=(2, 0))
+    mino = Trait('Minotaur', 'Minotaurs, whose muscular bodies are topped with a taurine head, are tougher and stronger than humans, but are way less smart. They are uncontrollable and, when angered, can become a wrecking ball of muscles and thorns.', type= 'race', allowsSelection=[rage, horns], stren=(5, 0), dex=(-4, 0), vit=(4, 0), will=(-3, 0))
+    insect = Trait('Insectoid', 'Insectoids are a rare race of bipedal insects which are stronger than human but, more importantly, very good at arcane arts. They come in all kinds of forms, from the slender mantis to the bulky beetle.', type = 'race', allowsSelection=[carapace], stren=(1, 0), dex=(-1, 0), vit=(-2, 0), will=(2, 0))
+    cat = Trait('Felis', 'Felis, kinds of humanoid cats, are sneaky thieves and assassins. They usually move silently and can see in the dark.', type ='race', allowsSelection=[silence], stren = (2, 0), vit = (-2, 0))
+    rept = Trait('Reptilian', 'Reptilians are very agile but absurdly weak. Their scaled skin, however, sometimes provides them with natural camouflage, and they might use their natural venom on their daggers or arrows to make them even more deadly.', type = 'race', allowsSelection=[venom, mimesis], ev=(20, 0), stren=(-4, 0), dex=(2, 0))
     demon = Trait('Demon Spawn', 'Demon spawns, a very uncommon breed of a human and a demon, are cursed with the heritage of  their demonic parents, which will make them grow disturbing mutations as they grow older and stronger.', type = 'race')
-    tree = Trait('Rootling', 'Rootlings, also called treants, are rare, sentient plants. They begin their life as a simple twig, but, with time, might become gigantic oaks.', type = 'race', str=(-3, 0), dex=(-2, 0), vit=(-4, 0), will=(-3, 0))
-    wolf = Trait('Werewolf', 'Werewolves are a martyred and despised race. Very tough to kill, they are naturally stronger than basic humans and unconogreably shapeshift more or less regularly. However, older werewolves are used to these transformations and can even use them to their interests.', type = 'race', allowsSelection=[wild], str=(2, 0), dex=(1, 0), vit=(-2, 0), will=(-4, 0))
+    tree = Trait('Rootling', 'Rootlings, also called treants, are rare, sentient plants. They begin their life as a simple twig, but, with time, might become gigantic oaks.', type = 'race', stren=(-3, 0), dex=(-2, 0), vit=(-4, 0), will=(-3, 0))
+    wolf = Trait('Werewolf', 'Werewolves are a martyred and despised race. Very tough to kill, they are naturally stronger than basic humans and unconogreably shapeshift more or less regularly. However, older werewolves are used to these transformations and can even use them to their interests.', type = 'race', allowsSelection=[wild], stren=(2, 0), dex=(1, 0), vit=(-2, 0), will=(-4, 0))
     devourer = Trait('Devourer', 'Devourers are strange, dreaded creatures from another dimension. Few have arrived in ours and even fewer have been described. These animals, half mantis, half lizard, are only born to kill and consume. Some of their breeds can even, after consuming anything - even a weapon - grow an organic replica of it.', type = 'race', vit = (-2, 0), will = (-10, 0))
     virus = Trait('Virus ', 'Viruses are the physically weakest race, but do not base their success on their own bodies. Indeed, they are able to infect another race, making it their host and fully controllable by the virus. What is more, the virus own physical attributes, instead of applying to it directly, rather modifies the host metabolism, potentially making it stronger or tougher. However, this take-over is very harmful for the host, who will eventually die. The virus must then find a new host to continue living.', type = 'race', ev = (999, 0))
     races = [human, mino, insect, cat, rept, demon, tree, wolf, devourer, virus]
@@ -1595,7 +1609,7 @@ def characterCreation():
         counter += 1
     
     ## attributes ##
-    stren = Trait('Strength', 'Strength augments the power of your attacks', type = 'attribute', maxAmount=5, str=(1, 0))
+    stren = Trait('Strength', 'Strength augments the power of your attacks', type = 'attribute', maxAmount=5, stren=(1, 0))
     dex = Trait('Dexterity', 'Dexterity augments your accuracy and your evasion', type = 'attribute', maxAmount=5, dex=(1, 0))
     const = Trait('Constitution', 'Constitution augments your maximum health and your regeneration rate.', type = 'attribute', maxAmount=5, vit=(1, 0))
     will = Trait('Willpower', 'Willpower augments your energy and the rate at which you regain it.', type = 'attribute', maxAmount=5, will=(1, 0))
@@ -1610,6 +1624,10 @@ def characterCreation():
         counter += 1
     
     ## skills ##
+    fireSkill = Trait('Fire', 'Launch a blazing fireball at the chosen location.', type = 'skill', selectable=False, tier = 4, spells = [fireball])
+    iceSkill = Trait('Water', 'Launch an ice bolt at your target in order to freeze it.', type = 'skill', selectable=False, tier = 4, spells = [ice])
+    fourthTierSkills = [fireSkill, iceSkill]
+    
     light = Trait('Light weapons', '+20% damage per skillpoints with light weapons', type = 'skill', selectable = False, tier = 3)
     heavy = Trait('Heavy weapons', '+20% damage per skillpoints with heavy weapons', type = 'skill', selectable = False, tier = 3)
     missile = Trait('Missile weapons', '+20% damage per skillpoints with missile weapons', type = 'skill', selectable = False, tier = 3)
@@ -1619,30 +1637,33 @@ def characterCreation():
     critical = Trait('Critical', 'You know every weaknesses of your enemies.', type = 'skill', selectable = False, crit=(3, 0), tier = 3)
     constitution = Trait('Constitution', 'You are a sturdy person', type = 'skill', hp = (5, 0), vit = (1, 0), selectable = False, tier = 3)
     hunger = Trait('Hunger management', 'You are used to starve and are now resilient to hunger.', type = 'skill', selectable=False, tier = 3)
-    thirdTierSkills = [light, heavy, missile, armorEff, shield, hunger, constitution, dexterity, critical]
+    occult = Trait('Occult magic', 'The black magic cannot hide any of its dark secrets to you.', type = 'skill', selectable=False, tier = 3)
+    elemental = Trait('Elemental magic', 'You master the power of the four elements.', type = 'skill', selectable=False, tier = 3, allowsSelection=[fireSkill, iceSkill])
+    thirdTierSkills = [light, heavy, missile, armorEff, shield, hunger, constitution, occult, elemental, dexterity, critical]
 
     melee = Trait('Melee Weaponry', 'You are trained to wreck your enemies at close range.', type = 'skill', selectable = False, tier = 2, allowsSelection=[light, heavy])
     ranged = Trait('Ranged Weaponry', 'You shoot people in the knees.', type = 'skill', selectable = False, tier = 2, allowsSelection=[missile])
     armorW = Trait('Armor wielding', 'You are trained to wield several types of armor.', type = 'skill', selectable = False, tier = 2, allowsSelection=[armorEff, shield])
     endurance = Trait('Endurance', 'You are used to live in harsh conditions', type = 'skill', selectable = False, tier = 2, allowsSelection=[hunger, constitution])
-    strength = Trait('Strength', 'You are as strong as a bear', type = 'skill', str=(1, 0), selectable = False, tier = 2)
+    strength = Trait('Strength', 'You are as strong as a bear', type = 'skill', stren=(1, 0), selectable = False, tier = 2)
     willpower = Trait('Willpower', 'Your will is very strong', type = 'skill', mp=(5, 0), will = (1, 0), selectable = False, tier = 2)
-    intelligence = Trait('Intelligence', 'You are cunning, and can both use this to hide in the shadows, or to increase the potency of your spells', type = 'skill', selectable = False, tier = 2, allowsSelection=[dexterity, critical])
-    magic = Trait('Magic ', 'You can use the power of your mind to bind reality to your will', type = 'skill', selectable = False, tier = 2)
-    secondTierSkills = [melee, ranged, armorW, strength, endurance, magic, willpower, intelligence]
+    cunning = Trait('Cunning', 'You are cunning, and can both use this to hide in the shadows, or to increase the potency of your spells', type = 'skill', selectable = False, tier = 2, allowsSelection=[dexterity, critical])
+    magic = Trait('Magic ', 'You can use the power of your mind to bind reality to your will', type = 'skill', selectable = False, tier = 2, allowsSelection=[occult, elemental])
+    secondTierSkills = [melee, ranged, armorW, strength, endurance, magic, willpower, cunning]
 
     martial = Trait('Martial training', 'You are trained to use a wide variety of weapons', type = 'skill', acc=(10, 0), allowsSelection=[melee, ranged, armorW])
     physical = Trait('Physical training', 'You are muscular and are used to physical efforts', type = 'skill', allowsSelection=[strength, endurance])
-    mental = Trait('Mental training', 'Your mind is as fast as an arrow and as sharp as a scalpel', type = 'skill', allowsSelection=[magic, willpower, intelligence])
+    mental = Trait('Mental training', 'Your mind is as fast as an arrow and as sharp as a scalpel', type = 'skill', allowsSelection=[magic, willpower, cunning])
     basicSkills = [martial, physical, mental]
     
     skills = basicSkills
     skills.extend(secondTierSkills)
     skills.extend(thirdTierSkills)
+    skills.extend(fourthTierSkills)
     
     quarterX = (WIDTH - 2)//5
     
-    def initiateSkill(skillList, maxHeight, heightCounter, prevMaxHeight, prevHeightCounter):
+    def initiateSkill(skillList, maxHeight, heightCounter, prevMaxHeight = 76, prevHeightCounter = 0):
         newHeight = maxHeight//len(skillList)
         mid = newHeight//2
         counter = 0
@@ -1666,7 +1687,7 @@ def characterCreation():
             print(skill.name, skill.tier, len(skill.allowsSelection), skill.x, skill.y)
             if skill.allowsSelection and len(skill.allowsSelection) > 0:
                 print('initiating selectable skills of ' + skill.name)
-                initiateSkill(skill.allowsSelection, newHeight, counter, 76, 0)
+                initiateSkill(skill.allowsSelection, newHeight, counter)
             counter += 1
 
     '''
@@ -1692,7 +1713,7 @@ def characterCreation():
     '''
     ## classes ##
     knight = Trait('Knight', 'A warrior who wears armor and wields shields', type ='class', arm=(1, 1), hp=(120, 14), mp=(30, 3))
-    barb = Trait('Barbarian', 'A brutal fighter who is mighty strong', type = 'class', hp=(160, 20), mp=(30, 3), str=(1, 1), spells=[enrage])
+    barb = Trait('Barbarian', 'A brutal fighter who is mighty strong', type = 'class', hp=(160, 20), mp=(30, 3), stren=(1, 1), spells=[enrage])
     rogue = Trait('Rogue', 'A rogue who is stealthy and backstabby (probably has a french accent)', type = 'class', acc=(8, 4), ev=(10, 2), hp=(90, 10), mp=(40, 5), crit=(3, 0))
     mage = Trait('Mage ', 'A wizard who zaps everything', type ='class', hp=(70, 6), mp=(50, 7), will=(2, 0), spells=[fireball])
     necro = Trait('Necromancer', 'A master of the occult arts who has the ability to raise and control the dead.', type = 'class', hp=(100, 4), mp=(15, 1), spells=[darkPact, ressurect])
@@ -1711,7 +1732,7 @@ def characterCreation():
     aura = Trait('Aura', 'You are surrounded by a potent aura', type = 'trait', mp=(20, 0))
     evasive = Trait('Evasive', 'You are aware of how to stay out of trouble', type = 'trait', ev=(10, 0))
     healthy = Trait('Healthy', 'You are healthy', type = 'trait', vit=(2, 0))
-    muscular = Trait('Muscular', 'You are very strong', type = 'trait', str=(2, 0))
+    muscular = Trait('Muscular', 'You are very strong', type = 'trait', stren=(2, 0))
     natArmor = Trait('Natural armor', 'Your skin is rock-hard', type = 'trait', arm = (1, 0))
     mind = Trait('Strong mind', 'Your mind is fast and potent', type = 'trait', will=(2, 0))
     agile = Trait('Agile', 'You have incredible reflexes', type = 'trait', dex=(2, 0))
@@ -1879,7 +1900,9 @@ def characterCreation():
         if key.keychar.upper() == 'ENTER':
             error = False
             if index == maxIndex - 2:
-                levelUpScreen(newSkillpoints=False, skillpoint=maxSkill - skillsPoints, fromCreation=True, skills=skills)
+                selectedSkills = levelUpScreen(newSkillpoints=False, skillpoint=maxSkill - skillsPoints, fromCreation=True, skills=skills)
+                for skill in selectedSkills:
+                    skill.applyBonus()
                 error = True
             if index == maxIndex - 1:
                 if raceSelected and classSelected:
@@ -1906,9 +1929,9 @@ def characterCreation():
                 if trait.type == 'class':
                     if not classSelected and trait.selectable:
                         trait.applyBonus()
-                if trait.type == 'skill':
-                    if skillsPoints < maxSkill and trait.selectable:
-                        trait.applyBonus()
+                #if trait.type == 'skill':
+                #    if skillsPoints < maxSkill and trait.selectable:
+                #        trait.applyBonus()
 
         #removing choice bonus
         if key.keychar.upper() == 'BACKSPACE':
@@ -5076,7 +5099,7 @@ def levelUpScreen(newSkillpoints = True, skillpoint = 3, fromCreation = False, s
                         color = colors.grey
                         addition = 0
                     for (x, y) in tdl.map.bresenham(origSkill.x + len(origSkill.name)//2 + 2, origSkill.y, skill.x - len(skill.name)//2 - addition, skill.y):
-                        window.draw_str(x, y, '-', color, None)
+                        window.draw_str(x, y, chr(250), color, None)
                     drawTreeLines(skill)
         #counter1 = 0
         #counter2 = 0
@@ -5143,19 +5166,31 @@ def levelUpScreen(newSkillpoints = True, skillpoint = 3, fromCreation = False, s
         tdl.flush()
         key = tdl.event.key_wait()
         if key.keychar.upper() == 'ESCAPE':
-            return
+            returnList = []
+            if not fromCreation:
+                for skill in notConfirmed.keys():
+                    returnList.append(skill)
+            else:
+                for skill in origin.skills:
+                    if skill.selected:
+                        returnList.append(skill)
+            return returnList
         elif key.keychar.upper() == 'DOWN':
             index += 1
         elif key.keychar.upper() == 'UP':
             index -= 1
-        #elif key.keychar.upper() == 'RIGHT':
-        #    index += len(currentList)
-        #    if index >= len(nextList):
-        #        index = len(nextList) - 1
-        #elif key.keychar.upper() == 'LEFT':
-        #    index -= len(prevList)
-        #    if index >= len(prevList):
-        #        index = len(prevList) - 1
+        elif key.keychar.upper() == 'RIGHT':
+            if origin.skills[index].allowsSelection:
+                newSkill = origin.skills[index].allowsSelection[0]
+            else:
+                newSkill = origin.skills[index]
+            index = origin.skills.index(newSkill)
+        elif key.keychar.upper() == 'LEFT':
+            if origin.skills[index].owner:
+                newSkill = origin.skills[index].owner
+            else:
+                newSkill = origin.skills[index]
+            index = origin.skills.index(newSkill)
         elif key.keychar.upper() == 'ENTER':
             skill = origin.skills[index]
             if skill.selectable and skill.amount < 5 and origin.skillpoints > 0:
@@ -5229,6 +5264,8 @@ def checkLevelUp():
         player.Player.BASE_VITALITY += player.Player.levelUpStats['vit']
         player.Player.willpower += player.Player.levelUpStats['will']
         player.Player.BASE_WILLPOWER += player.Player.levelUpStats['will']
+        player.Fighter.baseArmorPenetration += player.Player.levelUpStats['ap']
+        player.Fighter.BASE_ARMOR_PENETRATION += player.Player.levelUpStats['ap']
         
         if player.Player.race == 'Demon Spawn':
             if player.Player.possibleMutations and player.level in player.Player.mutationLevel:
@@ -5286,7 +5323,9 @@ def checkLevelUp():
                     player.Fighter.MP += mpBonus
             message('You feel your wooden corpse thickening!', colors.celadon)
         
-        levelUpScreen()
+        newSkills = levelUpScreen()
+        for skill in newSkills:
+            skill.applyBonus(charCreation = False)
         tdl.flush()
         FOV_recompute = True
         Update()
