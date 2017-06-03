@@ -750,6 +750,22 @@ def learnSpell(spell):
         message("You already know this spell")
         return "cancelled"
 
+def unlearnSpell(spell):
+    if spell in player.Fighter.knownSpells:
+        player.Fighter.knownSpells.remove(spell)
+        message('You forget ' + spell.name + '!', colors.red)
+    else:
+        found = False
+        for knownSpell in player.Fighter.knownSpellsToNames(True):
+            if spell.name == knownSpell.name:
+                found = True
+                player.Fighter.knownSpells.remove(knownSpell)
+                message('You forget ' + knownSpell.name + '!', colors.red)
+        if not found:
+            message('You did not know this spell.', colors.white)
+            return 'cancelled'
+                
+
 def castRegenMana(regenAmount, caster = None, target = None):
     if caster is None or caster == player:
         caster = player
@@ -1467,6 +1483,7 @@ class Trait():
             player.Fighter.baseArmorPenetration += self.ap
             player.Fighter.BASE_ARMOR_PENETRATION += self.ap
             #player.Player.levelUpStats['ap'] += self.apPerLvl
+            self.amount += 1
             if self.spells is not None:
                 for spell in self.spells:
                     learnSpell(spell)
@@ -1475,45 +1492,103 @@ class Trait():
             for trait in self.allowsSelection:
                 trait.selectable = True
     
-    def removeBonus(self):
-        global createdCharacter
-        if self.amount > 0:
-            createdCharacter['pow'] -= self.pow
-            createdCharacter['acc'] -= self.acc
-            createdCharacter['ev'] -= self.ev
-            createdCharacter['arm'] -= self.arm
-            createdCharacter['hp'] -= self.hp
-            createdCharacter['mp'] -= self.mp
-            createdCharacter['crit'] -= self.crit
-            createdCharacter['str'] -= self.str
-            createdCharacter['dex'] -= self.dex
-            createdCharacter['vit'] -= self.vit
-            createdCharacter['will'] -= self.will
-            createdCharacter['ap'] -= self.ap
-            if self.spells is not None:
-                for spell in self.spells:
-                    createdCharacter['spells'].remove(spell)
-            createdCharacter['load'] -= self.load
-            createdCharacter['powLvl'] -= self.powPerLvl
-            createdCharacter['accLvl'] -= self.accPerLvl
-            createdCharacter['evLvl'] -= self.evPerLvl
-            createdCharacter['armLvl'] -= self.armPerLvl
-            createdCharacter['hpLvl'] -= self.hpPerLvl
-            createdCharacter['mpLvl'] -= self.mpPerLvl
-            createdCharacter['critLvl'] -= self.critPerLvl
-            createdCharacter['strLvl'] -= self.strPerLvl
-            createdCharacter['dexLvl'] -= self.dexPerLvl
-            createdCharacter['vitLvl'] -= self.vitPerLvl
-            createdCharacter['willLvl'] -= self.willPerLvl
-            createdCharacter['apLvl'] -= self.apPerLvl
+    def removeBonus(self, charCreation = True, keepDependantSkills = False):
+        if charCreation:
+            global createdCharacter
+            if self.amount > 0:
+                createdCharacter['pow'] -= self.pow
+                createdCharacter['acc'] -= self.acc
+                createdCharacter['ev'] -= self.ev
+                createdCharacter['arm'] -= self.arm
+                createdCharacter['hp'] -= self.hp
+                createdCharacter['mp'] -= self.mp
+                createdCharacter['crit'] -= self.crit
+                createdCharacter['str'] -= self.str
+                createdCharacter['dex'] -= self.dex
+                createdCharacter['vit'] -= self.vit
+                createdCharacter['will'] -= self.will
+                createdCharacter['ap'] -= self.ap
+                if self.spells is not None:
+                    for spell in self.spells:
+                        createdCharacter['spells'].remove(spell)
+                createdCharacter['load'] -= self.load
+                createdCharacter['powLvl'] -= self.powPerLvl
+                createdCharacter['accLvl'] -= self.accPerLvl
+                createdCharacter['evLvl'] -= self.evPerLvl
+                createdCharacter['armLvl'] -= self.armPerLvl
+                createdCharacter['hpLvl'] -= self.hpPerLvl
+                createdCharacter['mpLvl'] -= self.mpPerLvl
+                createdCharacter['critLvl'] -= self.critPerLvl
+                createdCharacter['strLvl'] -= self.strPerLvl
+                createdCharacter['dexLvl'] -= self.dexPerLvl
+                createdCharacter['vitLvl'] -= self.vitPerLvl
+                createdCharacter['willLvl'] -= self.willPerLvl
+                createdCharacter['apLvl'] -= self.apPerLvl
+                self.amount -= 1
+                if self.amount <= 0:
+                    self.selected = False
+                    if self.spells is not None:
+                        for spell in self.spells:
+                            createdCharacter['spells'].remove(spell)
+                    if not keepDependantSkills:
+                        for trait in self.allowsSelection:
+                            trait.selectable = False
+                            if trait.selected: 
+                                trait.amount = 0
+                                trait.selected = False
+        else:
+            player.Fighter.noStrengthPower -= self.pow
+            player.Fighter.BASE_POWER -= self.pow
+            #player.Player.levelUpStats['pow'] -= self.powPerLvl
+            player.Fighter.noDexAccuracy -= self.acc
+            player.Fighter.BASE_ACCURACY -= self.acc
+            #player.Player.levelUpStats['acc'] -= self.accPerLvl
+            player.Fighter.noDexEvasion -= self.ev
+            player.Fighter.BASE_EVASION -= self.ev
+            #player.Player.levelUpStats['ev'] -= self.evPerLvl
+            player.Fighter.baseArmor -= self.arm
+            player.Fighter.BASE_ARMOR -= self.arm
+            #player.Player.levelUpStats['arm'] -= self.armPerLvl
+            player.Fighter.noVitHP -= self.hp
+            player.Fighter.hp -= self.hp
+            player.Fighter.BASE_MAX_HP -= self.hp
+            #player.Player.levelUpStats['hp'] -= self.hpPerLvl
+            player.Fighter.noWillMP -= self.mp
+            player.Fighter.MP -= self.mp
+            player.Fighter.BASE_MAX_MP -= self.mp
+            #player.Player.levelUpStats['mp'] -= self.mpPerLvl
+            player.Fighter.baseCritical -= self.crit
+            player.Fighter.BASE_CRITICAL -= self.crit
+            #player.Player.levelUpStats['crit'] -= self.critPerLvl
+            player.Player.strength -= self.str
+            player.Player.BASE_STRENGTH -= self.str
+            #player.Player.levelUpStats['str'] -= self.strPerLvl
+            player.Player.dexterity -= self.dex
+            player.Player.BASE_DEXTERITY -= self.dex
+            #player.Player.levelUpStats['dex'] -= self.dexPerLvl
+            player.Player.vitality -= self.vit
+            player.Player.BASE_VITALITY -= self.vit
+            #player.Player.levelUpStats['vit'] -= self.vitPerLvl
+            player.Player.willpower -= self.will
+            player.Player.BASE_WILLPOWER -= self.will
+            #player.Player.levelUpStats['will'] -= self.willPerLvl
+            player.Fighter.baseArmorPenetration -= self.ap
+            player.Fighter.BASE_ARMOR_PENETRATION -= self.ap
+            #player.Player.levelUpStats['ap'] -= self.apPerLvl
             self.amount -= 1
+            player.Player.baseMaxWeight -= self.load
             if self.amount <= 0:
                 self.selected = False
-                for trait in self.allowsSelection:
-                    trait.selectable = False
-                    if trait.selected: 
-                        trait.amount = 0
-                        trait.selected = False
+                if self.spells is not None:
+                    for spell in self.spells:
+                        unlearnSpell(spell)
+                if not keepDependantSkills:
+                    for trait in self.allowsSelection:
+                        trait.selectable = False
+                        if trait.selected:
+                            player.Player.skillpoints += trait.amount 
+                            trait.amount = 0
+                            trait.selected = False
     
     def addTraitToPlayer(self):
         if self.type == 'skill':
@@ -1900,9 +1975,7 @@ def characterCreation():
         if key.keychar.upper() == 'ENTER':
             error = False
             if index == maxIndex - 2:
-                selectedSkills = levelUpScreen(newSkillpoints=False, skillpoint=maxSkill - skillsPoints, fromCreation=True, skills=skills)
-                for skill in selectedSkills:
-                    skill.applyBonus()
+                levelUpScreen(newSkillpoints=False, skillpoint=maxSkill - skillsPoints, fromCreation=True, skills=skills)
                 error = True
             if index == maxIndex - 1:
                 if raceSelected and classSelected:
@@ -2413,12 +2486,15 @@ class Fighter: #All NPCs, enemies and the player
         return self.noWillMP + bonus
     
     @property
-    def knownSpellsToNames(self):
+    def knownSpellsToNames(self, returnActualSpell=False):
         '''
         Convert list of fighter's known spells to list of names of said spells.
         This doesn't necessarily respects alphabetical order
         '''
-        return [spell.name for spell in self.knownSpells]
+        if returnActualSpell:
+            return [spell for spell in self.knownSpells]
+        else:
+            return [spell.name for spell in self.knownSpells]
 
     @property
     def power(self):
@@ -5166,15 +5242,15 @@ def levelUpScreen(newSkillpoints = True, skillpoint = 3, fromCreation = False, s
         tdl.flush()
         key = tdl.event.key_wait()
         if key.keychar.upper() == 'ESCAPE':
-            returnList = []
-            if not fromCreation:
-                for skill in notConfirmed.keys():
-                    returnList.append(skill)
-            else:
-                for skill in origin.skills:
-                    if skill.selected:
-                        returnList.append(skill)
-            return returnList
+            #returnList = []
+            #if not fromCreation:
+            #    for skill in notConfirmed.keys():
+            #        returnList.append(skill)
+            #else:
+            #    for skill in origin.skills:
+            #        if skill.selected:
+            #            returnList.append(skill)
+            return #returnList
         elif key.keychar.upper() == 'DOWN':
             index += 1
         elif key.keychar.upper() == 'UP':
@@ -5194,10 +5270,11 @@ def levelUpScreen(newSkillpoints = True, skillpoint = 3, fromCreation = False, s
         elif key.keychar.upper() == 'ENTER':
             skill = origin.skills[index]
             if skill.selectable and skill.amount < 5 and origin.skillpoints > 0:
+                formerAmount = skill.amount
                 skill.selected = True
                 if not skill in notConfirmed:
                     notConfirmed[skill] = skill.amount
-                skill.amount += 1
+                skill.applyBonus(fromCreation)
                 origin.skillpoints -= 1
                 for newSkill in skill.allowsSelection:
                     newSkill.selectable = True
@@ -5208,12 +5285,15 @@ def levelUpScreen(newSkillpoints = True, skillpoint = 3, fromCreation = False, s
                         skill.selected = False
                         skill.selectable = False
                         origin.skillpoints += skill.amount
+                        for loop in range(skill.amount):
+                            print('removing bonus')
+                            skill.removeBonus(fromCreation)
                         skill.amount = 0
                         removeSkillTree(skill)
                 
             skill = origin.skills[index]
             if (skill in notConfirmed and skill.amount > notConfirmed[skill]) or (fromCreation and skill.selected):
-                skill.amount -= 1
+                skill.removeBonus(fromCreation, True)
                 origin.skillpoints += 1
                 if not fromCreation:
                     if skill.amount == notConfirmed[skill]:
@@ -5323,9 +5403,7 @@ def checkLevelUp():
                     player.Fighter.MP += mpBonus
             message('You feel your wooden corpse thickening!', colors.celadon)
         
-        newSkills = levelUpScreen()
-        for skill in newSkills:
-            skill.applyBonus(charCreation = False)
+        levelUpScreen()
         tdl.flush()
         FOV_recompute = True
         Update()
