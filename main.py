@@ -1738,17 +1738,17 @@ def characterCreation():
     
     quarterX = (WIDTH - 2)//5
     
-    def initiateSkill(skillList, maxHeight, heightCounter, prevMaxHeight = 76, prevHeightCounter = 0):
+    def initiateSkill(skillList, maxHeight, heightCounter, originY = 0):
         newHeight = maxHeight//len(skillList)
         mid = newHeight//2
         counter = 0
         for skill in skillList:
             skill.x = skill.tier * quarterX
-            skill.y = mid + counter * newHeight + heightCounter * maxHeight + prevHeightCounter * prevMaxHeight
+            skill.y = mid + counter * newHeight + heightCounter * maxHeight + originY
             print(skill.name, skill.tier, len(skill.allowsSelection), skill.x, skill.y)
             if skill.allowsSelection and len(skill.allowsSelection) > 0:
                 print('initiating selectable skills of ' + skill.name)
-                initiateSkill(skill.allowsSelection, newHeight, counter, maxHeight, heightCounter)
+                initiateSkill(skill.allowsSelection, newHeight, counter, maxHeight * heightCounter + originY)
             counter += 1
     
     
