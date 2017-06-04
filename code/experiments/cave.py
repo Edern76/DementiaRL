@@ -485,6 +485,8 @@ def generateMap():
         print(myMap[2][5].blocked)
     else:
         print("Everything is worked as intended in this part of the code")
+    update(myMap)
+    tdl.event.key_wait()
     for loop in range(STEPS_NUMBER):
         myMap = doStep(myMap)
     maps = [myMap, baseMap]
