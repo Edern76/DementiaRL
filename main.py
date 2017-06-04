@@ -110,35 +110,35 @@ MOVEMENT_KEYS = {
                  
                  }
 
-WIDTH, HEIGHT, LIMIT = 150, 80, 20
-MAP_WIDTH, MAP_HEIGHT = 140, 60
+WIDTH, HEIGHT, LIMIT = 150, 80, 20 #Defaults : 150, 80, 20
+MAP_WIDTH, MAP_HEIGHT = 140, 60 #Defaults : 140, 60
 MID_MAP_WIDTH, MID_MAP_HEIGHT = MAP_WIDTH//2, MAP_HEIGHT//2
 MID_WIDTH, MID_HEIGHT = int(WIDTH/2), int(HEIGHT/2)
 
 # - GUI Constants -
-BAR_WIDTH = 20
+BAR_WIDTH = 20 #Default : 20
 
-PANEL_HEIGHT = 10
+PANEL_HEIGHT = 10 #Default : 10
 CON_HEIGHT = HEIGHT - PANEL_HEIGHT
 MID_CON_HEIGHT = int(CON_HEIGHT // 2)
 PANEL_Y = HEIGHT - PANEL_HEIGHT
 
-MSG_X = BAR_WIDTH + 10
-MSG_WIDTH = WIDTH - BAR_WIDTH - 10 - 40
-MSG_HEIGHT = PANEL_HEIGHT - 1
+MSG_X = BAR_WIDTH + 10 #Default : BAR_WIDTH + 10
+MSG_WIDTH = WIDTH - BAR_WIDTH - 10 - 40 #Default : WIDTH - BAR_WIDTH - 10 - 40
+MSG_HEIGHT = PANEL_HEIGHT - 1 #Default : PANEL_HEIGHT - 1
 
-BUFF_WIDTH = 30
-BUFF_X = WIDTH - 35
+BUFF_WIDTH = 30 #Default : 30
+BUFF_X = WIDTH - 35 #Default : WIDTH - 35
 
-INVENTORY_WIDTH = 70
+INVENTORY_WIDTH = 70 #Default : 70
 
-LEVEL_SCREEN_WIDTH = 40
+LEVEL_SCREEN_WIDTH = 40 #Default : 40
 
-CHARACTER_SCREEN_WIDTH = 50
-CHARACTER_SCREEN_HEIGHT = 21
+CHARACTER_SCREEN_WIDTH = 50 #Default : 50
+CHARACTER_SCREEN_HEIGHT = 21 #Default : 21
 
-DEATH_SCREEN_WIDTH = 25
-DEATH_SCREEN_HEIGHT = 10
+DEATH_SCREEN_WIDTH = 25 #Default : 25
+DEATH_SCREEN_HEIGHT = 10 #Default : 10
 consolesDisplayed = False
 
 # - GUI Constants -
@@ -159,20 +159,20 @@ else:
 # - Consoles
 
 FOV_recompute = True
-FOV_ALGO = 'BASIC'
+FOV_ALGO = 'BASIC' #Default : BASIC
 FOV_LIGHT_WALLS = True
-SIGHT_RADIUS = 10
-MAX_ROOM_MONSTERS = 3
-MAX_ROOM_ITEMS = 3
+SIGHT_RADIUS = 10 #Default : 10
+MAX_ROOM_MONSTERS = 3 #Default : 3
+MAX_ROOM_ITEMS = 3 #Default : 3
 GRAPHICS = 'modern'
 LEVEL_UP_BASE = 200 # Set to 200 once testing complete
-LEVEL_UP_FACTOR = 150
+LEVEL_UP_FACTOR = 150 #Default : 150
 NATURAL_REGEN = True
-BASE_HIT_CHANCE = 50
+BASE_HIT_CHANCE = 50 #Default : 50
 
 boss_FOV_recompute = True
-BOSS_FOV_ALGO = 'BASIC'
-BOSS_SIGHT_RADIUS = 20
+BOSS_FOV_ALGO = 'BASIC' #Default : BASIC
+BOSS_SIGHT_RADIUS = 20 #Default : 20
 bossDungeonsAppeared = {'gluttony': False, 'greed' : False, 'wrath': False}
 lastHitter = None
 nemesisList = []
@@ -181,18 +181,18 @@ mustCalculate = False
 currentMusic = 'No_Music.wav'
 
 # - Spells -
-LIGHTNING_DAMAGE = 40
-LIGHTNING_RANGE = 5
-CONFUSE_NUMBER_TURNS = 10
-CONFUSE_RANGE = 8
-DARK_PACT_DAMAGE = 24
-FIREBALL_SPELL_BASE_DAMAGE = 12
-FIREBALL_SPELL_BASE_RADIUS = 1
-FIREBALL_SPELL_BASE_RANGE = 4
+LIGHTNING_DAMAGE = 40 #Default : 40
+LIGHTNING_RANGE = 5 #Default : 5
+CONFUSE_NUMBER_TURNS = 10 #Default : 10
+CONFUSE_RANGE = 8 #Default: 8
+DARK_PACT_DAMAGE = 24 #Default : 24
+FIREBALL_SPELL_BASE_DAMAGE = 12 #Default : 12
+FIREBALL_SPELL_BASE_RADIUS = 1 #Default : 1
+FIREBALL_SPELL_BASE_RANGE = 4 #Default : 4
 
 RESURECTABLE_CORPSES = ["darksoul", "ogre"]
 
-BASE_HUNGER = 1500
+BASE_HUNGER = 1500 #Default : 500
 
 MAX_ASTAR_FAILS = 1 #Possibly unstable at 1 (but best performance), if you get weird results with Astar (aside from freezing) try bumping this number up a LITTLE bit (3 is already way overkill)
 REGEN_THRESHOLD = 4000 #Number of iterations of stairs placing loop before you throw away current map and regenerates another one. Setting this too high may make map generation longer. Setting this too low may provoke infinite loops or cause the game to reject potentially valid maps (also making the map gen longer). (base : 2000)
