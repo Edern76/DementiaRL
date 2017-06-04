@@ -5627,12 +5627,12 @@ ROOM_MIN_SIZE = 6
 MAX_ROOMS = 30
 '''
 
-CHANCE_TO_START_ALIVE = 55
-CHANCE_TO_START_ALIVE_CHASM = 65
-DEATH_LIMIT = 3
-BIRTH_LIMIT = 4
-STEPS_NUMBER = 2
-MIN_ROOM_SIZE = 6
+CHANCE_TO_START_ALIVE = 55 #Default : 55
+CHANCE_TO_START_ALIVE_CHASM = 65 #Default : 65
+DEATH_LIMIT = 3 #Default : 3
+BIRTH_LIMIT = 4 #Default : 4
+STEPS_NUMBER = 2 #Default : 2
+MIN_ROOM_SIZE = 6 #Default : 6
 
 emptyTiles = [] #List of tuples of the coordinates of emptytiles not yet processed by the floodfill algorithm
 rooms = []
