@@ -6155,19 +6155,19 @@ def doStep(oldMap):
     newMap = list(deepcopy(baseMap)) #On cree une nouvelle carte surlaquelle on va travailler
     for x in range(1, MAP_WIDTH - 1):
         for y in range(1, MAP_HEIGHT - 1):
-            neighbours = countNeighbours(oldMap, x, y) #On compte les murs autour de chaque case
-            if oldMap[x][y].blocked: #Si la dite case est bloquee
+            neighbours = countNeighbours(oldMap, x, y) #On compte les murs autour de chaque case dans l'ancienne carte (myMap)
+            if oldMap[x][y].blocked: #Si la dite case est bloquee dans l'ancienne carte
                 if neighbours < DEATH_LIMIT: #Si elle a moins de murs voisins que la limite pour laquelle on ouvre cette case
-                    openTile(x, y, newMap) #On ouvre la case (on fait en sorte que ce ne soit plus un mur)
+                    openTile(x, y, newMap) #On ouvre la case dans la nouvelle carte (on fait en sorte que ce ne soit plus un mur)
                 else:
-                    closeTile(x, y, newMap) #Sinon, on s'assure que cela reste un mur
+                    closeTile(x, y, newMap) #Sinon, on s'assure que cela reste un mur dans la nouvelle carte
                     print('Blocking')
             else: #Sinon (si c'est une case vide)
                 if neighbours > BIRTH_LIMIT: #Si elle a plus de murs voisins que la limite pour laquelle on en fait un mur
-                    closeTile(x, y, newMap) #On en fait un mur
+                    closeTile(x, y, newMap) #On en fait un mur dans la nouvelle carte
                     print('Blocking')
                 else:
-                    openTile(x, y, newMap) #Sinon, on s'assure que cela reste une case vide
+                    openTile(x, y, newMap) #Sinon, on s'assure que cela reste une case vide dans la nouvelle carte
     return newMap #On retourne la nouvelle carte
 
 def updateReachLists():
