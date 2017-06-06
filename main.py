@@ -612,9 +612,11 @@ def addSlot(fighter, slot):
     print('adding {} slot to {}'.format(slot, fighter.owner.name))
     fighter.slots.append(slot)
 
+#ISN project
 class Buff: #also (and mainly) used for debuffs
     def __init__(self, name, color, owner = None, cooldown = 20, showCooldown = True, showBuff = True,
                  applyFunction = None, continuousFunction = None, removeFunction = None):
+        #Fonction servant a initialiser (creer une nouvelle instance de) la class Buff
         self.name = name
         self.color = color
         self.baseCooldown = cooldown
@@ -626,34 +628,34 @@ class Buff: #also (and mainly) used for debuffs
         self.showCooldown = showCooldown
         self.showBuff = showBuff
     
-    def applyBuff(self, target):
+    def applyBuff(self, target): #Fonction permettant d'appliquer le buff a la créature cible (target)
         print(self.name, target.name)
-        self.owner = target
-        if not self.name in convertBuffsToNames(target.Fighter):
-            self.curCooldown = self.baseCooldown
+        self.owner = target #on determine l'attribut owner du buff comme la cible de celui-ci
+        if not self.name in convertBuffsToNames(target.Fighter): #si la cible ne subit pas deja le buff
+            self.curCooldown = self.baseCooldown #on initialise le cooldown du buff
             if self.showBuff:
-                message(self.owner.name.capitalize() + ' is now ' + self.name + '!', self.color)
+                message(self.owner.name.capitalize() + ' is now ' + self.name + '!', self.color) #on notifie le joueur si necessaire
             if self.applyFunction is not None:
-                self.applyFunction(self.owner.Fighter)
-            self.owner.Fighter.buffList.append(self)
-        else:
+                self.applyFunction(self.owner.Fighter) #si la methode applyFunction() existe, on l'execute
+            self.owner.Fighter.buffList.append(self) #on ajoute le buff a la liste des buffs de la cible
+        else: #si la cible subissait deja le buff
             bIndex = convertBuffsToNames(self.owner.Fighter).index(self.name)
-            target.Fighter.buffList[bIndex].curCooldown += self.baseCooldown
+            target.Fighter.buffList[bIndex].curCooldown += self.baseCooldown #on ralonge le cooldown du buff
     
-    def removeBuff(self):
-        if self.removeFunction is not None:
+    def removeBuff(self): #Fonction permettant de supprimer le buff
+        if self.removeFunction is not None: #si la methode removeFunction() existe, on l'execute
             self.removeFunction(self.owner.Fighter)
-        self.owner.Fighter.buffList.remove(self)
+        self.owner.Fighter.buffList.remove(self) #on supprime le buff de la liste de buffs de la creature le subissant
         if self.owner.Fighter.buffList is None:
             self.owner.Fighter.buffList = []
         if self.showBuff:
-            message(self.owner.name.capitalize() + ' is no longer ' + self.name + '.', self.color)
+            message(self.owner.name.capitalize() + ' is no longer ' + self.name + '.', self.color) #on notifie le joueur
     
-    def passTurn(self):
-        self.curCooldown -= 1
-        if self.curCooldown <= 0:
+    def passTurn(self): #Fonction s'executant chaque tour
+        self.curCooldown -= 1 #on diminue de 1 le cooldown du buff
+        if self.curCooldown <= 0: #si le buff a atteint sa limite, on le supprime grace à la methode removeBuff()
             self.removeBuff()
-        else:
+        else: # si le buff n'a pas atteint sa limite, on execute si elle existe la methode continuousFunction()
             if self.continuousFunction is not None:
                 self.continuousFunction(self.owner.Fighter)
 #_________ BUFFS ___________
@@ -1008,7 +1010,6 @@ def castDrawRectangle(caster = None, monsterTarget = None):
             return 'cancelled'
     else:
         return 'cancelled'
-
 
 def castEnvenom(caster = None, monsterTarget = None):
     poisoned = Buff('poisoned', colors.purple, owner = None, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10))
@@ -2554,7 +2555,7 @@ class Fighter: #All NPCs, enemies and the player
                     xp = self.xp
                 player.Fighter.xp += xp
                 player.Player.baseScore += xp
-    
+
     def onAttack(self, target):
         print('on attck function:', self.owner.name, target.name)
         if self.buffsOnAttack is not None:
@@ -4342,7 +4343,8 @@ def vomit(amount = 30):
     if player.Player.hunger < 0:
         player.Player.hunger = 0
 
-def badPieEffect():
+#ISN project
+def badPieEffect(): #Presentation de l'initialisation d'un buff (poison)
     message('This tasted awful !', colors.red)
     dice = randint(1, 100)
     if dice > 40:
@@ -8163,9 +8165,6 @@ def createSnake(x, y):
     else:
         return 'cancelled'
 
-
-
-
 def randomChoiceIndex(chances):
     dice = randint(1, sum(chances))
     runningSum = 0
@@ -10241,6 +10240,7 @@ def nextLevel(boss = False, changeBranch = None, fall = False, fromStairs = None
         highCultistHasAppeared = False #Make so more high cultists can spawn at lower levels (still only one by floor though)
     initializeFOV()
 
+#ISN project
 def playGame():
     global currentMusic
     if currentMusic is None or currentMusic in ('No_Music.wav', 'Dusty_Feelings.wav'):
@@ -10400,10 +10400,11 @@ def playGame():
                         object.Fighter.acidified = False
                         object.Fighter.baseArmor = object.Fighter.BASE_ARMOR
             
+            #ISN project
             #for object in objects:    
-                if object.Fighter and object.Fighter is not None:
+                if object.Fighter and object.Fighter is not None: #si l'objet examine dans la boucle est une creature
                     for buff in object.Fighter.buffList:
-                        buff.passTurn()
+                        buff.passTurn() #on declenche la methode passTurn() de chacun de ses buffs
     
                 
             while mustCalculate:
