@@ -577,7 +577,7 @@ def update(mapToUse):
                     if confTiles and (x,y) in confTiles and (state != 'normal' or dispDebug):
                         root.draw_char(x,y, char='#', fg = colors.red)
                 else:
-                    root.draw_char(x, y, char = None, bg = colors.dark_sepia)
+                    root.draw_char(x, y, char = None, bg = colors.green)
                     if visuTiles and (x,y) in visuTiles and (state != 'normal' or dispDebug):
                         root.draw_char(x,y, char=None, bg = colors.red)
                     if visuEdges and (x,y) in visuEdges and (state != 'normal' or dispDebug):
