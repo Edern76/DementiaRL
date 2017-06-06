@@ -24,6 +24,7 @@ from music import playWavSound
 from multiprocessing import freeze_support, current_process
 import code.chasmGen as chasmGen
 import code.holeGen as holeGen
+from dill import objects
 
 activeProcess = []
 
@@ -7377,6 +7378,11 @@ def makeBossLevel(fall = False, generateHole=False, temple = False):
                 player.x, player.y = x, y
                 fallen = True
 
+def makeTutorialMap(level = 1):
+    global myMap, objects
+    myMap = [[Tile(False, x = x, y = y, bg = colors.dark_chartreuse, dark_bg = colors.darkest_chartreuse) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
+    objects = [player]
+
 def makeHiddenTown(fall = False):
     global myMap, objects, upStairs, rooms, numberRooms, bossRoom
     myMap = [[Tile(True, wall = True, x = x, y = y) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
@@ -9141,7 +9147,7 @@ def mainMenu():
 
     if (__name__ == '__main__' or __name__ == 'main__main__') and root is not None:
         global player, currentMusic, activeProcess
-        choices = ['New Game', 'Continue', 'Leaderboard' ,'About', 'Quit']
+        choices = ['Tutorial', 'New Game', 'Continue', 'Leaderboard' ,'About', 'Quit']
         index = 0
         currentMusic = str('Dusty_Feelings.wav')
         stopProcess()
@@ -9163,11 +9169,8 @@ def mainMenu():
             layerInd = int(0)
             for layerInd in range(len(lData)):
                 xpL.load_layer_to_console(root, lData[layerInd], WIDTH//2 - picWidth//2, 15)
-            drawCentered(cons = root, y = 44, text = choices[0], fg = colors.white, bg = None)
-            drawCentered(cons = root, y = 45, text = choices[1], fg  = colors.white, bg = None)
-            drawCentered(cons = root, y = 46, text = choices[2], fg = colors.white, bg = None)
-            drawCentered(cons = root, y = 47, text = choices[3], fg = colors.white, bg = None)
-            drawCentered(cons = root, y = 48, text = choices[4], fg = colors.white, bg = None)
+            for tempIndex in range(len(choices)):
+                drawCentered(cons = root, y = 44 + tempIndex, text = choices[tempIndex], fg = colors.white, bg = None)
             drawCentered(cons = root, y = 44 + index, text=choices[index], fg = colors.black, bg = colors.white)
             tdl.flush()
             key = tdl.event.key_wait()
@@ -9183,6 +9186,55 @@ def mainMenu():
                 index = 0
             if key.keychar.upper() == "ENTER":
                 if index == 0:
+                    light = Trait('Light weapons', '+20% damage per skillpoints with light weapons', type = 'skill', selectable = False, tier = 3)
+                    heavy = Trait('Heavy weapons', '+20% damage per skillpoints with heavy weapons', type = 'skill', selectable = False, tier = 3)
+                    missile = Trait('Missile weapons', '+20% damage per skillpoints with missile weapons', type = 'skill', selectable = False, tier = 3)
+                    shield = Trait('Shield mastery', 'You trained to master shield wielding.', type = 'skill', selectable = False, tier = 3)
+                    armorEff = Trait('Armor efficiency', 'You know very well how to maximize the protection brought by your armor', type = 'skill', selectable = False, tier = 3)
+                    melee = Trait('Melee Weaponry', 'You are trained to wreck your enemies at close range.', type = 'skill', selectable = False, tier = 2, allowsSelection=[light, heavy])
+                    ranged = Trait('Ranged Weaponry', 'You shoot people in the knees.', type = 'skill', selectable = False, tier = 2, allowsSelection=[missile])
+                    armorW = Trait('Armor wielding', 'You are trained to wield several types of armor.', type = 'skill', selectable = False, tier = 2, allowsSelection=[armorEff, shield])
+                    martial = Trait('Martial training', 'You are trained to use a wide variety of weapons', type = 'skill', acc=(10, 0), allowsSelection=[melee, ranged, armorW])
+                    traits = [martial, melee, ranged, armorW, light, heavy, missile, shield, armorEff]
+                    
+                    def initiateSkill(skillList, maxHeight, heightCounter, originY = 0):
+                        newHeight = maxHeight//len(skillList)
+                        mid = newHeight//2
+                        counter = 0
+                        for skill in skillList:
+                            skill.x = skill.tier * quarterX
+                            skill.y = mid + counter * newHeight + heightCounter * maxHeight + originY
+                            print(skill.name, skill.tier, len(skill.allowsSelection), skill.x, skill.y)
+                            if skill.allowsSelection and len(skill.allowsSelection) > 0:
+                                print('initiating selectable skills of ' + skill.name)
+                                initiateSkill(skill.allowsSelection, newHeight, counter, maxHeight * heightCounter + originY)
+                            counter += 1
+                    
+                    
+                    newHeight = 76
+                    mid = newHeight//2
+                    counter = 0
+                    quarterX = (WIDTH - 2)//5
+                    for skill in traits:
+                        if skill.tier == 1:
+                            skill.x = quarterX
+                            skill.y = mid + newHeight * counter
+                            print(skill.name, skill.tier, len(skill.allowsSelection), skill.x, skill.y)
+                            if skill.allowsSelection and len(skill.allowsSelection) > 0:
+                                print('initiating selectable skills of ' + skill.name)
+                                initiateSkill(skill.allowsSelection, newHeight, counter)
+                            counter += 1
+
+                    LvlUp = {'pow': 1, 'acc': 10, 'ev': 0, 'arm': 1, 'hp': 20, 'mp': 0, 'crit': 0, 'str': 0, 'dex': 0, 'vit': 0, 'will': 0, 'ap': 0}
+                    playerComp = Player('Angus McFife', 0, 0, 0, 0, 45.0, 'Human', 'Knight', traits, LvlUp)
+                    fighterComp = Fighter(hp = 120, power= 1, armor= 1, deathFunction=playerDeath, xp=0, evasion = 20, accuracy = 50, maxMP= 20, critical = 5)
+                    player = GameObject(25, 23, '@', Fighter = fighterComp, Player = playerComp, name = 'Angus McFife', color = (0, 210, 0))
+                    player.level = 1
+                    player.Fighter.hp = player.Fighter.baseMaxHP
+                    player.Fighter.MP = player.Fighter.baseMaxMP
+                    makeTutorialMap(1)
+                    playGame()
+                elif index == 1:
                     (playerComponent, allTraits, skillpoints) = characterCreation()
                     if playerComponent != 'cancelled':
                         for trait in allTraits:
@@ -9204,7 +9256,7 @@ def mainMenu():
                         playGame()
                     else:
                         mainMenu()
-                elif index == 1:
+                elif index == 2:
                     error = False
                     try:
                         loadGame()
@@ -9215,11 +9267,11 @@ def mainMenu():
                         continue
                     if not error:
                         playGame()
-                elif index == 2:
-                    leaderboard()
                 elif index == 3:
-                    gameCredits()
+                    leaderboard()
                 elif index == 4:
+                    gameCredits()
+                elif index == 5:
                     stopProcess()
                     raise SystemExit("Chose Quit on the main menu")
             tdl.flush()
