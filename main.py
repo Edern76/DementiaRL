@@ -243,6 +243,7 @@ djikVisitedTiles = []
 markers = []
 visuBoss = []
 
+tutoGateOpen = False
 
 ########
 # These need to be globals because otherwise Python will flip out when we try to look for some kind of stairs in the object lists.
@@ -628,7 +629,7 @@ class Buff: #also (and mainly) used for debuffs
         self.showCooldown = showCooldown
         self.showBuff = showBuff
     
-    def applyBuff(self, target): #Fonction permettant d'appliquer le buff a la créature cible (target)
+    def applyBuff(self, target): #Fonction permettant d'appliquer le buff a la creature cible (target)
         print(self.name, target.name)
         self.owner = target #on determine l'attribut owner du buff comme la cible de celui-ci
         if not self.name in convertBuffsToNames(target.Fighter): #si la cible ne subit pas deja le buff
@@ -653,7 +654,7 @@ class Buff: #also (and mainly) used for debuffs
     
     def passTurn(self): #Fonction s'executant chaque tour
         self.curCooldown -= 1 #on diminue de 1 le cooldown du buff
-        if self.curCooldown <= 0: #si le buff a atteint sa limite, on le supprime grace à la methode removeBuff()
+        if self.curCooldown <= 0: #si le buff a atteint sa limite, on le supprime grace a la methode removeBuff()
             self.removeBuff()
         else: # si le buff n'a pas atteint sa limite, on execute si elle existe la methode continuousFunction()
             if self.continuousFunction is not None:
@@ -3511,7 +3512,7 @@ class Essence:
                     player.Player.speedChance += boost
 
 class Item:
-    def __init__(self, useFunction = None,  arg1 = None, arg2 = None, arg3 = None, stackable = False, amount = 1, weight = 0, description = 'Placeholder.', pic = 'trollMace.xp', itemtype = None, identified = True, unIDName = 'Unidentified', unIDpName = 'UnidentifiedS', unIDdesc='Unidentified placeholder.'):
+    def __init__(self, useFunction = None,  arg1 = None, arg2 = None, arg3 = None, stackable = False, amount = 1, weight = 0, description = 'Placeholder.', pic = 'trollMace.xp', itemtype = None, identified = True, unIDName = 'Unidentified', unIDpName = 'UnidentifiedS', unIDdesc='Unidentified placeholder.', useText = 'Use'):
         self.useFunction = useFunction
         self.arg1 = arg1
         self.arg2 = arg2
@@ -3526,6 +3527,7 @@ class Item:
         self.unIDName = unIDName
         self.unIDpName = unIDpName
         self.unIDdesc = unIDdesc
+        self.useText = useText
     
     @property
     def description(self):
@@ -4812,7 +4814,7 @@ def getInput():
                 chosenItem = inventoryMenu('Press the key next to an item to use it, or any other to cancel.\n')
                 if chosenItem is not None:
                     choseOrQuit = True
-                    usage = chosenItem.display(['Use', 'Drop', 'Back'])
+                    usage = chosenItem.display([chosenItem.useText, 'Drop', 'Back'])
                     if usage == 0:
                         using = chosenItem.use()
                         if using == 'cancelled' or using == 'didnt-take-turn':
@@ -5709,7 +5711,6 @@ class Tile:
         self.djikValue = None
         self.doNotPropagateDjik = False
         self.onTriggerFunction = printTileWhenWalked
-        
         
     def neighbors(self):
         x = self.x
@@ -7381,9 +7382,157 @@ def makeBossLevel(fall = False, generateHole=False, temple = False):
                 fallen = True
 
 def makeTutorialMap(level = 1):
+    def openTutorialGate(tile):
+        global tutoGateOpen
+        if not tutoGateOpen:
+            tutoGateOpen = True
+            message('The gate opens!')
+            x = 26
+            for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
+                myMap[x][y].character = None
+                myMap[x][y].blocked = False
+                myMap[x][y].block_sight = False
+
+    def closeTutorialGate(tile):
+        global tutoGateOpen
+        if tutoGateOpen:
+            tutoGateOpen = False
+            message('The gate closes back!')
+            x = 26
+            for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
+                myMap[x][y].character = '/'
+                myMap[x][y].blocked = True
+                myMap[x][y].block_sight = True
+
     global myMap, objects
-    myMap = [[Tile(False, x = x, y = y, bg = colors.dark_chartreuse, dark_bg = colors.darkest_chartreuse) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
-    objects = [player]
+    myMap = [[Tile(False, x = x, y = y, bg = colors.darker_green, dark_bg = colors.darkest_green, fg = colors.darker_chartreuse, dark_fg = colors.darkest_chartreuse) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
+    counter = 0
+    centerY = MID_MAP_HEIGHT
+    for x in range(MAP_WIDTH):
+        if counter >= 6:
+            offChoice = randint(0, 10)
+            if offChoice == 0:
+                centerY += randint(-1, 1)
+                counter = 0
+        for y in range(MAP_HEIGHT):
+            myMap[x][y].explored = True
+            gravelChar1 = chr(177)
+            gravelChar2 = chr(176)
+            gravelChoice = randint(0, 5)
+            if gravelChoice == 0:
+                myMap[x][y].character = gravelChar1
+            elif gravelChoice == 1:
+                myMap[x][y].character = gravelChar2
+            else:
+                myMap[x][y].character = None
+        for y in range(centerY - 2, centerY + 3):
+            gravelChar1 = chr(250)
+            gravelChar2 = chr(254)
+            gravelChoice = randint(0, 5)
+            if gravelChoice == 0:
+                myMap[x][y].character = gravelChar1
+            elif gravelChoice == 1:
+                myMap[x][y].character = gravelChar2
+            else:
+                myMap[x][y].character = None
+            myMap[x][y].bg = colors.dark_grey
+            myMap[x][y].dark_bg = colors.darkest_grey
+            myMap[x][y].fg = colors.grey
+            myMap[x][y].dark_fg = colors.darker_grey
+        counter += 1
+    for x in range(25, 28):
+        for y in range(MID_MAP_HEIGHT - 10, MID_MAP_HEIGHT + 11):
+            myMap[x][y].character = '#'
+            myMap[x][y].bg = colors.dark_grey
+            myMap[x][y].dark_bg = colors.darkest_grey
+            myMap[x][y].fg = colors.grey
+            myMap[x][y].dark_fg = colors.darker_grey
+            myMap[x][y].blocked = True
+            myMap[x][y].block_sight = True
+        for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
+            if x == 26:
+                myMap[x][y].character = '/'
+                myMap[x][y].bg = colors.darker_sepia
+                myMap[x][y].dark_bg = colors.darkest_sepia
+                myMap[x][y].fg = colors.dark_sepia
+                myMap[x][y].dark_fg = colors.darker_sepia
+                myMap[x][y].blocked = True
+                myMap[x][y].block_sight = True
+            else:
+                gravelChar1 = chr(250)
+                gravelChar2 = chr(254)
+                gravelChoice = randint(0, 5)
+                if gravelChoice == 0:
+                    myMap[x][y].character = gravelChar1
+                elif gravelChoice == 1:
+                    myMap[x][y].character = gravelChar2
+                else:
+                    myMap[x][y].character = None
+                myMap[x][y].blocked = False
+                myMap[x][y].block_sight = False
+                if x == 25:
+                    myMap[x][y].onTriggerFunction = closeTutorialGate
+                else:
+                    myMap[x][y].onTriggerFunction = openTutorialGate
+                
+    for x in range(14, 28):
+        for y in range(MID_MAP_HEIGHT - 10, MID_MAP_HEIGHT - 7):
+            myMap[x][y].character = '#'
+            myMap[x][y].bg = colors.dark_grey
+            myMap[x][y].dark_bg = colors.darkest_grey
+            myMap[x][y].fg = colors.grey
+            myMap[x][y].dark_fg = colors.darker_grey
+            myMap[x][y].blocked = True
+            myMap[x][y].block_sight = True
+    for x in range(14, 28):
+        for y in range(MID_MAP_HEIGHT + 8, MID_MAP_HEIGHT + 11):
+            myMap[x][y].character = '#'
+            myMap[x][y].bg = colors.dark_grey
+            myMap[x][y].dark_bg = colors.darkest_grey
+            myMap[x][y].fg = colors.grey
+            myMap[x][y].dark_fg = colors.darker_grey
+            myMap[x][y].blocked = True
+            myMap[x][y].block_sight = True
+    for x in range(11, 14):
+        for y in range(7, MID_MAP_HEIGHT - 7):
+            myMap[x][y].character = '#'
+            myMap[x][y].bg = colors.dark_grey
+            myMap[x][y].dark_bg = colors.darkest_grey
+            myMap[x][y].fg = colors.grey
+            myMap[x][y].dark_fg = colors.darker_grey
+            myMap[x][y].blocked = True
+            myMap[x][y].block_sight = True
+    for x in range(11, 14):
+        for y in range(MID_MAP_HEIGHT + 8, MAP_HEIGHT - 7):
+            myMap[x][y].character = '#'
+            myMap[x][y].bg = colors.dark_grey
+            myMap[x][y].dark_bg = colors.darkest_grey
+            myMap[x][y].fg = colors.grey
+            myMap[x][y].dark_fg = colors.darker_grey
+            myMap[x][y].blocked = True
+            myMap[x][y].block_sight = True
+    for x in range(10, 13):
+        for y in range(0, 7):
+            myMap[x][y].character = '#'
+            myMap[x][y].bg = colors.dark_grey
+            myMap[x][y].dark_bg = colors.darkest_grey
+            myMap[x][y].fg = colors.grey
+            myMap[x][y].dark_fg = colors.darker_grey
+            myMap[x][y].blocked = True
+            myMap[x][y].block_sight = True
+    for x in range(10, 13):
+        for y in range(MAP_HEIGHT - 7, MAP_HEIGHT):
+            myMap[x][y].character = '#'
+            myMap[x][y].bg = colors.dark_grey
+            myMap[x][y].dark_bg = colors.darkest_grey
+            myMap[x][y].fg = colors.grey
+            myMap[x][y].dark_fg = colors.darker_grey
+            myMap[x][y].blocked = True
+            myMap[x][y].block_sight = True
+
+    equipmentComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus = 10, meleeWeapon=True)
+    sword = GameObject(100, MID_MAP_HEIGHT, '-', 'longsword', colors.light_sky, Equipment = equipmentComponent, Item = Item(weight=3.5, pic = 'longSword.xp', useText='Equip'))
+    objects = [player, sword]
 
 def makeHiddenTown(fall = False):
     global myMap, objects, upStairs, rooms, numberRooms, bossRoom
@@ -7824,7 +7973,7 @@ def createSword(x, y):
         name = 'burning ' + name
 
     equipmentComponent = Equipment(slot=slot, type = type, powerBonus = swordPow, meleeWeapon=True, slow= slowness, enchant=burning)
-    sword = GameObject(x, y, char, name, color, Equipment = equipmentComponent, Item = Item(weight=weight, pic = pic))
+    sword = GameObject(x, y, char, name, color, Equipment = equipmentComponent, Item = Item(weight=weight, pic = pic, useText = 'Equip'))
     return sword
 
 def createAxe(x, y):
@@ -7878,7 +8027,7 @@ def createAxe(x, y):
         burning = Enchantment('burning', functionOnAttack=applyBurn)
         name = 'burning ' + name
     equipmentComponent = Equipment(slot=slot, type = type, powerBonus = axePow, meleeWeapon=True, armorPenetrationBonus=armorPenetration, slow = slow, enchant=burning)
-    axe = GameObject(x, y, char, name, color, Equipment = equipmentComponent, Item = Item(weight=weight, pic = pic))
+    axe = GameObject(x, y, char, name, color, Equipment = equipmentComponent, Item = Item(weight=weight, pic = pic, useText = 'Equip'))
     return axe
 
 def createHammer(x, y):
@@ -7924,7 +8073,7 @@ def createHammer(x, y):
         burning = Enchantment('burning', functionOnAttack=applyBurn)
         name = 'burning ' + name
     equipmentComponent = Equipment(slot=slot, type = type, powerBonus = hammerPow, criticalBonus=critBonus, meleeWeapon=True, slow = slow, enchant = burning)
-    hammer = GameObject(x, y, char, name, color, Equipment = equipmentComponent, Item = Item(weight=weight, pic = pic))
+    hammer = GameObject(x, y, char, name, color, Equipment = equipmentComponent, Item = Item(weight=weight, pic = pic, useText = 'Equip'))
     return hammer
 
 def createMace(x, y):
@@ -7953,7 +8102,7 @@ def createMace(x, y):
         burning = Enchantment('burning', functionOnAttack=applyBurn)
         name = 'burning ' + name
     equipmentComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus = macePow, accuracyBonus=hitBonus, meleeWeapon=True, enchant=burning)
-    mace = GameObject(x, y, '-', name, color, Equipment = equipmentComponent, Item = Item(weight=weight, pic = pic))
+    mace = GameObject(x, y, '-', name, color, Equipment = equipmentComponent, Item = Item(weight=weight, pic = pic, useText = 'Equip'))
     return mace
 
 def createWeapon(x, y):
@@ -7967,6 +8116,7 @@ def createWeapon(x, y):
         weapon = createHammer(x, y)
     elif weaponChoice == 'mace':
         weapon = createMace(x, y)
+    weapon.Item.useText = 'Equip'
     return weapon
 
 def createScroll(x, y):
@@ -7996,6 +8146,7 @@ def createScroll(x, y):
         scroll = GameObject(x, y, '~', 'scroll of ice bolt', colors.light_yellow, Item = Item(castFreeze, weight = 0.3, stackable = True, amount = randint(1, 3), unIDName=unIdentifiedName, identified=identified, unIDpName=pName, pic = 'scroll.xp'), blocks = False, pName = 'scrolls of ice bolt')
     elif scrollChoice == 'none':
         scroll = None
+    scroll.Item.useText = 'Read'
     return scroll
 
 def createPotion(x, y):
@@ -8011,7 +8162,7 @@ def createPotion(x, y):
         potion = GameObject(x, y, '!', 'healing potion', color, Item = Item(useFunction = castHeal, weight = 0.4, stackable=True, amount = randint(1, 2), pic = pic, description = "A potion that stimulates cell growth when ingested, which allows for wounds to heal signifcantly faster. However, it also notably increases risk of cancer, but if you're in a situation where you have to drink such a potion, this is probably one of the least of your worries.", unIDName=unIdentifiedName, identified=identified, unIDpName=pName, unIDdesc = desc), blocks = False)
     if potionChoice == 'mana':
         potion = GameObject(x, y, '!', 'mana regeneration potion', color, Item = Item(useFunction = castRegenMana, arg1 = 10, weight = 0.4, stackable = True, pic = pic, description = "The awkward look of this potion scared more than one novice mage, but it actually tastes quite good and has no other short-term effect other than replenishing your life-force. However, the [PLACEHOLDER  WORLD (the 'normal' one, not Realm of Madness) NAME]'s Guild of Alchemists is still debating about whether or not it causes detrimental long-term effects.", unIDName=unIdentifiedName, identified=identified, unIDpName=pName, unIDdesc = desc), blocks = False)
-            
+    potion.Item.useText = 'Drink'
     return potion
 
 def createSpellbook(x, y):
@@ -8029,6 +8180,7 @@ def createSpellbook(x, y):
         spellbook = GameObject(x, y, '=', 'spellbook of ice bolt', colors.violet, Item = Item(useFunction = learnSpell, arg1 = ice, weight = 1.0, pic = 'spellbook.xp'), blocks = False)
     elif spellbookChoice == 'none':
         spellbook = None
+    spellbook.Item.useText = 'Read'
     return spellbook
 
 def createDarksoul(x, y, friendly = False, corpse = False):
@@ -8330,7 +8482,7 @@ def placeObjects(room, first = False):
                 print("MON")
             elif itemChoice == 'shield':
                 equipmentComponent = Equipment(slot = 'one handed', type = 'shield', armorBonus=3)
-                item = GameObject(x, y, '[', 'shield', colors.darker_orange, Equipment=equipmentComponent, Item=Item(weight = 3.0, pic = 'shield.xp'))
+                item = GameObject(x, y, '[', 'shield', colors.darker_orange, Equipment=equipmentComponent, Item=Item(weight = 3.0, pic = 'shield.xp', useText = 'Equip'))
                 print("SHI")
             elif itemChoice == 'spellbook':
                 item = createSpellbook(x, y)
@@ -8340,9 +8492,9 @@ def placeObjects(room, first = False):
                 foodChoice = randomChoice(foodChances)
                 print("FOOD")
                 if foodChoice == 'bread':
-                    item = GameObject(x, y, ',', "slice of bread", colors.yellow, Item = Item(useFunction=satiateHunger, arg1 = 50, arg2 = "a slice of bread", weight = 0.2, stackable=True, amount = randint(1, 5), description = "This has probably been lying on the ground for ages, but you'll have to deal with it if you don't want to starve.", itemtype = 'food'), blocks = False, pName = "slices of bread") 
+                    item = GameObject(x, y, ',', "slice of bread", colors.yellow, Item = Item(useFunction=satiateHunger, arg1 = 50, arg2 = "a slice of bread", weight = 0.2, stackable=True, amount = randint(1, 5), description = "This has probably been lying on the ground for ages, but you'll have to deal with it if you don't want to starve.", itemtype = 'food', useText = 'Eat'), blocks = False, pName = "slices of bread") 
                 elif foodChoice == 'herbs':
-                    item = GameObject(x, y, ',', "'edible' herb", colors.darker_lime, Item = Item(useFunction=satiateHunger, arg1 = 30, arg2 = "some weird looking herb", weight = 0.05, stackable=True, amount = randint(1, 8), description = "An oddly shapen herb, which looks 'slightly' withered. Your empty stomach makes you think this is comestible, but you're not sure about this.", itemtype = 'food', pic = 'herb.xp'), blocks = False, pName = "'edible' herbs")
+                    item = GameObject(x, y, ',', "'edible' herb", colors.darker_lime, Item = Item(useFunction=satiateHunger, arg1 = 30, arg2 = "some weird looking herb", weight = 0.05, stackable=True, amount = randint(1, 8), description = "An oddly shapen herb, which looks 'slightly' withered. Your empty stomach makes you think this is comestible, but you're not sure about this.", itemtype = 'food', pic = 'herb.xp', useText = 'Eat'), blocks = False, pName = "'edible' herbs")
                 elif foodChoice == 'rMeat':
                     def rMeatDebuff(amount, text):
                         if not 'poisoned' in convertBuffsToNames(player.Fighter):
@@ -8358,7 +8510,7 @@ def placeObjects(room, first = False):
                             message("You really don't want to take the risk of being in worse condition than you currently are.", colors.red)
                             return 'cancelled'
                             
-                    item = GameObject(x, y, ',', "piece of rancid meat", colors.light_crimson, Item = Item(useFunction=lambda: rMeatDebuff(400, 'a chunk of rancid meat'), weight = 0.4, stackable=True, amount = 1, description = "'Rancid' is not the most appropriate term to describe the state of this chunk of meat, 'half-putrefacted' would be closer to the reality. Eating this is probably not a good idea", itemtype = 'food'), blocks = False, pName = "pieces of rancid meat")
+                    item = GameObject(x, y, ',', "piece of rancid meat", colors.light_crimson, Item = Item(useFunction=lambda: rMeatDebuff(400, 'a chunk of rancid meat'), weight = 0.4, stackable=True, amount = 1, description = "'Rancid' is not the most appropriate term to describe the state of this chunk of meat, 'half-putrefacted' would be closer to the reality. Eating this is probably not a good idea", itemtype = 'food', useText = 'Eat'), blocks = False, pName = "pieces of rancid meat")
                 elif foodChoice == 'pie':
                     def pieDebuff(amount, text):
                         pieChoices = {'noDebuff' : 20, 'poison' : 20, 'freeze' : 20, 'burn' : 20, 'confuse' : 20}
@@ -8385,13 +8537,13 @@ def placeObjects(room, first = False):
                         else:
                             message("This didn't taste as bad as you'd expect.")
                                 
-                    item = GameObject(x, y, ',', "strange pie", colors.fuchsia, Item = Item(useFunction= lambda : pieDebuff(randint(200, 350), 'the pie'), weight = 0.4, stackable=True, amount = 1, description = "This looks like a pie of some sort, but for some reason it doesn't look appetizing at all. Should fill your stomach for a little while though. Wait, is that a worm you saw inside ?", itemtype = 'food', pic = 'pie.xp'), blocks = False, pName = "strange pies")
+                    item = GameObject(x, y, ',', "strange pie", colors.fuchsia, Item = Item(useFunction= lambda : pieDebuff(randint(200, 350), 'the pie'), weight = 0.4, stackable=True, amount = 1, description = "This looks like a pie of some sort, but for some reason it doesn't look appetizing at all. Should fill your stomach for a little while though. Wait, is that a worm you saw inside ?", itemtype = 'food', pic = 'pie.xp', useText = 'Eat'), blocks = False, pName = "strange pies")
                 elif foodChoice == 'pasta':
-                    item = GameObject(x, y, ',', "'plate' of pasta", colors.light_yellow, Item = Item(useFunction=satiateHunger, arg1 = 150, arg2 = "the pasta", weight = 0.3, stackable=True, amount = randint(1, 4), description = "If you exclude the fact that the 'plate' is inexistent, and therefore the pasta are spilled on the floor, this actually looks delicious.", itemtype = 'food'), blocks = False, pName = "'plates' of pasta")
+                    item = GameObject(x, y, ',', "'plate' of pasta", colors.light_yellow, Item = Item(useFunction=satiateHunger, arg1 = 150, arg2 = "the pasta", weight = 0.3, stackable=True, amount = randint(1, 4), description = "If you exclude the fact that the 'plate' is inexistent, and therefore the pasta are spilled on the floor, this actually looks delicious.", itemtype = 'food', useText = 'Eat'), blocks = False, pName = "'plates' of pasta")
                 elif foodChoice == 'meat':
-                    item = GameObject(x, y, ',', "piece of cooked meat", colors.red, Item = Item(useFunction=satiateHunger, arg1 = 650, arg2 = "a chunk of edible meat (at last !)", weight = 0.4, stackable=True, amount = 1, description = "A perfectly fine-looking grilled steak. Yummy !", itemtype = 'food'), blocks = False, pName = "cooked pieces of meat")
+                    item = GameObject(x, y, ',', "piece of cooked meat", colors.red, Item = Item(useFunction=satiateHunger, arg1 = 650, arg2 = "a chunk of edible meat (at last !)", weight = 0.4, stackable=True, amount = 1, description = "A perfectly fine-looking grilled steak. Yummy !", itemtype = 'food', useText = 'Eat'), blocks = False, pName = "cooked pieces of meat")
                 elif foodChoice == 'hBaguette':
-                    item = GameObject(x, y, ',', "holy baguette", colors.white, Item = Item(useFunction=satiateHunger, arg1 = 1500, arg2 = "le holy baguette", weight = 0.4, stackable=True, amount = 1, description = "HON HON HON ! Dis iz going to be le most goodest meal you iz gonna have in years !", itemtype = 'food'), blocks = False, pName = "holy baguettes") #Easter-egg. You'll maybe want to tone down its spawn rate by a little bit. TO-DO : Add a funny effect when eating this. TO-DO : Make this illuminate the adjacent tiles (when and if we implement lighting)
+                    item = GameObject(x, y, ',', "holy baguette", colors.white, Item = Item(useFunction=satiateHunger, arg1 = 1500, arg2 = "le holy baguette", weight = 0.4, stackable=True, amount = 1, description = "HON HON HON ! Dis iz going to be le most goodest meal you iz gonna have in years !", itemtype = 'food', useText = 'Eat'), blocks = False, pName = "holy baguettes") #Easter-egg. You'll maybe want to tone down its spawn rate by a little bit. TO-DO : Add a funny effect when eating this. TO-DO : Make this illuminate the adjacent tiles (when and if we implement lighting)
                 else:
                     item = None
             else:
@@ -9227,12 +9379,12 @@ def mainMenu():
                     LvlUp = {'pow': 1, 'acc': 10, 'ev': 0, 'arm': 1, 'hp': 20, 'mp': 0, 'crit': 0, 'str': 0, 'dex': 0, 'vit': 0, 'will': 0, 'ap': 0}
                     playerComp = Player('Angus McFife', 0, 0, 0, 0, 45.0, 'Human', 'Knight', traits, LvlUp)
                     fighterComp = Fighter(hp = 120, power= 1, armor= 1, deathFunction=playerDeath, xp=0, evasion = 20, accuracy = 50, maxMP= 20, critical = 5)
-                    player = GameObject(25, 23, '@', Fighter = fighterComp, Player = playerComp, name = 'Angus McFife', color = (0, 210, 0))
+                    player = GameObject(120, MID_MAP_HEIGHT, '@', Fighter = fighterComp, Player = playerComp, name = 'Angus McFife', color = (0, 210, 0))
                     player.level = 1
                     player.Fighter.hp = player.Fighter.baseMaxHP
                     player.Fighter.MP = player.Fighter.baseMaxMP
                     makeTutorialMap(1)
-                    playGame()
+                    playTutorial()
                 elif index == 1:
                     (playerComponent, allTraits, skillpoints) = characterCreation()
                     if playerComponent != 'cancelled':
@@ -9892,7 +10044,7 @@ def newGame():
     gameState = 'playing'
     
     equipmentComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus=3, meleeWeapon=True)
-    object = GameObject(0, 0, '-', 'dagger', colors.light_sky, Equipment=equipmentComponent, Item=Item(weight = 0.8, pic = 'dagger.xp'), darkColor = colors.darker_sky)
+    object = GameObject(0, 0, '-', 'dagger', colors.light_sky, Equipment=equipmentComponent, Item=Item(weight = 0.8, pic = 'dagger.xp', useText = 'Equip'), darkColor = colors.darker_sky)
     inventory.append(object)
     object.alwaysVisible = True
     if player.Player.classes == 'Rogue':
@@ -10240,6 +10392,185 @@ def nextLevel(boss = False, changeBranch = None, fall = False, fromStairs = None
         highCultistHasAppeared = False #Make so more high cultists can spawn at lower levels (still only one by floor though)
     initializeFOV()
 
+def playTutorial():
+    def displayTip(text, x, y, arrow = True):
+        global FOV_recompute
+        arrowPoint = GameObject(x, y, '>', 'arrow', colors.red, Ghost = True)
+        arrowBody = GameObject(x - 1, y, '-', 'arrow', colors.red, Ghost = True)
+        objects.append(arrowPoint)
+        objects.append(arrowBody)
+        Update()
+        tdl.flush()
+        for object in objects:
+            object.clear()
+        msgBox(text + ' (press ESCAPE to continue)', len(text)+2)
+        objects.remove(arrowPoint)
+        objects.remove(arrowBody)
+        FOV_recompute = True
+        Update()
+        tdl.flush()
+        for object in objects:
+            object.clear()
+    global currentMusic
+    if currentMusic is None or currentMusic in ('No_Music.wav', 'Dusty_Feelings.wav'):
+        currentMusic = 'Bumpy_Roots.wav'
+    stopProcess()
+    music = multiprocessing.Process(target = mus.runMusic, args = (currentMusic,))
+    music.start()
+    activeProcess.append(music)
+    displayedPickUp = False
+    while not tdl.event.isWindowClosed():
+        global FOV_recompute, DEBUG
+        Update()
+        tdl.flush()
+        for object in objects:
+            object.clear()
+        playerAction = getInput()
+        if playerAction == 'exit':
+            quitGame('Player pressed escape', True)
+        FOV_recompute = True #So as to avoid the blackscreen bug no matter which key we press
+        if gameState == 'playing' and playerAction != 'didnt-take-turn':
+            '''
+            global mobsToCalculate
+            global mustCalculate
+            mobsToCalculate = []
+            for object in objects:
+                if object.AI:
+                    try:
+                        object.AI.takeTurn()
+                    except TypeError as error:
+                        print("==================WARNING===================")
+                        print(type(error))
+                        print(error.args)
+                        print(object.name)
+                        try:
+                            message('CRITICAL AI ERROR SEE CONSOLE FOR DETAILS', colors.red)
+                        except Exception as error:
+                            print("==================WARNING===================")
+                            print("COULDNT PRINT MESSAGE")
+                            print(type(error))
+                            print(error.args)
+                            print(object.name)
+                            print("============================================")
+                        print("============================================")
+                if object.Fighter and object.Fighter.baseShootCooldown > 0 and object.Fighter is not None:
+                    object.Fighter.curShootCooldown -= 1
+                if object.Fighter and object.Fighter.baseLandCooldown > 0 and object.Fighter is not None:
+                    object.Fighter.curLandCooldown -= 1
+            '''
+            for object in objects:
+                if object.name == 'longsword' and object.distanceTo(player) <= 3 and not displayedPickUp:
+                    displayedPickUp = True
+                    displayTip('This is a sword. Pick it up by pressing SPACEBAR while on the same tile.', object.x - 1, object.y)
+                    FOV_recompute = True
+                if object.Fighter and object.Fighter.spellsOnCooldown and object.Fighter is not None:
+                    try:
+                        for spell in object.Fighter.spellsOnCooldown:
+                            spell.curCooldown -= 1
+                            if spell.curCooldown < 0:
+                                spell.curCooldown = 0
+                            if spell.curCooldown == 0:
+                                object.Fighter.spellsOnCooldown.remove(spell)
+                                object.Fighter.knownSpells.append(spell)
+                                if object == player:
+                                    message(spell.name + " is now ready.")
+                    except Exception as error:
+                        traceback.print_exc()
+                        message("OMG SPELLS NOT WORKING SEE CONSOLE", colors.red)
+                        continue
+                else:
+                    if object.Fighter:
+                        print("{} has no spell on cooldown".format(object.name))
+                
+                if object.Fighter and object.Fighter.MP < object.Fighter.maxMP and object.Fighter is not None:
+                    object.Fighter.MPRegenCountdown -= 1
+                    if object.Fighter.MPRegenCountdown < 0:
+                        object.Fighter.MPRegenCountdown = 0
+                    if object.Fighter.MPRegenCountdown == 0:
+                        if object == player:
+                            regen = 10 - player.Player.willpower
+                            if regen <= 0:
+                                regen = 1
+                            object.Fighter.MPRegenCountdown = regen
+                        else:
+                            object.Fighter.MPRegenCountdown = 10
+                        object.Fighter.MP += 1
+    
+                if object.Player is not None:
+                    if NATURAL_REGEN:
+                        monsterInSight = False
+                        for monster in objects:
+                            if monster.Fighter and not monster == player and (monster.x, monster.y) in visibleTiles:
+                                monsterInSight = True
+                                break
+                        if not 'burning' in convertBuffsToNames(player.Fighter) and not 'frozen' in convertBuffsToNames(player.Fighter) and player.Fighter.hp != player.Fighter.maxHP and not monsterInSight and not player.Player.hungerStatus == 'starving' and not 'poisoned' in convertBuffsToNames(player.Fighter):
+                            player.Fighter.healCountdown -= 1
+                            if player.Fighter.healCountdown < 0:
+                                player.Fighter.healCountdown = 0
+                            if player.Fighter.healCountdown == 0:
+                                player.Fighter.heal(1)
+                                player.Fighter.healCountdown= 25 - player.Player.vitality
+            
+            '''
+            while mustCalculate:
+                print("Calculating")
+                pathfinders = []
+                mustCalculate = False
+                print(len(mobsToCalculate))
+                for mob in mobsToCalculate:
+                    newPathfinder = Pathfinder(mob, mob.AI.selectedTarget.x, mob.AI.selectedTarget.y)
+                    pathfinders.append(newPathfinder)
+                    
+                for pathfind in pathfinders:
+                    pathfind.start()
+                for pathfind in pathfinders:
+                    pathfind.join()
+                
+                for mob in mobsToCalculate:
+                    mob.AI.tryMove()
+            '''
+            global stairCooldown
+            if stairCooldown > 0:
+                stairCooldown -= 1
+                if stairCooldown == 0 and DEBUG:
+                    message("You're no longer tired", colors.purple)
+            if stairCooldown < 0:
+                stairCooldown = 0
+            
+            player.Player.hunger -= 1
+            if player.Player.hunger > BASE_HUNGER:
+                player.Player.hunger = BASE_HUNGER
+            if player.Player.hunger < 0:
+                player.Player.hunger = 0
+            if player.Player.hunger <= BASE_HUNGER // 10:
+                if not player.Player.hungerStatus == 'starving':
+                    starving = Buff('starving', colors.red, cooldown = 99999, showCooldown = False, continuousFunction = lambda fighter: randomDamage('starvation', fighter, chance = 33, minDamage = 1, maxDamage = 1, dmgMessage = 'You are starving!', dmgColor = colors.red, msgPlayerOnly = True))
+                    starving.applyBuff(player)
+                    player.Player.hungerStatus = "starving"
+                #starveDamage = randint(0, 2)
+                #if starveDamage == 0:
+                #    player.Fighter.takeDamage(1)
+                #    message("You're starving !", colors.red)
+            elif player.Player.hunger <= BASE_HUNGER // 2:
+                prevStatus = player.Player.hungerStatus
+                player.Player.hungerStatus = "hungry"
+                if prevStatus == "full":
+                    message("You're starting to feel a little bit hungry.", colors.yellow)
+                elif prevStatus == "starving":
+                    message("You're no longer starving")
+                    for buff in player.Fighter.buffList:
+                        if buff.name == 'starving':
+                            buff.removeBuff()
+            else:
+                prevStatus = player.Player.hungerStatus
+                player.Player.hungerStatus = "full"
+                if prevStatus != "full":
+                    message("You feel way less hungry")
+    
+    DEBUG = False
+    quitGame('Window has been closed')
+    
+    
 #ISN project
 def playGame():
     global currentMusic
