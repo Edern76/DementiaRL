@@ -10393,7 +10393,7 @@ def nextLevel(boss = False, changeBranch = None, fall = False, fromStairs = None
     initializeFOV()
 
 def playTutorial():
-    def displayTip(text, x, y, arrow = True):
+    def displayTip(text, x = 0, y = 0, arrow = True):
         global FOV_recompute
         arrowPoint = GameObject(x, y, '>', 'arrow', colors.red, Ghost = True)
         arrowBody = GameObject(x - 1, y, '-', 'arrow', colors.red, Ghost = True)
@@ -10411,6 +10411,8 @@ def playTutorial():
         tdl.flush()
         for object in objects:
             object.clear()
+        FOV_recompute = True
+
     global currentMusic
     if currentMusic is None or currentMusic in ('No_Music.wav', 'Dusty_Feelings.wav'):
         currentMusic = 'Bumpy_Roots.wav'
@@ -10419,6 +10421,9 @@ def playTutorial():
     music.start()
     activeProcess.append(music)
     displayedPickUp = False
+    displayedInventory = False
+    
+    displayTip('Move around using the directional ARROWS or the NUMPAD.', x = 0, y = 0, arrow = False)
     while not tdl.event.isWindowClosed():
         global FOV_recompute, DEBUG
         Update()
@@ -10458,6 +10463,10 @@ def playTutorial():
                 if object.Fighter and object.Fighter.baseLandCooldown > 0 and object.Fighter is not None:
                     object.Fighter.curLandCooldown -= 1
             '''
+            for object in inventory:
+                if object.name == 'longsword' and not displayedInventory:
+                    displayTip('You can open your inventory by pressing I, to see what objects you have gathered.', 0, 0, False)
+                    displayedInventory = True
             for object in objects:
                 if object.name == 'longsword' and object.distanceTo(player) <= 3 and not displayedPickUp:
                     displayedPickUp = True
