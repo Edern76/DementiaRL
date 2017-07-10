@@ -5657,7 +5657,7 @@ def printTileWhenWalked(tile):
     print("Player walked on tile at {};{}".format(tile.x, tile.y))
 
 class Tile:
-    def __init__(self, blocked, x, y, block_sight = None, acid = False, acidCooldown = 5, character = None, fg = None, bg = None, dark_fg = None, dark_bg = None, chasm = False, wall = False, hole = False, moveCost = 1):
+    def __init__(self, blocked, x, y, block_sight = None, acid = False, acidCooldown = 5, character = None, fg = None, bg = None, dark_fg = None, dark_bg = None, chasm = False, wall = False, hole = False, leaves = False, moveCost = 1):
         self.blocked = blocked
         self.explored = False
         self.unbreakable = False
@@ -5711,6 +5711,7 @@ class Tile:
         self.djikValue = None
         self.doNotPropagateDjik = False
         self.onTriggerFunction = printTileWhenWalked
+        self.leaves = leaves
         
     def neighbors(self):
         x = self.x
@@ -7382,83 +7383,61 @@ def makeBossLevel(fall = False, generateHole=False, temple = False):
                 fallen = True
 
 def makeTutorialMap(level = 1):
-    def openTutorialGate(tile):
-        global tutoGateOpen
-        if not tutoGateOpen:
-            tutoGateOpen = True
-            message('The gate opens!')
-            x = 26
-            for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
-                myMap[x][y].character = None
-                myMap[x][y].blocked = False
-                myMap[x][y].block_sight = False
-
-    def closeTutorialGate(tile):
-        global tutoGateOpen
-        if tutoGateOpen:
-            tutoGateOpen = False
-            message('The gate closes back!')
-            x = 26
-            for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
-                myMap[x][y].character = '/'
-                myMap[x][y].blocked = True
-                myMap[x][y].block_sight = True
-
-    global myMap, objects
-    myMap = [[Tile(False, x = x, y = y, bg = colors.darker_green, dark_bg = colors.darkest_green, fg = colors.darker_chartreuse, dark_fg = colors.darkest_chartreuse) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
-    counter = 0
-    centerY = MID_MAP_HEIGHT
-    for x in range(MAP_WIDTH):
-        if counter >= 6:
-            offChoice = randint(0, 10)
-            if offChoice == 0:
-                centerY += randint(-1, 1)
-                counter = 0
-        for y in range(MAP_HEIGHT):
-            myMap[x][y].explored = True
-            gravelChar1 = chr(177)
-            gravelChar2 = chr(176)
-            gravelChoice = randint(0, 5)
-            if gravelChoice == 0:
-                myMap[x][y].character = gravelChar1
-            elif gravelChoice == 1:
-                myMap[x][y].character = gravelChar2
-            else:
-                myMap[x][y].character = None
-        for y in range(centerY - 2, centerY + 3):
-            gravelChar1 = chr(250)
-            gravelChar2 = chr(254)
-            gravelChoice = randint(0, 5)
-            if gravelChoice == 0:
-                myMap[x][y].character = gravelChar1
-            elif gravelChoice == 1:
-                myMap[x][y].character = gravelChar2
-            else:
-                myMap[x][y].character = None
-            myMap[x][y].bg = colors.dark_grey
-            myMap[x][y].dark_bg = colors.darkest_grey
-            myMap[x][y].fg = colors.grey
-            myMap[x][y].dark_fg = colors.darker_grey
-        counter += 1
-    for x in range(25, 28):
-        for y in range(MID_MAP_HEIGHT - 10, MID_MAP_HEIGHT + 11):
-            myMap[x][y].character = '#'
-            myMap[x][y].bg = colors.dark_grey
-            myMap[x][y].dark_bg = colors.darkest_grey
-            myMap[x][y].fg = colors.grey
-            myMap[x][y].dark_fg = colors.darker_grey
-            myMap[x][y].blocked = True
-            myMap[x][y].block_sight = True
-        for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
-            if x == 26:
-                myMap[x][y].character = '/'
-                myMap[x][y].bg = colors.darker_sepia
-                myMap[x][y].dark_bg = colors.darkest_sepia
-                myMap[x][y].fg = colors.dark_sepia
-                myMap[x][y].dark_fg = colors.darker_sepia
-                myMap[x][y].blocked = True
-                myMap[x][y].block_sight = True
-            else:
+    if level == 1:
+        def openTutorialGate(tile):
+            global tutoGateOpen
+            if not tutoGateOpen:
+                tutoGateOpen = True
+                message('The gate opens!')
+                x = 26
+                for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
+                    myMap[x][y].character = None
+                    myMap[x][y].blocked = False
+                    myMap[x][y].block_sight = False
+    
+        def closeTutorialGate(tile):
+            global tutoGateOpen
+            if tutoGateOpen:
+                tutoGateOpen = False
+                message('The gate closes back!')
+                x = 26
+                for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
+                    myMap[x][y].character = '/'
+                    myMap[x][y].blocked = True
+                    myMap[x][y].block_sight = True
+        
+        def loadLvl2(tile):
+            makeTutorialMap(2)
+    
+        global myMap, objects
+        myMap = [[Tile(False, x = x, y = y, bg = colors.darker_green, dark_bg = colors.darkest_green, fg = colors.darker_chartreuse, dark_fg = colors.darkest_chartreuse) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
+        for x in range(MAP_WIDTH):
+            for y in range(MAP_HEIGHT):
+                if x == 0 or y == 0 or x == MAP_WIDTH - 1 or y == MAP_HEIGHT -1:
+                    myMap[x][y].blocked = True
+        for y in range(MID_MAP_HEIGHT - 2, MID_MAP_HEIGHT + 3):
+            myMap[0][y].blocked = False
+            myMap[0][y].onTriggerFunction = loadLvl2
+        counter = 0
+        centerY = MID_MAP_HEIGHT
+        for x in range(MAP_WIDTH):
+            if counter >= 6:
+                offChoice = randint(0, 10)
+                if offChoice == 0:
+                    centerY += randint(-1, 1)
+                    counter = 0
+            for y in range(MAP_HEIGHT):
+                myMap[x][y].explored = True
+                gravelChar1 = chr(177)
+                gravelChar2 = chr(176)
+                gravelChoice = randint(0, 5)
+                if gravelChoice == 0:
+                    myMap[x][y].character = gravelChar1
+                elif gravelChoice == 1:
+                    myMap[x][y].character = gravelChar2
+                else:
+                    myMap[x][y].character = None
+            for y in range(centerY - 2, centerY + 3):
                 gravelChar1 = chr(250)
                 gravelChar2 = chr(254)
                 gravelChoice = randint(0, 5)
@@ -7468,71 +7447,109 @@ def makeTutorialMap(level = 1):
                     myMap[x][y].character = gravelChar2
                 else:
                     myMap[x][y].character = None
-                myMap[x][y].blocked = False
-                myMap[x][y].block_sight = False
-                if x == 25:
-                    myMap[x][y].onTriggerFunction = closeTutorialGate
+                myMap[x][y].bg = colors.dark_grey
+                myMap[x][y].dark_bg = colors.darkest_grey
+                myMap[x][y].fg = colors.grey
+                myMap[x][y].dark_fg = colors.darker_grey
+            counter += 1
+        for x in range(25, 28):
+            for y in range(MID_MAP_HEIGHT - 10, MID_MAP_HEIGHT + 11):
+                myMap[x][y].character = '#'
+                myMap[x][y].bg = colors.dark_grey
+                myMap[x][y].dark_bg = colors.darkest_grey
+                myMap[x][y].fg = colors.grey
+                myMap[x][y].dark_fg = colors.darker_grey
+                myMap[x][y].blocked = True
+                myMap[x][y].block_sight = True
+            for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
+                if x == 26:
+                    myMap[x][y].character = '/'
+                    myMap[x][y].bg = colors.darker_sepia
+                    myMap[x][y].dark_bg = colors.darkest_sepia
+                    myMap[x][y].fg = colors.dark_sepia
+                    myMap[x][y].dark_fg = colors.darker_sepia
+                    myMap[x][y].blocked = True
+                    myMap[x][y].block_sight = True
                 else:
-                    myMap[x][y].onTriggerFunction = openTutorialGate
-                
-    for x in range(14, 28):
-        for y in range(MID_MAP_HEIGHT - 10, MID_MAP_HEIGHT - 7):
-            myMap[x][y].character = '#'
-            myMap[x][y].bg = colors.dark_grey
-            myMap[x][y].dark_bg = colors.darkest_grey
-            myMap[x][y].fg = colors.grey
-            myMap[x][y].dark_fg = colors.darker_grey
-            myMap[x][y].blocked = True
-            myMap[x][y].block_sight = True
-    for x in range(14, 28):
-        for y in range(MID_MAP_HEIGHT + 8, MID_MAP_HEIGHT + 11):
-            myMap[x][y].character = '#'
-            myMap[x][y].bg = colors.dark_grey
-            myMap[x][y].dark_bg = colors.darkest_grey
-            myMap[x][y].fg = colors.grey
-            myMap[x][y].dark_fg = colors.darker_grey
-            myMap[x][y].blocked = True
-            myMap[x][y].block_sight = True
-    for x in range(11, 14):
-        for y in range(7, MID_MAP_HEIGHT - 7):
-            myMap[x][y].character = '#'
-            myMap[x][y].bg = colors.dark_grey
-            myMap[x][y].dark_bg = colors.darkest_grey
-            myMap[x][y].fg = colors.grey
-            myMap[x][y].dark_fg = colors.darker_grey
-            myMap[x][y].blocked = True
-            myMap[x][y].block_sight = True
-    for x in range(11, 14):
-        for y in range(MID_MAP_HEIGHT + 8, MAP_HEIGHT - 7):
-            myMap[x][y].character = '#'
-            myMap[x][y].bg = colors.dark_grey
-            myMap[x][y].dark_bg = colors.darkest_grey
-            myMap[x][y].fg = colors.grey
-            myMap[x][y].dark_fg = colors.darker_grey
-            myMap[x][y].blocked = True
-            myMap[x][y].block_sight = True
-    for x in range(10, 13):
-        for y in range(0, 7):
-            myMap[x][y].character = '#'
-            myMap[x][y].bg = colors.dark_grey
-            myMap[x][y].dark_bg = colors.darkest_grey
-            myMap[x][y].fg = colors.grey
-            myMap[x][y].dark_fg = colors.darker_grey
-            myMap[x][y].blocked = True
-            myMap[x][y].block_sight = True
-    for x in range(10, 13):
-        for y in range(MAP_HEIGHT - 7, MAP_HEIGHT):
-            myMap[x][y].character = '#'
-            myMap[x][y].bg = colors.dark_grey
-            myMap[x][y].dark_bg = colors.darkest_grey
-            myMap[x][y].fg = colors.grey
-            myMap[x][y].dark_fg = colors.darker_grey
-            myMap[x][y].blocked = True
-            myMap[x][y].block_sight = True
-
-    equipmentComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus = 10, meleeWeapon=True)
-    sword = GameObject(100, MID_MAP_HEIGHT, '-', 'longsword', colors.light_sky, Equipment = equipmentComponent, Item = Item(weight=3.5, pic = 'longSword.xp', useText='Equip'))
-    objects = [player, sword]
+                    gravelChar1 = chr(250)
+                    gravelChar2 = chr(254)
+                    gravelChoice = randint(0, 5)
+                    if gravelChoice == 0:
+                        myMap[x][y].character = gravelChar1
+                    elif gravelChoice == 1:
+                        myMap[x][y].character = gravelChar2
+                    else:
+                        myMap[x][y].character = None
+                    myMap[x][y].blocked = False
+                    myMap[x][y].block_sight = False
+                    if x == 25:
+                        myMap[x][y].onTriggerFunction = closeTutorialGate
+                    else:
+                        myMap[x][y].onTriggerFunction = openTutorialGate
+                    
+        for x in range(14, 28):
+            for y in range(MID_MAP_HEIGHT - 10, MID_MAP_HEIGHT - 7):
+                myMap[x][y].character = '#'
+                myMap[x][y].bg = colors.dark_grey
+                myMap[x][y].dark_bg = colors.darkest_grey
+                myMap[x][y].fg = colors.grey
+                myMap[x][y].dark_fg = colors.darker_grey
+                myMap[x][y].blocked = True
+                myMap[x][y].block_sight = True
+        for x in range(14, 28):
+            for y in range(MID_MAP_HEIGHT + 8, MID_MAP_HEIGHT + 11):
+                myMap[x][y].character = '#'
+                myMap[x][y].bg = colors.dark_grey
+                myMap[x][y].dark_bg = colors.darkest_grey
+                myMap[x][y].fg = colors.grey
+                myMap[x][y].dark_fg = colors.darker_grey
+                myMap[x][y].blocked = True
+                myMap[x][y].block_sight = True
+        for x in range(11, 14):
+            for y in range(7, MID_MAP_HEIGHT - 7):
+                myMap[x][y].character = '#'
+                myMap[x][y].bg = colors.dark_grey
+                myMap[x][y].dark_bg = colors.darkest_grey
+                myMap[x][y].fg = colors.grey
+                myMap[x][y].dark_fg = colors.darker_grey
+                myMap[x][y].blocked = True
+                myMap[x][y].block_sight = True
+        for x in range(11, 14):
+            for y in range(MID_MAP_HEIGHT + 8, MAP_HEIGHT - 7):
+                myMap[x][y].character = '#'
+                myMap[x][y].bg = colors.dark_grey
+                myMap[x][y].dark_bg = colors.darkest_grey
+                myMap[x][y].fg = colors.grey
+                myMap[x][y].dark_fg = colors.darker_grey
+                myMap[x][y].blocked = True
+                myMap[x][y].block_sight = True
+        for x in range(10, 13):
+            for y in range(0, 7):
+                myMap[x][y].character = '#'
+                myMap[x][y].bg = colors.dark_grey
+                myMap[x][y].dark_bg = colors.darkest_grey
+                myMap[x][y].fg = colors.grey
+                myMap[x][y].dark_fg = colors.darker_grey
+                myMap[x][y].blocked = True
+                myMap[x][y].block_sight = True
+        for x in range(10, 13):
+            for y in range(MAP_HEIGHT - 7, MAP_HEIGHT):
+                myMap[x][y].character = '#'
+                myMap[x][y].bg = colors.dark_grey
+                myMap[x][y].dark_bg = colors.darkest_grey
+                myMap[x][y].fg = colors.grey
+                myMap[x][y].dark_fg = colors.darker_grey
+                myMap[x][y].blocked = True
+                myMap[x][y].block_sight = True
+    
+        equipmentComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus = 10, meleeWeapon=True)
+        sword = GameObject(100, MID_MAP_HEIGHT, '-', 'longsword', colors.light_sky, Equipment = equipmentComponent, Item = Item(weight=3.5, pic = 'longSword.xp', useText='Equip'))
+        objects = [player, sword]
+    elif level == 2:
+        global objects, player
+        myMap = [[Tile(False, x = x, y = y, bg = colors.darker_green, dark_bg = colors.darkest_green, fg = colors.darker_chartreuse, dark_fg = colors.darkest_chartreuse) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
+        objects = [player]
+        player.x = MAP_WIDTH - 1
 
 def makeHiddenTown(fall = False):
     global myMap, objects, upStairs, rooms, numberRooms, bossRoom
