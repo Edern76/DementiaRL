@@ -2390,7 +2390,7 @@ class GameObject:
             self.moveTowards(goal.x, goal.y)
 
 class Fighter: #All NPCs, enemies and the player
-    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = [0], shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = None, slots = ['head', 'torso', 'left hand', 'right hand', 'legs', 'feet'], equipmentList = [], toEquip = [], attackFunctions = [], noDirectDamage = False):
+    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = [0], shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = None, slots = ['head', 'torso', 'left hand', 'right hand', 'legs', 'feet'], equipmentList = [], toEquip = [], attackFunctions = [], noDirectDamage = False, pic = 'ogre.xp', description = 'Placeholder'):
         self.noVitHP = hp
         self.BASE_MAX_HP = hp
         self.hp = hp
@@ -2410,6 +2410,8 @@ class Fighter: #All NPCs, enemies and the player
         self.BASE_ARMOR_PENETRATION = armorPenetration
         self.lootFunction = lootFunction
         self.lootRate = lootRate
+        self.pic = pic
+        self.description = description
         
         self.leechRessource = leechRessource
         self.leechAmount = leechAmount
@@ -2713,6 +2715,103 @@ class Fighter: #All NPCs, enemies and the player
         self.acidifiedCooldown = cooldown
         curArmor = self.armor - self.baseArmor
         self.baseArmor = -curArmor
+    
+    def fullDescription(self, width):
+        fullDesc = []
+        fullDesc.extend(textwrap.wrap(self.description, width))
+        fighterStats = []
+        
+        if self.power != 0:
+            fighterStats.append('Power: ' + str(self.power))
+        if self.armor != 0:
+            fighterStats.append('Armor: ' + str(self.armor))
+        if self.maxHP != 0:
+            fighterStats.append('HP: ' + str(self.maxHP))
+        if self.maxMP != 0:
+            fighterStats.append('MP: ' + str(self.maxMP))
+        if self.accuracy != 0:
+            fighterStats.append('Accuracy: ' + str(self.accuracy))
+        if self.evasion != 0:
+            fighterStats.append('Evasion: ' + str(self.evasion))
+        if self.critical != 0:
+            fighterStats.append('Critical: ' + str(self.critical))
+        if self.armorPenetration != 0:
+            fighterStats.append('Armor penetration: ' + str(self.armorPenetration))
+        #weightText = 'Weight: ' + str(self.weight)
+        #fullDesc.append(weightText)
+        fullDesc.extend(fighterStats)
+        return fullDesc
+    
+    def displayFighter(self, posX = 0):
+        global FOV_recompute, menuWindows
+        asciiFile = os.path.join(absAsciiPath, self.pic)
+        xpRawString = gzip.open(asciiFile, "r").read()
+        convertedString = xpRawString
+        attributes = xpL.load_xp_string(convertedString)
+        picWidth = int(attributes["width"])
+        picHeight = int(attributes["height"])
+        print("Pic Height = ", picHeight)
+        lData = attributes["layer_data"]
+        
+        width = picWidth + 15
+        if width < len(self.owner.name) + 3:
+            width = len(self.owner.name) + 3
+        desc = self.fullDescription(width - 2)
+        descriptionHeight = len(desc)
+        if desc == '':
+            descriptionHeight = 0
+        height = descriptionHeight + 6 + int(picHeight) + 1
+        
+        if menuWindows:
+            for mWindow in menuWindows:
+                mWindow.clear()
+                print('CLEARED {} WINDOW OF TYPE {}'.format(mWindow.name, mWindow.type))
+                ind = menuWindows.index(mWindow)
+                del menuWindows[ind]
+                print('Deleted')
+                tdl.flush()
+        FOV_recompute = True
+        Update()
+        window = NamedConsole('displayFighter', width, height)
+        print('Created disp window')
+        window.clear()
+        menuWindows.append(window)
+
+        for k in range(width):
+            window.draw_char(k, 0, chr(196))
+        window.draw_char(0, 0, chr(218))
+        window.draw_char(k, 0, chr(191))
+        kMax = k
+        for l in range(height):
+            if l > 0:
+                window.draw_char(0, l, chr(179))
+                window.draw_char(kMax, l, chr(179))
+        lMax = l
+        for m in range(width):
+            window.draw_char(m, lMax, chr(196))
+        window.draw_char(0, lMax, chr(192))
+        window.draw_char(kMax, lMax, chr(217))
+        startY = 4
+        startX = 3
+        layerInd = int(0)
+        for layerInd in range(len(lData)):
+            xpL.load_layer_to_console(window, lData[layerInd], startY, startX)
+        #for line in self.pic:
+            #x = 2
+            #for char in line:
+                #window.draw_char(x, y, char[0], char[1], char[2])
+                #x += 1
+            #y += 1
+        
+        window.draw_str(1, 1, self.owner.name.capitalize() + ':', fg = colors.yellow, bg = None)
+        for i, line in enumerate(desc):
+            window.draw_str(1, int(picHeight) + 5 + i, desc[i], fg = colors.white)
+        posY = MID_HEIGHT - height//2
+        root.blit(window, posX, posY, width, height, 0, 0)
+        
+        menuWindows.append(window)
+        FOV_recompute = True
+        tdl.flush()
         
 class Pathfinder(threading.Thread):
     def __init__(self, mob, goalX, goalY):
@@ -4649,7 +4748,7 @@ def getInput():
         else:
             return
 
-    if gameState ==  'looking':
+    if gameState == 'looking':
         global lookCursor
         if userInput.keychar.upper() == 'ESCAPE':
             global gameState
@@ -4664,6 +4763,28 @@ def getInput():
             lookCursor.move(dx, dy)
             FOV_recompute = True
             return 'didnt-take-turn'
+        elif userInput.keychar.upper() == 'ENTER':
+            for object in objects:
+                if object != lookCursor and object.x == lookCursor.x and object.y == lookCursor.y:
+                    print('found item under lookCursor')
+                    if object.Item:
+                        quit = False
+                        while not quit:
+                            #root.clear()
+                            object.Item.displayItem(MID_HEIGHT)
+                            input = tdl.event.key_wait()
+                            if input.keychar.upper() == 'ESCAPE':
+                                quit = True
+                            #tdl.flush()
+                    if object.Fighter:
+                        quit = False
+                        while not quit:
+                            #root.clear()
+                            object.Fighter.displayFighter(MID_HEIGHT)
+                            input = tdl.event.key_wait()
+                            if input.keychar.upper() == 'ESCAPE':
+                                quit = True
+                            #tdl.flush()
     if gameState == 'playing':
         if userInput.keychar.upper() in MOVEMENT_KEYS:
             keyX, keyY = MOVEMENT_KEYS[userInput.keychar.upper()]
