@@ -243,8 +243,6 @@ djikVisitedTiles = []
 markers = []
 visuBoss = []
 
-tutoGateOpen = False
-
 ########
 # These need to be globals because otherwise Python will flip out when we try to look for some kind of stairs in the object lists.
 stairs = None
@@ -2740,6 +2738,11 @@ class Fighter: #All NPCs, enemies and the player
         #weightText = 'Weight: ' + str(self.weight)
         #fullDesc.append(weightText)
         fullDesc.extend(fighterStats)
+        if self.buffsOnAttack:
+            text = 'Attack: '
+            for buff in self.buffsOnAttack:
+                text += buff[1]
+            fullDesc.append(text.capitalize())
         return fullDesc
     
     def displayFighter(self, posX = 0):
@@ -2880,23 +2883,25 @@ class TargetSelector:
                     print("NO PRIORITY, TARGET IS {}".format(self.selectedTarget.name))
 
 class BasicMonster(TargetSelector): #Basic monsters' AI
-    def __init__(self):
+    def __init__(self, wanderer = True):
         TargetSelector.__init__(self)
         self.dumbCounter = 0
         self.failCounter = 0
         self.didRecalcThisTurn = False
+        self.wanderer = wanderer
     
     def takeTurn(self):
         self.takeBasicTurn()
     
     def wander(self):
-        monster = self.owner
-        dx, dy = randint(-1, 1), randint(-1, 1)
-        x, y = self.owner.x + dx, self.owner.y + dy
-        print('wandering, chasm:', myMap[x][y].chasm)
-        if self.owner.flying or not myMap[x][y].chasm:
-            print('moving')
-            monster.move(dx, dy) #wandering
+        if self.wanderer:
+            monster = self.owner
+            dx, dy = randint(-1, 1), randint(-1, 1)
+            x, y = self.owner.x + dx, self.owner.y + dy
+            print('wandering, chasm:', myMap[x][y].chasm)
+            if self.owner.flying or not myMap[x][y].chasm:
+                print('moving')
+                monster.move(dx, dy) #wandering
 
     def takeBasicTurn(self):
         global mustCalculate
@@ -7503,6 +7508,9 @@ def makeBossLevel(fall = False, generateHole=False, temple = False):
                 player.x, player.y = x, y
                 fallen = True
 
+tutoGateOpen = False
+tutoGate2Open = False
+
 def makeTutorialMap(level = 1):
     if level == 1:
         def openTutorialGate(tile):
@@ -7663,14 +7671,106 @@ def makeTutorialMap(level = 1):
                 myMap[x][y].blocked = True
                 myMap[x][y].block_sight = True
     
-        equipmentComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus = 10, meleeWeapon=True)
-        sword = GameObject(100, MID_MAP_HEIGHT, '-', 'longsword', colors.light_sky, Equipment = equipmentComponent, Item = Item(weight=3.5, pic = 'longSword.xp', useText='Equip'))
-        objects = [player, sword]
+        swordComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus = 10, meleeWeapon=True)
+        sword = GameObject(100, MID_MAP_HEIGHT, '-', 'longsword', colors.light_sky, Equipment = swordComponent, Item = Item(weight=3.5, pic = 'longSword.xp', useText='Equip'))
+        
+        helmetComp = Equipment(slot = 'head', type = 'light armor', armorBonus=2, meleeWeapon=False)
+        helmet = GameObject(0, 0, '[', 'helmet', colors.silver, Equipment=helmetComp, Item=Item(weight=2.0, pic = 'darksoulHelmet.xp', useText='Equip'))
+        fighterComp = Fighter(hp = 10, armor = 0, power = 5, accuracy = 60, evasion = 15, xp = 350, deathFunction=monsterDeath, lootFunction= [helmet], lootRate=[100], toEquip=[helmet], description = "One of Zargothrox's fighters, he seems to be guarding the entrance to the tower.")
+        guard = GameObject(27, MID_MAP_HEIGHT, 'g', 'Guard', colors.light_grey, blocks = True, Fighter=fighterComp, AI=BasicMonster(wanderer=False))
+        
+        objects = [player, sword, guard]
+        
     elif level == 2:
+        
+        def openTutorialGate(tile):
+            global tutoGate2Open
+            if not tutoGate2Open:
+                tutoGate2Open = True
+                message('The gate opens!')
+                x = 110
+                for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
+                    myMap[x][y].character = None
+                    myMap[x][y].blocked = False
+                    myMap[x][y].block_sight = False
+    
+        def closeTutorialGate(tile):
+            global tutoGate2Open
+            if tutoGate2Open:
+                tutoGate2Open = False
+                message('The gate closes back!')
+                x = 110
+                for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
+                    myMap[x][y].character = '/'
+                    myMap[x][y].blocked = True
+                    myMap[x][y].block_sight = True
+
         global objects, player
         myMap = [[Tile(False, x = x, y = y, bg = colors.darker_green, dark_bg = colors.darkest_green, fg = colors.darker_chartreuse, dark_fg = colors.darkest_chartreuse) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
+        for x in range(MAP_WIDTH):
+            for y in range(MAP_HEIGHT):
+                if x == 0 or y == 0 or x == MAP_WIDTH - 1 or y == MAP_HEIGHT -1:
+                    myMap[x][y].blocked = True
+                if x > 110 or (x > 109 and MID_MAP_HEIGHT - 4 <= y <= MID_MAP_HEIGHT + 4):
+                    myMap[x][y].explored = True
+        for x in range(110, MAP_WIDTH):
+            for y in range(MID_MAP_HEIGHT - 2, MID_MAP_HEIGHT + 3):
+                gravelChar1 = chr(250)
+                gravelChar2 = chr(254)
+                gravelChoice = randint(0, 5)
+                if gravelChoice == 0:
+                    myMap[x][y].character = gravelChar1
+                elif gravelChoice == 1:
+                    myMap[x][y].character = gravelChar2
+                else:
+                    myMap[x][y].character = None
+                myMap[x][y].bg = colors.dark_grey
+                myMap[x][y].dark_bg = colors.darkest_grey
+                myMap[x][y].fg = colors.grey
+                myMap[x][y].dark_fg = colors.darker_grey
+        for x in range(109, 112):
+            for y in range(MAP_HEIGHT):
+                if y not in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
+                    myMap[x][y].character = '#'
+                    myMap[x][y].bg = colors.dark_grey
+                    myMap[x][y].dark_bg = colors.darkest_grey
+                    myMap[x][y].fg = colors.grey
+                    myMap[x][y].dark_fg = colors.darker_grey
+                    myMap[x][y].blocked = True
+                    myMap[x][y].block_sight = True
+                elif x == 110:
+                    myMap[x][y].character = '/'
+                    myMap[x][y].bg = colors.darker_sepia
+                    myMap[x][y].dark_bg = colors.darkest_sepia
+                    myMap[x][y].fg = colors.dark_sepia
+                    myMap[x][y].dark_fg = colors.darker_sepia
+                    myMap[x][y].blocked = True
+                    myMap[x][y].block_sight = True
+                else:
+                    gravelChar1 = chr(250)
+                    gravelChar2 = chr(254)
+                    gravelChoice = randint(0, 5)
+                    if gravelChoice == 0:
+                        myMap[x][y].character = gravelChar1
+                    elif gravelChoice == 1:
+                        myMap[x][y].character = gravelChar2
+                    else:
+                        myMap[x][y].character = None
+                    myMap[x][y].bg = colors.dark_grey
+                    myMap[x][y].dark_bg = colors.darkest_grey
+                    myMap[x][y].fg = colors.grey
+                    myMap[x][y].dark_fg = colors.darker_grey
+                    myMap[x][y].blocked = False
+                    myMap[x][y].block_sight = False
+                    if x == 109:
+                        myMap[x][y].onTriggerFunction = closeTutorialGate
+                    else:
+                        myMap[x][y].onTriggerFunction = openTutorialGate
+                    
+                    
+        
         objects = [player]
-        player.x = MAP_WIDTH - 1
+        player.x = MAP_WIDTH - 2
 
 def makeHiddenTown(fall = False):
     global myMap, objects, upStairs, rooms, numberRooms, bossRoom
@@ -9484,7 +9584,8 @@ def mainMenu():
                     ranged = Trait('Ranged Weaponry', 'You shoot people in the knees.', type = 'skill', selectable = False, tier = 2, allowsSelection=[missile])
                     armorW = Trait('Armor wielding', 'You are trained to wield several types of armor.', type = 'skill', selectable = False, tier = 2, allowsSelection=[armorEff, shield])
                     martial = Trait('Martial training', 'You are trained to use a wide variety of weapons', type = 'skill', acc=(10, 0), allowsSelection=[melee, ranged, armorW])
-                    traits = [martial, melee, ranged, armorW, light, heavy, missile, shield, armorEff]
+                    aggressive = Trait('Aggressive', 'You angry', type = 'trait', selectable=False, selected = False)
+                    traits = [martial, melee, ranged, armorW, light, heavy, missile, shield, armorEff, aggressive]
                     
                     def initiateSkill(skillList, maxHeight, heightCounter, originY = 0):
                         newHeight = maxHeight//len(skillList)
@@ -10573,7 +10674,6 @@ def playTutorial():
             quitGame('Player pressed escape', True)
         FOV_recompute = True #So as to avoid the blackscreen bug no matter which key we press
         if gameState == 'playing' and playerAction != 'didnt-take-turn':
-            '''
             global mobsToCalculate
             global mustCalculate
             mobsToCalculate = []
@@ -10596,6 +10696,7 @@ def playTutorial():
                             print(object.name)
                             print("============================================")
                         print("============================================")
+            '''
                 if object.Fighter and object.Fighter.baseShootCooldown > 0 and object.Fighter is not None:
                     object.Fighter.curShootCooldown -= 1
                 if object.Fighter and object.Fighter.baseLandCooldown > 0 and object.Fighter is not None:
@@ -10658,7 +10759,7 @@ def playTutorial():
                                 player.Fighter.heal(1)
                                 player.Fighter.healCountdown= 25 - player.Player.vitality
             
-            '''
+            
             while mustCalculate:
                 print("Calculating")
                 pathfinders = []
@@ -10675,7 +10776,7 @@ def playTutorial():
                 
                 for mob in mobsToCalculate:
                     mob.AI.tryMove()
-            '''
+                    
             global stairCooldown
             if stairCooldown > 0:
                 stairCooldown -= 1
