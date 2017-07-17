@@ -2,6 +2,7 @@ import copy, inspect
 import code.custom_except
 from random import randint
 from code.constants import *
+from spellGen import WeightedChoice
 
 SPELL_GEN_DEBUG = True
 testList = [2, 5]
@@ -99,13 +100,50 @@ baseTypeList = BetterList("Attack", "Defense")
 target1 = WeightedChoice("Select", 25)
 
 baseTargetList = EvenBetterList(target1, WeightedChoice("Self", 25), WeightedChoice("Closest", 25), WeightedChoice("Farthest", 25))
-baseZoneList = BetterList("SingleTile", "Cross", "AOE")
+baseZoneList = EvenBetterList(WeightedChoice("SingleTile", 25), WeightedChoice("Cross", 25), WeightedChoice("X", 25), WeightedChoice("AOE", 25))
 
-baseAttackList = BetterList("Fire", "Physical", "Poison")
-baseBuffList = BetterList("Hunger", "AttackUp")
-baseHealList = BetterList("HP", "MP", "CureFire", "CurePoison")
+baseAttackList = EvenBetterList(WeightedChoice("Fire", 33), WeightedChoice("Physical", 33), WeightedChoice("Poison", 33)) #Porbably want to add more stuff here
+baseBuffList = BetterList(WeightedChoice("Hunger", 25), WeightedChoice("AttackStat", 25), WeightedChoice("DefenseStat", 25), WeightedChoice("Speed", 25))
+baseHealList = BetterList(WeightedChoice("HP", 25), WeightedChoice("MP", 25), WeightedChoice("CureFire", 25), WeightedChoice("CurePoison", 25))
+
+'''
+HOW SPELL GEN IS GOING TO WORK (Spoiler : In a way way more complex than what's needed)
 
 
+
+                                                                                                                                      
+                                                                                                                                     Pure attack ---- Roll amount
+                                                                                                                                   /
+                                                                                                           Bad effect (high chance)
+                                                                                                          /                        \ Debuff ---- Roll turn duration
+                                                                                                         /
+                 Attack ---- Target/Zone choice ---- Number of effects = randint(1,3) - For each effect /
+              /                                                                                         \                            Heal ---- Roll amount
+             /                                                                                           \                         /
+            /                                                                                             \Good effect (low chance)
+           /                                                                                                                       \ Buff ---- Roll turn duration
+          /
+         /  
+TypeSelect                        (Had lot of !!FUN!! making this)
+        \    
+         \                                                                                                                         Heal ---- Roll amount
+          \                                                                                                                      /
+           \                                                                                            Good effect (high chance)
+            \                                                                                         /                          \
+             \                                                                                       /                            Buff  ---- Roll turn duration
+              Defense ---- Target/Zone choice ---- Number of effects = randint(1,3) - For each effect
+                                                                                                    \                          Attack ---- Roll amount
+                                                                                                     \                       /
+                                                                                                      Bad effect (low chance)
+                                                                                                                             \
+                                                                                                                               Debuff ---- Roll turn duration
+
+If a spell has an effect that doesn't fit its type (Good effect on attack spell, bad effect on defense spell), it is considered as "impure" and therefore has reduced MP and skill requirements than a normal spell.
+
+
+
+
+'''
 def createEffect():
     typeList = copy.copy(baseTypeList)
     targetList = copy.copy(baseTargetList)
