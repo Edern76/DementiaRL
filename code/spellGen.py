@@ -206,6 +206,7 @@ def createSpell():
     
     if type == "Attack":
         targetList.removeFrom(targetSelf)
+        zoneSingle.prob = 25
     elif type == "Defense":
         targetList.removeFrom(targetClosest)
         targetList.removeFrom(targetFarthest)
@@ -214,6 +215,7 @@ def createSpell():
         print(type)
         raise ValueError("Invalid spell type")
     
+    target = targetList.randFrom()
     zone = zoneList.randFrom()
     
     if spellLevel > 3:
@@ -257,14 +259,14 @@ def createSpell():
                 effName += "+"
                 isBuff = True
             else:
-                effName = attackList.randFrom()
+                effName = healList.randFrom()
         else:
             dice = randint(0, 1)
             if dice == 0:
                 effName = buffList.randFrom() + "-"
                 isBuff = True
             else:
-                effName = healList.randFrom()
+                effName = attackList.randFrom()
                 if effName == "HealHP":
                     noOccult = True
         
@@ -292,6 +294,9 @@ def createSpell():
     resultSpell.eff1 = effects[0]
     resultSpell.eff2 = effects[1]
     resultSpell.eff3 = effects[2]
+    
+    resultSpell.targeting = target
+    resultSpell.zone = zone
     
     return resultSpell
 
