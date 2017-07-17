@@ -117,7 +117,7 @@ class EvenBetterList(list): #DON'T EVER MAKE THIS INHERIT FROM BETTERLIST IF YOU
         for chance in chances:
             runningSum += chance
             if dice <= runningSum:
-                return self[choice].name
+                return self[choice]
             choice += 1
         
     
@@ -254,21 +254,31 @@ def createSpell():
         if effectAlign == "Good":
             dice = randint(0, 1)
             if dice == 0:
-                effName = buffList.randFrom()
+                eff = buffList.randFrom()
+                buffList.removeFrom(eff)
+                effName = eff.name
                 #buffList.
                 effName += "+"
                 isBuff = True
             else:
-                effName = healList.randFrom()
+                eff = healList.randFrom()
+                healList.removeFrom(eff)
+                effName = eff.name
+                if effName == "HealHP":
+                    noOccult = True
         else:
             dice = randint(0, 1)
             if dice == 0:
-                effName = buffList.randFrom() + "-"
+                eff = buffList.randFrom()
+                buffList.removeFrom(eff)
+                effName = eff.name
+                effName += '-'
                 isBuff = True
             else:
-                effName = attackList.randFrom()
-                if effName == "HealHP":
-                    noOccult = True
+                eff = attackList.randFrom()
+                attackList.removeFrom(eff)
+                effName = eff.name
+
         
         if not isBuff:
             effAmount = randint(1, 5) * spellLevel * randint(1, 3)
@@ -295,8 +305,8 @@ def createSpell():
     resultSpell.eff2 = effects[1]
     resultSpell.eff3 = effects[2]
     
-    resultSpell.targeting = target
-    resultSpell.zone = zone
+    resultSpell.targeting = target.name
+    resultSpell.zone = zone.name
     
     return resultSpell
 
