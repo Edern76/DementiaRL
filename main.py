@@ -611,11 +611,12 @@ def addSlot(fighter, slot):
     print('adding {} slot to {}'.format(slot, fighter.owner.name))
     fighter.slots.append(slot)
 
-#ISN project
 class Buff: #also (and mainly) used for debuffs
     def __init__(self, name, color, owner = None, cooldown = 20, showCooldown = True, showBuff = True,
                  applyFunction = None, continuousFunction = None, removeFunction = None):
-        #Fonction servant a initialiser (creer une nouvelle instance de) la class Buff
+        '''
+        Function used to initialize a new instance of the Buff class
+        '''
         self.name = name
         self.color = color
         self.baseCooldown = cooldown
@@ -627,34 +628,43 @@ class Buff: #also (and mainly) used for debuffs
         self.showCooldown = showCooldown
         self.showBuff = showBuff
     
-    def applyBuff(self, target): #Fonction permettant d'appliquer le buff a la creature cible (target)
+    def applyBuff(self, target):
+        '''
+        Method allowing to apply the buff to target creature
+        '''
         print(self.name, target.name)
-        self.owner = target #on determine l'attribut owner du buff comme la cible de celui-ci
-        if not self.name in convertBuffsToNames(target.Fighter): #si la cible ne subit pas deja le buff
-            self.curCooldown = self.baseCooldown #on initialise le cooldown du buff
+        self.owner = target 
+        if not self.name in convertBuffsToNames(target.Fighter): #If target is not already under effect of the buff
+            self.curCooldown = self.baseCooldown #Initialization of the buff cooldown
             if self.showBuff:
-                message(self.owner.name.capitalize() + ' is now ' + self.name + '!', self.color) #on notifie le joueur si necessaire
+                message(self.owner.name.capitalize() + ' is now ' + self.name + '!', self.color) #If it is necessary, inform the player of the buff
             if self.applyFunction is not None:
-                self.applyFunction(self.owner.Fighter) #si la methode applyFunction() existe, on l'execute
-            self.owner.Fighter.buffList.append(self) #on ajoute le buff a la liste des buffs de la cible
-        else: #si la cible subissait deja le buff
+                self.applyFunction(self.owner.Fighter) #If the applyFunction method exists, execute it
+            self.owner.Fighter.buffList.append(self) #Add the buff to target's buffs list
+        else: #If target is already under effect of the buff
             bIndex = convertBuffsToNames(self.owner.Fighter).index(self.name)
-            target.Fighter.buffList[bIndex].curCooldown += self.baseCooldown #on ralonge le cooldown du buff
+            target.Fighter.buffList[bIndex].curCooldown += self.baseCooldown #Extend duration of the buff
     
-    def removeBuff(self): #Fonction permettant de supprimer le buff
-        if self.removeFunction is not None: #si la methode removeFunction() existe, on l'execute
+    def removeBuff(self):
+        '''
+        Method allowing to remove the buff from target creature
+        '''
+        if self.removeFunction is not None: #If removeFunction method exists, execute it
             self.removeFunction(self.owner.Fighter)
-        self.owner.Fighter.buffList.remove(self) #on supprime le buff de la liste de buffs de la creature le subissant
+        self.owner.Fighter.buffList.remove(self) #Delete the buff from target creature's buffs list
         if self.owner.Fighter.buffList is None:
             self.owner.Fighter.buffList = []
         if self.showBuff:
-            message(self.owner.name.capitalize() + ' is no longer ' + self.name + '.', self.color) #on notifie le joueur
+            message(self.owner.name.capitalize() + ' is no longer ' + self.name + '.', self.color) #Inform the player
     
-    def passTurn(self): #Fonction s'executant chaque tour
-        self.curCooldown -= 1 #on diminue de 1 le cooldown du buff
-        if self.curCooldown <= 0: #si le buff a atteint sa limite, on le supprime grace a la methode removeBuff()
+    def passTurn(self):
+        '''
+        Method called each turn
+        '''
+        self.curCooldown -= 1 #Decrease from 1 the buff cooldown
+        if self.curCooldown <= 0: #If buff reached its time, call the removeBuff method
             self.removeBuff()
-        else: # si le buff n'a pas atteint sa limite, on execute si elle existe la methode continuousFunction()
+        else: #If buff has not yet reached its time limit, we call the continuousFunction if it exists
             if self.continuousFunction is not None:
                 self.continuousFunction(self.owner.Fighter)
 #_________ BUFFS ___________
