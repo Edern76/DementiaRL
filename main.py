@@ -842,6 +842,7 @@ def convertRandTemplateToSpell(template = None):
         targetFunction = targetMonster
     #TO-DO : Implement the other zones, targeting options
     effects = [template.eff1, template.eff2, template.eff3]
+    #TO-DO : Finish this
     
 
 def learnSpell(spell):
