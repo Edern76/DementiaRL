@@ -18,13 +18,14 @@ import code.nameGen as nameGen
 import code.xpLoaderPy3 as xpL
 import code.dunbranches as dBr
 import code.dilledShelve as shelve
+import code.spellGen as spellGen
 from code.dunbranches import gluttonyDungeon
 from code.custom_except import *
 from music import playWavSound
 from multiprocessing import freeze_support, current_process
 import code.chasmGen as chasmGen
 import code.holeGen as holeGen
-from dill import objects
+#from dill import objects
 
 activeProcess = []
 
@@ -670,6 +671,7 @@ class Buff: #also (and mainly) used for debuffs
 #_________ BUFFS ___________
 
 #_____________SPELLS_____________
+
 class Spell:
     "Class used by all active abilites (not just spells)"
     def __init__(self,  ressourceCost, cooldown, useFunction, name, ressource = 'MP', type = 'Magic', magicLevel = 0, arg1 = None, arg2 = None, arg3 = None):
@@ -753,6 +755,94 @@ class Spell:
                 return 'used'
             else:
                 return 'cancelled'
+
+
+def rSpellDamage(caster = None, target, type, amount):
+        if caster is None:
+            caster = player
+        target.takeDamage(amount, "A spell")
+        if type == "fire" and randint(1,10) < 7:
+            burning = Buff('burning', colors.flame, cooldown= randint(3, 6), continuousFunction=lambda fighter: randomDamage('fire', fighter, chance = 100, minDamage=1, maxDamage=3, dmgMessage = 'You take {} damage from burning !'))
+            burning.applyBuff(target)
+        elif type == "Poison" and randint(1,10) < 7:
+            poisoned = Buff('poisoned', colors.purple, owner = None, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10))
+            poisoned.applyBuff(target)
+
+def rSpellHunger(caster, target, type, amount):
+    if target == player:
+        if type == "Buff":
+            player.Player.hunger += amount
+        else:
+            player.Player.hunger -= amount
+        
+        if player.Player.hunger > BASE_HUNGER:
+            player.Player.hunger = int(BASE_HUNGER)
+        if player.Player.hunger < 0:
+            player.Player.hunger = 0
+
+def rSpellAttack(caster, target, type, amount):
+    if type == "Buff":
+        message(target.capitalize() + " should have had its attack increase. But the developper was to lazy to implement it in time !") #TO-DO
+    else:
+        message(target.capitalize() + " should have had its attack decrease. But the developper was to lazy to implement it in time !") #TO-DO
+
+def rSpellDefense(caster, target, type, amount):
+    if type == "Buff":
+        message(target.capitalize() + " should have had its defense increase. But the developper was to lazy to implement it in time !") #TO-DO
+    else:
+        message(target.capitalize() + " should have had its defense decrease. But the developper was to lazy to implement it in time !") #TO-DO
+
+#castHeal(amount, caster, target)
+
+def restoreMana(caster, target, amount):
+    if target.Fighter:
+        target.Fighter.MP += amount
+    if target.Fighter.MP > target.Fighter.maxMP:
+        target.Fighter.MP = int(target.Fighter.maxMP)
+
+def rSpellRemoveBuff(caster, target, buffToRemove):
+    if target.Fighter:
+        for buff in target.Fighter.buffList:
+            if buff.name == buffToRemove:
+                buff.removeBuff()  
+
+def targetSelf():
+    return player
+
+def targetMonster(maxRange = None):
+    target = targetTile(maxRange)
+    if target == 'cancelled':
+        return None
+    else:
+        (x,y) = target
+        for obj in objects:
+            if obj.x == x and obj.y == y and obj.Fighter and obj != player:
+                return obj
+
+def Erwan(caster = None, target = None):
+    pass
+
+def rSpellExec(func1 = Erwan, func2 = Erwan, func3 = Erwan, caster = None, target = None, targetFunction = targetMonster):
+    if targetFunction.__name__ != 'targetSelf':
+        message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
+    target = targetFunction()
+    
+    func1(caster, target)
+    func2(caster, target)
+    func3(caster, target)
+    
+def convertRandTemplateToSpell(template = None):
+    if template is None:
+        template = spellGen.createSpell()
+    
+
+    if template.targeting == "Self":
+        targetFunction = targetSelf
+    else:
+        targetFunction = targetMonster
+    #TO-DO : Implement the other zones, targeting options
+    effects = [template.eff1, template.eff2, template.eff3]
+    
 
 def learnSpell(spell):
     if not (spell in player.Fighter.knownSpells or spell.name in player.Fighter.knownSpellsToNames):
@@ -4489,8 +4579,7 @@ cSwordChoice = ShopChoice(gObject = cSword, price = 400, stock = 1)
 ayethShopChoices = [badPieChoice, saladChoice, breadChoice, cSwordChoice]
 ayethShop = Shop(choicesList=ayethShopChoices)
 
-def Erwan():
-    pass
+
 
 class Quest:
     def __init__(self, name, choiceGive, choiceCompleted, screenGive, screenCompleted, rewardList, rewardXP, validateFunction):
@@ -10130,15 +10219,7 @@ def targetDirection():
         Update()
         tdl.flush()
         return 'cancelled'
-def targetMonster(maxRange = None):
-    target = targetTile(maxRange)
-    if target == 'cancelled':
-        return None
-    else:
-        (x,y) = target
-        for obj in objects:
-            if obj.x == x and obj.y == y and obj.Fighter and obj != player:
-                return obj
+
 
 #______ INITIALIZATION AND MAIN LOOP________
 def accessMapFile(level = dungeonLevel, branchToDisplay = currentBranch.shortName):
