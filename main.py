@@ -6293,23 +6293,23 @@ def updateTileCoords():
             myMap[x][y].y = int(y)
 
 def doStep(oldMap):
-    newMap = list(deepcopy(baseMap)) #On cree une nouvelle carte surlaquelle on va travailler
+    newMap = list(deepcopy(baseMap)) #Create a new empty map (except for the borders)
     for x in range(1, MAP_WIDTH - 1):
         for y in range(1, MAP_HEIGHT - 1):
-            neighbours = countNeighbours(oldMap, x, y) #On compte les murs autour de chaque case dans l'ancienne carte (myMap)
-            if oldMap[x][y].blocked: #Si la dite case est bloquee dans l'ancienne carte
-                if neighbours < DEATH_LIMIT: #Si elle a moins de murs voisins que la limite pour laquelle on ouvre cette case
-                    openTile(x, y, newMap) #On ouvre la case dans la nouvelle carte (on fait en sorte que ce ne soit plus un mur)
+            neighbours = countNeighbours(oldMap, x, y) #Count the walls around each tile on the former map (myMap)
+            if oldMap[x][y].blocked: #If said tile is blocked in the former map
+                if neighbours < DEATH_LIMIT: #If it has less neighbouring walls than the limit for which we open it
+                    openTile(x, y, newMap) #Open this tile in the new map
                 else:
-                    closeTile(x, y, newMap) #Sinon, on s'assure que cela reste un mur dans la nouvelle carte
+                    closeTile(x, y, newMap) #Else, ensure it stays a wall in the new map
                     print('Blocking')
-            else: #Sinon (si c'est une case vide)
-                if neighbours > BIRTH_LIMIT: #Si elle a plus de murs voisins que la limite pour laquelle on en fait un mur
-                    closeTile(x, y, newMap) #On en fait un mur dans la nouvelle carte
+            else: #If it's an empty tile
+                if neighbours > BIRTH_LIMIT: #If it has more neighbouring walls than the limit for which we close it
+                    closeTile(x, y, newMap) #Make it a wall in the new map
                     print('Blocking')
                 else:
-                    openTile(x, y, newMap) #Sinon, on s'assure que cela reste une case vide dans la nouvelle carte
-    return newMap #On retourne la nouvelle carte
+                    openTile(x, y, newMap) #Else, ensure it stays an empty tile in the new map
+    return newMap
 
 def updateReachLists():
     global reachableRooms, unreachableRooms
@@ -6502,8 +6502,6 @@ def generateCave(fall = False):
     @author: Gawein LE GOFF
     Generates a cavern looking like map.
     
-    TODO : Convert comments to English once exam is done.
-    
     '''
     global myMap, bossTiles, baseMap, mapToDisp, maps, visuTiles, state, visuEdges, confTiles, rooms, curRoomIndex, stairs, objects, upStairs, bossDungeonsAppeared, color_dark_wall, color_light_wall, color_dark_ground, color_light_ground, color_dark_gravel, color_light_gravel, townStairs, gluttonyStairs, stairs, upStairs, nemesisList, wrathStairs
     myMap = [[Tile(blocked=False, x = x, y = y, block_sight=False) for y in range(MAP_HEIGHT)] for x in range(MAP_WIDTH)] #Initialisation de la carte
@@ -6553,12 +6551,12 @@ def generateCave(fall = False):
         for y in range(1, MAP_HEIGHT - 1):
             myMap[x][y].djikValue = None
             if randint(0, 100) < CHANCE_TO_START_ALIVE:
-                closeTile(x, y, myMap) #On place aleatoirement des murs
+                closeTile(x, y, myMap) #Place walls randomly
 
     for loop in range(STEPS_NUMBER):
-        myMap = doStep(myMap) #Permet de transformer les murs places aleatoirement en salles
+        myMap = doStep(myMap) #Transform randomly placed walls into room
     maps = [myMap, baseMap]
-    refreshEmptyTiles() #On actualise la liste des cases vides
+    refreshEmptyTiles()
     print("Freezing")
     state = "floodfillPrep"
 
@@ -6568,17 +6566,17 @@ def generateCave(fall = False):
         while emptyTiles:
             (x,y) = emptyTiles[0]
             #time.sleep(0.05)
-            newRoomTiles = [] #Cases de la salle a creer
-            newRoomEdges = [] #Cases en bordure de la salle a creer
+            newRoomTiles = [] #Tiles of the room to create
+            newRoomEdges = [] #Tiles at the borders of the room to create
             try:
-                floodFill(x,y, newRoomTiles, newRoomEdges) #On utilise la fonction floodfill pour identifier la salle, qui va remplir les listes newRoomTiles et newRoomEdges
-            except RecursionError: #Si l'on rencontre une RecursionError dans le bloc try, on execute le bloc ci-dessous
-                traceback.print_exc() #On affiche le message d'erreur
-                print(sys.getrecursionlimit()) #On affiche la limite maximale de recursion
-                os._exit(-1) #On quitte le programme afin d'eviter de provoquer d'autres erreurs qui viendraient masquer celle-ci
+                floodFill(x,y, newRoomTiles, newRoomEdges) #We use the floodfill function to identify the room and to fill the newRoomTiles and newRoomEdges lists
+            except RecursionError: #If a RecursionError is encountered in the try block execute the following block
+                traceback.print_exc() #Print the error message
+                print(sys.getrecursionlimit()) #Print the recursion limt
+                os._exit(-1) #Quit the programm so as to avoid other errors that would hide this one
             newRoom = CaveRoom(newRoomTiles, borders = newRoomEdges)
             if len(newRoom.tiles) < MIN_ROOM_SIZE:
-                newRoom.remove() #Si la salle est trop petite, on la rebouche
+                newRoom.remove() #If room is too small, turn it back into walls
             else:
                 '''
                 newRoomEdges = []
@@ -6591,34 +6589,34 @@ def generateCave(fall = False):
                 pass
                         
         for room in rooms:
-            room.claimBorders() #On verifie si les bordures de la salle ne sont pas partagees par une autre salle, sinon on ajoute les cases posant probleme a la liste contestedTiles de la dite salle
+            room.claimBorders() #Check if the room's border aren't shared with another room, else add the contested tiles to the contestedTiles list of said room
             #visuEdges.extend(room.borders)
-            confTiles.extend(room.contestedTiles) #On ajoute les cases posant probleme de la salle en cours (si il y en a) a la liste de toutes les cases posant probleme
+            confTiles.extend(room.contestedTiles) #Add this room's contested tiles to the global list of contested tiles
         state = "roomMergePrep"
         refreshEmptyTiles()
-        tempRooms = list(rooms) #Travailler directement sur la liste des salles pose probleme, on en effectue donc une copie
+        tempRooms = list(rooms) #Working directly on the rooms list makes problems appear, so we use a copy instead
         while tempRooms:
             for rum in tempRooms: 
                 if rum not in rooms:
-                    tempRooms.remove(rum) #Si on rencontre une salle dans la liste temporaire (qui est censee avoir le meme contenu que la liste d'origine) qui n'est pas dans la liste d'origine (et oui, ca arrive, ne demandez pas pourquoi)
+                    tempRooms.remove(rum) #If we encounter a room in the temp list (which is supposed to have the same content as the original), that is not in the original list (yes, it actually happens because black magic I guess)
             room = tempRooms[0]
             oldRoomBorders = []
-            if room.contestedTiles: #Si il y a des cases conflictuelles dans la salle en cours
+            if room.contestedTiles: #If there are conflicting tiles in the current room
                 for (x,y) in room.contestedTiles:
-                    openTile(x,y, myMap) #On remplace les bordures contestees par des cases vides
+                    openTile(x,y, myMap) #Replace contested borders by empty tiles
                     if (x,y) in visuEdges:
                         visuEdges.remove((x,y))
                     for owner in myMap[x][y].belongsTo:
                         oldRoomBorders.append((x,y))
-                        owner.borders.remove((x,y)) #On retire l'ancien mur de la liste des bordures des salles auxquelles il appartenait
-                        room.mergeWith(owner, oldRoomBorders) #On fusionne les salles se partageant ce mur entre elles
+                        owner.borders.remove((x,y)) #Remove old wall from the walls list of the rooms it used to belong to
+                        room.mergeWith(owner, oldRoomBorders) #Merge room who used to share this wall
             tempRooms.remove(room)
         
-        rooms[0].mainRoom = True #On fait en sorte que la premiere salle soit la salle principale
-        rooms[0].reachableFromMainRoom = True #On etablit que la premiere salle est accessible depuis la salle principale
+        rooms[0].mainRoom = True #Make so the first room is the main room
+        rooms[0].reachableFromMainRoom = True #Since it is the main room, it is reachable from the main room.
         
-        connectRooms(rooms) #On relie une premiere fois "au hasard" les salles entre elles
-        connectRooms(rooms, True) #On relie une deuxieme fois les salles, cette fois-ci en les forcant a etre reliees a la salle principale
+        connectRooms(rooms) #Connect in the first place rooms based solely on distance between them, without taking in account rechability from the main room.
+        connectRooms(rooms, True) #Connect rooms between a second time, this time forcing them to be connected to either the main room or to a room reachable from the main room
         state = "normal"
         refreshEmptyTiles()
         checkMap()
