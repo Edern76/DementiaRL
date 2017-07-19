@@ -25,6 +25,7 @@ from multiprocessing import freeze_support, current_process
 import code.chasmGen as chasmGen
 import code.holeGen as holeGen
 from dill import objects
+import code.layoutReader as layoutReader
 
 activeProcess = []
 
@@ -5440,7 +5441,7 @@ def levelUpScreen(newSkillpoints = True, skillpoint = 3, fromCreation = False, s
         selectedSkill = origin.skills[index]
         selectedSkill.underCursor = True
 
-def checkLevelUp():
+def checkLevelUp(fromTuto = False):
     global FOV_recompute
     
     levelUp_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
@@ -5565,16 +5566,17 @@ def checkLevelUp():
                 else:
                     choice = None
         '''
-
-        if player.Player.getTrait('skill', 'Light weapons').amount >= 5 and player.Player.getTrait('trait', 'Dual wield') == 'not found':
-            message('You are now proficient enough with light weapons to wield two at the same time!', colors.yellow)
-            dual = Trait('Dual wield', 'Allows to wield two lights weapons at the same time.', 'trait')
-            dual.addTraitToPlayer()
         
-        if player.Player.getTrait('skill', 'Mental training').amount >= 5 and player.Player.getTrait('trait', 'Self aware') == 'not found':
-            message('Your meditation training is now so strong you can be really aware of your health state!', colors.yellow)
-            aware = Trait('Self aware', 'Allows to see the buffs and debuffs cooldowns.', 'trait')
-            aware.addTraitToPlayer()
+        if not fromTuto:
+            if player.Player.getTrait('skill', 'Light weapons').amount >= 5 and player.Player.getTrait('trait', 'Dual wield') == 'not found':
+                message('You are now proficient enough with light weapons to wield two at the same time!', colors.yellow)
+                dual = Trait('Dual wield', 'Allows to wield two lights weapons at the same time.', 'trait')
+                dual.addTraitToPlayer()
+            
+            if player.Player.getTrait('skill', 'Mental training').amount >= 5 and player.Player.getTrait('trait', 'Self aware') == 'not found':
+                message('Your meditation training is now so strong you can be really aware of your health state!', colors.yellow)
+                aware = Trait('Self aware', 'Allows to see the buffs and debuffs cooldowns.', 'trait')
+                aware.addTraitToPlayer()
 
 def isVisibleTile(x, y):
     global myMap
@@ -7509,32 +7511,31 @@ def makeBossLevel(fall = False, generateHole=False, temple = False):
                 fallen = True
 
 tutoGateOpen = False
-tutoGate2Open = False
 
 def makeTutorialMap(level = 1):
+    def openTutorialGate(tile, x, startY, endY):
+        global tutoGateOpen
+        if not tutoGateOpen:
+            tutoGateOpen = True
+            message('The gate opens!')
+            for y in range(startY, endY):
+                myMap[x][y].character = None
+                myMap[x][y].blocked = False
+                myMap[x][y].block_sight = False
+        print('gate open:', tutoGateOpen)
+
+    def closeTutorialGate(tile, x, startY, endY):
+        global tutoGateOpen
+        if tutoGateOpen:
+            tutoGateOpen = False
+            message('The gate closes back!')
+            for y in range(startY, endY):
+                myMap[x][y].character = '/'
+                myMap[x][y].blocked = True
+                myMap[x][y].block_sight = True
+        print('gate open:', tutoGateOpen)
+
     if level == 1:
-        def openTutorialGate(tile):
-            global tutoGateOpen
-            if not tutoGateOpen:
-                tutoGateOpen = True
-                message('The gate opens!')
-                x = 26
-                for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
-                    myMap[x][y].character = None
-                    myMap[x][y].blocked = False
-                    myMap[x][y].block_sight = False
-    
-        def closeTutorialGate(tile):
-            global tutoGateOpen
-            if tutoGateOpen:
-                tutoGateOpen = False
-                message('The gate closes back!')
-                x = 26
-                for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
-                    myMap[x][y].character = '/'
-                    myMap[x][y].blocked = True
-                    myMap[x][y].block_sight = True
-        
         def loadLvl2(tile):
             makeTutorialMap(2)
     
@@ -7612,10 +7613,47 @@ def makeTutorialMap(level = 1):
                     myMap[x][y].blocked = False
                     myMap[x][y].block_sight = False
                     if x == 25:
-                        myMap[x][y].onTriggerFunction = closeTutorialGate
+                        myMap[x][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 26, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
                     else:
-                        myMap[x][y].onTriggerFunction = openTutorialGate
-                    
+                        myMap[x][y].onTriggerFunction = lambda tile: openTutorialGate(tile, 26, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
+        for x in range(27):
+            for y in range(MID_MAP_HEIGHT - 9, MID_MAP_HEIGHT + 10):
+                if not (y in range(MID_MAP_HEIGHT - 4, MID_MAP_HEIGHT + 5) and x == 26):
+                    myMap[x][y].explored = False
+        for x in range(11, 14):
+            for y in range(MID_MAP_HEIGHT - 10, MID_MAP_HEIGHT + 11):
+                myMap[x][y].character = '#'
+                myMap[x][y].bg = colors.dark_grey
+                myMap[x][y].dark_bg = colors.darkest_grey
+                myMap[x][y].fg = colors.grey
+                myMap[x][y].dark_fg = colors.darker_grey
+                myMap[x][y].blocked = True
+                myMap[x][y].block_sight = True
+            for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
+                if x == 12:
+                    myMap[x][y].character = '/'
+                    myMap[x][y].bg = colors.darker_sepia
+                    myMap[x][y].dark_bg = colors.darkest_sepia
+                    myMap[x][y].fg = colors.dark_sepia
+                    myMap[x][y].dark_fg = colors.darker_sepia
+                    myMap[x][y].blocked = True
+                    myMap[x][y].block_sight = True
+                else:
+                    gravelChar1 = chr(250)
+                    gravelChar2 = chr(254)
+                    gravelChoice = randint(0, 5)
+                    if gravelChoice == 0:
+                        myMap[x][y].character = gravelChar1
+                    elif gravelChoice == 1:
+                        myMap[x][y].character = gravelChar2
+                    else:
+                        myMap[x][y].character = None
+                    myMap[x][y].blocked = False
+                    myMap[x][y].block_sight = False
+                    if x == 11:
+                        myMap[x][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 12, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
+                    else:
+                        myMap[x][y].onTriggerFunction = lambda tile: openTutorialGate(tile, 12, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)           
         for x in range(14, 28):
             for y in range(MID_MAP_HEIGHT - 10, MID_MAP_HEIGHT - 7):
                 myMap[x][y].character = '#'
@@ -7625,7 +7663,6 @@ def makeTutorialMap(level = 1):
                 myMap[x][y].dark_fg = colors.darker_grey
                 myMap[x][y].blocked = True
                 myMap[x][y].block_sight = True
-        for x in range(14, 28):
             for y in range(MID_MAP_HEIGHT + 8, MID_MAP_HEIGHT + 11):
                 myMap[x][y].character = '#'
                 myMap[x][y].bg = colors.dark_grey
@@ -7643,7 +7680,6 @@ def makeTutorialMap(level = 1):
                 myMap[x][y].dark_fg = colors.darker_grey
                 myMap[x][y].blocked = True
                 myMap[x][y].block_sight = True
-        for x in range(11, 14):
             for y in range(MID_MAP_HEIGHT + 8, MAP_HEIGHT - 7):
                 myMap[x][y].character = '#'
                 myMap[x][y].bg = colors.dark_grey
@@ -7661,7 +7697,6 @@ def makeTutorialMap(level = 1):
                 myMap[x][y].dark_fg = colors.darker_grey
                 myMap[x][y].blocked = True
                 myMap[x][y].block_sight = True
-        for x in range(10, 13):
             for y in range(MAP_HEIGHT - 7, MAP_HEIGHT):
                 myMap[x][y].character = '#'
                 myMap[x][y].bg = colors.dark_grey
@@ -7670,42 +7705,25 @@ def makeTutorialMap(level = 1):
                 myMap[x][y].dark_fg = colors.darker_grey
                 myMap[x][y].blocked = True
                 myMap[x][y].block_sight = True
+        for x in range(12):
+            for y in range(MAP_HEIGHT):
+                myMap[x][y].explored = False
+                if y in range(8, MAP_HEIGHT - 8):
+                    myMap[x + 1][y].explored = False
     
         swordComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus = 10, meleeWeapon=True)
         sword = GameObject(100, MID_MAP_HEIGHT, '-', 'longsword', colors.light_sky, Equipment = swordComponent, Item = Item(weight=3.5, pic = 'longSword.xp', useText='Equip'))
         
         helmetComp = Equipment(slot = 'head', type = 'light armor', armorBonus=2, meleeWeapon=False)
         helmet = GameObject(0, 0, '[', 'helmet', colors.silver, Equipment=helmetComp, Item=Item(weight=2.0, pic = 'darksoulHelmet.xp', useText='Equip'))
-        fighterComp = Fighter(hp = 10, armor = 0, power = 5, accuracy = 60, evasion = 15, xp = 350, deathFunction=monsterDeath, lootFunction= [helmet], lootRate=[100], toEquip=[helmet], description = "One of Zargothrox's fighters, he seems to be guarding the entrance to the tower.")
-        guard = GameObject(27, MID_MAP_HEIGHT, 'g', 'Guard', colors.light_grey, blocks = True, Fighter=fighterComp, AI=BasicMonster(wanderer=False))
+        fighterComp = Fighter(hp = 20, armor = 0, power = 5, accuracy = 60, evasion = 15, xp = 350, deathFunction=monsterDeath, lootFunction= [helmet], lootRate=[100], toEquip=[helmet], description = "One of Zargothrox's fighters, he seems to be guarding the entrance to the tower.")
+        guard = GameObject(27, MID_MAP_HEIGHT, 'g', 'guard', colors.light_grey, blocks = True, Fighter=fighterComp, AI=BasicMonster(wanderer=False))
         
         objects = [player, sword, guard]
         
     elif level == 2:
-        
-        def openTutorialGate(tile):
-            global tutoGate2Open
-            if not tutoGate2Open:
-                tutoGate2Open = True
-                message('The gate opens!')
-                x = 110
-                for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
-                    myMap[x][y].character = None
-                    myMap[x][y].blocked = False
-                    myMap[x][y].block_sight = False
-    
-        def closeTutorialGate(tile):
-            global tutoGate2Open
-            if tutoGate2Open:
-                tutoGate2Open = False
-                message('The gate closes back!')
-                x = 110
-                for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
-                    myMap[x][y].character = '/'
-                    myMap[x][y].blocked = True
-                    myMap[x][y].block_sight = True
-
         global objects, player
+        '''
         myMap = [[Tile(False, x = x, y = y, bg = colors.darker_green, dark_bg = colors.darkest_green, fg = colors.darker_chartreuse, dark_fg = colors.darkest_chartreuse) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
         for x in range(MAP_WIDTH):
             for y in range(MAP_HEIGHT):
@@ -7728,6 +7746,7 @@ def makeTutorialMap(level = 1):
                 myMap[x][y].dark_bg = colors.darkest_grey
                 myMap[x][y].fg = colors.grey
                 myMap[x][y].dark_fg = colors.darker_grey
+        counter = 0
         for x in range(109, 112):
             for y in range(MAP_HEIGHT):
                 if y not in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
@@ -7738,6 +7757,16 @@ def makeTutorialMap(level = 1):
                     myMap[x][y].dark_fg = colors.darker_grey
                     myMap[x][y].blocked = True
                     myMap[x][y].block_sight = True
+                    if counter == 3:
+                        myMap[x + 1][y].character = '#'
+                        myMap[x + 1][y].bg = colors.dark_grey
+                        myMap[x + 1][y].dark_bg = colors.darkest_grey
+                        myMap[x + 1][y].fg = colors.grey
+                        myMap[x + 1][y].dark_fg = colors.darker_grey
+                        myMap[x + 1][y].blocked = True
+                        myMap[x + 1][y].block_sight = True
+                        counter = 0
+                    counter += 1
                 elif x == 110:
                     myMap[x][y].character = '/'
                     myMap[x][y].bg = colors.darker_sepia
@@ -7763,11 +7792,22 @@ def makeTutorialMap(level = 1):
                     myMap[x][y].blocked = False
                     myMap[x][y].block_sight = False
                     if x == 109:
-                        myMap[x][y].onTriggerFunction = closeTutorialGate
+                        myMap[x][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 110, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
                     else:
-                        myMap[x][y].onTriggerFunction = openTutorialGate
-                    
-                    
+                        myMap[x][y].onTriggerFunction = lambda tile: openTutorialGate(tile, 110, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
+                if y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
+                    counter = 3
+                elif y == MAP_HEIGHT - 1:
+                    counter = 1
+        for x in range(109):
+            for y in range(MAP_HEIGHT):
+                myMap[x][y].bg = colors.dark_grey
+                myMap[x][y].dark_bg = colors.darkest_grey
+        '''            
+        myMap = layoutReader.readMap('tutorial9')
+        for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
+            myMap[109][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 110, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
+            myMap[111][y].onTriggerFunction = lambda tile: openTutorialGate(tile, 110, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
         
         objects = [player]
         player.x = MAP_WIDTH - 2
@@ -10661,11 +10701,13 @@ def playTutorial():
     activeProcess.append(music)
     displayedPickUp = False
     displayedInventory = False
+    displayedMonster = False
     
     displayTip('Move around using the directional ARROWS or the NUMPAD.', x = 0, y = 0, arrow = False)
     while not tdl.event.isWindowClosed():
         global FOV_recompute, DEBUG
         Update()
+        checkLevelUp(fromTuto=True)
         tdl.flush()
         for object in objects:
             object.clear()
@@ -10707,6 +10749,9 @@ def playTutorial():
                     displayTip('You can open your inventory by pressing I, to see what objects you have gathered.', 0, 0, False)
                     displayedInventory = True
             for object in objects:
+                if object.name == 'guard' and (object.x, object.y) in visibleTiles and not displayedMonster:
+                    displayedMonster = True
+                    displayTip('Beware! This guard looks pretty aggressive! You can fight him by simply walking onto him.', object.x - 1, object.y, True)
                 if object.name == 'longsword' and object.distanceTo(player) <= 3 and not displayedPickUp:
                     displayedPickUp = True
                     displayTip('This is a sword. Pick it up by pressing SPACEBAR while on the same tile.', object.x - 1, object.y)
