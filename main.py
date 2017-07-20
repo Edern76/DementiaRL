@@ -758,7 +758,7 @@ class Spell:
                 return 'cancelled'
 
 
-def rSpellDamage(caster = None, target, type, amount):
+def rSpellDamage(caster , target, type, amount):
         if caster is None:
             caster = player
         target.takeDamage(amount, "A spell")
@@ -7815,7 +7815,7 @@ def makeTutorialMap(level = 1):
         helmetComp = Equipment(slot = 'head', type = 'light armor', armorBonus=2, meleeWeapon=False)
         helmet = GameObject(0, 0, '[', 'helmet', colors.silver, Equipment=helmetComp, Item=Item(weight=2.0, pic = 'darksoulHelmet.xp', useText='Equip'))
         fighterComp = Fighter(hp = 20, armor = 0, power = 5, accuracy = 60, evasion = 15, xp = 350, deathFunction=monsterDeath, lootFunction= [helmet], lootRate=[100], toEquip=[helmet], description = "One of Zargothrox's fighters, he seems to be guarding the entrance to the tower.")
-        guard = GameObject(27, MID_MAP_HEIGHT, 'g', 'guard', colors.light_grey, blocks = True, Fighter=fighterComp, AI=BasicMonster(wanderer=False))
+        guard = GameObject(27, MID_MAP_HEIGHT, 'g', 'guard', colors.darker_han, blocks = True, Fighter=fighterComp, AI=BasicMonster(wanderer=False))
         
         objects = [player, sword, guard]
         
@@ -7902,7 +7902,7 @@ def makeTutorialMap(level = 1):
                 myMap[x][y].bg = colors.dark_grey
                 myMap[x][y].dark_bg = colors.darkest_grey
         '''            
-        myMap = layoutReader.readMap('tutorial9')
+        myMap = layoutReader.readMap('tutorial')
         for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
             myMap[109][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 110, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
             myMap[111][y].onTriggerFunction = lambda tile: openTutorialGate(tile, 110, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
