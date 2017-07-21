@@ -4825,8 +4825,10 @@ def getInput():
     elif userInput.keychar.upper() == 'F5' and DEBUG and not tdl.event.isWindowClosed(): #Don't know if tdl.event.isWindowClosed() is necessary here but added it just to be sure
         player.Player.vitality += 1000
         player.Player.BASE_VITALITY += 1000
+        player.Fighter.maxMP += 1000
         player.Fighter.hp = player.Fighter.maxHP
-        message('Healed player and increased their maximum HP value by 1000', colors.purple)
+        player.Fighter.MP = player.Fighter.maxMP
+        message('Healed player and increased their maximum HP and MP value by 1000', colors.purple)
         FOV_recompute = True
     elif userInput.keychar.upper() == "F6" and DEBUG and not tdl.event.isWindowClosed():
         player.Fighter.xp += 1000
