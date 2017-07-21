@@ -8630,7 +8630,8 @@ def createScroll(x, y):
         scroll = GameObject(x, y, '~', 'scroll of ice bolt', colors.light_yellow, Item = Item(castFreeze, weight = 0.3, stackable = True, amount = randint(1, 3), unIDName=unIdentifiedName, identified=identified, unIDpName=pName, pic = 'scroll.xp'), blocks = False, pName = 'scrolls of ice bolt')
     elif scrollChoice == 'none':
         scroll = None
-    scroll.Item.useText = 'Read'
+    if scroll is not None:
+        scroll.Item.useText = 'Read'
     return scroll
 
 def createPotion(x, y):
