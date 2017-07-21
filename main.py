@@ -1,5 +1,5 @@
 
-import colors, math, textwrap, time, os, sys, code, gzip, pathlib, traceback, ffmpy, pdb, copy, queue, random, cProfile #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
+import colors, math, textwrap, time, os, sys, code, gzip, pathlib, traceback, ffmpy, pdb, copy, queue, random, cProfile, functools #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
 import tdlib as tdl
 import code.dialog as dial
 import music as mus
@@ -509,7 +509,7 @@ def msgBox(text, width = 50, inGame = True, adjustHeight = True, adjustWidth = F
         width = textLength + 2
     menu(text, [], width, None, inGame, adjustHeight, needsInput)
 
-def drawCentered (cons = con , y = 1, text = "Lorem Ipsum", fg = None, bg = None):
+def drawCentered(cons = con , y = 1, text = "Lorem Ipsum", fg = None, bg = None):
     xCentered = (WIDTH - len(text))//2
     cons.draw_str(xCentered, y, text, fg, bg)
 
@@ -535,6 +535,15 @@ def getRightFilled(text = 'Lorem Ipsum'):
 def drawCenteredOnX(cons = con, x = 1, y = 1, text = "Lorem Ipsum", fg = None, bg = None):
     centeredOnX = x - (len(text)//2)
     cons.draw_str(centeredOnX, y, text, fg, bg)
+
+def message(newMsg, color = colors.white):
+    newMsgLines = textwrap.wrap(newMsg, MSG_WIDTH) #If message exceeds log width, split it into two or more lines
+    for line in newMsgLines:
+        if len(gameMsgs) == MSG_HEIGHT:
+            del gameMsgs[0] #Deletes the oldest message if the log is full
+    
+        gameMsgs.append((line, color))
+        logMsgs.append((line, color))
 #_____________MENU_______________
 
 #_________ BUFFS ___________
@@ -758,18 +767,18 @@ class Spell:
                 return 'cancelled'
 
 
-def rSpellDamage(caster , target, type, amount):
+def rSpellDamage(amount, caster, target, type):
         if caster is None:
             caster = player
         target.takeDamage(amount, "A spell")
-        if type == "fire" and randint(1,10) < 7:
+        if type == "Fire" and randint(1,10) < 7:
             burning = Buff('burning', colors.flame, cooldown= randint(3, 6), continuousFunction=lambda fighter: randomDamage('fire', fighter, chance = 100, minDamage=1, maxDamage=3, dmgMessage = 'You take {} damage from burning !'))
             burning.applyBuff(target)
         elif type == "Poison" and randint(1,10) < 7:
             poisoned = Buff('poisoned', colors.purple, owner = None, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10))
             poisoned.applyBuff(target)
 
-def rSpellHunger(caster, target, type, amount):
+def rSpellHunger(amount, type, caster, target):
     if target == player:
         if type == "Buff":
             player.Player.hunger += amount
@@ -781,31 +790,37 @@ def rSpellHunger(caster, target, type, amount):
         if player.Player.hunger < 0:
             player.Player.hunger = 0
 
-def rSpellAttack(caster, target, type, amount):
+def rSpellAttack(amount, type, caster, target):
     if type == "Buff":
         message(target.capitalize() + " should have had its attack increase. But the developper was to lazy to implement it in time !") #TO-DO
     else:
         message(target.capitalize() + " should have had its attack decrease. But the developper was to lazy to implement it in time !") #TO-DO
 
-def rSpellDefense(caster, target, type, amount):
+def rSpellDefense(amount, type, caster, target):
     if type == "Buff":
         message(target.capitalize() + " should have had its defense increase. But the developper was to lazy to implement it in time !") #TO-DO
     else:
         message(target.capitalize() + " should have had its defense decrease. But the developper was to lazy to implement it in time !") #TO-DO
 
+def rSpellSpeed(amount, type, caster, target):
+    if type == "Buff":
+        message(target.capitalize() + " should have had its speed increase. But the developper was to lazy to implement it in time !") #TO-DO
+    else:
+        message(target.capitalize() + " should have had its speed decrease. But the developper was to lazy to implement it in time !") #TO-DO
+        
 #castHeal(amount, caster, target)
 
-def restoreMana(caster, target, amount):
+def restoreMana(amount, caster, target):
     if target.Fighter:
         target.Fighter.MP += amount
     if target.Fighter.MP > target.Fighter.maxMP:
         target.Fighter.MP = int(target.Fighter.maxMP)
 
-def rSpellRemoveBuff(caster, target, buffToRemove):
+def rSpellRemoveBuff(buffToRemove, caster, target):
     if target.Fighter:
         for buff in target.Fighter.buffList:
             if buff.name == buffToRemove:
-                buff.removeBuff()  
+                buff.removeBuff()
 
 def targetSelf():
     return player
@@ -823,7 +838,7 @@ def targetMonster(maxRange = None):
 def Erwan(caster = None, target = None):
     pass
 
-def rSpellExec(func1 = Erwan, func2 = Erwan, func3 = Erwan, caster = None, target = None, targetFunction = targetMonster):
+def rSpellExec(func1 = Erwan, func2 = Erwan, func3 = Erwan, targetFunction = targetMonster, caster = None, target = None):
     if targetFunction.__name__ != 'targetSelf':
         message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
     target = targetFunction()
@@ -835,14 +850,101 @@ def rSpellExec(func1 = Erwan, func2 = Erwan, func3 = Erwan, caster = None, targe
 def convertRandTemplateToSpell(template = None):
     if template is None:
         template = spellGen.createSpell()
+        print(template)
     
 
     if template.targeting == "Self":
         targetFunction = targetSelf
     else:
         targetFunction = targetMonster
+    
+    zone = "SingleTile"
     #TO-DO : Implement the other zones, targeting options
     effects = [template.eff1, template.eff2, template.eff3]
+    funcs = [Erwan, Erwan, Erwan]
+    for i in range(len(effects)):
+        #WARNING : Bad code incoming. There is probably a cleaner way to do this, but I don't see it.
+        curEffect = effects[i]
+        toAdd = Erwan
+        if curEffect is not None:
+            if curEffect.name == "FireDamage":
+                amount = int(curEffect.amount)
+                newFunc = functools.partial(rSpellDamage, amount) #Freezes the value of the amount variable into the function
+                toAdd = lambda caster, target : newFunc(caster, target, "Fire")
+            elif curEffect.name == "PoisonDamage":
+                amount = int(curEffect.amount)
+                newFunc = functools.partial(rSpellDamage, amount)
+                toAdd = lambda caster, target : newFunc(caster, target, "Poison")
+            elif curEffect.name == "PhysicalDamage":
+                amount = int(curEffect.amount)
+                newFunc = functools.partial(rSpellDamage, amount)
+                toAdd = lambda caster, target : newFunc(caster, target, "Physical")
+            elif curEffect.name.startswith("Hunger"):
+                if curEffect.name.endswith("+"):
+                    type = "Buff"
+                else:
+                    type = "Debuff"
+                
+                amount = int(curEffect.amount)
+                newFunc = functools.partial(rSpellHunger, amount, type)
+                toAdd = lambda caster, target : newFunc(caster, target)
+            elif curEffect.name.startswith("AttackStat"):
+                if curEffect.name.endswith("+"):
+                    type = "Buff"
+                else:
+                    type = "Debuff"
+                
+                amount = int(curEffect.amount)
+                newFunc = functools.partial(rSpellAttack, amount, type)
+                toAdd = lambda caster, target : newFunc(caster, target)
+            elif curEffect.name.startswith("DefenseStat"):
+                if curEffect.name.endswith("+"):
+                    type = "Buff"
+                else:
+                    type = "Debuff"
+                
+                amount = int(curEffect.amount)
+                toAdd = lambda caster, target : rSpellDefense(caster, target, type, amount)
+            elif curEffect.name.startswith("Speed"):
+                if curEffect.name.endswith("+"):
+                    type = "Buff"
+                else:
+                    type = "Debuff"
+                amount = int(curEffect.amount)
+                newFunc = functools.partial(rSpellSpeed, amount, type)
+                toAdd = lambda caster, target : newFunc(caster, target)
+            elif curEffect.name == "HealHP":
+                amount = int(curEffect.amount)
+                newFunc = functools.partial(castHeal, amount)
+                toAdd = lambda caster, target : newFunc(caster, target)
+            elif curEffect.name == "HealMP":
+                amount = int(curEffect.amount)
+                newFunc = functools.partial(restoreMana, amount)
+                toAdd = lambda caster, target : newFunc(caster, target)
+            elif curEffect.name == "CurePoison":
+                amount = int(curEffect.amount)
+                toAdd = lambda caster, target : rSpellRemoveBuff("poisoned", caster, target)
+            elif curEffect.name == "CureFire":
+                amount = int(curEffect.amount)
+                toAdd = lambda caster, target : rSpellRemoveBuff("burning", caster, target)
+            else:
+                if DEBUG:
+                    message("ERROR : CANNOT CONVERT EFFECT {}".format(curEffect.name), colors.red)
+                toAdd = Erwan
+        else:
+            if DEBUG:
+                message("Effect number {} is None".format(i + 1))
+            toAdd = Erwan    
+        funcs[i] = toAdd
+            
+        
+    effect1 = funcs[0]
+    effect2 = funcs[1]
+    effect3 = funcs[2]
+    
+    finalFunction = functools.partial(rSpellExec, effect1, effect2, effect3, targetFunction)
+    return Spell(ressourceCost = template.cost, cooldown = 10, useFunction = finalFunction, ressource = template.ressource, type="Magic", magicLevel=0, name = nameGen.humanLike()) #TO-DO : Generate values for cooldown and minimum magic level
+        
     #TO-DO : Finish this
     
 
@@ -4679,7 +4781,8 @@ def getInput():
         #else:
             #set_fullscreen(True)
     elif userInput.keychar.upper() == 'F3':
-        castFreeze(player, player)
+        #castFreeze(player, player)
+        learnSpell(convertRandTemplateToSpell())
         '''
         global GRAPHICS
         if GRAPHICS == 'modern':
@@ -9313,15 +9416,6 @@ def renderBar(cons, x, y, totalWidth, name, value, maximum, barColor, backColor)
     text = name + ': ' + str(value) + '/' + str(maximum)
     xCentered = x + (totalWidth - len(text))//2
     cons.draw_str(xCentered, y, text, fg = colors.white, bg=None)
-    
-def message(newMsg, color = colors.white):
-    newMsgLines = textwrap.wrap(newMsg, MSG_WIDTH) #If message exceeds log width, split it into two or more lines
-    for line in newMsgLines:
-        if len(gameMsgs) == MSG_HEIGHT:
-            del gameMsgs[0] #Deletes the oldest message if the log is full
-    
-        gameMsgs.append((line, color))
-        logMsgs.append((line, color))
 
 def displayLog(height):
     global menuWindows, FOV_recompute
