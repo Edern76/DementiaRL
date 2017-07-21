@@ -770,7 +770,7 @@ class Spell:
 def rSpellDamage(amount, caster, target, type):
         if caster is None:
             caster = player
-        target.takeDamage(amount, "A spell")
+        target.Fighter.takeDamage(amount, "A spell")
         if type == "Fire" and randint(1,10) < 7:
             burning = Buff('burning', colors.flame, cooldown= randint(3, 6), continuousFunction=lambda fighter: randomDamage('fire', fighter, chance = 100, minDamage=1, maxDamage=3, dmgMessage = 'You take {} damage from burning !'))
             burning.applyBuff(target)
