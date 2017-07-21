@@ -792,21 +792,21 @@ def rSpellHunger(amount, type, caster, target):
 
 def rSpellAttack(amount, type, caster, target):
     if type == "Buff":
-        message(target.capitalize() + " should have had its attack increase. But the developper was to lazy to implement it in time !") #TO-DO
+        message(target.name.capitalize() + " should have had its attack increase. But the developper was to lazy to implement it in time !") #TO-DO
     else:
-        message(target.capitalize() + " should have had its attack decrease. But the developper was to lazy to implement it in time !") #TO-DO
+        message(target.name.capitalize() + " should have had its attack decrease. But the developper was to lazy to implement it in time !") #TO-DO
 
 def rSpellDefense(amount, type, caster, target):
     if type == "Buff":
-        message(target.capitalize() + " should have had its defense increase. But the developper was to lazy to implement it in time !") #TO-DO
+        message(target.name.capitalize() + " should have had its defense increase. But the developper was to lazy to implement it in time !") #TO-DO
     else:
-        message(target.capitalize() + " should have had its defense decrease. But the developper was to lazy to implement it in time !") #TO-DO
+        message(target.name.capitalize() + " should have had its defense decrease. But the developper was to lazy to implement it in time !") #TO-DO
 
 def rSpellSpeed(amount, type, caster, target):
     if type == "Buff":
-        message(target.capitalize() + " should have had its speed increase. But the developper was to lazy to implement it in time !") #TO-DO
+        message(target.name.capitalize() + " should have had its speed increase. But the developper was to lazy to implement it in time !") #TO-DO
     else:
-        message(target.capitalize() + " should have had its speed decrease. But the developper was to lazy to implement it in time !") #TO-DO
+        message(target.name.capitalize() + " should have had its speed decrease. But the developper was to lazy to implement it in time !") #TO-DO
         
 #castHeal(amount, caster, target)
 
@@ -832,7 +832,7 @@ def targetMonster(maxRange = None):
     else:
         (x,y) = target
         for obj in objects:
-            if obj.x == x and obj.y == y and obj.Fighter and obj != player:
+            if obj.x == x and obj.y == y and obj.Fighter: #and obj != player:
                 return obj
 
 def Erwan(caster = None, target = None):
@@ -869,16 +869,16 @@ def convertRandTemplateToSpell(template = None):
         if curEffect is not None:
             if curEffect.name == "FireDamage":
                 amount = int(curEffect.amount)
-                newFunc = functools.partial(rSpellDamage, amount) #Freezes the value of the amount variable into the function
-                toAdd = lambda caster, target : newFunc(caster, target, "Fire")
+                newFireFunc = functools.partial(rSpellDamage, amount) #Freezes the value of the amount variable into the function
+                toAdd = lambda caster, target : newFireFunc(caster, target, "Fire")
             elif curEffect.name == "PoisonDamage":
                 amount = int(curEffect.amount)
-                newFunc = functools.partial(rSpellDamage, amount)
-                toAdd = lambda caster, target : newFunc(caster, target, "Poison")
+                newPoiFunc = functools.partial(rSpellDamage, amount)
+                toAdd = lambda caster, target : newPoiFunc(caster, target, "Poison")
             elif curEffect.name == "PhysicalDamage":
                 amount = int(curEffect.amount)
-                newFunc = functools.partial(rSpellDamage, amount)
-                toAdd = lambda caster, target : newFunc(caster, target, "Physical")
+                newPhyFunc = functools.partial(rSpellDamage, amount)
+                toAdd = lambda caster, target : newPhyFunc(caster, target, "Physical")
             elif curEffect.name.startswith("Hunger"):
                 if curEffect.name.endswith("+"):
                     type = "Buff"
@@ -886,8 +886,8 @@ def convertRandTemplateToSpell(template = None):
                     type = "Debuff"
                 
                 amount = int(curEffect.amount)
-                newFunc = functools.partial(rSpellHunger, amount, type)
-                toAdd = lambda caster, target : newFunc(caster, target)
+                newHungFunc = functools.partial(rSpellHunger, amount, type)
+                toAdd = lambda caster, target : newHungFunc(caster, target)
             elif curEffect.name.startswith("AttackStat"):
                 if curEffect.name.endswith("+"):
                     type = "Buff"
@@ -895,32 +895,34 @@ def convertRandTemplateToSpell(template = None):
                     type = "Debuff"
                 
                 amount = int(curEffect.amount)
-                newFunc = functools.partial(rSpellAttack, amount, type)
-                toAdd = lambda caster, target : newFunc(caster, target)
+                newAttFunc = functools.partial(rSpellAttack, amount, type)
+                toAdd = lambda caster, target : newAttFunc(caster, target)
             elif curEffect.name.startswith("DefenseStat"):
                 if curEffect.name.endswith("+"):
                     type = "Buff"
                 else:
                     type = "Debuff"
                 
+                
                 amount = int(curEffect.amount)
-                toAdd = lambda caster, target : rSpellDefense(caster, target, type, amount)
+                newDefFunc = functools.partial(rSpellDefense, amount, type)
+                toAdd = lambda caster, target : newDefFunc(type, amount)
             elif curEffect.name.startswith("Speed"):
                 if curEffect.name.endswith("+"):
                     type = "Buff"
                 else:
                     type = "Debuff"
                 amount = int(curEffect.amount)
-                newFunc = functools.partial(rSpellSpeed, amount, type)
-                toAdd = lambda caster, target : newFunc(caster, target)
+                newSpeedFunc = functools.partial(rSpellSpeed, amount, type)
+                toAdd = lambda caster, target : newSpeedFunc(caster, target)
             elif curEffect.name == "HealHP":
                 amount = int(curEffect.amount)
-                newFunc = functools.partial(castHeal, amount)
-                toAdd = lambda caster, target : newFunc(caster, target)
+                newHPFunc = functools.partial(castHeal, amount)
+                toAdd = lambda caster, target : newHPFunc(caster, target)
             elif curEffect.name == "HealMP":
                 amount = int(curEffect.amount)
-                newFunc = functools.partial(restoreMana, amount)
-                toAdd = lambda caster, target : newFunc(caster, target)
+                newMPFunc = functools.partial(restoreMana, amount)
+                toAdd = lambda caster, target : newMPFunc(caster, target)
             elif curEffect.name == "CurePoison":
                 amount = int(curEffect.amount)
                 toAdd = lambda caster, target : rSpellRemoveBuff("poisoned", caster, target)
