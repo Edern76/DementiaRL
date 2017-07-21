@@ -906,7 +906,7 @@ def convertRandTemplateToSpell(template = None):
                 
                 amount = int(curEffect.amount)
                 newDefFunc = functools.partial(rSpellDefense, amount, type)
-                toAdd = lambda caster, target : newDefFunc(type, amount)
+                toAdd = lambda caster, target : newDefFunc(caster, target)
             elif curEffect.name.startswith("Speed"):
                 if curEffect.name.endswith("+"):
                     type = "Buff"
