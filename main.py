@@ -771,12 +771,16 @@ def rSpellDamage(amount, caster, target, type):
         if caster is None:
             caster = player
         target.Fighter.takeDamage(amount, "A spell")
-        if type == "Fire" and randint(1,10) < 7:
-            burning = Buff('burning', colors.flame, cooldown= randint(3, 6), continuousFunction=lambda fighter: randomDamage('fire', fighter, chance = 100, minDamage=1, maxDamage=3, dmgMessage = 'You take {} damage from burning !'))
-            burning.applyBuff(target)
-        elif type == "Poison" and randint(1,10) < 7:
-            poisoned = Buff('poisoned', colors.purple, owner = None, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10))
-            poisoned.applyBuff(target)
+        if target is not None and target.Fighter is not None and target.Fighter.hp > 0:
+            if type == "Fire" and randint(1,10) < 7:
+                burning = Buff('burning', colors.flame, cooldown= randint(3, 6), continuousFunction=lambda fighter: randomDamage('fire', fighter, chance = 100, minDamage=1, maxDamage=3, dmgMessage = 'You take {} damage from burning !'))
+                burning.applyBuff(target)
+            elif type == "Poison" and randint(1,10) < 7:
+                poisoned = Buff('poisoned', colors.purple, owner = None, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10))
+                poisoned.applyBuff(target)
+        else:
+            if DEBUG:
+                message("Your enemy died on the spot !")
 
 def rSpellHunger(amount, type, caster, target):
     if target == player:
@@ -841,11 +845,24 @@ def Erwan(caster = None, target = None):
 def rSpellExec(func1 = Erwan, func2 = Erwan, func3 = Erwan, targetFunction = targetMonster, caster = None, target = None):
     if targetFunction.__name__ != 'targetSelf':
         message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
-    target = targetFunction()
+    actualTarget = targetFunction()
+    print("FOOOOOOOOOOOOOOOOOOOOUNNNNNNNNNNNNNNNNNNND TARGEEEEEEEEEEEEEEEEEET")
+    print("vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv")
+    print(actualTarget)
+    print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
     
-    func1(caster, target)
-    func2(caster, target)
-    func3(caster, target)
+    if actualTarget is not None and actualTarget.Fighter is not None and actualTarget.Fighter.hp > 0:
+        func1(caster, actualTarget)
+    if actualTarget is not None and actualTarget.Fighter is not None and actualTarget.Fighter.hp > 0:
+        func2(caster, actualTarget)
+    else:
+        if DEBUG:
+            message("OVERKILL !")
+    if actualTarget is not None and actualTarget.Fighter is not None and actualTarget.Fighter.hp > 0:
+        func3(caster, actualTarget)
+    else:
+        if DEBUG:
+            message("OVERKILL !")
     
 def convertRandTemplateToSpell(template = None):
     if template is None:
