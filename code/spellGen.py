@@ -4,7 +4,7 @@ from random import randint
 from code.constants import *
 
 SPELL_GEN_DEBUG = True
-BUFF_POTENTIAL_ATTENUATION_COEFFICIENT = 4
+BUFF_POTENTIAL_ATTENUATION_COEFFICIENT = 2
 
 class WeightedChoice:
     def __init__(self, name, prob):
@@ -184,12 +184,17 @@ buffAttack = WeightedChoice("AttackStat", 25)
 buffDefense = WeightedChoice("DefenseStat", 25)
 buffSpeed = WeightedChoice("Speed", 25)
 
+healHP = WeightedChoice("HealHP", 25)
+healMP = WeightedChoice("HealMP", 25)
+healFire = WeightedChoice("CureFire", 25)
+healPoison = WeightedChoice("CurePoison", 25)
+
 baseTargetList = EvenBetterList(targetSelect, targetSelf, targetClosest, targetFarthest)
 baseZoneList = EvenBetterList(zoneSingle, zoneCross, zoneX, zoneAOE)
 
 baseAttackList = EvenBetterList(attFire, attPhy, attPoi) #Porbably want to add more stuff here
 baseBuffList = EvenBetterList(buffHunger, buffAttack, buffDefense, buffSpeed) #Common list for buffs/debuffs
-baseHealList = EvenBetterList(WeightedChoice("HealHP", 25), WeightedChoice("HealMP", 25), WeightedChoice("CureFire", 25), WeightedChoice("CurePoison", 25))
+baseHealList = EvenBetterList(healHP, healMP , healFire , healPoison)
 
 def createSpell():
     valid = False
@@ -228,13 +233,14 @@ def createSpell():
             maxEffects = 2
         else:
             maxEffects = 1
-        
+        noOccult = False
+        noNormal = False
         effects = [None, None, None]
+        potential = 0
         for loop in range(maxEffects):
             isBuff = False
-            noOccult = False
+
             curEffectImpure = False
-            potential = 0
             if type == "Attack":
                 if maxEffects == 1:
                     effectAlign = "Bad"
@@ -273,6 +279,10 @@ def createSpell():
                     effName = eff.name
                     if effName == "HealHP":
                         noOccult = True
+                        healList.removeFrom(healList[0]) #Removes "HealMP" from the list, because spending MP to recover MP is either useless (if you recover less MP than you spend) or gamebreakingly overpowered (if you recover more MP than you spend)
+                    elif effName == "HealMP":
+                        noNormal = True
+                        healList.removeFrom(healList[0]) #Removes "HealHP" from the list. Same as above.
             else:
                 dice = randint(0, 1)
                 if dice == 0:
@@ -286,23 +296,47 @@ def createSpell():
                     attackList.removeFrom(eff)
                     effName = eff.name
     
-            
             if not isBuff:
-                effAmount = randint(1, 5) * spellLevel * randint(1, 3)
+                effAmount = randint(spellLevel, spellLevel * 5)  * randint(2, 3)
                 if not curEffectImpure:
                     potential += effAmount
                 elif potential - effAmount > 0:
+                    print("POTENTIAL BEFORE : " + str(potential))
+                    print("AMOUNT : " + str(effAmount))
+                    print("ITERAITON : " +str(loop))
                     potential -= effAmount
+                    print("POTENTIAL AFTER : " + str(potential))
                 else:
+                    print("POTENTIAL BEFORE : " + str(potential))
+                    print("AMOUNT : " + str(effAmount))
+                    print("ITERAITON : " +str(loop))
+                    print("TOO MUCH, RESETTING POTENTIAL")
                     potential = 0
+                    print("POTENTIAL AFTER : " + str(potential))
             else:
-                effAmount = randint(1, 2) * spellLevel * randint(1, 3)
+                '''
+                if eff.name in ["CureFire", "CurePoison"]:
+                    bonus = randint(2, 3)
+                else:
+                    bonus = 1
+                '''
+                bonus = 1
+                effAmount = (randint(spellLevel, spellLevel * 2) * randint(1, 3) * bonus) + 1
                 if not curEffectImpure:
                     potential += (effAmount // BUFF_POTENTIAL_ATTENUATION_COEFFICIENT)
                 elif potential - (effAmount // BUFF_POTENTIAL_ATTENUATION_COEFFICIENT) > 0:
+                    print("POTENTIAL BEFORE : " + str(potential))
+                    print("AMOUNT : " + str(effAmount))
+                    print("ITERAITON : " +str(loop))
                     potential -= (effAmount // BUFF_POTENTIAL_ATTENUATION_COEFFICIENT)
+                    print("POTENTIAL AFTER : " + str(potential))
                 else:
+                    print("POTENTIAL BEFORE : " + str(potential))
+                    print("AMOUNT : " + str(effAmount))
+                    print("ITERAITON : " +str(loop))
+                    print("TOO MUCH, RESETTING POTENTIAL")
                     potential = 0
+                    print("POTENTIAL AFTER : " + str(potential))
             
             effects[loop] = NumberedEffect(effName, effAmount)
         
@@ -315,9 +349,9 @@ def createSpell():
             print("DISCARDED")
            
         else:
-            cost = (potential // 6 + randint(1, 10)) * spellLevel
+            cost = (potential // 4 + randint(2, 10)) * spellLevel
             dice = randint(0, 10)
-            if dice < 8 or noOccult:
+            if (dice < 8 or noOccult) and not noNormal:
                 ressource = "MP"
             else:
                 ressource = "HP"
