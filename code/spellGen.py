@@ -229,6 +229,7 @@ def createSpell():
     for loop in range(maxEffects):
         isBuff = False
         noOccult = False
+        curEffectImpure = False
         potential = 0
         if type == "Attack":
             if maxEffects == 1:
@@ -240,6 +241,7 @@ def createSpell():
                 else:
                     effectAlign = "Good"
                     isImpure = True
+                    curEffectImpure = True
         elif type == "Defense":
             if maxEffects == 1:
                 effectAlign = "Good"
@@ -250,6 +252,7 @@ def createSpell():
                 else:
                     effectAlign = "Bad"
                     isImpure = True
+                    curEffectImpure = True
         
         if effectAlign == "Good":
             dice = randint(0, 1)
@@ -281,10 +284,21 @@ def createSpell():
 
         
         if not isBuff:
-            effAmount = randint(1, 5) * spellLevel * randint(1, 3)
+            if not curEffectImpure:
+                effAmount = randint(1, 5) * spellLevel * randint(1, 3)
+            elif potential - effAmount > 0:
+                effAmount = randint(1, 5) * spellLevel * randint(1, 3) * -1
+            else:
+                effAmount = 0
             potential += effAmount
+            
         else:
-            effAmount = randint(1, 2) * spellLevel * randint(1, 3)
+            if not curEffectImpure:
+                effAmount = randint(1, 2) * spellLevel * randint(1, 3)
+            elif potential - effAmount > 0:
+                effAmount = randint(1, 2) * spellLevel * randint(1, 3) * -1
+            else:
+                effAmount = 0
             potential += effAmount // 4
         
         effects[loop] = NumberedEffect(effName, effAmount)
