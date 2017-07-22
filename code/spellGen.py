@@ -4,6 +4,7 @@ from random import randint
 from code.constants import *
 
 SPELL_GEN_DEBUG = True
+BUFF_POTENTIAL_ATTENUATION_COEFFICIENT = 4
 
 class WeightedChoice:
     def __init__(self, name, prob):
@@ -191,138 +192,146 @@ baseBuffList = EvenBetterList(buffHunger, buffAttack, buffDefense, buffSpeed) #C
 baseHealList = EvenBetterList(WeightedChoice("HealHP", 25), WeightedChoice("HealMP", 25), WeightedChoice("CureFire", 25), WeightedChoice("CurePoison", 25))
 
 def createSpell():
-    spellLevel = randint(1,5)
-    isImpure = False
-    
-    typeList = copy.copy(baseTypeList)
-    targetList = copy.copy(baseTargetList)
-    zoneList = copy.copy(baseZoneList)
-    
-    attackList = copy.copy(baseAttackList)
-    buffList = copy.copy(baseBuffList)
-    healList = copy.copy(baseHealList)
-    
-    type = typeList.randFrom()
-    
-    if type == "Attack":
-        targetList.removeFrom(targetSelf)
-        zoneSingle.prob = 25
-    elif type == "Defense":
-        targetList.removeFrom(targetClosest)
-        targetList.removeFrom(targetFarthest)
-        zoneSingle.prob = 75
-    else:
-        print(type)
-        raise ValueError("Invalid spell type")
-    
-    target = targetList.randFrom()
-    zone = zoneList.randFrom()
-    
-    if spellLevel > 3:
-        maxEffects = 3
-    elif spellLevel >= 2:
-        maxEffects = 2
-    else:
-        maxEffects = 1
-    
-    effects = [None, None, None]
-    for loop in range(maxEffects):
-        isBuff = False
-        noOccult = False
-        curEffectImpure = False
-        potential = 0
+    valid = False
+    while not valid:
+        spellLevel = randint(1,5)
+        valid = True
+        isImpure = False
+        
+        typeList = copy.copy(baseTypeList)
+        targetList = copy.copy(baseTargetList)
+        zoneList = copy.copy(baseZoneList)
+        
+        attackList = copy.copy(baseAttackList)
+        buffList = copy.copy(baseBuffList)
+        healList = copy.copy(baseHealList)
+        
+        type = typeList.randFrom()
+        
         if type == "Attack":
-            if maxEffects == 1:
-                effectAlign = "Bad"
-            else:
-                dice = randint(0, 100)
-                if dice < 80:
-                    effectAlign = "Bad"
-                else:
-                    effectAlign = "Good"
-                    isImpure = True
-                    curEffectImpure = True
+            targetList.removeFrom(targetSelf)
+            zoneSingle.prob = 25
         elif type == "Defense":
-            if maxEffects == 1:
-                effectAlign = "Good"
-            else:
-                dice = randint(0, 100)
-                if dice < 80:
+            targetList.removeFrom(targetClosest)
+            targetList.removeFrom(targetFarthest)
+            zoneSingle.prob = 75
+        else:
+            print(type)
+            raise ValueError("Invalid spell type")
+        
+        target = targetList.randFrom()
+        zone = zoneList.randFrom()
+        
+        if spellLevel > 3:
+            maxEffects = 3
+        elif spellLevel >= 2:
+            maxEffects = 2
+        else:
+            maxEffects = 1
+        
+        effects = [None, None, None]
+        for loop in range(maxEffects):
+            isBuff = False
+            noOccult = False
+            curEffectImpure = False
+            potential = 0
+            if type == "Attack":
+                if maxEffects == 1:
+                    effectAlign = "Bad"
+                else:
+                    dice = randint(0, 100)
+                    if dice < 80:
+                        effectAlign = "Bad"
+                    else:
+                        effectAlign = "Good"
+                        isImpure = True
+                        curEffectImpure = True
+            elif type == "Defense":
+                if maxEffects == 1:
                     effectAlign = "Good"
                 else:
-                    effectAlign = "Bad"
-                    isImpure = True
-                    curEffectImpure = True
-        
-        if effectAlign == "Good":
-            dice = randint(0, 1)
-            if dice == 0:
-                eff = buffList.randFrom()
-                buffList.removeFrom(eff)
-                effName = eff.name
-                #buffList.
-                effName += "+"
-                isBuff = True
-            else:
-                eff = healList.randFrom()
-                healList.removeFrom(eff)
-                effName = eff.name
-                if effName == "HealHP":
-                    noOccult = True
-        else:
-            dice = randint(0, 1)
-            if dice == 0:
-                eff = buffList.randFrom()
-                buffList.removeFrom(eff)
-                effName = eff.name
-                effName += '-'
-                isBuff = True
-            else:
-                eff = attackList.randFrom()
-                attackList.removeFrom(eff)
-                effName = eff.name
-
-        
-        if not isBuff:
-            if not curEffectImpure:
-                effAmount = randint(1, 5) * spellLevel * randint(1, 3)
-            elif potential - effAmount > 0:
-                effAmount = randint(1, 5) * spellLevel * randint(1, 3) * -1
-            else:
-                effAmount = 0
-            potential += effAmount
+                    dice = randint(0, 100)
+                    if dice < 80:
+                        effectAlign = "Good"
+                    else:
+                        effectAlign = "Bad"
+                        isImpure = True
+                        curEffectImpure = True
             
-        else:
-            if not curEffectImpure:
-                effAmount = randint(1, 2) * spellLevel * randint(1, 3)
-            elif potential - effAmount > 0:
-                effAmount = randint(1, 2) * spellLevel * randint(1, 3) * -1
+            if effectAlign == "Good":
+                dice = randint(0, 1)
+                if dice == 0:
+                    eff = buffList.randFrom()
+                    buffList.removeFrom(eff)
+                    effName = eff.name
+                    #buffList.
+                    effName += "+"
+                    isBuff = True
+                else:
+                    eff = healList.randFrom()
+                    healList.removeFrom(eff)
+                    effName = eff.name
+                    if effName == "HealHP":
+                        noOccult = True
             else:
-                effAmount = 0
-            potential += effAmount // 4
+                dice = randint(0, 1)
+                if dice == 0:
+                    eff = buffList.randFrom()
+                    buffList.removeFrom(eff)
+                    effName = eff.name
+                    effName += '-'
+                    isBuff = True
+                else:
+                    eff = attackList.randFrom()
+                    attackList.removeFrom(eff)
+                    effName = eff.name
+    
+            
+            if not isBuff:
+                effAmount = randint(1, 5) * spellLevel * randint(1, 3)
+                if not curEffectImpure:
+                    potential += effAmount
+                elif potential - effAmount > 0:
+                    potential -= effAmount
+                else:
+                    potential = 0
+            else:
+                effAmount = randint(1, 2) * spellLevel * randint(1, 3)
+                if not curEffectImpure:
+                    potential += (effAmount // BUFF_POTENTIAL_ATTENUATION_COEFFICIENT)
+                elif potential - (effAmount // BUFF_POTENTIAL_ATTENUATION_COEFFICIENT) > 0:
+                    potential -= (effAmount // BUFF_POTENTIAL_ATTENUATION_COEFFICIENT)
+                else:
+                    potential = 0
+            
+            effects[loop] = NumberedEffect(effName, effAmount)
         
-        effects[loop] = NumberedEffect(effName, effAmount)
+        if isImpure:
+            spellLevel -= 1
+        if potential == 0:
+            valid = False 
+            print("DISCARDING !")
+            print("REALLY GOING TO DISCARD !")
+            print("DISCARDED")
+           
+        else:
+            cost = (potential // 6 + randint(1, 10)) * spellLevel
+            dice = randint(0, 10)
+            if dice < 8 or noOccult:
+                ressource = "MP"
+            else:
+                ressource = "HP"
+            
+            resultSpell = SpellTemplate(spellLevel, cost, type, ressource)
+            resultSpell.impure = isImpure
+            resultSpell.eff1 = effects[0]
+            resultSpell.eff2 = effects[1]
+            resultSpell.eff3 = effects[2]
+            
+            resultSpell.targeting = target.name
+            resultSpell.zone = zone.name
     
-    if isImpure:
-        spellLevel -= 1
-    
-    cost = (potential // 10 + randint(1, 10)) * spellLevel
-    dice = randint(0, 10)
-    if dice < 8 or noOccult:
-        ressource = "MP"
-    else:
-        ressource = "HP"
-    
-    resultSpell = SpellTemplate(spellLevel, cost, type, ressource)
-    resultSpell.impure = isImpure
-    resultSpell.eff1 = effects[0]
-    resultSpell.eff2 = effects[1]
-    resultSpell.eff3 = effects[2]
-    
-    resultSpell.targeting = target.name
-    resultSpell.zone = zone.name
-    
-    return resultSpell
+            return resultSpell
 
 
 if __name__ == '__main__':
