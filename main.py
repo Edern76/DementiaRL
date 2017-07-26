@@ -870,6 +870,59 @@ def targetMonsterWrapper(caster = None):
 def Erwan(caster = None, target = None):
     pass
 
+def createObjectFromCoords(x, y):
+    return GameObject(x,y, char=None, name = None)
+
+def singleTarget(startPoint, range = 0):
+    return startPoint
+
+def areaOfEffect(startPoint, range = 2):
+    '''    
+                              X
+                    X        XXX 
+           X       XXX      XXXXX 
+    X     XXX     XXXXX    XXXXXXX
+0  X0X   XX0XX   XXX0XXX  XXXX0XXXX
+    X     XXX     XXXXX    XXXXXXX 
+           X       XXX      XXXXX
+                    X        XXX
+                              X
+
+PSEUDOCODE IMPLEMENTATION (so as I don't forget anything while actually implementing it in Python):
+
+If X is the number of tiles affected on the row where 0 is on each side of the 0, then to build this kind of figure you need to:
+
+Start from the 0 tile
+Go X tiles down. Add this tile to the affected tiles list
+While <= x (i=1, i++):
+    Go up one tile. Add it to affected tiles
+    Go i tiles left and i tiles right of previous tile. Add them to affected tiles. 
+    Go back to center tile
+k = 1
+While x-k >= 0:
+    Go up one tile. Add it to affected tiles.
+    Go x-k tiles left and x-k tiles right of previous tile. Add them to affected tiles.
+    Go back to center tile.
+
+Then find everything in affected tiles, fill in the targets list and return said list
+    '''
+   
+    startX, startY = startPoint.x, startPoint.y
+    bottomY = startY - range
+    affectedTiles = [(startX, bottomY)]
+    curY = bottomY
+    i = 1
+    while i <= range: #Using while instead of for so as to avoid range shenanigans
+        curY += 1
+        affectedTiles.append(startX, curY)
+        moveCounter = 0
+        while moveCounter < i:
+            moveCounter += 1
+            affectedTiles.append((startX - moveCounter, curY))
+            affectedTiles.append((startX + moveCounter, curY))
+    
+    
+
 def rSpellExec(func1 = Erwan, func2 = Erwan, func3 = Erwan, targetFunction = targetMonster, caster = None, target = None):
     if targetFunction.__name__ != 'targetSelf':
         message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
