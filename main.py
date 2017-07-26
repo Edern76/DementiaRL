@@ -842,8 +842,8 @@ def rSpellRemoveBuff(buffToRemove, caster, target):
             if buff.name == buffToRemove:
                 buff.removeBuff()
 
-def targetSelf():
-    return player
+def targetSelf(caster):
+    return caster
 
 def targetMonster(maxRange = None):
     target = targetTile(maxRange)
@@ -855,13 +855,17 @@ def targetMonster(maxRange = None):
             if obj.x == x and obj.y == y and obj.Fighter: #and obj != player:
                 return obj
 
+def targetMonsterWrapper(caster = None):
+    target = targetMonster()
+    return target
+
 def Erwan(caster = None, target = None):
     pass
 
 def rSpellExec(func1 = Erwan, func2 = Erwan, func3 = Erwan, targetFunction = targetMonster, caster = None, target = None):
     if targetFunction.__name__ != 'targetSelf':
         message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
-    actualTarget = targetFunction()
+    actualTarget = targetFunction(caster)
     print("FOOOOOOOOOOOOOOOOOOOOUNNNNNNNNNNNNNNNNNNND TARGEEEEEEEEEEEEEEEEEET")
     print("vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv")
     print(actualTarget)
@@ -889,7 +893,7 @@ def convertRandTemplateToSpell(template = None):
     if template.targeting == "Self":
         targetFunction = targetSelf
     else:
-        targetFunction = targetMonster
+        targetFunction = targetMonsterWrapper
     
     zone = "SingleTile"
     #TO-DO : Implement the other zones, targeting options
