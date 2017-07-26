@@ -795,17 +795,33 @@ def rSpellHunger(amount, type, caster, target):
             player.Player.hunger = 0
 
 def rSpellAttack(amount, type, caster, target):
+    '''
     if type == "Buff":
         message(target.name.capitalize() + " should have had its attack increase. But the developper was to lazy to implement it in time !") #TO-DO
     else:
         message(target.name.capitalize() + " should have had its attack decrease. But the developper was to lazy to implement it in time !") #TO-DO
+    '''
+    if type == "Buff":
+        enraged = Buff('enraged', colors.dark_red, cooldown = amount, applyFunction = lambda fighter: modifyFighterStats(fighter, pow = 10), removeFunction = lambda fighter: setFighterStatsBack(fighter))
+        enraged.applyBuff(target)
+    else:
+        enraged = Buff('weakened', colors.light_red, cooldown = amount, applyFunction = lambda fighter: modifyFighterStats(fighter, pow = -10), removeFunction = lambda fighter: setFighterStatsBack(fighter))
+        enraged.applyBuff(target)
 
 def rSpellDefense(amount, type, caster, target):
+    '''
     if type == "Buff":
         message(target.name.capitalize() + " should have had its defense increase. But the developper was to lazy to implement it in time !") #TO-DO
     else:
         message(target.name.capitalize() + " should have had its defense decrease. But the developper was to lazy to implement it in time !") #TO-DO
-
+    '''
+    if type == "Buff":
+        enraged = Buff('invigorated', colors.cyan, cooldown = amount, applyFunction = lambda fighter: modifyFighterStats(fighter, arm = 10), removeFunction = lambda fighter: setFighterStatsBack(fighter))
+        enraged.applyBuff(target)
+    else:
+        enraged = Buff('vulnerable', colors.dark_cyan, cooldown = amount, applyFunction = lambda fighter: modifyFighterStats(fighter, arm = -10), removeFunction = lambda fighter: setFighterStatsBack(fighter))
+        enraged.applyBuff(target)
+        
 def rSpellSpeed(amount, type, caster, target):
     if type == "Buff":
         message(target.name.capitalize() + " should have had its speed increase. But the developper was to lazy to implement it in time !") #TO-DO
