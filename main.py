@@ -771,6 +771,14 @@ def rSpellDamage(amount, caster, target, type):
         if caster is None:
             caster = player
         target.Fighter.takeDamage(amount, "A spell")
+        if target != player:
+            if caster == player:
+                messageColor = colors.green
+            else:
+                messageColor = colors.white
+            message(target.name.capitalize() + " takes {} damage !".format(amount), messageColor)
+        else:
+            message("You take {} damage !".format(amount), colors.red)
         if target is not None and target.Fighter is not None and target.Fighter.hp > 0:
             if type == "Fire" and randint(1,10) < 7:
                 burning = Buff('burning', colors.flame, cooldown= randint(3, 6), continuousFunction=lambda fighter: randomDamage('fire', fighter, chance = 100, minDamage=1, maxDamage=3, dmgMessage = 'You take {} damage from burning !'))
@@ -10955,6 +10963,7 @@ def playTutorial():
                         print(type(error))
                         print(error.args)
                         print(object.name)
+                        traceback.print_exc()
                         try:
                             message('CRITICAL AI ERROR SEE CONSOLE FOR DETAILS', colors.red)
                         except Exception as error:
@@ -10964,6 +10973,7 @@ def playTutorial():
                             print(error.args)
                             print(object.name)
                             print("============================================")
+                            traceback.print_exc()
                         print("============================================")
             '''
                 if object.Fighter and object.Fighter.baseShootCooldown > 0 and object.Fighter is not None:
