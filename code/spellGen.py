@@ -2,6 +2,7 @@ import copy
 import code.custom_except
 from random import randint
 from code.constants import *
+import colors
 
 SPELL_GEN_DEBUG = True
 BUFF_POTENTIAL_ATTENUATION_COEFFICIENT = 2
@@ -31,6 +32,7 @@ class SpellTemplate:
         self.level = level
         self.impure = False
         self.cost = cost
+        self.color = None
         self.ressource = ressourceType
     
     def __str__(self):
@@ -237,6 +239,8 @@ def createSpell():
         noNormal = False
         effects = [None, None, None]
         potential = 0
+        curMaxCount = 0
+        bestEffect = None
         for loop in range(maxEffects):
             isBuff = False
 
@@ -273,16 +277,19 @@ def createSpell():
                     #buffList.
                     effName += "+"
                     isBuff = True
+                    effCounter = eff.amount // 2
                 else:
                     eff = healList.randFrom()
                     healList.removeFrom(eff)
                     effName = eff.name
+                    effCounter = eff.amount
                     if effName == "HealHP":
                         noOccult = True
                         healList.removeFrom(healList[0]) #Removes "HealMP" from the list, because spending MP to recover MP is either useless (if you recover less MP than you spend) or gamebreakingly overpowered (if you recover more MP than you spend)
                     elif effName == "HealMP":
                         noNormal = True
                         healList.removeFrom(healList[0]) #Removes "HealHP" from the list. Same as above.
+                    
             else:
                 dice = randint(0, 1)
                 if dice == 0:
@@ -291,11 +298,17 @@ def createSpell():
                     effName = eff.name
                     effName += '-'
                     isBuff = True
+                    effCounter = eff.amount // 2
                 else:
                     eff = attackList.randFrom()
                     attackList.removeFrom(eff)
                     effName = eff.name
-    
+                    effCounter = eff.amount
+            
+            if not curEffectImpure and effCounter > curMaxCount:
+                curMaxCount = effCounter
+                bestEffect = eff.name
+            
             if not isBuff:
                 effAmount = randint(spellLevel, spellLevel * 5)  * randint(2, 3)
                 if not curEffectImpure:
@@ -342,6 +355,14 @@ def createSpell():
         
         if isImpure:
             spellLevel -= 1
+        
+        if bestEffect == "FireDamage":
+            spellColor = colors.red
+        elif bestEffect == "PoisonDamage":
+            spellColor = colors.purple
+        else:
+            spellColor = colors.white
+        
         if potential == 0:
             valid = False 
             print("DISCARDING !")
@@ -364,6 +385,8 @@ def createSpell():
             
             resultSpell.targeting = target.name
             resultSpell.zone = zone.name
+            
+            resultSpell.color = spellColor
     
             return resultSpell
 
