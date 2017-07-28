@@ -187,7 +187,7 @@ def openDetails(x, y):
                 ascii += 1
                 if ascii > 255:
                     ascii = 0
-            elif index == 8 or index == 11 or index == 14 or index == 17:
+            elif index == 8 or index == 11 or index == 14 or index == 17: #W.H.Y ?
                 Red += 1
                 if Red > 255:
                     Red = 0
@@ -322,7 +322,7 @@ def promptFolderName(escapable=False):
 
         root.draw_str(80, 62, text)
         #root.blit(window, 57, 39, width, height)
-        tdl.flush
+        tdl.flush()
         
         print(name)
         userInput = tdl.event.key_wait()
