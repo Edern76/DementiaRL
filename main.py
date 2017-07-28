@@ -28,6 +28,7 @@ import code.holeGen as holeGen
 from dill import objects
 import code.layoutReader as layoutReader
 
+
 activeProcess = []
 
 def notCloseImmediatelyAfterCrash(exc_type, exc_value, tb):
@@ -873,8 +874,12 @@ def Erwan(caster = None, target = None):
 def createObjectFromCoords(x, y):
     return GameObject(x,y, char=None, name = None)
 
+def targetTileWrapper(caster = None):
+    (x,y) = targetTile()
+    return createObjectFromCoords(x, y)
+
 def singleTarget(startPoint, range = 0):
-    return startPoint
+    return [(startPoint.x, startPoint.y)]
 
 def areaOfEffect(startPoint, range = 2):
     '''    
@@ -903,6 +908,7 @@ While x-k >= 0:
     Go up one tile. Add it to affected tiles.
     Go x-k tiles left and x-k tiles right of previous tile. Add them to affected tiles.
     Go back to center tile.
+    k += 1
 
 Then find everything in affected tiles, fill in the targets list and return said list
     '''
@@ -912,38 +918,103 @@ Then find everything in affected tiles, fill in the targets list and return said
     affectedTiles = [(startX, bottomY)]
     curY = bottomY
     i = 1
-    while i <= range: #Using while instead of for so as to avoid range shenanigans
+    counter = 0
+    while i <= range: #Using while instead of for so as to avoid range() shenanigans
+        counter += 1
+        if counter > 50:
+            raise InfiniteLoopPrevention("First outer while in AOE. I = {} Range = {}".format(i, range))
         curY += 1
-        affectedTiles.append(startX, curY)
+        affectedTiles.append((startX, curY))
         moveCounter = 0
+        innerCounter = 0
         while moveCounter < i:
             moveCounter += 1
+            innerCounter += 1
+            if innerCounter > 100:
+                raise InfiniteLoopPrevention("First inner while in AOE. MoveCounter = {} I = {}".format(moveCounter, i))
             affectedTiles.append((startX - moveCounter, curY))
             affectedTiles.append((startX + moveCounter, curY))
+        i += 1
+    k = 1
+    while (range - k) >= 0:
+        curY += 1
+        counter += 1
+        if counter > 50:
+            raise InfiniteLoopPrevention("Second outer while in AOE. MoveCounter = {} Range = {} K = {}".format(moveCounter, range, k))
+        affectedTiles.append((startX, curY))
+        moveCounter = 0
+        innerCounter = 0
+        while moveCounter < (range - k):
+            moveCounter += 1
+            innerCounter += 1
+            if innerCounter > 100:
+                raise InfiniteLoopPrevention("Second inner while in AOE. MoveCounter = {} Range = {} K = {}".format(moveCounter, range, k))
+            affectedTiles.append((startX - moveCounter, curY))
+            affectedTiles.append((startX + moveCounter, curY))
+        k += 1
     
-    
+    return affectedTiles
 
-def rSpellExec(func1 = Erwan, func2 = Erwan, func3 = Erwan, targetFunction = targetMonster, caster = None, target = None):
+def processTiles(tileList, targetDead = False):
+    targetList = []
+    counter = 0
+    for object in objects:
+        counter += 1
+        if counter > 500:
+            raise InfiniteLoopPrevention("Processing tiles. Objects list = {}".format(objects))
+        if (int(object.x), int(object.y)) in tileList and object.Fighter and (object.Fighter.hp > 0 or targetDead):
+            targetList.append(object)
+    return targetList
+
+def rSpellExec(func1 = Erwan, func2 = Erwan, func3 = Erwan, targetFunction = targetMonsterWrapper, zoneFunction = singleTarget, color = colors.white, caster = None, target = None):
+    global FOV_recompute
     if targetFunction.__name__ != 'targetSelf':
         message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
-    actualTarget = targetFunction(caster)
+    chosenTarget = targetFunction(caster)
     print("FOOOOOOOOOOOOOOOOOOOOUNNNNNNNNNNNNNNNNNNND TARGEEEEEEEEEEEEEEEEEET")
     print("vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv")
-    print(actualTarget)
+    print(chosenTarget)
     print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
     
-    if actualTarget is not None and actualTarget.Fighter is not None and actualTarget.Fighter.hp > 0:
-        func1(caster, actualTarget)
-    if actualTarget is not None and actualTarget.Fighter is not None and actualTarget.Fighter.hp > 0:
-        func2(caster, actualTarget)
+    print("Before Zone")
+    tilesList = zoneFunction(chosenTarget, 3)
+    print("After Zone, before draw")
+    if len(tilesList) > 1:
+        print("Draw")
+        print(tilesList)
+        for (x,y) in tilesList:
+            if not myMap[x][y].blocked:
+                con.draw_char(x,y, '*', fg = color)
+        root.blit(con, 0, 0, WIDTH, HEIGHT, 0, 0)
+        tdl.flush()
+        time.sleep(2) #Set to .125 once testing done
+        FOV_recompute = True
+        Update()
+        tdl.flush()
+    print("After draw, before process")
+    targetList = processTiles(tilesList)
+    print("")
+    
+    if len(targetList) > 0:
+        counter = 0
+        for actualTarget in targetList:
+            counter += 1
+            if counter > 1000:
+                raise InfiniteLoopPrevention("Application of functions. Target list = {}".format(targetList))
+            if actualTarget is not None and actualTarget.Fighter is not None and actualTarget.Fighter.hp > 0:
+                func1(caster, actualTarget)
+            if actualTarget is not None and actualTarget.Fighter is not None and actualTarget.Fighter.hp > 0:
+                func2(caster, actualTarget)
+            else:
+                if DEBUG:
+                    message("OVERKILL !")
+            if actualTarget is not None and actualTarget.Fighter is not None and actualTarget.Fighter.hp > 0:
+                func3(caster, actualTarget)
+            else:
+                if DEBUG:
+                    message("OVERKILL !")
     else:
-        if DEBUG:
-            message("OVERKILL !")
-    if actualTarget is not None and actualTarget.Fighter is not None and actualTarget.Fighter.hp > 0:
-        func3(caster, actualTarget)
-    else:
-        if DEBUG:
-            message("OVERKILL !")
+        message("Your spell didn't hit anything !")
     
 def convertRandTemplateToSpell(template = None):
     if template is None:
@@ -954,8 +1025,12 @@ def convertRandTemplateToSpell(template = None):
     if template.targeting == "Self":
         targetFunction = targetSelf
     else:
-        targetFunction = targetMonsterWrapper
+        targetFunction = targetTileWrapper
     
+    if template.zone == "AOE":
+        zoneFunction = areaOfEffect
+    else:
+        zoneFunction = singleTarget 
     zone = "SingleTile"
     #TO-DO : Implement the other zones, targeting options
     effects = [template.eff1, template.eff2, template.eff3]
@@ -1041,8 +1116,9 @@ def convertRandTemplateToSpell(template = None):
     effect1 = funcs[0]
     effect2 = funcs[1]
     effect3 = funcs[2]
+    color = template.color
     
-    finalFunction = functools.partial(rSpellExec, effect1, effect2, effect3, targetFunction)
+    finalFunction = functools.partial(rSpellExec, effect1, effect2, effect3, targetFunction, zoneFunction, color)
     return Spell(ressourceCost = template.cost, cooldown = 10, useFunction = finalFunction, ressource = template.ressource, type="Magic", magicLevel=0, name = nameGen.humanLike()) #TO-DO : Generate values for cooldown and minimum magic level
         
     #TO-DO : Finish this

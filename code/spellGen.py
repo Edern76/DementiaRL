@@ -277,12 +277,10 @@ def createSpell():
                     #buffList.
                     effName += "+"
                     isBuff = True
-                    effCounter = eff.amount // 2
                 else:
                     eff = healList.randFrom()
                     healList.removeFrom(eff)
                     effName = eff.name
-                    effCounter = eff.amount
                     if effName == "HealHP":
                         noOccult = True
                         healList.removeFrom(healList[0]) #Removes "HealMP" from the list, because spending MP to recover MP is either useless (if you recover less MP than you spend) or gamebreakingly overpowered (if you recover more MP than you spend)
@@ -298,19 +296,16 @@ def createSpell():
                     effName = eff.name
                     effName += '-'
                     isBuff = True
-                    effCounter = eff.amount // 2
                 else:
                     eff = attackList.randFrom()
                     attackList.removeFrom(eff)
                     effName = eff.name
-                    effCounter = eff.amount
             
-            if not curEffectImpure and effCounter > curMaxCount:
-                curMaxCount = effCounter
-                bestEffect = eff.name
+
             
             if not isBuff:
                 effAmount = randint(spellLevel, spellLevel * 5)  * randint(2, 3)
+                effCounter = effAmount
                 if not curEffectImpure:
                     potential += effAmount
                 elif potential - effAmount > 0:
@@ -335,6 +330,7 @@ def createSpell():
                 '''
                 bonus = 1
                 effAmount = (randint(spellLevel, spellLevel * 2) * randint(1, 3) * bonus) + 1
+                effCounter = effAmount // 2
                 if not curEffectImpure:
                     potential += (effAmount // BUFF_POTENTIAL_ATTENUATION_COEFFICIENT)
                 elif potential - (effAmount // BUFF_POTENTIAL_ATTENUATION_COEFFICIENT) > 0:
@@ -351,6 +347,9 @@ def createSpell():
                     potential = 0
                     print("POTENTIAL AFTER : " + str(potential))
             
+            if not curEffectImpure and effCounter > curMaxCount:
+                curMaxCount = effCounter
+                bestEffect = eff.name
             effects[loop] = NumberedEffect(effName, effAmount)
         
         if isImpure:

@@ -23,3 +23,13 @@ class WrongElementTypeException(Exception):
             self.message = ''
         finalMessage = warningToPrint + self.message
         return finalMessage
+
+class InfiniteLoopPrevention(Exception):
+    def __init__(self, message):
+        self.message = message
+    def __str__(self):
+        warningToPrint = ("Stopped program because of possible infinite loop. \n")
+        if self.message is None:
+            self.message = ''
+        finalMessage = warningToPrint + self.message
+        return finalMessage
