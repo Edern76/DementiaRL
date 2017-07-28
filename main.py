@@ -4926,10 +4926,10 @@ class FetchQuest(Quest):
         
     
 
-def quitGame(message, backToMainMenu = False):
+def quitGame(message, backToMainMenu = False, noSave = False):
     global objects
     global inventory
-    if gameState != "dead":
+    if gameState != "dead" and not noSave:
         saveGame()
     for obj in objects:
         del obj
@@ -9948,7 +9948,7 @@ def mainMenu():
 
     if (__name__ == '__main__' or __name__ == 'main__main__') and root is not None:
         global player, currentMusic, activeProcess
-        choices = ['Tutorial', 'New Game', 'Continue', 'Leaderboard' ,'About', 'Quit']
+        choices = ['Tutorial', 'New Game', 'Continue', 'Leaderboard', 'Test Dungeon', 'About', 'Quit']
         index = 0
         currentMusic = str('Dusty_Feelings.wav')
         stopProcess()
@@ -10072,8 +10072,11 @@ def mainMenu():
                 elif index == 3:
                     leaderboard()
                 elif index == 4:
-                    gameCredits()
+                    testArena()
+                    #Spawn player at 40, 25
                 elif index == 5:
+                    gameCredits()
+                elif index == 6:
                     stopProcess()
                     raise SystemExit("Chose Quit on the main menu")
             tdl.flush()
@@ -10081,6 +10084,84 @@ def mainMenu():
     else:
         print('Not main SO WE ARENT DOING FUCKING ANYTHING AND NOT FUCKING UP THE WHOLE PROGRAM BY OPENING INFINITE INSTANCES OF IT')
 
+def testArena():
+    global player, currentMusic, myMap, gameState, currentBranch, FOV_recompute
+    light = Trait('Light weapons', '+20% damage per skillpoints with light weapons', type = 'skill', selectable = False, tier = 3)
+    heavy = Trait('Heavy weapons', '+20% damage per skillpoints with heavy weapons', type = 'skill', selectable = False, tier = 3)
+    missile = Trait('Missile weapons', '+20% damage per skillpoints with missile weapons', type = 'skill', selectable = False, tier = 3)
+    shield = Trait('Shield mastery', 'You trained to master shield wielding.', type = 'skill', selectable = False, tier = 3)
+    armorEff = Trait('Armor efficiency', 'You know very well how to maximize the protection brought by your armor', type = 'skill', selectable = False, tier = 3)
+    melee = Trait('Melee Weaponry', 'You are trained to wreck your enemies at close range.', type = 'skill', selectable = False, tier = 2, allowsSelection=[light, heavy])
+    ranged = Trait('Ranged Weaponry', 'You shoot people in the knees.', type = 'skill', selectable = False, tier = 2, allowsSelection=[missile])
+    armorW = Trait('Armor wielding', 'You are trained to wield several types of armor.', type = 'skill', selectable = False, tier = 2, allowsSelection=[armorEff, shield])
+    martial = Trait('Martial training', 'You are trained to use a wide variety of weapons', type = 'skill', acc=(10, 0), allowsSelection=[melee, ranged, armorW])
+    aggressive = Trait('Aggressive', 'You angry', type = 'trait', selectable=False, selected = False)
+    traits = [martial, melee, ranged, armorW, light, heavy, missile, shield, armorEff, aggressive]
+    
+    def initiateSkill(skillList, maxHeight, heightCounter, originY = 0):
+        newHeight = maxHeight//len(skillList)
+        mid = newHeight//2
+        counter = 0
+        for skill in skillList:
+            skill.x = skill.tier * quarterX
+            skill.y = mid + counter * newHeight + heightCounter * maxHeight + originY
+            print(skill.name, skill.tier, len(skill.allowsSelection), skill.x, skill.y)
+            if skill.allowsSelection and len(skill.allowsSelection) > 0:
+                print('initiating selectable skills of ' + skill.name)
+                initiateSkill(skill.allowsSelection, newHeight, counter, maxHeight * heightCounter + originY)
+            counter += 1
+    
+    
+    newHeight = 76
+    mid = newHeight//2
+    counter = 0
+    quarterX = (WIDTH - 2)//5
+    for skill in traits:
+        if skill.tier == 1:
+            skill.x = quarterX
+            skill.y = mid + newHeight * counter
+            print(skill.name, skill.tier, len(skill.allowsSelection), skill.x, skill.y)
+            if skill.allowsSelection and len(skill.allowsSelection) > 0:
+                print('initiating selectable skills of ' + skill.name)
+                initiateSkill(skill.allowsSelection, newHeight, counter)
+            counter += 1
+
+    LvlUp = {'pow': 1, 'acc': 10, 'ev': 0, 'arm': 1, 'hp': 20, 'mp': 0, 'crit': 0, 'str': 0, 'dex': 0, 'vit': 0, 'will': 0, 'ap': 0}
+    playerComp = Player('You', 0, 0, 0, 0, 45.0, 'Human', 'Knight', traits, LvlUp)
+    fighterComp = Fighter(hp = 120, power= 1, armor= 1, deathFunction=playerDeath, xp=0, evasion = 20, accuracy = 50, maxMP= 20, critical = 5)
+    player = GameObject(40, 25, '@', Fighter = fighterComp, Player = playerComp, name = 'You', color = (0, 210, 0))
+    player.level = 1
+    player.Fighter.hp = player.Fighter.baseMaxHP
+    player.Fighter.MP = player.Fighter.baseMaxMP
+    currentBranch = dBr.mainDungeon
+    FOV_recompute = True
+    myMap = layoutReader.readMap("testarena")
+    color_dark_wall = colors.light_grey
+    color_light_wall = colors.white
+    color_dark_ground = currentBranch.color_dark_ground
+    color_dark_gravel = currentBranch.color_dark_gravel
+    color_light_ground = currentBranch.color_light_ground
+    color_light_gravel = currentBranch.color_light_gravel
+    for x in range(MAP_WIDTH):
+        for y in range(MAP_HEIGHT):
+            curTile = myMap[x][y]
+            #assert isinstance(curTile, Tile)
+            if curTile.blocked or curTile.character == "#":
+                curTile.dark_fg = color_dark_wall
+                curTile.DARK_FG = color_dark_wall
+                curTile.fg = color_light_wall
+                curTile.FG = color_light_wall
+            else:
+                curTile.dark_bg = color_dark_ground
+                curTile.DARK_BG = color_dark_ground
+                curTile.bg = color_light_ground
+                curTile.BG = color_light_ground
+    gameState = "playing"
+    playGame(noSave = True)
+        
+    
+    
+    
 def gameCredits():
     centerX, centerY = MID_WIDTH, MID_HEIGHT
     root.clear()
@@ -11231,7 +11312,7 @@ def playTutorial():
     
     
 #ISN project
-def playGame():
+def playGame(noSave = False):
     global currentMusic
     if currentMusic is None or currentMusic in ('No_Music.wav', 'Dusty_Feelings.wav'):
         currentMusic = 'Bumpy_Roots.wav'
@@ -11267,7 +11348,7 @@ def playGame():
                     for object in objects:
                         object.clear()
                 if playerAction == 'exit':
-                    quitGame('Player pressed escape', True)
+                    quitGame('Player pressed escape', True, noSave)
         FOV_recompute = True #So as to avoid the blackscreen bug no matter which key we press
         if gameState == 'playing' and playerAction != 'didnt-take-turn':
             global mobsToCalculate
@@ -11392,9 +11473,9 @@ def playGame():
             
             #ISN project
             #for object in objects:    
-                if object.Fighter and object.Fighter is not None: #si l'objet examine dans la boucle est une creature
+                if object.Fighter and object.Fighter is not None: #If object is a creature
                     for buff in object.Fighter.buffList:
-                        buff.passTurn() #on declenche la methode passTurn() de chacun de ses buffs
+                        buff.passTurn() #Call passTurn method of each of his buffs
     
                 
             while mustCalculate:
@@ -11472,7 +11553,7 @@ def playGame():
             actions -= 1
     
     DEBUG = False
-    quitGame('Window has been closed')
+    quitGame('Window has been closed', noSave = noSave)
     
 if (__name__ == '__main__' or __name__ == 'main__main__') and root is not None:
     freeze_support()
