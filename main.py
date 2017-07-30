@@ -7914,12 +7914,15 @@ def makeTutorialMap(level = 1):
                 myMap[x][y].blocked = True
                 myMap[x][y].block_sight = True
         print('gate open:', tutoGateOpen)
+    
+    def loadTutoLevel(tile, level):
+        makeTutorialMap(level)
 
     if level == 1:
-        def loadLvl2(tile):
-            makeTutorialMap(2)
     
         global myMap, objects
+        
+        '''
         myMap = [[Tile(False, x = x, y = y, bg = colors.darker_green, dark_bg = colors.darkest_green, fg = colors.darker_chartreuse, dark_fg = colors.darkest_chartreuse) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
         for x in range(MAP_WIDTH):
             for y in range(MAP_HEIGHT):
@@ -8090,6 +8093,17 @@ def makeTutorialMap(level = 1):
                 myMap[x][y].explored = False
                 if y in range(8, MAP_HEIGHT - 8):
                     myMap[x + 1][y].explored = False
+        '''
+        myMap = layoutReader.readMap('tutoFloor1')
+        
+        for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
+            myMap[25][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 26, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
+            myMap[27][y].onTriggerFunction = lambda tile: openTutorialGate(tile, 26, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
+            myMap[11][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 12, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
+            myMap[13][y].onTriggerFunction = lambda tile: openTutorialGate(tile, 12, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
+        for y in range(MID_MAP_HEIGHT - 2, MID_MAP_HEIGHT + 3):
+            myMap[0][y].blocked = False
+            myMap[0][y].onTriggerFunction = lambda tile: loadTutoLevel(tile, 2)
     
         swordComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus = 10, meleeWeapon=True)
         sword = GameObject(100, MID_MAP_HEIGHT, '-', 'longsword', colors.light_sky, Equipment = swordComponent, Item = Item(weight=3.5, pic = 'longSword.xp', useText='Equip'))
