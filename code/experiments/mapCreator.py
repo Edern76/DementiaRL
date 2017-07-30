@@ -303,14 +303,15 @@ def findCurrentDir():
     print(dir)
     return dir
 
-def promptFolderName(escapable=False):
+def promptFolderName(escapable=False, fromCreator = True):
     #width, height = 26, 3
     #window = tdl.Console(width, height)
     quit = False
     letters = []
     while not (quit or tdl.event.is_window_closed()):
-        root.clear()
-        #update()
+        if fromCreator:
+            root.clear()
+            #update()
         text = '_'
         name = ''
         for letter in letters:
@@ -319,10 +320,11 @@ def promptFolderName(escapable=False):
             text = name + '_'
         else:
             text = name
-
-        root.draw_str(80, 62, text)
-        #root.blit(window, 57, 39, width, height)
-        tdl.flush()
+        
+        if fromCreator:
+            root.draw_str(80, 62, text)
+            #root.blit(window, 57, 39, width, height)
+            tdl.flush()
         
         print(name)
         userInput = tdl.event.key_wait()
@@ -339,10 +341,10 @@ def promptFolderName(escapable=False):
         elif userInput.keychar.upper() == 'ESCAPE' and escapable:
             return
 
-def createMap():
+def createMap(fromCreator = True, map = myMap):
     curDir = findCurrentDir()
     print('Enter the folder name.')
-    newDir = promptFolderName(True)
+    newDir = promptFolderName(True, fromCreator)
     if newDir:
         relMapsPath = "assets\\maps\\" + newDir
         absMapPath = os.path.join(curDir, relMapsPath)
@@ -366,11 +368,11 @@ def createMap():
         for y in range(MAP_HEIGHT):
             line = ''
             for x in range(MAP_WIDTH):
-                if myMap[x][y].blocked and myMap[x][y].block_sight:
+                if map[x][y].blocked and map[x][y].block_sight:
                     line += '#'
-                elif not myMap[x][y].blocked and not myMap[x][y].block_sight:
+                elif not map[x][y].blocked and not map[x][y].block_sight:
                     line += '.'
-                elif myMap[x][y].blocked and not myMap[x][y].block_sight:
+                elif map[x][y].blocked and not map[x][y].block_sight:
                     line += '='
                 else:
                     line += '+'
@@ -384,7 +386,10 @@ def createMap():
         for y in range(MAP_HEIGHT):
             line = ''
             for x in range(MAP_WIDTH):
-                line += myMap[x][y].character
+                try:
+                    line += map[x][y].character
+                except:
+                    line += '.'
             line += chr(92)
             line += '\n'
             charMap.write(line)
@@ -395,7 +400,7 @@ def createMap():
         for y in range(MAP_HEIGHT):
             line = ''
             for x in range(MAP_WIDTH):
-                if not myMap[x][y].explored:
+                if not map[x][y].explored:
                     line += '*'
                 else:
                     line += '.'
@@ -409,7 +414,7 @@ def createMap():
         for y in range(MAP_HEIGHT):
             line = ''
             for x in range(MAP_WIDTH):
-                line += str(myMap[x][y].fg)
+                line += str(map[x][y].fg)
             line += chr(92)
             line += '\n'
             fgMap.write(line)
@@ -420,7 +425,7 @@ def createMap():
         for y in range(MAP_HEIGHT):
             line = ''
             for x in range(MAP_WIDTH):
-                line += str(myMap[x][y].dark_fg)
+                line += str(map[x][y].dark_fg)
             line += chr(92)
             line += '\n'
             dark_fgMap.write(line)
@@ -431,7 +436,7 @@ def createMap():
         for y in range(MAP_HEIGHT):
             line = ''
             for x in range(MAP_WIDTH):
-                line += str(myMap[x][y].bg)
+                line += str(map[x][y].bg)
             line += chr(92)
             line += '\n'
             bgMap.write(line)
@@ -442,7 +447,7 @@ def createMap():
         for y in range(MAP_HEIGHT):
             line = ''
             for x in range(MAP_WIDTH):
-                line += str(myMap[x][y].dark_bg)
+                line += str(map[x][y].dark_bg)
             line += chr(92)
             line += '\n'
             dark_bgMap.write(line)

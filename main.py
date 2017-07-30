@@ -27,6 +27,7 @@ import code.chasmGen as chasmGen
 import code.holeGen as holeGen
 from dill import objects
 import code.layoutReader as layoutReader
+import code.experiments.mapCreator as mapCreator
 
 
 activeProcess = []
@@ -5014,7 +5015,7 @@ def getInput():
         FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'F7' and DEBUG and not tdl.event.isWindowClosed():
-        castCreateHiroshiman()
+        mapCreator.createMap(False, myMap)
         FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'F8' and DEBUG and not tdl.event.isWindowClosed():
@@ -7914,12 +7915,15 @@ def makeTutorialMap(level = 1):
                 myMap[x][y].blocked = True
                 myMap[x][y].block_sight = True
         print('gate open:', tutoGateOpen)
+    
+    def loadTutoLevel(tile, level):
+        makeTutorialMap(level)
 
     if level == 1:
-        def loadLvl2(tile):
-            makeTutorialMap(2)
     
         global myMap, objects
+        myMap = layoutReader.readMap('tutoFloor1')
+        '''
         myMap = [[Tile(False, x = x, y = y, bg = colors.darker_green, dark_bg = colors.darkest_green, fg = colors.darker_chartreuse, dark_fg = colors.darkest_chartreuse) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
         for x in range(MAP_WIDTH):
             for y in range(MAP_HEIGHT):
@@ -8090,6 +8094,15 @@ def makeTutorialMap(level = 1):
                 myMap[x][y].explored = False
                 if y in range(8, MAP_HEIGHT - 8):
                     myMap[x + 1][y].explored = False
+        '''
+        for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
+            myMap[25][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 26, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
+            myMap[27][y].onTriggerFunction = lambda tile: openTutorialGate(tile, 26, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
+            myMap[11][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 12, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
+            myMap[13][y].onTriggerFunction = lambda tile: openTutorialGate(tile, 12, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
+        for y in range(MID_MAP_HEIGHT - 2, MID_MAP_HEIGHT + 3):
+            myMap[0][y].blocked = False
+            myMap[0][y].onTriggerFunction = lambda tile: loadTutoLevel(tile, 2)
     
         swordComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus = 10, meleeWeapon=True)
         sword = GameObject(100, MID_MAP_HEIGHT, '-', 'longsword', colors.light_sky, Equipment = swordComponent, Item = Item(weight=3.5, pic = 'longSword.xp', useText='Equip'))
@@ -8189,7 +8202,11 @@ def makeTutorialMap(level = 1):
             myMap[109][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 110, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
             myMap[111][y].onTriggerFunction = lambda tile: openTutorialGate(tile, 110, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
         
-        objects = [player]
+        helmetComp = Equipment(slot = 'head', type = 'light armor', armorBonus=2, meleeWeapon=False)
+        helmet = GameObject(0, 0, '[', 'helmet', colors.silver, Equipment=helmetComp, Item=Item(weight=2.0, pic = 'darksoulHelmet.xp', useText='Equip'))
+        fighterComp = Fighter(hp = 20, armor = 0, power = 5, accuracy = 60, evasion = 15, xp = 350, deathFunction=monsterDeath, lootFunction= [helmet], lootRate=[100], toEquip=[helmet], description = "One of Zargothrox's fighters, he seems to be guarding the entrance to the tower.")
+        guard = GameObject(27, MID_MAP_HEIGHT, 'g', 'guard', colors.darker_han, blocks = True, Fighter=fighterComp, AI=BasicMonster(wanderer=False))
+        objects = [player, guard]
         player.x = MAP_WIDTH - 2
 
 def makeHiddenTown(fall = False):
