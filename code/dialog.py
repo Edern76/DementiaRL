@@ -177,7 +177,7 @@ pukTree = DialogTree(screenList= pukScrList, name = 'Pukil', origScreen= pukScrL
 @age : Child
 @profession : Merchant
 
-TO-DO : Add more dialog than jusy the 'enter shop' option     
+TO-DO : Add more dialog than just the 'enter shop' option     
 '''
 
 ayeIntText = 'Greetings adventurer ! Would you buy me a little something ? I make the best pies of all [INSERT WORLD NAME HERE] !'
@@ -190,3 +190,30 @@ ayeIntScr = DialogScreen(idT= 'intro', dialogText= ayeIntText, choicesList = aye
 
 ayeScrList = [ayeIntScr]
 ayeTree = DialogTree(screenList = ayeScrList, name = 'Ayeth', origScreen= ayeScrList[0])
+
+######################TUTORIAL SOLDIERS#########################
+
+####Soldier 1####
+
+sld1IntText = "We're counting on you [HERO_NAME] !" #TO-DO: Make the chat function replace things in brackets by what they stand for.
+sld1IntId = "intro"
+sld1IntCh1 = DialogChoice(idT = 'END', text="Don't worry, I won't let you down. (End conversation)")
+
+sld1IntClist = [sld1IntCh1]
+sld1IntScr = DialogScreen(idT = 'intro', dialogText=sld1IntText, choicesList=sld1IntClist)
+
+sld1ScrList = [sld1IntScr]
+sld1Tree = DialogTree(screenList= sld1ScrList, name = "Soldier", origScreen = sld1ScrList[0])
+
+####Soldier 2####
+
+sld2IntText = "All of this is so infuriating, I'm sure we could beat this so called 'god' in the blink of an eye if it wasn't for this damned barrier... " #TO-DO: Make the chat function replace things in brackets by what they stand for.
+sld2IntId = "intro"
+sld2IntCh2 = DialogChoice(idT = 'END', text=" ... (End conversation)")
+
+sld2IntClist = [sld2IntCh2]
+sld2IntScr = DialogScreen(idT = 'intro', dialogText=sld2IntText, choicesList=sld2IntClist)
+
+sld2ScrList = [sld2IntScr]
+sld2Tree = DialogTree(screenList= sld2ScrList, name = "Soldier", origScreen = sld2ScrList[0])
+
