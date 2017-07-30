@@ -281,6 +281,20 @@ relMapsPath = "assets\\maps"
 absMapsPath = os.path.join(curDir, relMapsPath)
 MAP_WIDTH, MAP_HEIGHT = 140, 60
 
+def convertColorString(string):
+    color = {'r': '', 'g': '', 'b': ''}
+    currentColor = 'r'
+    for char in string:
+        if char in '0123456789':
+            color[currentColor] += char
+        elif char == ',':
+            if currentColor == 'r':
+                currentColor = 'g'
+            elif currentColor == 'g':
+                currentColor = 'b'
+        elif char == ')':
+            return (int(color['r']), int(color['g']), int(color['b']))
+
 def readMap(mapDir, voidChar = None):
     mapDirPath = os.path.join(absMapsPath, mapDir)
     createdMap = [[Tile(blocked=False, x = x, y = y, block_sight=False, fg = colors.white, bg = colors.black, dark_bg=colors.black, dark_fg=colors.grey) for y in range(MAP_HEIGHT)] for x in range(MAP_WIDTH)]
@@ -448,11 +462,23 @@ def readMap(mapDir, voidChar = None):
         y += 1
     dark_bgMap.close()
     
-    return createdMap
+    objectsPath = os.path.join(mapDirPath, 'objects.txt')
+    objectsMap = open(objectsPath, 'r')
+    createdObjects = []
+    for line in objectsMap:
+        attributes = line.split(':')
+        attributeList = attributes[1].split('/')
+        attributeList.pop()
+        colorString = attributeList.pop(4)
+        attributeList.insert(4, convertColorString(colorString))
+        createdObjects.append(attributeList)
+    objectsMap.close()
+    
+    return createdMap, createdObjects
 
 if __name__ == '__main__':
     root = tdl.init(150, 80, 'Dementia')
-    myMap = readMap('sample')
+    myMap, objects = readMap('sample1')
     while not tdl.event.is_window_closed():
         root.clear()
         for x in range(MAP_WIDTH):

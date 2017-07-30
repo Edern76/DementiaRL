@@ -2767,6 +2767,9 @@ class GameObject:
         else:
             self.moveTowards(goal.x, goal.y)
 
+def createNPCFromMapReader(attributeList):
+    return GameObject(int(attributeList[0]), int(attributeList[1]), attributeList[2], attributeList[3], attributeList[4], socialComp = getattr(dial, attributeList[5]))
+
 class Fighter: #All NPCs, enemies and the player
     def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = [0], shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = None, slots = ['head', 'torso', 'left hand', 'right hand', 'legs', 'feet'], equipmentList = [], toEquip = [], attackFunctions = [], noDirectDamage = False, pic = 'ogre.xp', description = 'Placeholder'):
         self.noVitHP = hp
@@ -8094,8 +8097,7 @@ def makeTutorialMap(level = 1):
                 if y in range(8, MAP_HEIGHT - 8):
                     myMap[x + 1][y].explored = False
         '''
-        myMap = layoutReader.readMap('tutoFloor1')
-        
+        myMap, objectsToCreate = layoutReader.readMap('tutoFloor1')
         for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
             myMap[25][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 26, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
             myMap[27][y].onTriggerFunction = lambda tile: openTutorialGate(tile, 26, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
@@ -8114,6 +8116,9 @@ def makeTutorialMap(level = 1):
         guard = GameObject(27, MID_MAP_HEIGHT, 'g', 'guard', colors.darker_han, blocks = True, Fighter=fighterComp, AI=BasicMonster(wanderer=False))
         
         objects = [player, sword, guard]
+        for attributeList in objectsToCreate:
+            object = createNPCFromMapReader(attributeList)
+            objects.append(object)
         
     elif level == 2:
         global objects, player
@@ -8198,13 +8203,16 @@ def makeTutorialMap(level = 1):
                 myMap[x][y].bg = colors.dark_grey
                 myMap[x][y].dark_bg = colors.darkest_grey
         '''            
-        myMap = layoutReader.readMap('tutorial')
+        myMap, objectsToCreate = layoutReader.readMap('tutorial')
         for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
             myMap[109][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 110, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
             myMap[111][y].onTriggerFunction = lambda tile: openTutorialGate(tile, 110, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
         
         objects = [player]
         player.x = MAP_WIDTH - 2
+        for attributeList in objectsToCreate:
+            object = createNPCFromMapReader(attributeList)
+            objects.append(object)
 
 def makeHiddenTown(fall = False):
     global myMap, objects, upStairs, rooms, numberRooms, bossRoom
@@ -10149,7 +10157,7 @@ def testArena():
     player.Fighter.MP = player.Fighter.baseMaxMP
     currentBranch = dBr.mainDungeon
     FOV_recompute = True
-    myMap = layoutReader.readMap("testarena")
+    myMap, objectsToCreate = layoutReader.readMap("testarena")
     color_dark_wall = colors.light_grey
     color_light_wall = colors.white
     color_dark_ground = currentBranch.color_dark_ground
