@@ -165,7 +165,7 @@ else:
 FOV_recompute = True
 FOV_ALGO = 'BASIC' #Default : BASIC
 FOV_LIGHT_WALLS = True
-SIGHT_RADIUS = 10 #Default : 10
+SIGHT_RADIUS = 15 #Default : 10
 MAX_ROOM_MONSTERS = 3 #Default : 3
 MAX_ROOM_ITEMS = 3 #Default : 3
 GRAPHICS = 'modern'
@@ -2768,7 +2768,7 @@ class GameObject:
             self.moveTowards(goal.x, goal.y)
 
 def createNPCFromMapReader(attributeList):
-    return GameObject(int(attributeList[0]), int(attributeList[1]), attributeList[2], attributeList[3], attributeList[4], socialComp = getattr(dial, attributeList[5]))
+    return GameObject(int(attributeList[0]), int(attributeList[1]), attributeList[2], attributeList[3], attributeList[4], blocks = True, socialComp = getattr(dial, attributeList[5]))
 
 class Fighter: #All NPCs, enemies and the player
     def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = [0], shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = None, slots = ['head', 'torso', 'left hand', 'right hand', 'legs', 'feet'], equipmentList = [], toEquip = [], attackFunctions = [], noDirectDamage = False, pic = 'ogre.xp', description = 'Placeholder'):
@@ -7896,26 +7896,26 @@ def makeBossLevel(fall = False, generateHole=False, temple = False):
 tutoGateOpen = False
 
 def makeTutorialMap(level = 1):
-    def openTutorialGate(tile, x, startY, endY):
+    def openTutorialGate(tile, x, startY, endY, char = None, text = 'The gate opens!'):
         global tutoGateOpen
         if not tutoGateOpen:
             tutoGateOpen = True
-            message('The gate opens!')
+            message(text)
             for y in range(startY, endY):
-                myMap[x][y].character = None
+                myMap[x][y].character = char
                 myMap[x][y].blocked = False
                 myMap[x][y].block_sight = False
         print('gate open:', tutoGateOpen)
 
-    def closeTutorialGate(tile, x, startY, endY):
+    def closeTutorialGate(tile, x, startY, endY, char = '/', blockLOS = True, text = 'The gate closes back!'):
         global tutoGateOpen
         if tutoGateOpen:
             tutoGateOpen = False
-            message('The gate closes back!')
+            message(text)
             for y in range(startY, endY):
-                myMap[x][y].character = '/'
+                myMap[x][y].character = char
                 myMap[x][y].blocked = True
-                myMap[x][y].block_sight = True
+                myMap[x][y].block_sight = blockLOS
         print('gate open:', tutoGateOpen)
     
     def loadTutoLevel(tile, level):
@@ -8097,7 +8097,7 @@ def makeTutorialMap(level = 1):
                 if y in range(8, MAP_HEIGHT - 8):
                     myMap[x + 1][y].explored = False
         '''
-        myMap, objectsToCreate = layoutReader.readMap('tutoFloorOne1')
+        myMap, objectsToCreate = layoutReader.readMap('tutoFloorOne4')
         for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
             myMap[25][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 26, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
             myMap[27][y].onTriggerFunction = lambda tile: openTutorialGate(tile, 26, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
@@ -8106,6 +8106,12 @@ def makeTutorialMap(level = 1):
         for y in range(MID_MAP_HEIGHT - 2, MID_MAP_HEIGHT + 3):
             myMap[0][y].blocked = False
             myMap[0][y].onTriggerFunction = lambda tile: loadTutoLevel(tile, 2)
+        for y in range(27, 32):
+            myMap[59][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 60, 27, 32, chr(207), False, 'The magic barrier closes back behind you!')
+            myMap[61][y].onTriggerFunction = lambda tile: openTutorialGate(tile, 60, 27, 32, text = 'The magic barrier opens in front of you with a slight humming!')
+        for y in range(28, 33):
+            myMap[95][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 96, 28, 33, chr(92), False)
+            myMap[97][y].onTriggerFunction = lambda tile: openTutorialGate(tile, 96, 28, 33, '.')
     
         swordComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus = 10, meleeWeapon=True)
         sword = GameObject(50, MID_MAP_HEIGHT, '-', 'longsword', colors.light_sky, Equipment = swordComponent, Item = Item(weight=3.5, pic = 'longSword.xp', useText='Equip'))
@@ -10052,7 +10058,7 @@ def mainMenu():
                     LvlUp = {'pow': 1, 'acc': 10, 'ev': 0, 'arm': 1, 'hp': 20, 'mp': 0, 'crit': 0, 'str': 0, 'dex': 0, 'vit': 0, 'will': 0, 'ap': 0}
                     playerComp = Player('Angus McFife', 0, 0, 0, 0, 45.0, 'Human', 'Knight', traits, LvlUp)
                     fighterComp = Fighter(hp = 120, power= 1, armor= 1, deathFunction=playerDeath, xp=0, evasion = 20, accuracy = 50, maxMP= 20, critical = 5)
-                    player = GameObject(120, MID_MAP_HEIGHT, '@', Fighter = fighterComp, Player = playerComp, name = 'Angus McFife', color = (0, 210, 0))
+                    player = GameObject(139, MID_MAP_HEIGHT, '@', Fighter = fighterComp, Player = playerComp, name = 'Angus McFife', color = (0, 210, 0))
                     player.level = 1
                     player.Fighter.hp = player.Fighter.baseMaxHP
                     player.Fighter.MP = player.Fighter.baseMaxMP

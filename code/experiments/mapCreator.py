@@ -41,7 +41,11 @@ def update(showDark = False):
     root.draw_str(34, 68, 'g: turn all into ground', fg = colors.yellow)
     root.draw_str(34, 70, 'r: load an existing map folder', fg = colors.yellow)
     root.draw_str(34, 72, 's: select a square', fg = colors.yellow)
-    root.draw_str(34, 74, 'n: create or modify an NPC', fg = colors.yellow)
+    
+    root.draw_str(70, 62, 'n: create or modify an NPC', fg = colors.yellow)
+    root.draw_str(70, 64, 'd: delete an NPC', fg = colors.yellow)
+    root.draw_str(70, 66, 'l: copy an NPC', fg = colors.yellow)
+    root.draw_str(70, 68, 'm: paste an NPC', fg = colors.yellow)
     
     for x in range(MAP_WIDTH):
         for y in range(MAP_HEIGHT):
@@ -66,7 +70,7 @@ def update(showDark = False):
 
 def openDetails(x, y):
     tile = myMap[x][y]
-    width, height = 36, 17
+    width, height = 36, 19
     window = tdl.Console(width, height)
     quit = False
     index = 0
@@ -87,6 +91,7 @@ def openDetails(x, y):
         else:
             window.draw_str(1, 1, 'Character:', colors.green)
         window.draw_char(12, 1, chr(ascii))
+        window.draw_str(14, 1, str(ascii))
         
         if index == 1 or index in range(8, 11):
             window.draw_str(1, 3, 'FG (lit):', colors.black, colors.green)
@@ -153,6 +158,8 @@ def openDetails(x, y):
         else:
             window.draw_str(1, 15, 'Explored', colors.green)
         window.draw_str(12, 15, str(explored))
+        
+        window.draw_str(1, 17, 'x: {}, y: {}'.format(x, y))
         
         root.blit(window, 65, 24, width, height)
         tdl.flush()
@@ -688,6 +695,7 @@ if __name__ == '__main__':
     update(showDark)
     quit = False
     copy = None
+    copiedNPC = None
     selectedTiles = []
     while not (tdl.event.is_window_closed() or quit):
         userInput = tdl.event.key_wait()
@@ -786,6 +794,25 @@ if __name__ == '__main__':
             selectSquare()
         elif userInput.keychar.upper() == 'N':
             createNPC(cursor.x, cursor.y)
+        elif userInput.keychar.upper() == 'L':
+            for object in objects:
+                if object.x == cursor.x and object.y == cursor.y:
+                    copiedNPC = Object(0, 0, object.char, object.name, object.color, object.dialog)
+        elif userInput.keychar.upper() == 'M':
+            if copiedNPC:
+                found = False
+                for object in objects:
+                    if object.x == cursor.x and object.y == cursor.y:
+                        found = True
+                if not found:
+                    copiedNPC.x = cursor.x
+                    copiedNPC.y = cursor.y
+                    objects.append(copiedNPC)
+                    copiedNPC = Object(0, 0, copiedNPC.char, copiedNPC.name, copiedNPC.color, copiedNPC.dialog)
+        elif userInput.keychar.upper() == 'D':
+            for object in objects:
+                if object.x == cursor.x and object.y == cursor.y:
+                    objects.remove(object)
 
         update(showDark)
         

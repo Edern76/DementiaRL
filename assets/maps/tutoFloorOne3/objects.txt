@@ -1,0 +1,4 @@
+NPC:106/24/@/General Guillem/(0, 63, 127)/sld1Tree/\
+NPC:106/24/@/General Guillem/(63, 0, 0)/sld1Tree/\
+NPC:106/24/@/General Guillem/(63, 0, 0)/sld1Tree/\
+NPC:106/24/@/General Guillem/(63, 0, 0)/sld1Tree/\
