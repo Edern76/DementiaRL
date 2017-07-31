@@ -304,7 +304,7 @@ def readMap(mapDir, voidChar = None):
     x, y = 0, 0
     for line in charMap:
         for char in line:
-            if char != chr(92):
+            if not (char == chr(92) and x >= MAP_WIDTH):
                 if char == '.':
                     createdMap[x][y].character = voidChar
                 else:

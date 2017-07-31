@@ -8097,7 +8097,7 @@ def makeTutorialMap(level = 1):
                 if y in range(8, MAP_HEIGHT - 8):
                     myMap[x + 1][y].explored = False
         '''
-        myMap, objectsToCreate = layoutReader.readMap('tutoFloor1')
+        myMap, objectsToCreate = layoutReader.readMap('tutoFloorOne1')
         for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
             myMap[25][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 26, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
             myMap[27][y].onTriggerFunction = lambda tile: openTutorialGate(tile, 26, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
@@ -8108,7 +8108,7 @@ def makeTutorialMap(level = 1):
             myMap[0][y].onTriggerFunction = lambda tile: loadTutoLevel(tile, 2)
     
         swordComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus = 10, meleeWeapon=True)
-        sword = GameObject(100, MID_MAP_HEIGHT, '-', 'longsword', colors.light_sky, Equipment = swordComponent, Item = Item(weight=3.5, pic = 'longSword.xp', useText='Equip'))
+        sword = GameObject(50, MID_MAP_HEIGHT, '-', 'longsword', colors.light_sky, Equipment = swordComponent, Item = Item(weight=3.5, pic = 'longSword.xp', useText='Equip'))
         
         helmetComp = Equipment(slot = 'head', type = 'light armor', armorBonus=2, meleeWeapon=False)
         helmet = GameObject(0, 0, '[', 'helmet', colors.silver, Equipment=helmetComp, Item=Item(weight=2.0, pic = 'darksoulHelmet.xp', useText='Equip'))
