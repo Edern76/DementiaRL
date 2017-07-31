@@ -1,16 +1,47 @@
 [phrasing A / phrasing B] : Not sure which one to use
 <stuff written here> : Not sure if it's worth to keep this
+{stuff} : Probably need to find something to replace said stuff
+Line break = new screen
 
 The story you're about to witness takes place in Ashotara, a world filled with deadly monstruosities and dangerous beasts, a world constantly riven by conflicts betsween kingdoms, a world where chaos governs the very life of each of its inhabitants.
 And still, this world has yet to know the greatest peril it has ever experienced.
 
 Zarg was revered as one of the most powerful mages of Ashotara. He always put his powers at the service of the greater good, and despite having been promised countless times fortunes by the rulers of the many kingdoms of Ashotara for doing so, he never picked a side in any of the many armed conflicts driven by greed, hatred or envy.
-
 However, despite his tremendous powers, Zarg was still a human. And as all humans, his mind was susceptible to temptation. Indeed, he was constantly obsessed with finding ways to increase his magical abilities, so as to be able to protect the defenseless from any opponent, no matter how strong or numerous they could be. Though is motives were noble, little did he know that such lust for might would lead him to [become said opponent/walk the path of darkness].
+Therefore, when he learned about the existence of the Cube of Dohrr'Ien, a mysterious artifact from another dimension, enclosing unmatched amounts of pure energy so prodigious that they could turn a mere mortal into a god, he immediately set out on a journey through the tallest mountains and the deepest seas, through the greatest perils and the direst ordeals, <to go where no man ever had the courage to go> in order to retrieve the [Orb/Cube/Amulet/...].
 
-Therefore, when he learned about the existence of the [Orb/Cube/Amulet/Ring/Whatever] of [Yendor/Yindorre/Else?], a mysterious artifact from another dimension, enclosing unmatched amounts of pure energy so prodigious that they could turn a mere mortal into a god, he immediately set out on a journey through the tallest mountains and the deepest seas, through the greatest perils and the direst ordeals, <to go where no man ever had the courage to go> in order to retrieve the [Orb/Cube/Amulet/...].
+Finally, he reached the colossal spire erected by otherworldly forces, in which the Cube was emprisoned. The said edifice was heavily guarded by undescriptible abominations, which revealed themselves to be a formidable threat, even for Zarg.
+Yet, battle after battle, he kept on progressing little by little, until he finally managed to reach the very top of the tower, where the Cube was waiting for him.
 
- 
+But the inner workings of the Cube were beyond the reach of any mortal from Ashotara, no matter how powerful they might be. 
+Zarg was no exception, and thus when after countless tries he finally managed to break the seal which kept the energy inside the Cube, he did indeed ascend to godhood, but acccomplishing this feat that no mortal had achieved before cost him his sanity. 
+From now on, Zarg, previously known as the {Magical Guardian}, would be called the God of Madness.
+
+He used his newfound divine abilites to torment the inhabitants of Ashotara from the Dohrr'Ien Spire, which he had made his lair. 
+Worried by the amplitude of the destruction he inflicted in so little time, rulers of the kingdoms of Ashotara agreed to temporarily set aside their discords and form a temporary Alliance to find out a way to stop the God of Madness from causing even more damage.
+
+Gigantic armies were sent to assault the Spire, but were dispatched one after one by Zarg and his minions without any effort.
+After having suffered such overwhelming defeats, the Alliance understood pure strength and sheer numbers could not defeat Zarg, and decided to resort to cunning instead.
+
+A small party of accomplished adventurers was sent to infiltrate the Spire and find a way to deal with Zarg once and for all. Though they didn't manage to kill him, they found out the God's weakness : if the Cube of Dohrr'Ien were to be destroyed, Zarg's divine powers would vanish. They also unveiled his intentions : to destroy all sapient life in Ashotara.
+Having been upset by these uninvited guests, Zarg built a magical barrier around his lair, and with the help of a spell, he addressed himself to the entirety of Ashotara in those terms :
+
+"I have grown tired of being disturbed by you weaklings, and I have become bored because none of those who dared to irk me in my own home were able to put up a decent fight.
+Therefore, I hereby order you to send me your strongest warrior. They will be the only one able to cross the barrier I created around my domain."
+
+The alliance deemed that the strongest warrior of Ashotara was a human paladin : a combatant fighting using both conventional weapons and magic. 
+This hero is this world's last hope. As Zarg is waiting for his opponent, the hero finishes preparing himself for the battle that will decide the fate of Ashotara. He knows he has no right to error.
+
+This hero name was... 
+
+
+
+
+
+
+
+
+
 
 
 
