@@ -1,4 +1,4 @@
-import colors, math, textwrap, time, os, sys, code, gzip, pathlib, traceback, ffmpy, pdb, copy, queue, random, cProfile #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
+import colors, math, textwrap, time, os, sys, code, gzip, pathlib, traceback, ffmpy, pdb, copy, queue, random, cProfile, main #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
 import tdlib as tdl
 import threading, multiprocessing
 import dill #THIS IS NOT AN UNUSED IMPORT. Importing this changes the behavior of the pickle module (and the shelve module too), so as we can actually save lambda expressions. EDIT : It might actually be useless to import it here, since we import it in the dilledShelve module, but it freaking finally works perfectly fine so we're not touching this.
@@ -10,7 +10,7 @@ from copy import copy, deepcopy
 from os import makedirs
 from queue import *
 from multiprocessing import freeze_support, current_process
-from dill import objects
+
 
 color_light_wall = colors.white
 color_dark_wall = colors.grey
@@ -19,9 +19,12 @@ color_dark_ground = colors.black
 color_light_gravel = colors.white
 color_dark_gravel = colors.grey
 
+
+
 def printTileWhenWalked(tile):
     print("Player walked on tile at {};{}".format(tile.x, tile.y))
 
+'''
 class Tile:
     def __init__(self, blocked, x, y, block_sight = None, acid = False, acidCooldown = 5, character = None, fg = None, bg = None, dark_fg = None, dark_bg = None, chasm = False, wall = False, hole = False, leaves = False, moveCost = 1):
         self.blocked = blocked
@@ -83,42 +86,42 @@ class Tile:
         x = self.x
         y = self.y
         try:
-            upperLeft = myMap[x - 1][y - 1]
+            upperLeft = main.myMap[x - 1][y - 1]
         except IndexError:
             upperLeft = None
             
         try:
-            up = myMap[x][y - 1]
+            up = main.myMap[x][y - 1]
         except IndexError:
             up = None
             
         try:
-            upperRight = myMap[x + 1][y - 1]
+            upperRight = main.myMap[x + 1][y - 1]
         except IndexError:
             upperRight = None
             
         try:
-            left = myMap[x - 1][y]
+            left = main.myMap[x - 1][y]
         except IndexError:
             left = None
             
         try:
-            right = myMap[x + 1][y]
+            right = main.myMap[x + 1][y]
         except IndexError:
             right = None
             
         try:
-            lowerLeft = myMap[x - 1][y + 1]
+            lowerLeft = main.myMap[x - 1][y + 1]
         except IndexError:
             lowerLeft = None
         
         try:
-            low = myMap[x][y + 1]
+            low = main.myMap[x][y + 1]
         except IndexError:
             low = None
 
         try:
-            lowerRight = myMap[x + 1][y + 1]
+            lowerRight = main.myMap[x + 1][y + 1]
         except IndexError:
             lowerRight = None
         
@@ -132,19 +135,19 @@ class Tile:
         x = self.x
         y = self.y
         try:
-            up = myMap[x][y - 1]
+            up = main.myMap[x][y - 1]
         except IndexError:
             up = None
         try:
-            left = myMap[x - 1][y]
+            left = main.myMap[x - 1][y]
         except IndexError:
             left = None
         try:
-            right = myMap[x + 1][y]
+            right = main.myMap[x + 1][y]
         except IndexError:
             right = None
         try:
-            low = myMap[x][y + 1]
+            low = main.myMap[x][y + 1]
         except IndexError:
             low = None
         return [i for i in [up, left, right, low] if i is not None]
@@ -259,7 +262,7 @@ class Tile:
     
     def triggerFunc(self):
         self.onTriggerFunction(self)
-
+'''
 
 def findCurrentDir():
     if getattr(sys, 'frozen', False):
@@ -297,7 +300,7 @@ def convertColorString(string):
 
 def readMap(mapDir, voidChar = None):
     mapDirPath = os.path.join(absMapsPath, mapDir)
-    createdMap = [[Tile(blocked=False, x = x, y = y, block_sight=False, fg = colors.white, bg = colors.black, dark_bg=colors.black, dark_fg=colors.grey) for y in range(MAP_HEIGHT)] for x in range(MAP_WIDTH)]
+    createdMap = [[main.Tile(blocked=False, x = x, y = y, block_sight=False, fg = colors.white, bg = colors.black, dark_bg=colors.black, dark_fg=colors.grey) for y in range(MAP_HEIGHT)] for x in range(MAP_WIDTH)]
     
     charMapPath = os.path.join(mapDirPath, 'char.txt')
     charMap = open(charMapPath, 'r')
@@ -474,6 +477,11 @@ def readMap(mapDir, voidChar = None):
         createdObjects.append(attributeList)
     objectsMap.close()
     
+    for loop in range(10):
+        print("CREATED MAP:")
+    print(createdMap)
+    for loop in range(10):
+        print("LOOK UP")
     return createdMap, createdObjects
 
 if __name__ == '__main__':
@@ -483,6 +491,6 @@ if __name__ == '__main__':
         root.clear()
         for x in range(MAP_WIDTH):
             for y in range(MAP_HEIGHT):
-                root.draw_char(x, y, myMap[x][y].character, myMap[x][y].fg, myMap[x][y].bg)
+                root.draw_char(x, y, myMap[x][y].character, main.myMap[x][y].fg, myMap[x][y].bg)
         tdl.flush()
 

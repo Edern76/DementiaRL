@@ -25,8 +25,13 @@ from music import playWavSound
 from multiprocessing import freeze_support, current_process
 import code.chasmGen as chasmGen
 import code.holeGen as holeGen
-from dill import objects
-import code.layoutReader as layoutReader
+
+from tkinter import *
+from tkinter.messagebox import * #For making obvious freaking error boxes when the console gets too bloated to read anything useful.
+
+
+if (__name__ == '__main__' or __name__ == 'main__main__'):
+    import code.layoutReader as layoutReader
 
 
 activeProcess = []
@@ -2442,9 +2447,18 @@ def enterName(race):
 def heuristic(sourceX, sourceY, targetX, targetY):
     return abs(sourceX - targetX) + abs(sourceY - targetY)
 
-def astarPath(startX, startY, goalX, goalY, flying = False, silent = True):
-    start = myMap[startX][startY]
-    goal = myMap[goalX][goalY]
+def astarPath(startX, startY, goalX, goalY, flying = False, silent = True, mapToUse = None):
+    if mapToUse is None:
+        print("NO MAP TO USE IN ASTAR")
+        mapToUse = myMap
+    start = mapToUse[startX][startY]
+    goal = mapToUse[goalX][goalY]
+    if myMap is None:
+        raise TypeError("Map is none, start of astar func")
+    if mapToUse is None:
+        raise TypeError("Map to use is None, astar func")
+        traceback.print_exc()
+        os._exit(-1)
     frontier = [(start, 0)]
     cameFrom = {}
     costSoFar = {}
@@ -2468,7 +2482,7 @@ def astarPath(startX, startY, goalX, goalY, flying = False, silent = True):
             if not silent:
                 print('arrived to goal')
             break
-        for next in current.neighbors():
+        for next in current.neighbors(mapToUse):
             if not silent:
                 print('neighbor:', next.x, next.y)
             if flying or not myMap[next.x][next.y].chasm:
@@ -3200,14 +3214,22 @@ class Fighter: #All NPCs, enemies and the player
         tdl.flush()
         
 class Pathfinder(threading.Thread):
-    def __init__(self, mob, goalX, goalY):
+    def __init__(self, mob, goalX, goalY, mapToUse = None):
         threading.Thread.__init__(self)
         self.mob = mob
         self.goalX = goalX
         self.goalY = goalY
+        if mapToUse is None:
+            self.mapToUse = myMap
+            if myMap is None:
+                raise TypeError("MYMAP IS NONE, PF INIT")
+                traceback.print_exc()
+                os._exit(-1)
+        else:
+            self.mapToUse = mapToUse
         
     def run(self):
-        self.mob.astarPath = astarPath(self.mob.x, self.mob.y, self.goalX, self.goalY)
+        self.mob.astarPath = astarPath(self.mob.x, self.mob.y, self.goalX, self.goalY, mapToUse = self.mapToUse)
 
 class TargetSelector:
     def __init__(self):
@@ -3229,6 +3251,14 @@ class TargetSelector:
             for object in objects:
                 if (object.x, object.y) in monsterVisibleTiles and (object == player or (object.AI and object.AI.__class__.__name__ == "FriendlyMonster" and object.AI.friendlyTowards == player)):
                     targets.append(object)
+                elif object == player and (not (player.x, player.y) in monsterVisibleTiles):
+                    print("WAAAAARNING")
+                    print("+++++++++++++++++++++++++++++++++++++++++++++++++")
+                    print("-------------------------------------------------")
+                    print("PLAYER NOT VISBLE FROM MONSTER !!!!!!!!!!!!!!!!!!")
+                    print(monsterVisibleTiles)
+                    print(player.x, player.y, sep = ";")
+                    print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
             if DEBUG:
                 print(monster.name.capitalize() + " can target", end=" ")
                 if targets:
@@ -5017,8 +5047,9 @@ def getInput():
         FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'F7' and DEBUG and not tdl.event.isWindowClosed():
-        castCreateHiroshiman()
-        FOV_recompute = True
+        expr = input()
+        exec(expr, globals(), locals()) #Aka most powerful debug / cheat tool
+        print(expr)
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'F8' and DEBUG and not tdl.event.isWindowClosed():
         castCreateWeapon()
@@ -5089,7 +5120,7 @@ def getInput():
         gameState = 'looking'
         if DEBUG == True:
             message('Look mode', colors.purple)
-        lookCursor = GameObject(x = player.x, y = player.y, char = 'X', name = 'cursor', color = colors.yellow, Ghost = True)
+        lookCursor = GameObject(x = player.x, y = player.y, char = 'X', name = 'cursor', color = colors.yellow, Ghost = True, alwaysVisible= True)
         objects.append(lookCursor)
         FOV_recompute = True
         return 'didnt-take-turn'
@@ -5152,6 +5183,7 @@ def getInput():
         elif userInput.keychar.upper() in MOVEMENT_KEYS:
             dx, dy = MOVEMENT_KEYS[userInput.keychar.upper()]
             lookCursor.move(dx, dy)
+            print(lookCursor.x, lookCursor.y, sep=";")
             FOV_recompute = True
             return 'didnt-take-turn'
         elif userInput.keychar.upper() == 'ENTER':
@@ -5163,8 +5195,8 @@ def getInput():
                         while not quit:
                             #root.clear()
                             object.Item.displayItem(MID_HEIGHT)
-                            input = tdl.event.key_wait()
-                            if input.keychar.upper() == 'ESCAPE':
+                            lookInput = tdl.event.key_wait()
+                            if lookInput.keychar.upper() == 'ESCAPE':
                                 quit = True
                             #tdl.flush()
                     if object.Fighter:
@@ -5172,8 +5204,8 @@ def getInput():
                         while not quit:
                             #root.clear()
                             object.Fighter.displayFighter(MID_HEIGHT)
-                            input = tdl.event.key_wait()
-                            if input.keychar.upper() == 'ESCAPE':
+                            lookInput = tdl.event.key_wait()
+                            if lookInput.keychar.upper() == 'ESCAPE':
                                 quit = True
                             #tdl.flush()
     if gameState == 'playing':
@@ -6226,13 +6258,20 @@ class Tile:
         self.onTriggerFunction = printTileWhenWalked
         self.leaves = leaves
         
-    def neighbors(self):
+    def neighbors(self, mapToUse = None):
+        '''
+        global myMap
         x = self.x
         y = self.y
         try:
             upperLeft = myMap[x - 1][y - 1]
         except IndexError:
             upperLeft = None
+        except TypeError:
+            traceback.print_exc()
+            print(myMap)
+            print("WRONG TILE = ", end="")
+            print(x,y, sep=";")
             
         try:
             up = myMap[x][y - 1]
@@ -6270,9 +6309,11 @@ class Tile:
             lowerRight = None
         
         return [i for i in [upperLeft, up, upperRight, left, right, lowerLeft, low, lowerRight] if i is not None]
-    
-    def neighbours(self):
-        result = self.neighbors()
+        '''
+        
+        return neighborsOutOfClass(int(self.x), int(self.y), mapToUse)
+    def neighbours(self, mapToUse = None):
+        result = self.neighbors(mapToUse = None)
         return result
     
     def cardinalNeighbors(self):
@@ -6529,6 +6570,71 @@ def bossFFWrapper(x,y, listToAppend, dependsOnList):
     stopBossFF = False
     visuBoss = []
     bossFloodfill(x,y, listToAppend, dependsOnList)
+    
+def neighborsOutOfClass(x,y, mapToUse = None):
+    #global myMap
+    '''
+    Tk().withdraw()
+    showwarning("FUNC CALLED", "WE CALLED NEIGHBOURSOUTOFCLASS METHOD")
+    if myMap is None:
+        showwarning("MYMAP IS NOOONE", "WTFFFFFFFFFFFFFFFFFFFF")
+        myMap = globals()['myMap']
+        if myMap is None:
+            showerror('I hate this', "Python go fucking kill yourself")
+    '''
+    if mapToUse is None:
+        print("NOOOOOOOOOOOOOOOOOOOOOOOOOOOO MAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPPPPPPPPPPPPPP TOOOOOOOOOOOOOOOOOOO USSSSSSSSSSSSSSSSEEEEEEEEEE")
+        actualMapThatTheFuncWillFuckingUseOrElseIAmThrowingMyComputerOutsideTheFuckingWindow = myMap
+    else:
+        actualMapThatTheFuncWillFuckingUseOrElseIAmThrowingMyComputerOutsideTheFuckingWindow = mapToUse
+    try:
+        upperLeft = actualMapThatTheFuncWillFuckingUseOrElseIAmThrowingMyComputerOutsideTheFuckingWindow[x - 1][y - 1]
+    except IndexError:
+        upperLeft = None
+    except TypeError:
+        traceback.print_exc()
+        print(actualMapThatTheFuncWillFuckingUseOrElseIAmThrowingMyComputerOutsideTheFuckingWindow)
+        print("WRONG TILE = ", end="")
+        print(x,y, sep=";")
+        
+    try:
+        up = actualMapThatTheFuncWillFuckingUseOrElseIAmThrowingMyComputerOutsideTheFuckingWindow[x][y - 1]
+    except IndexError:
+        up = None
+        
+    try:
+        upperRight = actualMapThatTheFuncWillFuckingUseOrElseIAmThrowingMyComputerOutsideTheFuckingWindow[x + 1][y - 1]
+    except IndexError:
+        upperRight = None
+        
+    try:
+        left = actualMapThatTheFuncWillFuckingUseOrElseIAmThrowingMyComputerOutsideTheFuckingWindow[x - 1][y]
+    except IndexError:
+        left = None
+        
+    try:
+        right = actualMapThatTheFuncWillFuckingUseOrElseIAmThrowingMyComputerOutsideTheFuckingWindow[x + 1][y]
+    except IndexError:
+        right = None
+        
+    try:
+        lowerLeft = actualMapThatTheFuncWillFuckingUseOrElseIAmThrowingMyComputerOutsideTheFuckingWindow[x - 1][y + 1]
+    except IndexError:
+        lowerLeft = None
+    
+    try:
+        low = actualMapThatTheFuncWillFuckingUseOrElseIAmThrowingMyComputerOutsideTheFuckingWindow[x][y + 1]
+    except IndexError:
+        low = None
+
+    try:
+        lowerRight = actualMapThatTheFuncWillFuckingUseOrElseIAmThrowingMyComputerOutsideTheFuckingWindow[x + 1][y + 1]
+    except IndexError:
+        lowerRight = None
+        
+    return [i for i in [upperLeft, up, upperRight, left, right, lowerLeft, low, lowerRight] if i is not None]
+            
+        
 
 def bossFloodfill(x,y, listToAppend, dependsOnList):
     if not myMap[x][y].blocked:
@@ -7896,8 +8002,9 @@ def makeBossLevel(fall = False, generateHole=False, temple = False):
 tutoGateOpen = False
 
 def makeTutorialMap(level = 1):
+    global myMap, objects
     def openTutorialGate(tile, x, startY, endY, char = None, text = 'The gate opens!'):
-        global tutoGateOpen
+        global tutoGateOpen, myMap, objects
         if not tutoGateOpen:
             tutoGateOpen = True
             message(text)
@@ -7908,7 +8015,7 @@ def makeTutorialMap(level = 1):
         print('gate open:', tutoGateOpen)
 
     def closeTutorialGate(tile, x, startY, endY, char = '/', blockLOS = True, text = 'The gate closes back!'):
-        global tutoGateOpen
+        global tutoGateOpen, myMap, objects
         if tutoGateOpen:
             tutoGateOpen = False
             message(text)
@@ -7919,184 +8026,10 @@ def makeTutorialMap(level = 1):
         print('gate open:', tutoGateOpen)
     
     def loadTutoLevel(tile, level):
+        global myMap, objects, player
         makeTutorialMap(level)
 
     if level == 1:
-    
-        global myMap, objects
-        
-        '''
-        myMap = [[Tile(False, x = x, y = y, bg = colors.darker_green, dark_bg = colors.darkest_green, fg = colors.darker_chartreuse, dark_fg = colors.darkest_chartreuse) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
-        for x in range(MAP_WIDTH):
-            for y in range(MAP_HEIGHT):
-                if x == 0 or y == 0 or x == MAP_WIDTH - 1 or y == MAP_HEIGHT -1:
-                    myMap[x][y].blocked = True
-        for y in range(MID_MAP_HEIGHT - 2, MID_MAP_HEIGHT + 3):
-            myMap[0][y].blocked = False
-            myMap[0][y].onTriggerFunction = loadLvl2
-        counter = 0
-        centerY = MID_MAP_HEIGHT
-        for x in range(MAP_WIDTH):
-            if counter >= 6:
-                offChoice = randint(0, 10)
-                if offChoice == 0:
-                    centerY += randint(-1, 1)
-                    counter = 0
-            for y in range(MAP_HEIGHT):
-                myMap[x][y].explored = True
-                gravelChar1 = chr(177)
-                gravelChar2 = chr(176)
-                gravelChoice = randint(0, 5)
-                if gravelChoice == 0:
-                    myMap[x][y].character = gravelChar1
-                elif gravelChoice == 1:
-                    myMap[x][y].character = gravelChar2
-                else:
-                    myMap[x][y].character = None
-            for y in range(centerY - 2, centerY + 3):
-                gravelChar1 = chr(250)
-                gravelChar2 = chr(254)
-                gravelChoice = randint(0, 5)
-                if gravelChoice == 0:
-                    myMap[x][y].character = gravelChar1
-                elif gravelChoice == 1:
-                    myMap[x][y].character = gravelChar2
-                else:
-                    myMap[x][y].character = None
-                myMap[x][y].bg = colors.dark_grey
-                myMap[x][y].dark_bg = colors.darkest_grey
-                myMap[x][y].fg = colors.grey
-                myMap[x][y].dark_fg = colors.darker_grey
-            counter += 1
-        for x in range(25, 28):
-            for y in range(MID_MAP_HEIGHT - 10, MID_MAP_HEIGHT + 11):
-                myMap[x][y].character = '#'
-                myMap[x][y].bg = colors.dark_grey
-                myMap[x][y].dark_bg = colors.darkest_grey
-                myMap[x][y].fg = colors.grey
-                myMap[x][y].dark_fg = colors.darker_grey
-                myMap[x][y].blocked = True
-                myMap[x][y].block_sight = True
-            for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
-                if x == 26:
-                    myMap[x][y].character = '/'
-                    myMap[x][y].bg = colors.darker_sepia
-                    myMap[x][y].dark_bg = colors.darkest_sepia
-                    myMap[x][y].fg = colors.dark_sepia
-                    myMap[x][y].dark_fg = colors.darker_sepia
-                    myMap[x][y].blocked = True
-                    myMap[x][y].block_sight = True
-                else:
-                    gravelChar1 = chr(250)
-                    gravelChar2 = chr(254)
-                    gravelChoice = randint(0, 5)
-                    if gravelChoice == 0:
-                        myMap[x][y].character = gravelChar1
-                    elif gravelChoice == 1:
-                        myMap[x][y].character = gravelChar2
-                    else:
-                        myMap[x][y].character = None
-                    myMap[x][y].blocked = False
-                    myMap[x][y].block_sight = False
-                    if x == 25:
-                        myMap[x][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 26, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
-                    else:
-                        myMap[x][y].onTriggerFunction = lambda tile: openTutorialGate(tile, 26, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
-        for x in range(27):
-            for y in range(MID_MAP_HEIGHT - 9, MID_MAP_HEIGHT + 10):
-                if not (y in range(MID_MAP_HEIGHT - 4, MID_MAP_HEIGHT + 5) and x == 26):
-                    myMap[x][y].explored = False
-        for x in range(11, 14):
-            for y in range(MID_MAP_HEIGHT - 10, MID_MAP_HEIGHT + 11):
-                myMap[x][y].character = '#'
-                myMap[x][y].bg = colors.dark_grey
-                myMap[x][y].dark_bg = colors.darkest_grey
-                myMap[x][y].fg = colors.grey
-                myMap[x][y].dark_fg = colors.darker_grey
-                myMap[x][y].blocked = True
-                myMap[x][y].block_sight = True
-            for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
-                if x == 12:
-                    myMap[x][y].character = '/'
-                    myMap[x][y].bg = colors.darker_sepia
-                    myMap[x][y].dark_bg = colors.darkest_sepia
-                    myMap[x][y].fg = colors.dark_sepia
-                    myMap[x][y].dark_fg = colors.darker_sepia
-                    myMap[x][y].blocked = True
-                    myMap[x][y].block_sight = True
-                else:
-                    gravelChar1 = chr(250)
-                    gravelChar2 = chr(254)
-                    gravelChoice = randint(0, 5)
-                    if gravelChoice == 0:
-                        myMap[x][y].character = gravelChar1
-                    elif gravelChoice == 1:
-                        myMap[x][y].character = gravelChar2
-                    else:
-                        myMap[x][y].character = None
-                    myMap[x][y].blocked = False
-                    myMap[x][y].block_sight = False
-                    if x == 11:
-                        myMap[x][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 12, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
-                    else:
-                        myMap[x][y].onTriggerFunction = lambda tile: openTutorialGate(tile, 12, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)           
-        for x in range(14, 28):
-            for y in range(MID_MAP_HEIGHT - 10, MID_MAP_HEIGHT - 7):
-                myMap[x][y].character = '#'
-                myMap[x][y].bg = colors.dark_grey
-                myMap[x][y].dark_bg = colors.darkest_grey
-                myMap[x][y].fg = colors.grey
-                myMap[x][y].dark_fg = colors.darker_grey
-                myMap[x][y].blocked = True
-                myMap[x][y].block_sight = True
-            for y in range(MID_MAP_HEIGHT + 8, MID_MAP_HEIGHT + 11):
-                myMap[x][y].character = '#'
-                myMap[x][y].bg = colors.dark_grey
-                myMap[x][y].dark_bg = colors.darkest_grey
-                myMap[x][y].fg = colors.grey
-                myMap[x][y].dark_fg = colors.darker_grey
-                myMap[x][y].blocked = True
-                myMap[x][y].block_sight = True
-        for x in range(11, 14):
-            for y in range(7, MID_MAP_HEIGHT - 7):
-                myMap[x][y].character = '#'
-                myMap[x][y].bg = colors.dark_grey
-                myMap[x][y].dark_bg = colors.darkest_grey
-                myMap[x][y].fg = colors.grey
-                myMap[x][y].dark_fg = colors.darker_grey
-                myMap[x][y].blocked = True
-                myMap[x][y].block_sight = True
-            for y in range(MID_MAP_HEIGHT + 8, MAP_HEIGHT - 7):
-                myMap[x][y].character = '#'
-                myMap[x][y].bg = colors.dark_grey
-                myMap[x][y].dark_bg = colors.darkest_grey
-                myMap[x][y].fg = colors.grey
-                myMap[x][y].dark_fg = colors.darker_grey
-                myMap[x][y].blocked = True
-                myMap[x][y].block_sight = True
-        for x in range(10, 13):
-            for y in range(0, 7):
-                myMap[x][y].character = '#'
-                myMap[x][y].bg = colors.dark_grey
-                myMap[x][y].dark_bg = colors.darkest_grey
-                myMap[x][y].fg = colors.grey
-                myMap[x][y].dark_fg = colors.darker_grey
-                myMap[x][y].blocked = True
-                myMap[x][y].block_sight = True
-            for y in range(MAP_HEIGHT - 7, MAP_HEIGHT):
-                myMap[x][y].character = '#'
-                myMap[x][y].bg = colors.dark_grey
-                myMap[x][y].dark_bg = colors.darkest_grey
-                myMap[x][y].fg = colors.grey
-                myMap[x][y].dark_fg = colors.darker_grey
-                myMap[x][y].blocked = True
-                myMap[x][y].block_sight = True
-        for x in range(12):
-            for y in range(MAP_HEIGHT):
-                myMap[x][y].explored = False
-                if y in range(8, MAP_HEIGHT - 8):
-                    myMap[x + 1][y].explored = False
-        '''
         myMap, objectsToCreate = layoutReader.readMap('tutoFloorOne4')
         for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
             myMap[25][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 26, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
@@ -8127,88 +8060,6 @@ def makeTutorialMap(level = 1):
             objects.append(object)
         
     elif level == 2:
-        global objects, player
-        '''
-        myMap = [[Tile(False, x = x, y = y, bg = colors.darker_green, dark_bg = colors.darkest_green, fg = colors.darker_chartreuse, dark_fg = colors.darkest_chartreuse) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
-        for x in range(MAP_WIDTH):
-            for y in range(MAP_HEIGHT):
-                if x == 0 or y == 0 or x == MAP_WIDTH - 1 or y == MAP_HEIGHT -1:
-                    myMap[x][y].blocked = True
-                if x > 110 or (x > 109 and MID_MAP_HEIGHT - 4 <= y <= MID_MAP_HEIGHT + 4):
-                    myMap[x][y].explored = True
-        for x in range(110, MAP_WIDTH):
-            for y in range(MID_MAP_HEIGHT - 2, MID_MAP_HEIGHT + 3):
-                gravelChar1 = chr(250)
-                gravelChar2 = chr(254)
-                gravelChoice = randint(0, 5)
-                if gravelChoice == 0:
-                    myMap[x][y].character = gravelChar1
-                elif gravelChoice == 1:
-                    myMap[x][y].character = gravelChar2
-                else:
-                    myMap[x][y].character = None
-                myMap[x][y].bg = colors.dark_grey
-                myMap[x][y].dark_bg = colors.darkest_grey
-                myMap[x][y].fg = colors.grey
-                myMap[x][y].dark_fg = colors.darker_grey
-        counter = 0
-        for x in range(109, 112):
-            for y in range(MAP_HEIGHT):
-                if y not in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
-                    myMap[x][y].character = '#'
-                    myMap[x][y].bg = colors.dark_grey
-                    myMap[x][y].dark_bg = colors.darkest_grey
-                    myMap[x][y].fg = colors.grey
-                    myMap[x][y].dark_fg = colors.darker_grey
-                    myMap[x][y].blocked = True
-                    myMap[x][y].block_sight = True
-                    if counter == 3:
-                        myMap[x + 1][y].character = '#'
-                        myMap[x + 1][y].bg = colors.dark_grey
-                        myMap[x + 1][y].dark_bg = colors.darkest_grey
-                        myMap[x + 1][y].fg = colors.grey
-                        myMap[x + 1][y].dark_fg = colors.darker_grey
-                        myMap[x + 1][y].blocked = True
-                        myMap[x + 1][y].block_sight = True
-                        counter = 0
-                    counter += 1
-                elif x == 110:
-                    myMap[x][y].character = '/'
-                    myMap[x][y].bg = colors.darker_sepia
-                    myMap[x][y].dark_bg = colors.darkest_sepia
-                    myMap[x][y].fg = colors.dark_sepia
-                    myMap[x][y].dark_fg = colors.darker_sepia
-                    myMap[x][y].blocked = True
-                    myMap[x][y].block_sight = True
-                else:
-                    gravelChar1 = chr(250)
-                    gravelChar2 = chr(254)
-                    gravelChoice = randint(0, 5)
-                    if gravelChoice == 0:
-                        myMap[x][y].character = gravelChar1
-                    elif gravelChoice == 1:
-                        myMap[x][y].character = gravelChar2
-                    else:
-                        myMap[x][y].character = None
-                    myMap[x][y].bg = colors.dark_grey
-                    myMap[x][y].dark_bg = colors.darkest_grey
-                    myMap[x][y].fg = colors.grey
-                    myMap[x][y].dark_fg = colors.darker_grey
-                    myMap[x][y].blocked = False
-                    myMap[x][y].block_sight = False
-                    if x == 109:
-                        myMap[x][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 110, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
-                    else:
-                        myMap[x][y].onTriggerFunction = lambda tile: openTutorialGate(tile, 110, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
-                if y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
-                    counter = 3
-                elif y == MAP_HEIGHT - 1:
-                    counter = 1
-        for x in range(109):
-            for y in range(MAP_HEIGHT):
-                myMap[x][y].bg = colors.dark_grey
-                myMap[x][y].dark_bg = colors.darkest_grey
-        '''            
         myMap, objectsToCreate = layoutReader.readMap('tutorial')
         for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
             myMap[109][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 110, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
@@ -8219,6 +8070,8 @@ def makeTutorialMap(level = 1):
         for attributeList in objectsToCreate:
             object = createNPCFromMapReader(attributeList)
             objects.append(object)
+        
+        checkMap(False)
 
 def makeHiddenTown(fall = False):
     global myMap, objects, upStairs, rooms, numberRooms, bossRoom
@@ -9973,7 +9826,7 @@ def controlBox():
     tdl.event.key_wait()
 
 def mainMenu():
-
+    global myMap, player
     if (__name__ == '__main__' or __name__ == 'main__main__') and root is not None:
         global player, currentMusic, activeProcess
         choices = ['Tutorial', 'New Game', 'Continue', 'Leaderboard', 'Test Dungeon', 'About', 'Quit']
@@ -11180,6 +11033,10 @@ def playTutorial():
     while not tdl.event.isWindowClosed():
         global FOV_recompute, DEBUG
         Update()
+        if myMap is None:
+            raise TypeError("MYMAP IS NONE, PLAYTUT FUNC")
+            traceback.print_exc()
+            os._exit(-1)
         checkLevelUp(fromTuto=True)
         tdl.flush()
         for object in objects:
@@ -11282,19 +11139,39 @@ def playTutorial():
             
             while mustCalculate:
                 print("Calculating")
+                if myMap is None:
+                    raise TypeError("MYMAP IS NONE, PATH LOOP START")
+                    traceback.print_exc()
+                    os._exit(-1)
                 pathfinders = []
                 mustCalculate = False
                 print(len(mobsToCalculate))
                 for mob in mobsToCalculate:
+                    if myMap is None:
+                        raise TypeError("MYMAP IS NONE, BEFORE PATHFINDER CREATE START")
+                        traceback.print_exc()
+                        os._exit(-1)
                     newPathfinder = Pathfinder(mob, mob.AI.selectedTarget.x, mob.AI.selectedTarget.y)
+                    if myMap is None:
+                        raise TypeError("MYMAP IS NONE, AFTER PATHFINDER CREATE")
+                        traceback.print_exc()
+                        os._exit(-1)
                     pathfinders.append(newPathfinder)
                     
                 for pathfind in pathfinders:
+                    if myMap is None:
+                        raise TypeError("MYMAP IS NONE, BEFORE PATHFIND THREAD START")
+                        traceback.print_exc()
+                        os._exit(-1)
                     pathfind.start()
                 for pathfind in pathfinders:
                     pathfind.join()
                 
                 for mob in mobsToCalculate:
+                    if myMap is None:
+                        raise TypeError("MYMAP IS NONE, TRY MOVE START")
+                        traceback.print_exc()
+                        os._exit(-1)
                     mob.AI.tryMove()
                     
             global stairCooldown
@@ -11512,7 +11389,7 @@ def playGame(noSave = False):
                 mustCalculate = False
                 print(len(mobsToCalculate))
                 for mob in mobsToCalculate:
-                    newPathfinder = Pathfinder(mob, mob.AI.selectedTarget.x, mob.AI.selectedTarget.y)
+                    newPathfinder = Pathfinder(mob, mob.AI.selectedTarget.x, mob.AI.selectedTarget.y, mapToUse= myMap)
                     pathfinders.append(newPathfinder)
                     
                 for pathfind in pathfinders:
