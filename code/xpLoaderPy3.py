@@ -77,7 +77,7 @@ poskey_color_white = (255, 255, 255)
 
 
 
-def load_layer_to_console(console, xp_file_layer, offsetX = 0, offsetY = 0, drawTransparent = False):
+def load_layer_to_console(console, xp_file_layer, offsetX = 0, offsetY = 0, drawTransparent = False, noBG = False):
     # Displays a single layer on the console, therefore xp_file_layer mustn't be your .xp file's path, but instead a dictionnary corresponding to a layer's data.
     # In order to extract the layer from a .xp file, just call load_xp_string on your unzipped (use gzip) .xp file. All of this file's layers' data will be in the returned dictionnary, under the 'layer_data' key.
     # If you want to display mutliple layers, just call this function for each layer in 'layer_data'.
@@ -89,7 +89,10 @@ def load_layer_to_console(console, xp_file_layer, offsetX = 0, offsetY = 0, draw
         for y in range(xp_file_layer['height']):
             cell_data = xp_file_layer['cells'][x][y]
             fore_color = (cell_data['fore_r'], cell_data['fore_g'], cell_data['fore_b'])
-            back_color = (cell_data['back_r'], cell_data['back_g'], cell_data['back_b'])
+            if not noBG:
+                back_color = (cell_data['back_r'], cell_data['back_g'], cell_data['back_b'])
+            else:
+                back_color = Ellipsis
             if back_color != (transparent_cell_back_r, transparent_cell_back_g, transparent_cell_back_b) or drawTransparent: #If we don't perform that check we get a fully pink rectangle, that we cannot fix otherwise since TDL doesn't support set_key_color
                 console.draw_char(offsetX + x, offsetY + y, cell_data['keycode'], fore_color, back_color) #Replace with 'console_put_char_ex(console, offsetX + x, offsetY + y, cell_data['keycode'], fore_color, back_color)' without quotation marks if using libtcod.
 

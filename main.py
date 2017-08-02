@@ -519,6 +519,10 @@ def drawCentered(cons = con , y = 1, text = "Lorem Ipsum", fg = None, bg = None)
     xCentered = (WIDTH - len(text))//2
     cons.draw_str(xCentered, y, text, fg, bg)
 
+def drawCenteredVariableWidth(cons, y, text, fg = None, bg = None, width = WIDTH):
+    xCentered = (width - len(text))//2
+    cons.draw_str(xCentered, y, text, fg, bg)
+
 def getCenterFilled(text = 'Lorem Ipsum'):
     xCentered = (WIDTH - len(text))//2
     newText = ''
@@ -9868,6 +9872,7 @@ def mainMenu():
                 index = 0
             if key.keychar.upper() == "ENTER":
                 if index == 0:
+                    showPrologue()
                     light = Trait('Light weapons', '+20% damage per skillpoints with light weapons', type = 'skill', selectable = False, tier = 3)
                     heavy = Trait('Heavy weapons', '+20% damage per skillpoints with heavy weapons', type = 'skill', selectable = False, tier = 3)
                     missile = Trait('Missile weapons', '+20% damage per skillpoints with missile weapons', type = 'skill', selectable = False, tier = 3)
@@ -10334,6 +10339,34 @@ def chat():
         else:
             msgString = 'You start a heated philosophical debate with yourself.'
             message(msgString)
+
+def showPrologue():
+    def showScreen(screenText, console, height):
+        screen = dial.formatText(screenText, 104)
+        dialLength = len(screen) - 1
+        ty = (height // 2) - (dialLength // 2)
+        print(screen)
+        for line in screen:
+            if line != 'BREAK':
+                drawCenteredVariableWidth(console, y = ty, text = line, fg = (217, 0, 0), width = 104)
+            ty += 1
+    root.clear()
+    asciiFile = os.path.join(absAsciiPath, "redframe.xp")
+    xpRawString = gzip.open(asciiFile, "r").read()
+    convertedString = xpRawString
+    attributes = xpL.load_xp_string(convertedString)
+    picWidth = int(attributes["width"])
+    picHeight = int(attributes["height"])
+    print("Pic Height = ", picHeight)
+    lData = attributes["layer_data"]
+    con = NamedConsole('con', 104, HEIGHT - 18)
+    layerInd = int(0)
+    xpL.load_layer_to_console(root, lData[0], noBG = True)
+    showScreen(dial.prologueScr1, con, HEIGHT - 18)
+    root.blit(con, x= 22, y=10, width = 104, height = HEIGHT - 18, srcX = 0, srcY = 0)
+    tdl.flush()
+    tdl.event.key_wait()
+
 
 def GetNamesUnderLookCursor():
     tile = myMap[lookCursor.x][lookCursor.y]

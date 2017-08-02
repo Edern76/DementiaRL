@@ -29,6 +29,7 @@ def formatText(text, w):
 
 creditText = "Created by Erwan CASTIONI and Gawein LE GOFF. \n \n Using a modified version of the TDL module by Kyle Stewart and a modified version of the XpLoader module by Sean Hagar \n This software uses libraries from the FFmpeg project under the LGPLv2.1 \n Made with Python 3. \n \n Music from Jukedeck - create your own at http://jukedeck.com \n \n Special thanks to Francesco V. who launched the game once."
 
+prologueScr1 = "The story you're about to witness takes place in Ashotara, a world filled with deadly monstruosities and dangerous beasts, a world constantly riven by conflicts betsween kingdoms, a world where chaos governs the very life of each of its inhabitants. \n \n \n \n And still, this world has yet to know the greatest peril it has ever experienced. \n"
 class DialogTree:
     def __init__(self, screenList, name, origScreen):
         self.screenList = screenList
