@@ -8075,7 +8075,7 @@ def makeTutorialMap(level = 1):
             object = createNPCFromMapReader(attributeList)
             objects.append(object)
         
-        checkMap(False)
+        #checkMap(False)
 
 def makeHiddenTown(fall = False):
     global myMap, objects, upStairs, rooms, numberRooms, bossRoom
@@ -11031,10 +11031,30 @@ def nextLevel(boss = False, changeBranch = None, fall = False, fromStairs = None
     initializeFOV()
 
 def playTutorial():
-    def displayTip(text, x = 0, y = 0, arrow = True):
+    def displayTip(text, x = 0, y = 0, arrow = True, pointedDirection = 'right'):
         global FOV_recompute
-        arrowPoint = GameObject(x, y, '>', 'arrow', colors.red, Ghost = True)
-        arrowBody = GameObject(x - 1, y, '-', 'arrow', colors.red, Ghost = True)
+        if pointedDirection == 'right':
+            pointChar = '>'
+            bodyChar = '-'
+            bodyX = x - 1
+            bodyY = y
+        elif pointedDirection == 'left':
+            pointChar = '<'
+            bodyChar = '-'
+            bodyX = x + 1
+            bodyY = y
+        elif pointedDirection == 'up':
+            pointChar = '^'
+            bodyChar = chr(124)
+            bodyX = x
+            bodyY = y + 1
+        elif pointedDirection == 'down':
+            pointChar = 'V'
+            bodyChar = chr(124)
+            bodyX = x
+            bodyY = y - 1
+        arrowPoint = GameObject(x, y, pointChar, 'arrow', colors.red, Ghost = True, alwaysVisible=True, darkColor=colors.red)
+        arrowBody = GameObject(bodyX, bodyY, bodyChar, 'arrow', colors.red, Ghost = True, alwaysVisible=True, darkColor=colors.red)
         objects.append(arrowPoint)
         objects.append(arrowBody)
         Update()
@@ -11061,8 +11081,14 @@ def playTutorial():
     displayedPickUp = False
     displayedInventory = False
     displayedMonster = False
+    displayedGeneral = False
+    displayedChat = False
+    displayedLog = False
+    FOV_recompute = True
+    Update()
+    FOV_recompute = True
     
-    displayTip('Move around using the directional ARROWS or the NUMPAD.', x = 0, y = 0, arrow = False)
+    displayTip('Move around using the directional ARROWS or the NUMPAD. Pressing 5 will pass a turn.', x = 0, y = 0, arrow = False)
     while not tdl.event.isWindowClosed():
         global FOV_recompute, DEBUG
         Update()
@@ -11109,18 +11135,28 @@ def playTutorial():
                 if object.Fighter and object.Fighter.baseLandCooldown > 0 and object.Fighter is not None:
                     object.Fighter.curLandCooldown -= 1
             '''
+            
+            if displayedGeneral and not displayedLog:
+                displayTip('Do not forget to regularly check the message log for additional informations about your surroundings.', MID_WIDTH, MAP_HEIGHT - 1, True, 'down')
+                displayedLog = True
             for object in inventory:
                 if object.name == 'longsword' and not displayedInventory:
                     displayTip('You can open your inventory by pressing I, to see what objects you have gathered.', 0, 0, False)
                     displayedInventory = True
             for object in objects:
-                if object.name == 'guard' and (object.x, object.y) in visibleTiles and not displayedMonster:
+                if object.name == 'guard' and (object.x, object.y) in visibleTiles and not displayedMonster and object.distanceTo(player) < 12:
                     displayedMonster = True
                     displayTip('Beware! This guard looks pretty aggressive! You can fight him by simply walking onto him.', object.x - 1, object.y, True)
-                if object.name == 'longsword' and object.distanceTo(player) <= 3 and not displayedPickUp:
+                if object.name == 'longsword' and object.distanceTo(player) <= 8 and not displayedPickUp:
                     displayedPickUp = True
                     displayTip('This is a sword. Pick it up by pressing SPACEBAR while on the same tile.', object.x - 1, object.y)
                     FOV_recompute = True
+                if object.name == 'General Guillem' and (object.x, object.y) in visibleTiles and object.distanceTo(player) <= 7 and not displayedGeneral:
+                    message("General Guillem shouts: 'Greetings [HERO_NAME]! Come to me to summarize our plan!'", colors.gold)
+                    displayedGeneral = True
+                if object.name == 'General Guillem' and (object.x, object.y) in visibleTiles and object.distanceTo(player) <= 2 and not displayedChat:
+                    displayTip('When right next to a NPC, press C and their direction to talk to them.', object.x - 1, object.y)
+                    displayedChat = True
                 if object.Fighter and object.Fighter.spellsOnCooldown and object.Fighter is not None:
                     try:
                         for spell in object.Fighter.spellsOnCooldown:
