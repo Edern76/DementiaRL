@@ -349,9 +349,9 @@ def animStep(waitTime = .125, doUpdate = True):
 def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp, selectedIndex, noItemMessage = None, displayItem = False):
     window.clear()
     for i, line in enumerate(headerWrapped):
-        window.draw_str(1, 1+i, headerWrapped[i], fg = colors.yellow)
+        window.draw_str(1, 1+i, headerWrapped[i], fg = colors.amber)
     if pagesDisp:
-        window.draw_str(10, y - 2, str(page + 1) + '/' + str(maxPages + 1), fg = colors.yellow)
+        window.draw_str(10, y - 2, str(page + 1) + '/' + str(maxPages + 1), fg = colors.amber)
     letterIndex = ord('a')
     counter = 0
     pageIndex = 0
@@ -2604,7 +2604,7 @@ class Stairs:
 
 class GameObject:
     "A generic object, represented by a character"
-    def __init__(self, x, y, char, name, color = colors.white, blocks = False, Fighter = None, AI = None, Player = None, Ghost = False, flying = False, Item = None, alwaysVisible = False, darkColor = None, Equipment = None, pName = None, Essence = None, socialComp = None, shopComp = None, questList = [], Stairs = None):
+    def __init__(self, x, y, char, name, color = colors.white, blocks = False, Fighter = None, AI = None, Player = None, Ghost = False, flying = False, Item = None, alwaysVisible = False, darkColor = None, Equipment = None, pName = None, Essence = None, socialComp = None, shopComp = None, questList = [], Stairs = None, alwaysAlwaysVisible = False):
         self.x = x
         self.y = y
         self.char = char
@@ -2616,6 +2616,9 @@ class GameObject:
         self.ghost = Ghost
         self.Item = Item
         self.alwaysVisible = alwaysVisible
+        self.alwaysAlwaysVisible = alwaysAlwaysVisible
+        if self.alwaysAlwaysVisible:
+            self.alwaysVisible = True
         self.darkColor = darkColor
         self.flying = flying
         if self.Fighter:  #let the fighter component know who owns it
@@ -2704,6 +2707,8 @@ class GameObject:
         if (self.x, self.y) in visibleTiles or REVEL:
             con.draw_char(self.x, self.y, self.char, self.color, bg=None)
         elif self.alwaysVisible and myMap[self.x][self.y].explored:
+            con.draw_char(self.x, self.y, self.char, self.darkColor, bg=None)
+        elif self.alwaysAlwaysVisible:
             con.draw_char(self.x, self.y, self.char, self.darkColor, bg=None)
         
     def clear(self):
@@ -3207,7 +3212,7 @@ class Fighter: #All NPCs, enemies and the player
                 #x += 1
             #y += 1
         
-        window.draw_str(1, 1, self.owner.name.capitalize() + ':', fg = colors.yellow, bg = None)
+        window.draw_str(1, 1, self.owner.name.capitalize() + ':', fg = colors.amber, bg = None)
         for i, line in enumerate(desc):
             window.draw_str(1, int(picHeight) + 5 + i, desc[i], fg = colors.white)
         posY = MID_HEIGHT - height//2
@@ -3903,7 +3908,7 @@ def displayCharacter():
         window.draw_char(0, lMax, chr(192))
         window.draw_char(kMax, lMax, chr(217))
         if page == 1:
-            window.draw_str(5, 1, player.Player.race + ' ' + player.Player.classes, fg = colors.yellow)
+            window.draw_str(5, 1, player.Player.race + ' ' + player.Player.classes, fg = colors.amber)
             window.draw_str(width - 1, 1, '>', colors.green)
             renderBar(window, 1, 3, BAR_WIDTH, 'EXP', player.Fighter.xp, levelUp_xp, colors.desaturated_cyan, colors.dark_gray)
             renderBar(window, 1, 5, BAR_WIDTH, 'Hunger', player.Player.hunger, BASE_HUNGER, colors.desaturated_lime, colors.dark_gray)
@@ -3919,7 +3924,7 @@ def displayCharacter():
             window.draw_str(1, 19, 'Current load: ' + str(getAllWeights(player)))
             window.draw_str(20, 19, 'Max load: ' + str(player.Player.maxWeight))
         elif page == 2:
-            window.draw_str(5, 1, 'Traits:', fg = colors.yellow)
+            window.draw_str(5, 1, 'Traits:', fg = colors.amber)
             window.draw_str(0, 1, '<', colors.green)
             window.draw_str(width - 1, 1, '>', colors.green)
             y = 3
@@ -3932,7 +3937,7 @@ def displayCharacter():
                     window.draw_str(x, y, trait.name)
                     y += 2
         else:
-            window.draw_str(5, 1, 'Absorbed Essences:', fg = colors.yellow)
+            window.draw_str(5, 1, 'Absorbed Essences:', fg = colors.amber)
             window.draw_str(0, 1, '<', colors.green)
             y = 3
             index = 0
@@ -4296,7 +4301,7 @@ class Item:
                 #x += 1
             #y += 1
         
-        window.draw_str(1, 1, self.owner.name.capitalize() + ':', fg = colors.yellow, bg = None)
+        window.draw_str(1, 1, self.owner.name.capitalize() + ':', fg = colors.amber, bg = None)
         for i, line in enumerate(desc):
             window.draw_str(1, int(picHeight) + 5 + i, desc[i], fg = colors.white)
         posY = MID_HEIGHT - height//2
@@ -4362,7 +4367,7 @@ class Item:
                     #x += 1
                 #y += 1
             
-            window.draw_str(1, 1, self.owner.name.capitalize() + ':', fg = colors.yellow, bg = None)
+            window.draw_str(1, 1, self.owner.name.capitalize() + ':', fg = colors.amber, bg = None)
             for i, line in enumerate(desc):
                 window.draw_str(1, int(picHeight) + 5 + i, desc[i], fg = colors.white)
 
@@ -5124,7 +5129,7 @@ def getInput():
         gameState = 'looking'
         if DEBUG == True:
             message('Look mode', colors.purple)
-        lookCursor = GameObject(x = player.x, y = player.y, char = 'X', name = 'cursor', color = colors.yellow, Ghost = True, alwaysVisible= True)
+        lookCursor = GameObject(x = player.x, y = player.y, char = 'X', name = 'cursor', color = colors.yellow, Ghost = True, alwaysAlwaysVisible= True, darkColor=colors.darker_yellow)
         objects.append(lookCursor)
         FOV_recompute = True
         return 'didnt-take-turn'
@@ -9710,7 +9715,7 @@ def deathMenu():
         window.draw_str(8, 1, 'YOU DIED!', colors.red)
         y = 3
         for line in deathText:
-            window.draw_str(1, y, line, fg = colors.yellow)
+            window.draw_str(1, y, line, fg = colors.amber)
             y += 1
         if index == 0:
             window.draw_str(7, y + 2, 'Main menu', fg = colors.black, bg = colors.white)
@@ -10391,7 +10396,7 @@ def GetNamesUnderLookCursor():
     if tileDisp is not None:
         names.insert(0, tileDisp)
     names = ', '.join(names)
-    return names.capitalize()
+    return names
 
 def targetTile(maxRange = None, showBresenham = False, unlimited = False):
     global gameState
@@ -11053,8 +11058,8 @@ def playTutorial():
             bodyChar = chr(124)
             bodyX = x
             bodyY = y - 1
-        arrowPoint = GameObject(x, y, pointChar, 'arrow', colors.red, Ghost = True, alwaysVisible=True, darkColor=colors.red)
-        arrowBody = GameObject(bodyX, bodyY, bodyChar, 'arrow', colors.red, Ghost = True, alwaysVisible=True, darkColor=colors.red)
+        arrowPoint = GameObject(x, y, pointChar, 'arrow', colors.red, Ghost = True, alwaysAlwaysVisible=True, darkColor=colors.red)
+        arrowBody = GameObject(bodyX, bodyY, bodyChar, 'arrow', colors.red, Ghost = True, alwaysAlwaysVisible=True, darkColor=colors.red)
         objects.append(arrowPoint)
         objects.append(arrowBody)
         Update()
