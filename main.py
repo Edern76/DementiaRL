@@ -9924,7 +9924,7 @@ def mainMenu():
                     LvlUp = {'pow': 1, 'acc': 10, 'ev': 0, 'arm': 1, 'hp': 20, 'mp': 0, 'crit': 0, 'str': 0, 'dex': 0, 'vit': 0, 'will': 0, 'ap': 0}
                     playerComp = Player('Angus McFife', 0, 0, 0, 0, 45.0, 'Human', 'Knight', traits, LvlUp)
                     fighterComp = Fighter(hp = 120, power= 1, armor= 1, deathFunction=playerDeath, xp=0, evasion = 20, accuracy = 50, maxMP= 20, critical = 5)
-                    player = GameObject(139, MID_MAP_HEIGHT, '@', Fighter = fighterComp, Player = playerComp, name = 'Angus McFife', color = (0, 210, 0))
+                    player = GameObject(MAP_WIDTH - 2, MID_MAP_HEIGHT, '@', Fighter = fighterComp, Player = playerComp, name = 'Angus McFife', color = (0, 210, 0))
                     player.level = 1
                     player.Fighter.hp = player.Fighter.baseMaxHP
                     player.Fighter.MP = player.Fighter.baseMaxMP
