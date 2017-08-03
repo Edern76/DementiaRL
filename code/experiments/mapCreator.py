@@ -11,7 +11,8 @@ from os import makedirs
 from queue import *
 from multiprocessing import freeze_support, current_process
 from dill import objects
-from layoutReader import Tile, readMap
+from layoutReader import readMap
+from main import Tile
 
 MAP_WIDTH, MAP_HEIGHT = 140, 60
 myMap = [[Tile(blocked=False, x = x, y = y, block_sight=False, fg = colors.white, bg = colors.black, character = '.', dark_fg = colors.grey, dark_bg = colors.black) for y in range(MAP_HEIGHT)] for x in range(MAP_WIDTH)]
@@ -785,6 +786,8 @@ if __name__ == '__main__':
             print('Enter the name of the folder to be read.')
             folder = promptFolderName(True)
             if folder:
+                myMap = []
+                objects = []
                 myMap, objectsToCreate = readMap(folder, '.')
                 for attributeList in objectsToCreate:
                     object = Object(int(attributeList[0]), int(attributeList[1]), attributeList[2], attributeList[3], attributeList[4], attributeList[5])

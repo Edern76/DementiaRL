@@ -8039,7 +8039,7 @@ def makeTutorialMap(level = 1):
         makeTutorialMap(level)
 
     if level == 1:
-        myMap, objectsToCreate = layoutReader.readMap('tutoFloorOne4')
+        myMap, objectsToCreate = layoutReader.readMap('tutoFloorOne8')
         for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
             myMap[25][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 26, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
             myMap[27][y].onTriggerFunction = lambda tile: openTutorialGate(tile, 26, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
@@ -8069,7 +8069,7 @@ def makeTutorialMap(level = 1):
             objects.append(object)
         
     elif level == 2:
-        myMap, objectsToCreate = layoutReader.readMap('tutorial')
+        myMap, objectsToCreate = layoutReader.readMap('tutorial2')
         for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
             myMap[109][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 110, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
             myMap[111][y].onTriggerFunction = lambda tile: openTutorialGate(tile, 110, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
