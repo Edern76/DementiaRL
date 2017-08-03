@@ -477,11 +477,6 @@ def readMap(mapDir, voidChar = None):
         createdObjects.append(attributeList)
     objectsMap.close()
     
-    for loop in range(10):
-        print("CREATED MAP:")
-    print(createdMap)
-    for loop in range(10):
-        print("LOOK UP")
     return createdMap, createdObjects
 
 if __name__ == '__main__':

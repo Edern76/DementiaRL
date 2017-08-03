@@ -2444,7 +2444,10 @@ def enterName(race):
             else:
                 playWavSound('error.wav')
         elif key.keychar.upper() == 'BACKSPACE':
-            letters.pop()
+            if letters:
+                letters.pop()
+            else:
+                playWavSound('error.wav')
         elif key.keychar.upper() == 'ESCAPE':
             mainMenu()
 #______________CHARACTER GENERATION____________
@@ -10345,6 +10348,20 @@ def chat():
             msgString = 'You start a heated philosophical debate with yourself.'
             message(msgString)
 
+def findHiddenOptionsPath():
+    if sys.platform.startswith('darwin') or sys.platform.startswith('linux'):
+        basePath = os.path.expanduser("~")
+        longPath = os.path.join(basePath, "DementiaRL")
+        print(longPath)
+        return longPath
+    elif sys.platform.startswith('win32') or sys.platform.startswith('win64'):
+        basePath = os.getenv("APPDATA")
+        longPath = os.path.join(basePath, "DementiaRL")
+        print(longPath)
+        return longPath
+    else:
+        raise OSError("OS NOT RECOGNIZED ({})".format(sys.platform))
+
 def showPrologue():
     def showScreen(screenText, console, height):
         console.clear()
@@ -10373,7 +10390,56 @@ def showPrologue():
     xpL.load_layer_to_console(root, lData[0], noBG = True)
     for scr in dial.prologueScreens:
         showScreen(scr, con, HEIGHT - 18)
-    
+    con.clear()
+    midScreen = (HEIGHT - 18) // 2
+
+    name = ''
+    letters = []
+    hasConfirmed = False
+    while not tdl.event.isWindowClosed():
+        text = '_'
+        name = ''
+        for letter in letters:
+            name += letter
+        if len(name) < 16:
+            text = name + '_'
+        else:
+            text = name
+
+        con.clear()
+
+        drawCenteredVariableWidth(con, y = midScreen - 1, text = "And this hero's name was...", fg = (217, 0, 0), width = 104)
+        drawCenteredVariableWidth(con, y = midScreen + 1, text = text, fg = (217, 0, 0), width = 104)
+        root.blit(con, x= 22, y=10, width = 104, height = HEIGHT - 18, srcX = 0, srcY = 0)
+        tdl.flush()
+        
+        key = tdl.event.key_wait()
+        if key.keychar.upper()== 'ENTER':
+            if name == '':
+                playWavSound('error.wav')
+            else:
+                hasConfirmed = True
+                break
+            
+        elif key.keychar in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ":
+            if len(name) < 16:
+                letters.append(key.keychar)
+            else:
+                playWavSound('error.wav')
+        elif key.keychar.upper() == 'BACKSPACE':
+            if letters:
+                letters.pop()
+            else:
+                playWavSound('error.wav')
+        elif key.keychar.upper() == 'ESCAPE':
+            quitGame("Return to MM", noSave = True, backToMainMenu= True)
+    if not hasConfirmed:
+        quitGame("Window closed during name enter")
+    hiddenPath = findHiddenOptionsPath()
+    os.makedirs(hiddenPath)
+    hOptionsFilePath = os.path.join(hiddenPath, "DATA")
+    hOptionsFile = open(hOptionsFilePath, "w")
+    hOptionsFile.write("HERONAME:{}".format(name))
 
 
 
