@@ -10347,6 +10347,7 @@ def chat():
 
 def showPrologue():
     def showScreen(screenText, console, height):
+        console.clear()
         screen = dial.formatText(screenText, 104)
         dialLength = len(screen) - 1
         ty = (height // 2) - (dialLength // 2)
@@ -10355,6 +10356,9 @@ def showPrologue():
             if line != 'BREAK':
                 drawCenteredVariableWidth(console, y = ty, text = line, fg = (217, 0, 0), width = 104)
             ty += 1
+        root.blit(console, x= 22, y=10, width = 104, height = HEIGHT - 18, srcX = 0, srcY = 0)
+        tdl.flush()
+        tdl.event.key_wait()
     root.clear()
     asciiFile = os.path.join(absAsciiPath, "redframe.xp")
     xpRawString = gzip.open(asciiFile, "r").read()
@@ -10367,10 +10371,10 @@ def showPrologue():
     con = NamedConsole('con', 104, HEIGHT - 18)
     layerInd = int(0)
     xpL.load_layer_to_console(root, lData[0], noBG = True)
-    showScreen(dial.prologueScr1, con, HEIGHT - 18)
-    root.blit(con, x= 22, y=10, width = 104, height = HEIGHT - 18, srcX = 0, srcY = 0)
-    tdl.flush()
-    tdl.event.key_wait()
+    for scr in dial.prologueScreens:
+        showScreen(scr, con, HEIGHT - 18)
+    
+
 
 
 def GetNamesUnderLookCursor():
