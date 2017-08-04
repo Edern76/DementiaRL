@@ -10436,7 +10436,8 @@ def showPrologue():
     if not hasConfirmed:
         quitGame("Window closed during name enter")
     hiddenPath = findHiddenOptionsPath()
-    os.makedirs(hiddenPath)
+    if not os.path.exists(hiddenPath):
+        os.makedirs(hiddenPath)
     hOptionsFilePath = os.path.join(hiddenPath, "DATA")
     hOptionsFile = open(hOptionsFilePath, "w")
     hOptionsFile.write("HERONAME:{}".format(name))
