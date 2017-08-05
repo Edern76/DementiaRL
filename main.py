@@ -3723,14 +3723,14 @@ class Shooter(Fleeing):
                     line = tdl.map.bresenham(monster.x, monster.y, self.selectedTarget.x, self.selectedTarget.y)
                     obstructed = False
                     for (x, y) in line:
-                        if isBlocked(x, y) and x != monster.x and x != self.selectedTarget.x and y != monster.y and y != self.selectedTarget.y and not rangedComp.passesThrough:
+                        if isBlocked(x, y) and (x, y) != (monster.x, monster.y) and (x, y) != (self.selectedTarget.x, self.selectedTarget.y) and not rangedComp.passesThrough:
                             obstructed = True
                     if obstructed:
                         print('OBSTRUCTED')
                         self.flee()
                     else:
                         print("SHOOTING")
-                    rangedComp.shoot(self.selectedTarget)
+                        rangedComp.shoot(self.selectedTarget)
                 elif monster.distanceTo(self.selectedTarget) > rangedComp.range:
                     print("TRYING TO MOVE")
                     self.tryMove()
@@ -5134,7 +5134,7 @@ class FetchQuest(Quest):
 def quitGame(message, backToMainMenu = False, noSave = False):
     global objects
     global inventory
-    if gameState != "dead" and not noSave and not tutorial:
+    if gameState != "dead" and not noSave: #and not tutorial:
         saveGame()
     for obj in objects:
         del obj
