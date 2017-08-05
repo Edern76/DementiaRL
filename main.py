@@ -313,7 +313,7 @@ pathfinder = None
 pathToTargetTile = []
 
 def convertMusics():
-    musicList = ['Bumpy_Roots', 'Dusty_Feelings', 'Hoxton_Princess']
+    musicList = ['Bumpy_Roots', 'Dusty_Feelings', 'Hoxton_Princess', 'Sweltering_Battle']
     tryPath = os.path.join(absCodePath, 'ffmpeg.exe')
     if os.path.exists(tryPath):
         executablePath = os.path.join(absCodePath, 'ffmpeg.exe')
@@ -10368,7 +10368,16 @@ def findHiddenOptionsPath():
     else:
         raise OSError("OS NOT RECOGNIZED ({})".format(sys.platform))
 
-def showPrologue():
+def showPrologue(escapable = True):
+    global currentMusic
+    currentMusic = str('Sweltering_Battle.wav')
+    stopProcess()
+    print('CREATING MUSIC PROCESS')
+    music = multiprocessing.Process(target = mus.runMusic, args = (currentMusic,))
+    print('STARTING MUSIC PROCESS')
+    music.start()
+    activeProcess.append(music)
+    
     def showScreen(screenText, console, height):
         console.clear()
         screen = dial.formatText(screenText, 104)
@@ -10382,6 +10391,7 @@ def showPrologue():
         root.blit(console, x= 22, y=10, width = 104, height = HEIGHT - 18, srcX = 0, srcY = 0)
         tdl.flush()
         tdl.event.key_wait()
+
     root.clear()
     asciiFile = os.path.join(absAsciiPath, "redframe.xp")
     xpRawString = gzip.open(asciiFile, "r").read()
@@ -10437,7 +10447,7 @@ def showPrologue():
                 letters.pop()
             else:
                 playWavSound('error.wav')
-        elif key.keychar.upper() == 'ESCAPE':
+        elif key.keychar.upper() == 'ESCAPE' and escapable:
             quitGame("Return to MM", noSave = True, backToMainMenu= True)
     if not hasConfirmed:
         quitGame("Window closed during name enter")
@@ -11614,6 +11624,9 @@ def playGame(noSave = False):
 if (__name__ == '__main__' or __name__ == 'main__main__') and root is not None:
     freeze_support()
     convertMusics()
+    hiddenPath = findHiddenOptionsPath()
+    if not os.path.exists(hiddenPath):
+        showPrologue(False)
     mainMenu()
 else:
     print(__name__)
