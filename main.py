@@ -8015,26 +8015,32 @@ tutoGateOpen = False
 
 def makeTutorialMap(level = 1):
     global myMap, objects
-    def openTutorialGate(tile, x, startY, endY, char = None, text = 'The gate opens!'):
+    def openTutorialGate(tile, startX, startY, endY, char = None, text = 'The gate opens!', endX = -1):
         global tutoGateOpen, myMap, objects
+        if endX < 0:
+            endX = startX + 1
         if not tutoGateOpen:
             tutoGateOpen = True
             message(text)
-            for y in range(startY, endY):
-                myMap[x][y].character = char
-                myMap[x][y].blocked = False
-                myMap[x][y].block_sight = False
+            for x in range(startX, endX):
+                for y in range(startY, endY):
+                    myMap[x][y].character = char
+                    myMap[x][y].blocked = False
+                    myMap[x][y].block_sight = False
         print('gate open:', tutoGateOpen)
 
-    def closeTutorialGate(tile, x, startY, endY, char = '/', blockLOS = True, text = 'The gate closes back!'):
+    def closeTutorialGate(tile, startX, startY, endY, char = '/', blockLOS = True, text = 'The gate closes back!', endX = -1):
         global tutoGateOpen, myMap, objects
+        if endX < 0:
+            endX = startX + 1
         if tutoGateOpen:
             tutoGateOpen = False
             message(text)
-            for y in range(startY, endY):
-                myMap[x][y].character = char
-                myMap[x][y].blocked = True
-                myMap[x][y].block_sight = blockLOS
+            for x in range(startX, endX):
+                for y in range(startY, endY):
+                    myMap[x][y].character = char
+                    myMap[x][y].blocked = True
+                    myMap[x][y].block_sight = blockLOS
         print('gate open:', tutoGateOpen)
     
     def loadTutoLevel(tile, level):
@@ -8042,7 +8048,7 @@ def makeTutorialMap(level = 1):
         makeTutorialMap(level)
 
     if level == 1:
-        myMap, objectsToCreate = layoutReader.readMap('tutoFloorOne8')
+        myMap, objectsToCreate = layoutReader.readMap('tutoFloorOne9')
         for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
             myMap[25][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 26, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
             myMap[27][y].onTriggerFunction = lambda tile: openTutorialGate(tile, 26, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
@@ -8052,8 +8058,8 @@ def makeTutorialMap(level = 1):
             myMap[0][y].blocked = False
             myMap[0][y].onTriggerFunction = lambda tile: loadTutoLevel(tile, 2)
         for y in range(27, 32):
-            myMap[59][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 60, 27, 32, chr(207), False, 'The magic barrier closes back behind you!')
-            myMap[61][y].onTriggerFunction = lambda tile: openTutorialGate(tile, 60, 27, 32, text = 'The magic barrier opens in front of you with a slight humming!')
+            myMap[58][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 59, 27, 33, chr(207), False, 'The magic barrier closes back behind you!', 61)
+            myMap[61][y].onTriggerFunction = lambda tile: openTutorialGate(tile, 59, 27, 33, text = 'The magic barrier opens in front of you with a slight humming!', endX = 61)
         for y in range(28, 33):
             myMap[95][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 96, 28, 33, chr(92), False)
             myMap[97][y].onTriggerFunction = lambda tile: openTutorialGate(tile, 96, 28, 33, '.')
