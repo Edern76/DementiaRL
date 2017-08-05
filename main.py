@@ -28,6 +28,7 @@ import code.holeGen as holeGen
 
 from tkinter import *
 from tkinter.messagebox import * #For making obvious freaking error boxes when the console gets too bloated to read anything useful.
+from Cython.Compiler.Nodes import ContinueStatNode
 
 
 if (__name__ == '__main__' or __name__ == 'main__main__'):
@@ -188,6 +189,8 @@ nemesisList = []
 mobsToCalculate = []
 mustCalculate = False
 currentMusic = 'No_Music.wav'
+
+tutorial = False
 
 # - Spells -
 LIGHTNING_DAMAGE = 40 #Default : 40
@@ -2797,7 +2800,7 @@ def createNPCFromMapReader(attributeList):
     return GameObject(int(attributeList[0]), int(attributeList[1]), attributeList[2], attributeList[3], attributeList[4], blocks = True, socialComp = getattr(dial, attributeList[5]))
 
 class Fighter: #All NPCs, enemies and the player
-    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = [0], shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = None, slots = ['head', 'torso', 'left hand', 'right hand', 'legs', 'feet'], equipmentList = [], toEquip = [], attackFunctions = [], noDirectDamage = False, pic = 'ogre.xp', description = 'Placeholder'):
+    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = [0], shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = None, slots = ['head', 'torso', 'left hand', 'right hand', 'legs', 'feet'], equipmentList = [], toEquip = [], attackFunctions = [], noDirectDamage = False, pic = 'ogre.xp', description = 'Placeholder', rangedPower = 0, Ranged = None):
         self.noVitHP = hp
         self.BASE_MAX_HP = hp
         self.hp = hp
@@ -2833,6 +2836,9 @@ class Fighter: #All NPCs, enemies and the player
         self.curShootCooldown = 0
         self.baseLandCooldown = landCooldown
         self.curLandCooldown = 0
+        self.Ranged = Ranged
+        if self.Ranged:
+            Ranged.owner = self
         
         self.acidified = False
         self.acidifiedCooldown = 0
@@ -3224,6 +3230,116 @@ class Fighter: #All NPCs, enemies and the player
         menuWindows.append(window)
         FOV_recompute = True
         tdl.flush()
+
+class RangedNPC:
+    def __init__(self, range, power, accuracy, critical = 5, armorPenetration = 0, buffsOnAttack = [], leechRessource = '', attackFunctions = [], shootMessage = ' shoots {} for ', projChar = '/', projColor = colors.light_orange, continues = False, passesThrough = False, ghost = False):
+        self.range = range
+        self.power = power
+        self.accuracy = accuracy
+        self.critical = critical
+        self.armorPenetration = armorPenetration
+        self.buffsOnAttack = buffsOnAttack
+        self.leechRessource = leechRessource
+        self.attackFunctions = attackFunctions
+        self.shootMessage = shootMessage
+        
+        self.projChar = projChar
+        self.projColor = projColor
+        self.continues = continues
+        self.passesThrough = passesThrough
+        self.ghost = ghost
+    
+    def onAttack(self, target):
+        print('on attck function:', self.owner.owner.name, target.name)
+        if self.buffsOnAttack is not None:
+            for buff in self.buffsOnAttack:
+                dice = randint(1, 100)
+                if dice <= buff[0]:
+                    if buff[1] == 'burning':
+                        applyBurn(target, 100)
+                    if buff[1] == 'poisoned':
+                        poisoned = Buff('poisoned', colors.purple, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10))
+                        poisoned.applyBuff(target)
+        if self.leechRessource is not None:
+            hunger = self.leechRessource == 'hunger'
+            HP = self.leechRessource == 'HP'
+            MP = self.leechRessource == 'MP'
+            if hunger and target == player:
+                player.Player.hunger -= self.leechAmount
+            if HP:
+                target.Fighter.hp -= self.leechAmount
+                self.owner.heal(self.leechAmount//2)
+            if MP:
+                target.Fighter.MP -= self.leechAmount
+                castRegenMana(self.leechAmount//2, caster = self.owner.owner)
+        if self.attackFunctions:
+            for func in self.attackFunctions:
+                func(self, target)
+
+    def toHit(self, target):
+        attack = randint(1, 100)
+        hit = False
+        criticalHit = False
+        
+        hitRatio = BASE_HIT_CHANCE + self.accuracy - target.Fighter.evasion
+        if hitRatio <= 0:
+            hitRatio = 1
+        if hitRatio >= 96:
+            hitRatio = 95
+
+        if DEBUG:
+            message(self.owner.owner.name.capitalize() + ' rolled a ' + str(attack) + ' (target ' + str(hitRatio) + ': ' + str(BASE_HIT_CHANCE) + ' + ' + str(self.accuracy) + ' - ' + str(target.Fighter.evasion) + ')', colors.violet)
+
+        if attack <= hitRatio:
+            hit = True
+            crit = randint(1, 100)
+            if DEBUG:
+                message(self.owner.owner.name.capitalize() + ' rolled a ' + str(crit) + ' (target ' + str(self.critical) + ')', colors.violet)
+            if crit <= self.critical:
+                criticalHit = True
+        return hit, criticalHit
+
+    def shoot(self, target):
+        global FOV_recompute
+        [hit, criticalHit] = self.toHit(target)
+        projectile(self.owner.owner.x, self.owner.owner.y, target.x, target.y, self.projChar, self.projColor, self.continues, self.passesThrough, self.ghost)
+        FOV_recompute = True
+        if hit:
+            penetratedArmor = target.Fighter.armor - self.armorPenetration
+            if penetratedArmor < 0:
+                penetratedArmor = 0
+            if criticalHit:
+                damage = (randint(self.power - 2, self.power + 2) - penetratedArmor) * 3
+            else:
+                damage = randint(self.power - 2, self.power + 2) - penetratedArmor
+            if not 'frozen' in convertBuffsToNames(self.owner):
+                if damage > 0:
+                    if target == player:
+                        if criticalHit:
+                            message(self.owner.owner.name.capitalize() + ' critically' + self.shootMessage.format('you') + 'for ' + str(damage) + ' hit points!', colors.dark_orange)
+                        else:
+                            message(self.owner.owner.name.capitalize() + self.shootMessage.format('you') + 'for ' + str(damage) + ' hit points.', colors.orange)
+                    elif self.owner.AI and self.owner.AI.__class__.__name__ == "FriendlyMonster" and self.owner.AI.friendlyTowards == player:
+                        if criticalHit:
+                            message('Your fellow ' + self.owner.name + ' critically' + self.shootMessage.format(target.name) + 'for ' + str(damage) + ' hit points!', colors.darker_green)
+                        else:
+                            message('Your fellow ' + self.owner.name + self.shootMessage.format(target.name) + 'for ' + str(damage) + ' hit points.', colors.dark_green)
+                    else:
+                        if criticalHit:
+                            message(self.owner.owner.name.capitalize() + ' critically' + self.shootMessage.format(target.name) + 'for ' + str(damage) + ' hit points!')
+                        else:
+                            message(self.owner.owner.name.capitalize() + self.shootMessage.format(target.name) + 'for ' + str(damage) + ' hit points.')
+                    target.Fighter.takeDamage(damage, self.owner.owner.name)
+                else:
+                    if target == player:
+                        message(self.owner.owner.name.capitalize() + self.shootMessage.format('you') + 'but it has no effect !')
+            self.onAttack(target)
+        
+        else:
+            if target == player:
+                message(self.owner.owner.name.capitalize() + ' missed you!', colors.white)
+            else:
+                message(self.owner.owner.name.capitalize() + ' missed ' + target.name + '.')
         
 class Pathfinder(threading.Thread):
     def __init__(self, mob, goalX, goalY, mapToUse = None):
@@ -3537,8 +3653,8 @@ class Charger:
         self.charging = False
 
 class FastMonster(BasicMonster):
-    def __init__(self, speed):
-        BasicMonster.__init__(self)
+    def __init__(self, speed, wanderer = True):
+        BasicMonster.__init__(self, wanderer)
         self.speed = speed
     
     def takeTurn(self):
@@ -3546,8 +3662,8 @@ class FastMonster(BasicMonster):
             self.takeBasicTurn() #for some reason when moving only one tile it won't attack as a second action
 
 class Fleeing(BasicMonster):
-    def __init__(self):
-        BasicMonster.__init__(self)
+    def __init__(self, wanderer = True):
+        BasicMonster.__init__(self, wanderer)
 
     def flee(self):
         monster = self.owner
@@ -3577,6 +3693,50 @@ class Fleeing(BasicMonster):
         monster = self.owner
         if not 'frozen' in convertBuffsToNames(self.owner.Fighter) and monster.distanceTo(player) <= 15:
             self.flee()
+                
+        elif not 'frozen' in convertBuffsToNames(self.owner.Fighter):
+            self.wander()
+
+class Shooter(Fleeing):
+    def __init__(self, meleeFighter = True, wanderer = True):
+        Fleeing.__init__(self, wanderer)
+        self.meleeFighter = meleeFighter
+    
+    def takeTurn(self):
+        global mustCalculate
+        monster = self.owner
+        rangedComp = monster.Fighter.Ranged
+        self.dumbCounter = 0
+        self.failCounter = 0
+        self.didRecalcThisTurn = False
+        
+        if not 'frozen' in convertBuffsToNames(self.owner.Fighter) and monster.distanceTo(player) <= 15:
+            self.selectTarget()
+            if self.selectedTarget is not None:
+                print("SELECTED TARGET IS NOT NONE")
+                if monster.distanceTo(self.selectedTarget) < 2:
+                    if self.meleeFighter:
+                        monster.Fighter.attack(self.selectedTarget)
+                    else:
+                        self.flee()
+                elif monster.distanceTo(self.selectedTarget) <= rangedComp.range:
+                    line = tdl.map.bresenham(monster.x, monster.y, self.selectedTarget.x, self.selectedTarget.y)
+                    obstructed = False
+                    for (x, y) in line:
+                        if isBlocked(x, y) and x != monster.x and x != self.selectedTarget.x and y != monster.y and y != self.selectedTarget.y and not rangedComp.passesThrough:
+                            obstructed = True
+                    if obstructed:
+                        print('OBSTRUCTED')
+                        self.flee()
+                    else:
+                        print("SHOOTING")
+                    rangedComp.shoot(self.selectedTarget)
+                elif monster.distanceTo(self.selectedTarget) > rangedComp.range:
+                    print("TRYING TO MOVE")
+                    self.tryMove()
+            else:
+                print("No target, still trying to move")
+                self.tryMove()
                 
         elif not 'frozen' in convertBuffsToNames(self.owner.Fighter):
             self.wander()
@@ -4974,7 +5134,7 @@ class FetchQuest(Quest):
 def quitGame(message, backToMainMenu = False, noSave = False):
     global objects
     global inventory
-    if gameState != "dead" and not noSave:
+    if gameState != "dead" and not noSave and not tutorial:
         saveGame()
     for obj in objects:
         del obj
@@ -5459,6 +5619,7 @@ def projectile(sourceX, sourceY, destX, destY, char, color, continues = False, p
             actualChar = char
         proj = GameObject(0, 0, actualChar, 'proj', color)
         objects.append(proj)
+        line.pop(0)
         for loop in range(len(line)):
             (x, y) = line.pop(0)
             proj.x, proj.y = x, y
@@ -8046,9 +8207,15 @@ def makeTutorialMap(level = 1):
     def loadTutoLevel(tile, level):
         global myMap, objects, player
         makeTutorialMap(level)
+    
+    def removeItems(tile):
+        global inventory, equipmentList
+        inventory = []
+        equipmentList = []
+        message('The barrier fizzles. You notice all your equipment has vanished!', colors.light_han)
 
     if level == 1:
-        myMap, objectsToCreate = layoutReader.readMap('tutoFloorOne9')
+        myMap, objectsToCreate = layoutReader.readMap('tutoFloorOne')
         for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
             myMap[25][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 26, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
             myMap[27][y].onTriggerFunction = lambda tile: openTutorialGate(tile, 26, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
@@ -8057,15 +8224,16 @@ def makeTutorialMap(level = 1):
         for y in range(MID_MAP_HEIGHT - 2, MID_MAP_HEIGHT + 3):
             myMap[0][y].blocked = False
             myMap[0][y].onTriggerFunction = lambda tile: loadTutoLevel(tile, 2)
-        for y in range(27, 32):
+        for y in range(26, 34):
             myMap[58][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 59, 27, 33, chr(207), False, 'The magic barrier closes back behind you!', 61)
             myMap[61][y].onTriggerFunction = lambda tile: openTutorialGate(tile, 59, 27, 33, text = 'The magic barrier opens in front of you with a slight humming!', endX = 61)
+            myMap[60][y].onTriggerFunction = removeItems
         for y in range(28, 33):
             myMap[95][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 96, 28, 33, chr(92), False)
             myMap[97][y].onTriggerFunction = lambda tile: openTutorialGate(tile, 96, 28, 33, '.')
     
         swordComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus = 10, meleeWeapon=True)
-        sword = GameObject(50, MID_MAP_HEIGHT, '-', 'longsword', colors.light_sky, Equipment = swordComponent, Item = Item(weight=3.5, pic = 'longSword.xp', useText='Equip'))
+        sword = GameObject(75, MID_MAP_HEIGHT, '-', 'longsword', colors.light_sky, Equipment = swordComponent, Item = Item(weight=3.5, pic = 'longSword.xp', useText='Equip'))
         
         helmetComp = Equipment(slot = 'head', type = 'light armor', armorBonus=2, meleeWeapon=False)
         helmet = GameObject(0, 0, '[', 'helmet', colors.silver, Equipment=helmetComp, Item=Item(weight=2.0, pic = 'darksoulHelmet.xp', useText='Equip'))
@@ -8078,18 +8246,29 @@ def makeTutorialMap(level = 1):
             objects.append(object)
         
     elif level == 2:
-        myMap, objectsToCreate = layoutReader.readMap('tutorial2')
+        myMap, objectsToCreate = layoutReader.readMap('tutoFloorTwo')
         for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
             myMap[109][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 110, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
             myMap[111][y].onTriggerFunction = lambda tile: openTutorialGate(tile, 110, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
         
-        objects = [player]
+        swordComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus = 10, meleeWeapon=True)
+        sword = GameObject(121, 44, '-', 'longsword', colors.light_sky, Equipment = swordComponent, Item = Item(weight=3.5, pic = 'longSword.xp', useText='Equip'))
+        
+        helmetComp = Equipment(slot = 'head', type = 'light armor', armorBonus=2, meleeWeapon=False)
+        helmet = GameObject(0, 0, '[', 'helmet', colors.silver, Equipment=helmetComp, Item=Item(weight=2.0, pic = 'darksoulHelmet.xp', useText='Equip'))
+        fighterComp = Fighter(hp = 20, armor = 0, power = 6, accuracy = 60, evasion = 15, xp = 350, deathFunction=monsterDeath, lootFunction= [helmet], lootRate=[100], toEquip=[helmet], description = "One of Zargothrox's fighters, he seems to be guarding the entrance to the tower.")
+        guard = GameObject(115, 26, 'g', 'guard', colors.darker_han, blocks = True, Fighter=fighterComp, AI=BasicMonster(wanderer=False))
+        
+        shooterComp = RangedNPC(range = 10, power = 6, accuracy = 60)
+        fighterComp = Fighter(hp = 20, armor = 0, power = 6, accuracy = 60, evasion = 15, xp = 350, deathFunction=monsterDeath, description = "One of Zargothrox's fighters, he seems to be guarding the entrance to the tower. He is equipped with a bow.", Ranged=shooterComp)
+        guard2 = GameObject(115, 34, 'g', 'guard', colors.darker_han, blocks = True, Fighter=fighterComp, AI=Shooter(wanderer=False))
+        
+        objects = [player, sword, guard, guard2]
         player.x = MAP_WIDTH - 2
         for attributeList in objectsToCreate:
             object = createNPCFromMapReader(attributeList)
             objects.append(object)
-        
-        #checkMap(False)
+
 
 def makeHiddenTown(fall = False):
     global myMap, objects, upStairs, rooms, numberRooms, bossRoom
@@ -9844,7 +10023,7 @@ def controlBox():
     tdl.event.key_wait()
 
 def mainMenu():
-    global myMap, player
+    global myMap, player, tutorial
     if (__name__ == '__main__' or __name__ == 'main__main__') and root is not None:
         global player, currentMusic, activeProcess
         choices = ['Tutorial', 'New Game', 'Continue', 'Leaderboard', 'Test Dungeon', 'About', 'Quit']
@@ -9856,7 +10035,8 @@ def mainMenu():
         print('STARTING MUSIC PROCESS')
         music.start()
         activeProcess.append(music)
-
+        tutorial = False
+        
         while not tdl.event.isWindowClosed():
             root.clear()
             asciiFile = os.path.join(absAsciiPath, 'logo.xp')
@@ -11123,6 +11303,14 @@ def nextLevel(boss = False, changeBranch = None, fall = False, fromStairs = None
     initializeFOV()
 
 def playTutorial():
+    global currentMusic, FOV_recompute, DEBUG, tutorial
+    if currentMusic is None or currentMusic in ('No_Music.wav', 'Dusty_Feelings.wav', 'Sweltering_Battle.wav'):
+        currentMusic = 'Bumpy_Roots.wav'
+    stopProcess()
+    music = multiprocessing.Process(target = mus.runMusic, args = (currentMusic,))
+    music.start()
+    activeProcess.append(music)
+    
     def displayTip(text, x = 0, y = 0, arrow = True, pointedDirection = 'right'):
         global FOV_recompute
         if pointedDirection == 'right':
@@ -11162,14 +11350,8 @@ def playTutorial():
         for object in objects:
             object.clear()
         FOV_recompute = True
-
-    global currentMusic
-    if currentMusic is None or currentMusic in ('No_Music.wav', 'Dusty_Feelings.wav'):
-        currentMusic = 'Bumpy_Roots.wav'
-    stopProcess()
-    music = multiprocessing.Process(target = mus.runMusic, args = (currentMusic,))
-    music.start()
-    activeProcess.append(music)
+    
+    tutorial = True
     displayedPickUp = False
     displayedInventory = False
     displayedMonster = False
@@ -11182,7 +11364,6 @@ def playTutorial():
     
     displayTip('Move around using the directional ARROWS or the NUMPAD. Pressing 5 will pass a turn.', x = 0, y = 0, arrow = False)
     while not tdl.event.isWindowClosed():
-        global FOV_recompute, DEBUG
         Update()
         if myMap is None:
             raise TypeError("MYMAP IS NONE, PLAYTUT FUNC")
@@ -11232,16 +11413,16 @@ def playTutorial():
                 displayTip('Do not forget to regularly check the message log for additional informations about your surroundings.', MID_WIDTH, MAP_HEIGHT - 1, True, 'down')
                 displayedLog = True
             for object in inventory:
-                if object.name == 'longsword' and not displayedInventory:
+                if object.Item and not displayedInventory:
                     displayTip('You can open your inventory by pressing I, to see what objects you have gathered.', 0, 0, False)
                     displayedInventory = True
             for object in objects:
                 if object.name == 'guard' and (object.x, object.y) in visibleTiles and not displayedMonster and object.distanceTo(player) < 12:
                     displayedMonster = True
                     displayTip('Beware! This guard looks pretty aggressive! You can fight him by simply walking onto him.', object.x - 1, object.y, True)
-                if object.name == 'longsword' and object.distanceTo(player) <= 8 and not displayedPickUp:
+                if object.Item and object.distanceTo(player) <= 8 and not displayedPickUp:
                     displayedPickUp = True
-                    displayTip('This is a sword. Pick it up by pressing SPACEBAR while on the same tile.', object.x - 1, object.y)
+                    displayTip('This is a {}. Pick it up by pressing SPACEBAR while on the same tile.'.format(object.name), object.x - 1, object.y)
                     FOV_recompute = True
                 if object.name == 'General Guillem' and (object.x, object.y) in visibleTiles and object.distanceTo(player) <= 7 and not displayedGeneral:
                     message("General Guillem shouts: 'Greetings [HERO_NAME]! Come to me to summarize our plan!'", colors.gold)
