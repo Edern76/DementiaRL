@@ -28,7 +28,6 @@ import code.holeGen as holeGen
 
 from tkinter import *
 from tkinter.messagebox import * #For making obvious freaking error boxes when the console gets too bloated to read anything useful.
-from Cython.Compiler.Nodes import ContinueStatNode
 
 
 if (__name__ == '__main__' or __name__ == 'main__main__'):
@@ -2667,11 +2666,17 @@ class GameObject:
     def pluralName(self):
         if self.Item:
             if self.Item.identified:
-                return self.pName
+                if self.pName:
+                    return self.pName
+                else:
+                    return self.name + 's'
             else:
                 return self.Item.unIDpName
         else:
-            return self.pName
+            if self.pName:
+                return self.pName
+            else:
+                return self.name + 's'
 
     def moveTowards(self, target_x, target_y):
         dx = target_x - self.x
@@ -5336,6 +5341,7 @@ def getInput():
                 else:
                     return
     elif userInput.keychar.upper() == 'X':
+        print('SHOOTING')
         shooting = shoot()
         if shooting == 'didnt-take-turn':
             return 'didnt-take-turn'
@@ -8237,7 +8243,7 @@ def makeTutorialMap(level = 1):
         
         helmetComp = Equipment(slot = 'head', type = 'light armor', armorBonus=2, meleeWeapon=False)
         helmet = GameObject(0, 0, '[', 'helmet', colors.silver, Equipment=helmetComp, Item=Item(weight=2.0, pic = 'darksoulHelmet.xp', useText='Equip'))
-        fighterComp = Fighter(hp = 20, armor = 0, power = 5, accuracy = 60, evasion = 15, xp = 350, deathFunction=monsterDeath, lootFunction= [helmet], lootRate=[100], toEquip=[helmet], description = "One of Zargothrox's fighters, he seems to be guarding the entrance to the tower.")
+        fighterComp = Fighter(hp = 20, armor = 0, power = 3, accuracy = 60, evasion = 15, xp = 350, deathFunction=monsterDeath, lootFunction= [helmet], lootRate=[100], toEquip=[helmet], description = "One of Zargothrox's fighters, he seems to be guarding the entrance to the tower.")
         guard = GameObject(27, MID_MAP_HEIGHT, 'g', 'guard', colors.darker_han, blocks = True, Fighter=fighterComp, AI=BasicMonster(wanderer=False))
         
         objects = [player, sword, guard]
@@ -8259,8 +8265,12 @@ def makeTutorialMap(level = 1):
         fighterComp = Fighter(hp = 20, armor = 0, power = 6, accuracy = 60, evasion = 15, xp = 350, deathFunction=monsterDeath, lootFunction= [helmet], lootRate=[100], toEquip=[helmet], description = "One of Zargothrox's fighters, he seems to be guarding the entrance to the tower.")
         guard = GameObject(115, 26, 'g', 'guard', colors.darker_han, blocks = True, Fighter=fighterComp, AI=BasicMonster(wanderer=False))
         
+        equipmentComponent = Equipment(slot = 'two handed', type = 'missile weapon', powerBonus = 1, ranged = True, rangedPower = 7, maxRange = SIGHT_RADIUS, ammo = 'arrow')
+        bow = GameObject(0, 0, ')', 'shortbow', colors.light_orange, Equipment = equipmentComponent, Item = Item(weight = 1.0, pic = 'bow.xp'))
+        itemComponent = Item(stackable = True, amount = 30)
+        arrows = GameObject(0, 0, '^', 'arrow', colors.light_orange, Item = itemComponent)
         shooterComp = RangedNPC(range = 10, power = 6, accuracy = 60)
-        fighterComp = Fighter(hp = 20, armor = 0, power = 6, accuracy = 60, evasion = 15, xp = 350, deathFunction=monsterDeath, description = "One of Zargothrox's fighters, he seems to be guarding the entrance to the tower. He is equipped with a bow.", Ranged=shooterComp)
+        fighterComp = Fighter(hp = 20, armor = 0, power = 6, accuracy = 60, evasion = 15, xp = 350, deathFunction=monsterDeath, lootFunction = [bow, arrows], lootRate = [100, 100], description = "One of Zargothrox's fighters, he seems to be guarding the entrance to the tower. He is equipped with a bow.", Ranged=shooterComp)
         guard2 = GameObject(115, 34, 'g', 'guard', colors.darker_han, blocks = True, Fighter=fighterComp, AI=Shooter(wanderer=False))
         
         objects = [player, sword, guard, guard2]
@@ -9343,10 +9353,12 @@ def getEquippedInSlot(slot, hand = False):
 
 def getEquippedInHands():
     inHands = []
+    print('SEARCHING IN HANDS')
     for object in equipmentList:
         if object.Equipment and (object.Equipment.slot == 'one handed' or object.Equipment.slot == 'two handed') and object.Equipment.isEquipped:
             inHands.append(object)
-        return inHands
+            print('FOUND ITEM IN HANDS')
+    return inHands
 
 def getAllEquipped(object):  #returns a list of equipped items
     if object == player:
@@ -10701,6 +10713,8 @@ def targetTile(maxRange = None, showBresenham = False, unlimited = False):
             objects.remove(cursor)
             del cursor
             tilesInRange = []
+            if pathToTargetTile:
+                pathToTargetTile = []
             con.clear()
             Update()
             return 'cancelled'
