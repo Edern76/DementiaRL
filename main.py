@@ -8226,6 +8226,19 @@ def makeTutorialMap(level = 1):
         inventory = []
         equipmentList = []
         message('The barrier fizzles. You notice all your equipment has vanished!', colors.light_han)
+    
+    class TutoLevel:
+        def __init__(self, level = 1):
+            self.level = level
+            self.shortName = str(level)
+    
+    class TutoStairs(Stairs):
+        def __init__(self, climb, branchesFrom, branchesTo):
+            actualBranchesTo = TutoLevel(branchesTo)
+            Stairs.__init__(self, climb, branchesFrom, actualBranchesTo)
+        
+        def climbStairs(self):
+            makeTutorialMap(self.branchesTo.level)
 
     if level == 1:
         myMap, objectsToCreate = layoutReader.readMap('tutoFloorOne')
@@ -8277,11 +8290,18 @@ def makeTutorialMap(level = 1):
         fighterComp = Fighter(hp = 20, armor = 0, power = 6, accuracy = 60, evasion = 15, xp = 350, deathFunction=monsterDeath, lootFunction = [bow, arrows], lootRate = [100, 100], description = "One of Zargothrox's fighters, he seems to be guarding the entrance to the tower. He is equipped with a bow.", Ranged=shooterComp)
         guard2 = GameObject(115, 34, 'g', 'guard', colors.darker_han, blocks = True, Fighter=fighterComp, AI=Shooter(wanderer=False))
         
-        objects = [player, sword, guard, guard2]
+        upStairs = GameObject(6, 11, '<', 'stairs', colors.light_grey, alwaysVisible = True, darkColor = colors.dark_grey, Stairs = TutoStairs(climb='up', branchesFrom=2, branchesTo=3))
+
+        
+        objects = [player, sword, guard, guard2, upStairs]
         player.x = MAP_WIDTH - 2
         for attributeList in objectsToCreate:
             object = createNPCFromMapReader(attributeList)
             objects.append(object)
+    
+    elif level == 3:
+        myMap, objectsToCreate = layoutReader.readMap('tutoFloorThree')
+        objects = [player]
 
 
 def makeHiddenTown(fall = False):
@@ -10038,6 +10058,59 @@ def controlBox():
     tdl.flush()
     tdl.event.key_wait()
 
+def launchTutorial(prologueEsc = True):
+    global player
+    showPrologue(prologueEsc)
+    light = Trait('Light weapons', '+20% damage per skillpoints with light weapons', type = 'skill', selectable = False, tier = 3)
+    heavy = Trait('Heavy weapons', '+20% damage per skillpoints with heavy weapons', type = 'skill', selectable = False, tier = 3)
+    missile = Trait('Missile weapons', '+20% damage per skillpoints with missile weapons', type = 'skill', selectable = False, tier = 3)
+    shield = Trait('Shield mastery', 'You trained to master shield wielding.', type = 'skill', selectable = False, tier = 3)
+    armorEff = Trait('Armor efficiency', 'You know very well how to maximize the protection brought by your armor', type = 'skill', selectable = False, tier = 3)
+    melee = Trait('Melee Weaponry', 'You are trained to wreck your enemies at close range.', type = 'skill', selectable = False, tier = 2, allowsSelection=[light, heavy])
+    ranged = Trait('Ranged Weaponry', 'You shoot people in the knees.', type = 'skill', selectable = False, tier = 2, allowsSelection=[missile])
+    armorW = Trait('Armor wielding', 'You are trained to wield several types of armor.', type = 'skill', selectable = False, tier = 2, allowsSelection=[armorEff, shield])
+    martial = Trait('Martial training', 'You are trained to use a wide variety of weapons', type = 'skill', acc=(10, 0), allowsSelection=[melee, ranged, armorW])
+    aggressive = Trait('Aggressive', 'You angry', type = 'trait', selectable=False, selected = False)
+    traits = [martial, melee, ranged, armorW, light, heavy, missile, shield, armorEff, aggressive]
+    
+    def initiateSkill(skillList, maxHeight, heightCounter, originY = 0):
+        newHeight = maxHeight//len(skillList)
+        mid = newHeight//2
+        counter = 0
+        for skill in skillList:
+            skill.x = skill.tier * quarterX
+            skill.y = mid + counter * newHeight + heightCounter * maxHeight + originY
+            print(skill.name, skill.tier, len(skill.allowsSelection), skill.x, skill.y)
+            if skill.allowsSelection and len(skill.allowsSelection) > 0:
+                print('initiating selectable skills of ' + skill.name)
+                initiateSkill(skill.allowsSelection, newHeight, counter, maxHeight * heightCounter + originY)
+            counter += 1
+    
+    
+    newHeight = 76
+    mid = newHeight//2
+    counter = 0
+    quarterX = (WIDTH - 2)//5
+    for skill in traits:
+        if skill.tier == 1:
+            skill.x = quarterX
+            skill.y = mid + newHeight * counter
+            print(skill.name, skill.tier, len(skill.allowsSelection), skill.x, skill.y)
+            if skill.allowsSelection and len(skill.allowsSelection) > 0:
+                print('initiating selectable skills of ' + skill.name)
+                initiateSkill(skill.allowsSelection, newHeight, counter)
+            counter += 1
+
+    LvlUp = {'pow': 1, 'acc': 10, 'ev': 0, 'arm': 1, 'hp': 20, 'mp': 0, 'crit': 0, 'str': 0, 'dex': 0, 'vit': 0, 'will': 0, 'ap': 0}
+    playerComp = Player('Angus McFife', 0, 0, 0, 0, 45.0, 'Human', 'Knight', traits, LvlUp)
+    fighterComp = Fighter(hp = 120, power= 1, armor= 1, deathFunction=playerDeath, xp=0, evasion = 20, accuracy = 50, maxMP= 20, critical = 5)
+    player = GameObject(MAP_WIDTH - 2, MID_MAP_HEIGHT, '@', Fighter = fighterComp, Player = playerComp, name = 'Angus McFife', color = (0, 210, 0))
+    player.level = 1
+    player.Fighter.hp = player.Fighter.baseMaxHP
+    player.Fighter.MP = player.Fighter.baseMaxMP
+    makeTutorialMap(1)
+    playTutorial()
+
 def mainMenu():
     global myMap, player, tutorial
     if (__name__ == '__main__' or __name__ == 'main__main__') and root is not None:
@@ -10082,56 +10155,7 @@ def mainMenu():
                 index = 0
             if key.keychar.upper() == "ENTER":
                 if index == 0:
-                    showPrologue()
-                    light = Trait('Light weapons', '+20% damage per skillpoints with light weapons', type = 'skill', selectable = False, tier = 3)
-                    heavy = Trait('Heavy weapons', '+20% damage per skillpoints with heavy weapons', type = 'skill', selectable = False, tier = 3)
-                    missile = Trait('Missile weapons', '+20% damage per skillpoints with missile weapons', type = 'skill', selectable = False, tier = 3)
-                    shield = Trait('Shield mastery', 'You trained to master shield wielding.', type = 'skill', selectable = False, tier = 3)
-                    armorEff = Trait('Armor efficiency', 'You know very well how to maximize the protection brought by your armor', type = 'skill', selectable = False, tier = 3)
-                    melee = Trait('Melee Weaponry', 'You are trained to wreck your enemies at close range.', type = 'skill', selectable = False, tier = 2, allowsSelection=[light, heavy])
-                    ranged = Trait('Ranged Weaponry', 'You shoot people in the knees.', type = 'skill', selectable = False, tier = 2, allowsSelection=[missile])
-                    armorW = Trait('Armor wielding', 'You are trained to wield several types of armor.', type = 'skill', selectable = False, tier = 2, allowsSelection=[armorEff, shield])
-                    martial = Trait('Martial training', 'You are trained to use a wide variety of weapons', type = 'skill', acc=(10, 0), allowsSelection=[melee, ranged, armorW])
-                    aggressive = Trait('Aggressive', 'You angry', type = 'trait', selectable=False, selected = False)
-                    traits = [martial, melee, ranged, armorW, light, heavy, missile, shield, armorEff, aggressive]
-                    
-                    def initiateSkill(skillList, maxHeight, heightCounter, originY = 0):
-                        newHeight = maxHeight//len(skillList)
-                        mid = newHeight//2
-                        counter = 0
-                        for skill in skillList:
-                            skill.x = skill.tier * quarterX
-                            skill.y = mid + counter * newHeight + heightCounter * maxHeight + originY
-                            print(skill.name, skill.tier, len(skill.allowsSelection), skill.x, skill.y)
-                            if skill.allowsSelection and len(skill.allowsSelection) > 0:
-                                print('initiating selectable skills of ' + skill.name)
-                                initiateSkill(skill.allowsSelection, newHeight, counter, maxHeight * heightCounter + originY)
-                            counter += 1
-                    
-                    
-                    newHeight = 76
-                    mid = newHeight//2
-                    counter = 0
-                    quarterX = (WIDTH - 2)//5
-                    for skill in traits:
-                        if skill.tier == 1:
-                            skill.x = quarterX
-                            skill.y = mid + newHeight * counter
-                            print(skill.name, skill.tier, len(skill.allowsSelection), skill.x, skill.y)
-                            if skill.allowsSelection and len(skill.allowsSelection) > 0:
-                                print('initiating selectable skills of ' + skill.name)
-                                initiateSkill(skill.allowsSelection, newHeight, counter)
-                            counter += 1
-
-                    LvlUp = {'pow': 1, 'acc': 10, 'ev': 0, 'arm': 1, 'hp': 20, 'mp': 0, 'crit': 0, 'str': 0, 'dex': 0, 'vit': 0, 'will': 0, 'ap': 0}
-                    playerComp = Player('Angus McFife', 0, 0, 0, 0, 45.0, 'Human', 'Knight', traits, LvlUp)
-                    fighterComp = Fighter(hp = 120, power= 1, armor= 1, deathFunction=playerDeath, xp=0, evasion = 20, accuracy = 50, maxMP= 20, critical = 5)
-                    player = GameObject(MAP_WIDTH - 2, MID_MAP_HEIGHT, '@', Fighter = fighterComp, Player = playerComp, name = 'Angus McFife', color = (0, 210, 0))
-                    player.level = 1
-                    player.Fighter.hp = player.Fighter.baseMaxHP
-                    player.Fighter.MP = player.Fighter.baseMaxMP
-                    makeTutorialMap(1)
-                    playTutorial()
+                    launchTutorial()
                 elif index == 1:
                     (playerComponent, allTraits, skillpoints) = characterCreation()
                     if playerComponent != 'cancelled':
@@ -11885,7 +11909,7 @@ if (__name__ == '__main__' or __name__ == 'main__main__') and root is not None:
     convertMusics()
     hiddenPath = findHiddenOptionsPath()
     if not os.path.exists(hiddenPath):
-        showPrologue(False)
+        launchTutorial(False)
     mainMenu()
 else:
     print(__name__)
