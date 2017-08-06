@@ -8241,7 +8241,7 @@ def makeTutorialMap(level = 1):
             makeTutorialMap(self.branchesTo.level)
 
     if level == 1:
-        myMap, objectsToCreate = layoutReader.readMap('tutoFloorOne')
+        myMap, objectsToCreate = layoutReader.readMap('tutoFloorOne1')
         for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
             myMap[25][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 26, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
             myMap[27][y].onTriggerFunction = lambda tile: openTutorialGate(tile, 26, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
@@ -8263,7 +8263,12 @@ def makeTutorialMap(level = 1):
         fighterComp = Fighter(hp = 20, armor = 0, power = 3, accuracy = 60, evasion = 15, xp = 350, deathFunction=monsterDeath, lootFunction= [helmet], lootRate=[100], toEquip=[helmet], description = "One of Zargothrox's fighters, he seems to be guarding the entrance to the tower.")
         guard = GameObject(27, MID_MAP_HEIGHT, 'g', 'guard', colors.darker_han, blocks = True, Fighter=fighterComp, AI=BasicMonster(wanderer=False))
         
-        objects = [player, guard]
+
+        potion = GameObject(20, 24, '!', 'healing potion', colors.red, Item = Item(useFunction = lambda: castHeal(player.Fighter.maxHP), weight = 0.4, stackable=True, amount = 2, pic = 'redPotion.xp', description = "A potion that stimulates cell growth when ingested, which allows for wounds to heal signifcantly faster. However, it also notably increases risk of cancer, but if you're in a situation where you have to drink such a potion, this is probably one of the least of your worries.", identified=True, useText = 'Drink'), blocks = False)
+        potion2 = GameObject(21, 26, '!', 'healing potion', colors.red, Item = Item(useFunction = lambda: castHeal(player.Fighter.maxHP), weight = 0.4, stackable=True, amount = 2, pic = 'redPotion.xp', description = "A potion that stimulates cell growth when ingested, which allows for wounds to heal signifcantly faster. However, it also notably increases risk of cancer, but if you're in a situation where you have to drink such a potion, this is probably one of the least of your worries.", identified=True, useText = 'Drink'), blocks = False)
+        bread = GameObject(17, 34, ',', "slice of bread", colors.yellow, Item = Item(useFunction=satiateHunger, arg1 = 200, arg2 = "a slice of bread", weight = 0.2, stackable=True, amount = 5, description = "This has probably been lying on the ground for ages, but you'll have to deal with it if you don't want to starve.", itemtype = 'food', useText = 'Eat'), blocks = False, pName = "slices of bread") 
+        
+        objects = [player, guard, potion, potion2, bread]
         for attributeList in objectsToCreate:
             object = createNPCFromMapReader(attributeList)
             objects.append(object)
@@ -8300,8 +8305,10 @@ def makeTutorialMap(level = 1):
             objects.append(object)
     
     elif level == 3:
-        myMap, objectsToCreate = layoutReader.readMap('tutoFloorThree')
-        objects = [player]
+        myMap, objectsToCreate = layoutReader.readMap('tutoFloorThree1')
+        downStairs = GameObject(6, 11, '>', 'stairs', colors.light_grey, alwaysVisible = True, darkColor = colors.dark_grey, Stairs = TutoStairs(climb='down', branchesFrom=3, branchesTo=2))
+
+        objects = [player, downStairs]
 
 
 def makeHiddenTown(fall = False):
@@ -11445,6 +11452,7 @@ def playTutorial():
     givenSword = False
     displayedLog = False
     displayedShoot = False
+    displayedStairs = False
     FOV_recompute = True
     Update()
     FOV_recompute = True
@@ -11523,6 +11531,9 @@ def playTutorial():
                 if object.name == 'shortbow' and not displayedShoot:
                     displayedShoot = True
                     displayTip("When equipped with a ranged weapon such as this shortbow, you can press 'x' to shoot. However, most of these weapons require ammunition, such as these arrows.", object.x - 1, object.y)
+                if object.Stairs and not displayedStairs and (object.x, object.y) in visibleTiles and object.distanceTo(player) <= 7:
+                    displayedStairs = True
+                    displayTip("These are the stairs allowing you to climb Zarg's tower. Press '<' to climb them up.", object.x - 1, object.y)
                 if object.Fighter and object.Fighter.spellsOnCooldown and object.Fighter is not None:
                     try:
                         for spell in object.Fighter.spellsOnCooldown:
