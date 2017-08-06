@@ -190,6 +190,7 @@ mustCalculate = False
 currentMusic = 'No_Music.wav'
 
 tutorial = False
+hasSpokenToGeneral = False
 
 # - Spells -
 LIGHTNING_DAMAGE = 40 #Default : 40
@@ -2651,6 +2652,10 @@ class GameObject:
         self.socialComp = socialComp
         self.shopComp = shopComp
         self.questList = questList
+        
+        if self.Item:
+            if self.Item.useText == 'Use' and self.Equipment:
+                self.Item.useText = 'Equip'
     
     @property
     def name(self):
@@ -3730,6 +3735,7 @@ class Shooter(Fleeing):
                     for (x, y) in line:
                         if isBlocked(x, y) and (x, y) != (monster.x, monster.y) and (x, y) != (self.selectedTarget.x, self.selectedTarget.y) and not rangedComp.passesThrough:
                             obstructed = True
+                            break
                     if obstructed:
                         print('OBSTRUCTED')
                         self.flee()
@@ -4843,8 +4849,9 @@ class Equipment:
                         leftEquipment.unequip()
                     if oldEquipment is not None:
                         oldEquipment.unequip()
-        
-                inventory.remove(self.owner)
+                
+                if self.owner in inventory:
+                    inventory.remove(self.owner)
                 equipmentList.append(self.owner)
                 self.isEquipped = True
                 if self.maxHP_Bonus != 0:
@@ -8237,16 +8244,13 @@ def makeTutorialMap(level = 1):
         for y in range(28, 33):
             myMap[95][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 96, 28, 33, chr(92), False)
             myMap[97][y].onTriggerFunction = lambda tile: openTutorialGate(tile, 96, 28, 33, '.')
-    
-        swordComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus = 10, meleeWeapon=True)
-        sword = GameObject(75, MID_MAP_HEIGHT, '-', 'longsword', colors.light_sky, Equipment = swordComponent, Item = Item(weight=3.5, pic = 'longSword.xp', useText='Equip'))
         
         helmetComp = Equipment(slot = 'head', type = 'light armor', armorBonus=2, meleeWeapon=False)
         helmet = GameObject(0, 0, '[', 'helmet', colors.silver, Equipment=helmetComp, Item=Item(weight=2.0, pic = 'darksoulHelmet.xp', useText='Equip'))
         fighterComp = Fighter(hp = 20, armor = 0, power = 3, accuracy = 60, evasion = 15, xp = 350, deathFunction=monsterDeath, lootFunction= [helmet], lootRate=[100], toEquip=[helmet], description = "One of Zargothrox's fighters, he seems to be guarding the entrance to the tower.")
         guard = GameObject(27, MID_MAP_HEIGHT, 'g', 'guard', colors.darker_han, blocks = True, Fighter=fighterComp, AI=BasicMonster(wanderer=False))
         
-        objects = [player, sword, guard]
+        objects = [player, guard]
         for attributeList in objectsToCreate:
             object = createNPCFromMapReader(attributeList)
             objects.append(object)
@@ -10479,6 +10483,9 @@ def chat():
             tree.currentScreen = copy(tree.origScreen)
             #assert isinstance(tree.currentScreen, dial.DialogScreen)
             state = 'starting'
+            if tutorial:
+                global hasSpokenToGeneral
+                hasSpokenToGeneral = True
             while state != 'END':
                 if state == 'SHOP':
                     state = 'END'
@@ -11317,7 +11324,7 @@ def nextLevel(boss = False, changeBranch = None, fall = False, fromStairs = None
     initializeFOV()
 
 def playTutorial():
-    global currentMusic, FOV_recompute, DEBUG, tutorial
+    global currentMusic, FOV_recompute, DEBUG, tutorial, hasSpokenToGeneral
     if currentMusic is None or currentMusic in ('No_Music.wav', 'Dusty_Feelings.wav', 'Sweltering_Battle.wav'):
         currentMusic = 'Bumpy_Roots.wav'
     stopProcess()
@@ -11325,8 +11332,44 @@ def playTutorial():
     music.start()
     activeProcess.append(music)
     
+    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, gameMsgs, identifiedItems, equipmentList, currentBranch, bossDungeonsAppeared, DEBUG, REVEL, logMsgs, tilesInRange, tilesinPath, tilesInRect, menuWindows, explodingTiles, hiroshimanNumber, FOV_recompute, bossTiles, bossEntrance
+    
+    DEBUG = False
+    REVEL = False
+    deleteSaves()
+    gameMsgs = []
+    logMsgs = []
+    tilesInRange = []
+    explodingTiles = []
+    tilesinPath = []
+    tilesInRect = []
+    menuWindows = []
+    FOV_recompute = True
+    bossTiles = None
+    bossEntrance = None
+    
+    inventory = []
+    equipmentList = []
+    identifiedItems = []
+    
+    helmetComp = Equipment(slot = 'head', type = 'heavy armor', armorBonus=8, meleeWeapon=False)
+    helmet = GameObject(0, 0, '[', 'paladin helm', colors.gold, Equipment=helmetComp, Item=Item(weight=5.0, pic = 'darksoulHelmet.xp'))
+    breastComp = Equipment(slot = 'torso', type = 'heavy armor', armorBonus=18, meleeWeapon=False)
+    breast = GameObject(0, 0, '[', 'paladin breastplate', colors.gold, Equipment=breastComp, Item=Item(weight=15.0, pic = 'darksoulHelmet.xp'))
+    legsComp = Equipment(slot = 'legs', type = 'heavy armor', armorBonus=12, meleeWeapon=False)
+    legs = GameObject(0, 0, '[', 'paladin greaves', colors.gold, Equipment=legsComp, Item=Item(weight=10.0, pic = 'darksoulHelmet.xp'))
+    
+    helmet.Equipment.equip(player.Fighter, True)
+    breast.Equipment.equip(player.Fighter, True)
+    legs.Equipment.equip(player.Fighter, True)
+
+    FOV_recompute = True
+    initializeFOV()
+    gameState = 'playing'
+    
     def displayTip(text, x = 0, y = 0, arrow = True, pointedDirection = 'right'):
         global FOV_recompute
+        MAX_TIP_WIDTH = 80
         if pointedDirection == 'right':
             pointChar = '>'
             bodyChar = '-'
@@ -11355,7 +11398,10 @@ def playTutorial():
         tdl.flush()
         for object in objects:
             object.clear()
-        msgBox(text + ' (press ESCAPE to continue)', len(text)+2)
+        width = len(text)
+        if width > MAX_TIP_WIDTH:
+            width = MAX_TIP_WIDTH
+        msgBox(text + ' (press ESCAPE to continue)', width + 2)
         objects.remove(arrowPoint)
         objects.remove(arrowBody)
         FOV_recompute = True
@@ -11371,10 +11417,14 @@ def playTutorial():
     displayedMonster = False
     displayedGeneral = False
     displayedChat = False
+    hasSpokenToGeneral = False
+    givenSword = False
     displayedLog = False
+    displayedShoot = False
     FOV_recompute = True
     Update()
     FOV_recompute = True
+    generalObject = None
     
     displayTip('Move around using the directional ARROWS or the NUMPAD. Pressing 5 will pass a turn.', x = 0, y = 0, arrow = False)
     while not tdl.event.isWindowClosed():
@@ -11428,7 +11478,7 @@ def playTutorial():
                 displayedLog = True
             for object in inventory:
                 if object.Item and not displayedInventory:
-                    displayTip('You can open your inventory by pressing I, to see what objects you have gathered.', 0, 0, False)
+                    displayTip("You can open your inventory by pressing 'i', to see what objects you have gathered. You can also check your equipment with 'E'.", 0, 0, False)
                     displayedInventory = True
             for object in objects:
                 if object.name == 'guard' and (object.x, object.y) in visibleTiles and not displayedMonster and object.distanceTo(player) < 12:
@@ -11436,14 +11486,19 @@ def playTutorial():
                     displayTip('Beware! This guard looks pretty aggressive! You can fight him by simply walking onto him.', object.x - 1, object.y, True)
                 if object.Item and object.distanceTo(player) <= 8 and not displayedPickUp:
                     displayedPickUp = True
-                    displayTip('This is a {}. Pick it up by pressing SPACEBAR while on the same tile.'.format(object.name), object.x - 1, object.y)
+                    displayTip("This is a {}. Pick it up by pressing 'SPACEBAR' while on the same tile.".format(object.name), object.x - 1, object.y)
                     FOV_recompute = True
                 if object.name == 'General Guillem' and (object.x, object.y) in visibleTiles and object.distanceTo(player) <= 7 and not displayedGeneral:
                     message("General Guillem shouts: 'Greetings [HERO_NAME]! Come to me to summarize our plan!'", colors.gold)
                     displayedGeneral = True
                 if object.name == 'General Guillem' and (object.x, object.y) in visibleTiles and object.distanceTo(player) <= 2 and not displayedChat:
-                    displayTip('When right next to a NPC, press C and their direction to talk to them.', object.x - 1, object.y)
+                    displayTip("When right next to a NPC, press 'c' and their direction to talk to them.", object.x - 1, object.y)
                     displayedChat = True
+                if object.name == 'General Guillem':
+                    generalObject = object
+                if object.name == 'shortbow' and not displayedShoot:
+                    displayedShoot = True
+                    displayTip("When equipped with a ranged weapon such as this shortbow, you can press 'x' to shoot. However, most of these weapons require ammunition, such as these arrows.", object.x - 1, object.y)
                 if object.Fighter and object.Fighter.spellsOnCooldown and object.Fighter is not None:
                     try:
                         for spell in object.Fighter.spellsOnCooldown:
@@ -11491,8 +11546,17 @@ def playTutorial():
                             if player.Fighter.healCountdown == 0:
                                 player.Fighter.heal(1)
                                 player.Fighter.healCountdown= 25 - player.Player.vitality
-            
-            
+
+            if hasSpokenToGeneral and not givenSword:
+                swordX, swordY = player.x - 1, player.y
+                while (swordX, swordY) == (generalObject.x, generalObject.y):
+                    swordY += 1
+                swordComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus = 10, meleeWeapon=True)
+                sword = GameObject(swordX, swordY, '-', 'longsword', colors.silver, Equipment = swordComponent, Item = Item(weight=3.5, pic = 'longSword.xp', useText='Equip'))
+                objects.append(sword)
+                message("General Guillem says: 'Here, take my sword. It shall help you defeat the greatest foes.'", colors.gold)
+                givenSword = True  
+                
             while mustCalculate:
                 print("Calculating")
                 if myMap is None:
