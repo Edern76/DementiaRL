@@ -714,6 +714,35 @@ def selectSquare():
         for y in range(min(startingTile.y, endTile.y), max(startingTile.y, endTile.y) + 1):
             selectedTiles.append(myMap[x][y])
 
+def selectLine():
+    global selectedTiles
+    startingTile = myMap[cursor.x][cursor.y]
+    quit = False
+    while not (tdl.event.is_window_closed() or quit):
+        userInput = tdl.event.key_wait()
+        if userInput.keychar.upper() == 'UP':
+            if cursor.y > 0:
+                cursor.y -= 1
+                selectedTiles = [myMap[cursor.x][cursor.y], startingTile]
+        elif userInput.keychar.upper() == 'DOWN':
+            if cursor.y < MAP_HEIGHT - 1:
+                cursor.y += 1
+                selectedTiles = [myMap[cursor.x][cursor.y], startingTile]
+        elif userInput.keychar.upper() == 'LEFT':
+            if cursor.x > 0:
+                cursor.x -= 1
+                selectedTiles = [myMap[cursor.x][cursor.y], startingTile]
+        elif userInput.keychar.upper() == 'RIGHT':
+            if cursor.x < MAP_WIDTH - 1:
+                cursor.x += 1
+                selectedTiles = [myMap[cursor.x][cursor.y], startingTile]
+        elif userInput.keychar.upper() == 'ENTER':
+            endTile = myMap[cursor.x][cursor.y]
+            quit = True
+        update(showDark)
+    for (x, y) in tdl.map.bresenham(startingTile.x, startingTile.y, endTile.x, endTile.y):
+        selectedTiles.append(myMap[x][y])
+
 if __name__ == '__main__':
     root = tdl.init(150, 80, 'Map Creator')
     cursor = Cursor()
@@ -844,6 +873,8 @@ if __name__ == '__main__':
             for object in objects:
                 if object.x == cursor.x and object.y == cursor.y:
                     objects.remove(object)
+        elif userInput.keychar.upper() == 'X':
+            selectLine()
 
         update(showDark)
         
