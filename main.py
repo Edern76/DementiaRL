@@ -8415,12 +8415,16 @@ def makeTutorialMap(level = 1):
         fighterComp = Fighter(hp = 20, armor = 0, power = 3, accuracy = 60, evasion = 15, xp = 350, deathFunction=monsterDeath, lootFunction= [helmet], lootRate=[100], toEquip=[helmet], description = "One of Zarg's fighters, he seems to be guarding the entrance to the tower.")
         guard = GameObject(27, MID_MAP_HEIGHT, 'g', 'guard', colors.darker_han, blocks = True, Fighter=fighterComp, AI=BasicMonster(wanderer=False))
         
+        halberdComp = Equipment(slot = 'two handed', type = 'heavy weapon', powerBonus=4, meleeWeapon=True)
+        halberd = GameObject(0, 0, '/', 'halberd', colors.silver, Equipment=halberdComp, Item=Item(weight=12.0, pic = 'darksoulHelmet.xp', useText='Equip'))
+        fighterComp = Fighter(hp = 20, armor = 0, power = 3, accuracy = 60, evasion = 15, xp = 350, deathFunction=monsterDeath, lootFunction= [halberd], lootRate=[100], toEquip=[halberd], description = "One of Zarg's fighters, he seems to be guarding the entrance to the tower.")
+        guard2 = GameObject(20, 34, 'g', 'guard', colors.darker_han, blocks = True, Fighter=fighterComp, AI=BasicMonster(wanderer=False))
 
         potion = GameObject(20, 24, '!', 'healing potion', colors.red, Item = Item(useFunction = lambda: castHeal(player.Fighter.maxHP), weight = 0.4, stackable=True, amount = 2, pic = 'redPotion.xp', description = "A potion that stimulates cell growth when ingested, which allows for wounds to heal signifcantly faster. However, it also notably increases risk of cancer, but if you're in a situation where you have to drink such a potion, this is probably one of the least of your worries.", identified=True, useText = 'Drink'), blocks = False)
         potion2 = GameObject(21, 26, '!', 'healing potion', colors.red, Item = Item(useFunction = lambda: castHeal(player.Fighter.maxHP), weight = 0.4, stackable=True, amount = 2, pic = 'redPotion.xp', description = "A potion that stimulates cell growth when ingested, which allows for wounds to heal signifcantly faster. However, it also notably increases risk of cancer, but if you're in a situation where you have to drink such a potion, this is probably one of the least of your worries.", identified=True, useText = 'Drink'), blocks = False)
         bread = GameObject(17, 34, ',', "slice of bread", colors.yellow, Item = Item(useFunction=satiateHunger, arg1 = 200, arg2 = "a slice of bread", weight = 0.2, stackable=True, amount = 5, description = "This has probably been lying on the ground for ages, but you'll have to deal with it if you don't want to starve.", itemtype = 'food', useText = 'Eat'), blocks = False, pName = "slices of bread") 
         
-        objects = [player, guard, potion, potion2, bread]
+        objects = [player, guard, potion, potion2, bread, guard2]
         for attributeList in objectsToCreate:
             object = createNPCFromMapReader(attributeList)
             objects.append(object)
@@ -8448,14 +8452,18 @@ def makeTutorialMap(level = 1):
         guard2 = GameObject(115, 34, 'g', 'guard', colors.darker_han, blocks = True, Fighter=fighterComp, AI=Shooter(wanderer=False))
         
         mobFireball = Spell(ressourceCost = 0, cooldown = 10, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 3, arg2 = 10, arg3 = 10)
-        spellbook = GameObject(0, 0, '=', 'spellbook of fireball', colors.violet, Item = Item(useFunction = learnSpell, arg1 = fireball, weight = 1.0, pic = 'spellbook.xp', description='The reading of this book will learn you how to cast mighty fireballs.', useText='Read'), blocks = False)
+        spellbook = GameObject(0, 0, '=', 'spellbook of fireball', colors.darker_han, Item = Item(useFunction = learnSpell, arg1 = fireball, weight = 1.0, pic = 'spellbook.xp', description='The reading of this book will learn you how to cast mighty fireballs.', useText='Read'), blocks = False)
         fighterComponent = Fighter(hp = 30, armor = 1, power = 5, xp = 350, deathFunction = monsterDeath, accuracy = 25, evasion = 40, maxMP = 30, knownSpells=[mobFireball], description = "One of Zarg's mages.", lootFunction=[spellbook], lootRate=[100])
         mage = GameObject(MID_MAP_WIDTH, MID_MAP_HEIGHT, 'm', 'mage', colors.darker_han, blocks = True, Fighter=fighterComponent, AI=Spellcaster(wanderer=False, meleeFighter=False))
         
         upStairs = GameObject(6, 11, '<', 'stairs', colors.light_grey, alwaysVisible = True, darkColor = colors.dark_grey, Stairs = TutoStairs(climb='up', branchesFrom=2, branchesTo=3))
-
         
-        objects = [player, sword, guard, guard2, upStairs, mage]
+        halberdComp = Equipment(slot = 'two handed', type = 'heavy weapon', powerBonus=4, meleeWeapon=True)
+        halberd = GameObject(0, 0, '/', 'halberd', colors.silver, Equipment=halberdComp, Item=Item(weight=12.0, pic = 'darksoulHelmet.xp', useText='Equip'))
+        fighterComp = Fighter(hp = 20, armor = 0, power = 3, accuracy = 60, evasion = 15, xp = 350, deathFunction=monsterDeath, lootFunction= [halberd], lootRate=[100], toEquip=[halberd], description = "One of Zarg's fighters, he seems to be guarding the entrance to the tower.")
+        guard3 = GameObject(10, 11, 'g', 'guard', colors.darker_han, blocks = True, Fighter=fighterComp, AI=BasicMonster(wanderer=False))
+        
+        objects = [player, sword, guard, guard2, upStairs, mage, guard3]
         player.x = MAP_WIDTH - 2
         for attributeList in objectsToCreate:
             object = createNPCFromMapReader(attributeList)
@@ -11769,13 +11777,13 @@ def playTutorial():
                 if object.name == 'shortbow' and not displayedShoot:
                     displayedShoot = True
                     displayTip("When equipped with a ranged weapon such as this shortbow, you can press 'x' to shoot. However, most of these weapons require ammunition, such as these arrows.", object.x - 1, object.y)
-                if object.Stairs and not displayedStairs and (object.x, object.y) in visibleTiles and object.distanceTo(player) <= 7:
+                if object.Stairs and not displayedStairs and (object.x, object.y) in visibleTiles and object.distanceTo(player) <= 10:
                     displayedStairs = True
                     displayTip("These are the stairs allowing you to climb Zarg's tower. Press '<' to climb them up.", object.x - 1, object.y)
                 if object.name == 'Zarg' and (object.x, object.y) in visibleTiles and object.distanceTo(player) <= 10:
                     zargSpeech()
                     foughtZarg = True
-                if object.name == 'spellbook of fireball' and not displayedSpell:
+                if object.name == 'spellbook of fireball' and not displayedSpell and object.distanceTo(player) <= 10:
                     displayedSpell = True
                     displayTip("This spellbook, when used, will learn you a new spell. In order to cast it, you have to press 'z'.", object.x - 1, object.y)
                 if object.Fighter and object.Fighter.spellsOnCooldown and object.Fighter is not None:
