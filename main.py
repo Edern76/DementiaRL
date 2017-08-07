@@ -149,6 +149,22 @@ CHARACTER_SCREEN_HEIGHT = 21 #Default : 21
 DEATH_SCREEN_WIDTH = 25 #Default : 25
 DEATH_SCREEN_HEIGHT = 10 #Default : 10
 consolesDisplayed = False
+heroName = None
+
+def getHeroName():
+    hiddenPath = findHiddenOptionsPath()
+    if not os.path.exists(hiddenPath):
+        return None
+    try:
+        hOptionsFilePath = os.path.join(hiddenPath, "DATA")
+        hOptionsFile = open(hOptionsFilePath, "r")
+        line = hOptionsFile.readline()
+        splittedLine = line.split(":")
+        heroName = splittedLine[1]
+        return heroName
+    except:
+        traceback.print_exc()
+        return None
 
 # - GUI Constants -
 
@@ -291,13 +307,13 @@ def deleteSaves():
 
 curDir = findCurrentDir()
 relDirPath = "save"
-relPath = "save\\savegame"
-relPicklePath = "save\\equipment"
+relPath = os.path.join("save", "savegame")
+relPicklePath = os.path.join("save", "equipment")
 relAssetPath = "assets"
-relSoundPath = "assets\\sound"
-relAsciiPath = "assets\\ascii"
-relMusicPath = 'assets\\music'
-relMetaPath = "metasave\\meta"
+relSoundPath = os.path.join("assets", "sound")
+relAsciiPath = os.path.join("assets", "ascii")
+relMusicPath = os.path.join("assets", "music")
+relMetaPath = os.path.join("metasave", "meta")
 relMetaDirPath = "metasave"
 relCodePath = "code"
 absDirPath = os.path.join(curDir, relDirPath)
@@ -10491,6 +10507,9 @@ def Update():
     root.blit(panel, 0, PANEL_Y, WIDTH, PANEL_HEIGHT, 0, 0)
     
 def chat():
+    '''
+    Miaou
+    '''
     target = targetDirection()
     if target == 'cancelled':
         return 'cancelled'
@@ -10532,7 +10551,7 @@ def chat():
                 ty = (CON_HEIGHT // 2) - (dialLength // 2)
                 for line in tree.currentScreen.dialogText:
                     if line != 'BREAK':
-                        drawCentered(con, y = ty, text = line)
+                        drawCentered(con, y = ty, text = line.replace("[HERO_NAME]", heroName))
                     ty += 1
                 root.blit(con, 0, 0, WIDTH, HEIGHT, 0, 0)
                 chosen = False
@@ -10553,7 +10572,7 @@ def chat():
                         else:
                             background = Ellipsis
                         panel.draw_str(0, 1 + ind, prefix, fg = Ellipsis, bg = background)
-                        panel.draw_str(len(prefix), 1 + ind, dchoice.text, fg = Ellipsis, bg = background)
+                        panel.draw_str(len(prefix), 1 + ind, dchoice.text.replace("[HERO_NAME]", heroName), fg = Ellipsis, bg = background)
                     root.blit(panel, 0, PANEL_Y, WIDTH, PANEL_HEIGHT, 0, 0)
                     tdl.flush()
                     key = tdl.event.key_wait()
@@ -10639,56 +10658,66 @@ def showPrologue(escapable = True):
         showScreen(scr, con, HEIGHT - 18)
     con.clear()
     midScreen = (HEIGHT - 18) // 2
-
-    name = ''
-    letters = []
-    hasConfirmed = False
-    while not tdl.event.isWindowClosed():
-        text = '_'
+    
+    if heroName is None:
+        global heroName
         name = ''
-        for letter in letters:
-            name += letter
-        if len(name) < 16:
-            text = name + '_'
-        else:
-            text = name
-
+        letters = []
+        hasConfirmed = False
+        while not tdl.event.isWindowClosed():
+            text = '_'
+            name = ''
+            for letter in letters:
+                name += letter
+            if len(name) < 16:
+                text = name + '_'
+            else:
+                text = name
+    
+            con.clear()
+    
+            drawCenteredVariableWidth(con, y = midScreen - 1, text = "And this hero's name was...", fg = (217, 0, 0), width = 104)
+            drawCenteredVariableWidth(con, y = midScreen + 1, text = text, fg = (217, 0, 0), width = 104)
+            root.blit(con, x= 22, y=10, width = 104, height = HEIGHT - 18, srcX = 0, srcY = 0)
+            tdl.flush()
+            
+            key = tdl.event.key_wait()
+            if key.keychar.upper()== 'ENTER':
+                if name == '':
+                    playWavSound('error.wav')
+                else:
+                    hasConfirmed = True
+                    break
+                
+            elif key.keychar in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ":
+                if len(name) < 16:
+                    letters.append(key.keychar)
+                else:
+                    playWavSound('error.wav')
+            elif key.keychar.upper() == 'BACKSPACE':
+                if letters:
+                    letters.pop()
+                else:
+                    playWavSound('error.wav')
+            elif key.keychar.upper() == 'ESCAPE' and escapable:
+                quitGame("Return to MM", noSave = True, backToMainMenu= True)
+        if not hasConfirmed:
+            quitGame("Window closed during name enter")
+        hiddenPath = findHiddenOptionsPath()
+        if not os.path.exists(hiddenPath):
+            os.makedirs(hiddenPath)
+        hOptionsFilePath = os.path.join(hiddenPath, "DATA")
+        hOptionsFile = open(hOptionsFilePath, "w")
+        hOptionsFile.write("HERONAME:{}".format(name))
+        hOptionsFile.close()
+        heroName = name
+    else:
         con.clear()
-
         drawCenteredVariableWidth(con, y = midScreen - 1, text = "And this hero's name was...", fg = (217, 0, 0), width = 104)
-        drawCenteredVariableWidth(con, y = midScreen + 1, text = text, fg = (217, 0, 0), width = 104)
+        drawCenteredVariableWidth(con, y = midScreen + 1, text = heroName, fg = (217, 0, 0), width = 104)
         root.blit(con, x= 22, y=10, width = 104, height = HEIGHT - 18, srcX = 0, srcY = 0)
         tdl.flush()
-        
-        key = tdl.event.key_wait()
-        if key.keychar.upper()== 'ENTER':
-            if name == '':
-                playWavSound('error.wav')
-            else:
-                hasConfirmed = True
-                break
-            
-        elif key.keychar in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ":
-            if len(name) < 16:
-                letters.append(key.keychar)
-            else:
-                playWavSound('error.wav')
-        elif key.keychar.upper() == 'BACKSPACE':
-            if letters:
-                letters.pop()
-            else:
-                playWavSound('error.wav')
-        elif key.keychar.upper() == 'ESCAPE' and escapable:
-            quitGame("Return to MM", noSave = True, backToMainMenu= True)
-    if not hasConfirmed:
-        quitGame("Window closed during name enter")
-    hiddenPath = findHiddenOptionsPath()
-    if not os.path.exists(hiddenPath):
-        os.makedirs(hiddenPath)
-    hOptionsFilePath = os.path.join(hiddenPath, "DATA")
-    hOptionsFile = open(hOptionsFilePath, "w")
-    hOptionsFile.write("HERONAME:{}".format(name))
-
+        tdl.event.key_wait()
 
 
 def GetNamesUnderLookCursor():
@@ -11522,7 +11551,7 @@ def playTutorial():
                     displayTip("This is a {}. Pick it up by pressing 'SPACEBAR' while on the same tile.".format(object.name), object.x - 1, object.y)
                     FOV_recompute = True
                 if object.name == 'General Guillem' and (object.x, object.y) in visibleTiles and object.distanceTo(player) <= 7 and not displayedGeneral:
-                    message("General Guillem shouts: 'Greetings [HERO_NAME]! Come to me to summarize our plan!'", colors.gold)
+                    message("General Guillem shouts: 'Greetings {}! Come to me to summarize our plan!'".format(heroName), colors.gold)
                     displayedGeneral = True
                 if object.name == 'General Guillem' and (object.x, object.y) in visibleTiles and object.distanceTo(player) <= 2 and not displayedChat:
                     displayTip("When right next to a NPC, press 'c' and their direction to talk to them.", object.x - 1, object.y)
@@ -11919,9 +11948,18 @@ def playGame(noSave = False):
 if (__name__ == '__main__' or __name__ == 'main__main__') and root is not None:
     freeze_support()
     convertMusics()
+    '''
     hiddenPath = findHiddenOptionsPath()
     if not os.path.exists(hiddenPath):
         launchTutorial(False)
+    '''
+    tempName = getHeroName()
+    if tempName is None:
+        heroName = None
+        launchTutorial(False)
+    else:
+        heroName = tempName
+        
     mainMenu()
 else:
     print(__name__)
