@@ -223,6 +223,7 @@ FIREBALL_SPELL_BASE_RANGE = 4 #Default : 4
 RESURECTABLE_CORPSES = ["darksoul", "ogre"]
 
 BASE_HUNGER = 1500 #Default : 500
+CRITICAL_MULTIPLIER = 3 #Default : 3
 
 MAX_ASTAR_FAILS = 1 #Possibly unstable at 1 (but best performance), if you get weird results with Astar (aside from freezing) try bumping this number up a LITTLE bit (3 is already way overkill)
 REGEN_THRESHOLD = 4000 #Number of iterations of stairs placing loop before you throw away current map and regenerates another one. Setting this too high may make map generation longer. Setting this too low may provoke infinite loops or cause the game to reject potentially valid maps (also making the map gen longer). (base : 2000)
@@ -5318,6 +5319,7 @@ def quitGame(message, backToMainMenu = False, noSave = False):
     else:
         stopProcess()
         raise SystemExit(str(message))
+        os._exit(-1) #In case raise SystemExit() doesn't work properly
     
 def stopProcess():
     for process in activeProcess:
@@ -5938,7 +5940,7 @@ def shoot():
                                                 message('You hit ' + monsterTarget.name + ' but it has no effect !')
                                             else:
                                                 if criticalHit:
-                                                    damage = damage * 3
+                                                    damage = damage * CRITICAL_MULTIPLIER
                                                     message('You critically hit ' + monsterTarget.name + ' for ' + str(damage) + ' damage !', colors.darker_green)
                                                 else:
                                                     message('You hit ' + monsterTarget.name + ' for ' + str(damage) + ' damage !', colors.dark_green)
