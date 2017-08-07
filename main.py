@@ -30,6 +30,7 @@ from tkinter import *
 from tkinter.messagebox import * #For making obvious freaking error boxes when the console gets too bloated to read anything useful.
 
 
+
 if (__name__ == '__main__' or __name__ == 'main__main__'):
     import code.layoutReader as layoutReader
 
@@ -8344,6 +8345,7 @@ def makeBossLevel(fall = False, generateHole=False, temple = False):
 
 tutoGateOpen = False
 
+
 def makeTutorialMap(level = 1):
     global myMap, objects
     def openTutorialGate(tile, startX, startY, endY, char = None, text = 'The gate opens!', endX = -1):
@@ -8479,6 +8481,31 @@ def makeTutorialMap(level = 1):
         zarg = GameObject(33, 54, 'Z', 'Zarg', colors.darkest_violet, blocks = True)
         objects = [player, zarg]
 
+def createEndRooms():
+    global rooms, stairs, myMap, objects, numberRooms
+    for r in range(4): #final rooms
+        w = randint(roomMinSize, roomMaxSize)
+        h = randint(roomMinSize, roomMaxSize)
+        x = randint(100, MAP_WIDTH-w-1)
+        y = randint(0, MAP_HEIGHT-h-1)
+        newRoom = Rectangle(x, y, w, h)
+        intersection = False
+        for otherRoom in rooms:
+            if newRoom.intersect(otherRoom):
+                intersection = True
+                break
+        if not intersection:
+            createRoom(newRoom)
+            (new_x, new_y) = newRoom.center()
+            (previous_x, previous_y) = rooms[numberRooms-1].center()
+            if randint(0, 1):
+                createHorizontalTunnel(previous_x, new_x, previous_y)
+                createVerticalTunnel(previous_y, new_y, new_x)
+            else:
+                createVerticalTunnel(previous_y, new_y, previous_x)
+                createHorizontalTunnel(previous_x, new_x, new_y)
+            rooms.append(newRoom)
+            numberRooms += 1
 
 def makeHiddenTown(fall = False):
     global myMap, objects, upStairs, rooms, numberRooms, bossRoom
@@ -8527,31 +8554,7 @@ def makeHiddenTown(fall = False):
         player.Player.hasDiscoveredTown = True
         message("You feel the walls of this place emanating a strong magical aura.")
 
-def createEndRooms():
-    global rooms, stairs, myMap, objects, numberRooms
-    for r in range(4): #final rooms
-        w = randint(roomMinSize, roomMaxSize)
-        h = randint(roomMinSize, roomMaxSize)
-        x = randint(100, MAP_WIDTH-w-1)
-        y = randint(0, MAP_HEIGHT-h-1)
-        newRoom = Rectangle(x, y, w, h)
-        intersection = False
-        for otherRoom in rooms:
-            if newRoom.intersect(otherRoom):
-                intersection = True
-                break
-        if not intersection:
-            createRoom(newRoom)
-            (new_x, new_y) = newRoom.center()
-            (previous_x, previous_y) = rooms[numberRooms-1].center()
-            if randint(0, 1):
-                createHorizontalTunnel(previous_x, new_x, previous_y)
-                createVerticalTunnel(previous_y, new_y, new_x)
-            else:
-                createVerticalTunnel(previous_y, new_y, previous_x)
-                createHorizontalTunnel(previous_x, new_x, new_y)
-            rooms.append(newRoom)
-            numberRooms += 1
+
     '''
     rooms = []
     bossRoom = None
@@ -8563,9 +8566,9 @@ def createEndRooms():
     for attributeList in objectsToCreate:
         object = createNPCFromMapReader(attributeList)
         objects.append(object)
-    stairs = GameObject(10, 26, '>', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor, Stairs=Stairs(climb='down', branchesFrom=currentBranch, branchesTo=currentBranch))
-    objects.append(stairs)
-    stairs.sendToBack()
+    upStairs = GameObject(10, 26, '<', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor, Stairs=Stairs(climb='up', branchesFrom=dBr.mainDungeon, branchesTo=dBr.hiddenTown))
+    objects.append(upStairs)
+    upStairs.sendToBack()
     
     for x in range(MAP_WIDTH):
         for y in range(MAP_HEIGHT):
@@ -11431,7 +11434,7 @@ def loadLevel(level, save = True, branch = currentBranch, fall = False, fromStai
     print(xfile["yunowork"])
     myMap = xfile["myMap"]
     newObjects = xfile["objects"]
-    tempPlayer = objects[xfile["playerIndex"]]
+    tempPlayer = newObjects[xfile["playerIndex"]]
     try:
         bossTiles = xfile["bossTiles"]
         bufferTiles = reloadBossTiles()
@@ -11468,6 +11471,7 @@ def loadLevel(level, save = True, branch = currentBranch, fall = False, fromStai
             x, y = randint(0, MAP_WIDTH), randint(0, MAP_HEIGHT)
         player.x, player.y = x, y
     newObjects[xfile["playerIndex"]] = player
+    objects = list(newObjects)
     '''
     if branch.shortName != 'town':
         stairs = objects[xfile["stairsIndex"]]
