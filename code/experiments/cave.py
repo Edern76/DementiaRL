@@ -1,4 +1,4 @@
-import tdl, colors, copy, pdb, traceback, os, sys, time
+import tdlib, colors, copy, pdb, traceback, os, sys, time
 from random import *
 from colors import darker_sepia
 from code.custom_except import *
