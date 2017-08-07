@@ -10395,7 +10395,7 @@ def mainMenu():
         print('Not main SO WE ARENT DOING FUCKING ANYTHING AND NOT FUCKING UP THE WHOLE PROGRAM BY OPENING INFINITE INSTANCES OF IT')
 
 def testArena():
-    global player, currentMusic, myMap, gameState, currentBranch, FOV_recompute
+    global player, currentMusic, myMap, gameState, currentBranch, FOV_recompute, objects
     light = Trait('Light weapons', '+20% damage per skillpoints with light weapons', type = 'skill', selectable = False, tier = 3)
     heavy = Trait('Heavy weapons', '+20% damage per skillpoints with heavy weapons', type = 'skill', selectable = False, tier = 3)
     missile = Trait('Missile weapons', '+20% damage per skillpoints with missile weapons', type = 'skill', selectable = False, tier = 3)
@@ -10452,6 +10452,8 @@ def testArena():
     color_dark_gravel = currentBranch.color_dark_gravel
     color_light_ground = currentBranch.color_light_ground
     color_light_gravel = currentBranch.color_light_gravel
+    objectsToCreate.append(player)
+    objects = list(objectsToCreate)
     for x in range(MAP_WIDTH):
         for y in range(MAP_HEIGHT):
             curTile = myMap[x][y]
