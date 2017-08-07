@@ -8477,6 +8477,7 @@ def makeTutorialMap(level = 1):
 
 def makeHiddenTown(fall = False):
     global myMap, objects, upStairs, rooms, numberRooms, bossRoom
+    '''
     myMap = [[Tile(True, wall = True, x = x, y = y) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
     objects = [player]
     rooms = []
@@ -8546,9 +8547,25 @@ def createEndRooms():
                 createHorizontalTunnel(previous_x, new_x, new_y)
             rooms.append(newRoom)
             numberRooms += 1
-    stairs = GameObject(new_x, new_y, '>', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor, Stairs=Stairs(climb='down', branchesFrom=currentBranch, branchesTo=currentBranch))
+    '''
+    rooms = []
+    bossRoom = None
+    numberRooms = 0
+    player.x = 10
+    player.y = 26
+    myMap, objectsToCreate = layoutReader.readMap("tempHiddenTown6")
+    objects = [player]
+    for attributeList in objectsToCreate:
+        object = createNPCFromMapReader(attributeList)
+        objects.append(object)
+    stairs = GameObject(10, 26, '>', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor, Stairs=Stairs(climb='down', branchesFrom=currentBranch, branchesTo=currentBranch))
     objects.append(stairs)
     stairs.sendToBack()
+    
+    for x in range(MAP_WIDTH):
+        for y in range(MAP_HEIGHT):
+            myMap[x][y].unbreakable = True
+
     
 #_____________ MAP CREATION __________________
 
