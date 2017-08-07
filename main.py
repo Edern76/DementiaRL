@@ -150,6 +150,7 @@ DEATH_SCREEN_WIDTH = 25 #Default : 25
 DEATH_SCREEN_HEIGHT = 10 #Default : 10
 consolesDisplayed = False
 heroName = None
+FORBIDDEN_NAMES = ["Ayeth", "Pukil", "Zarg", "Guillem"]
 
 def getHeroName():
     hiddenPath = findHiddenOptionsPath()
@@ -2456,7 +2457,14 @@ def enterName(race):
         if key.keychar.upper()== 'ENTER':
             if name == '':
                 name = nameGen.humanLike(randint(5,8))
-            return name.capitalize()
+                return name.capitalize()
+            elif name in FORBIDDEN_NAMES:
+                msgBox("\n Find a more original name ! \n", 33, False, False)
+            elif name == heroName:
+                msgBox("\n You are not worthy of that name ! \n" ,40, False, False)
+            else:
+                return name.capitalize()
+            
         elif key.keychar in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ":
             if len(name) < 16:
                 letters.append(key.keychar)
@@ -10690,6 +10698,8 @@ def showPrologue(escapable = True):
             if key.keychar.upper()== 'ENTER':
                 if name == '':
                     playWavSound('error.wav')
+                elif name in FORBIDDEN_NAMES:
+                    msgBox("\n Find a more original name ! \n", 33, False, False)
                 else:
                     hasConfirmed = True
                     break
