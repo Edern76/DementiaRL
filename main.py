@@ -8274,7 +8274,7 @@ def makeTutorialMap(level = 1):
             objects.append(object)
         
     elif level == 2:
-        myMap, objectsToCreate = layoutReader.readMap('tutoFloorTwo')
+        myMap, objectsToCreate = layoutReader.readMap('tutoFloorTwo1')
         for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
             myMap[109][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 110, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
             myMap[111][y].onTriggerFunction = lambda tile: openTutorialGate(tile, 110, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
@@ -8305,10 +8305,11 @@ def makeTutorialMap(level = 1):
             objects.append(object)
     
     elif level == 3:
-        myMap, objectsToCreate = layoutReader.readMap('tutoFloorThree1')
-        downStairs = GameObject(6, 11, '>', 'stairs', colors.light_grey, alwaysVisible = True, darkColor = colors.dark_grey, Stairs = TutoStairs(climb='down', branchesFrom=3, branchesTo=2))
-
-        objects = [player, downStairs]
+        myMap, objectsToCreate = layoutReader.readMap('tutoFloorThree11')
+        
+        
+        
+        objects = [player]
 
 
 def makeHiddenTown(fall = False):

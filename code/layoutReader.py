@@ -481,11 +481,11 @@ def readMap(mapDir, voidChar = None):
 
 if __name__ == '__main__':
     root = tdl.init(150, 80, 'Dementia')
-    myMap, objects = readMap('sample')
+    myMap, objects = readMap('tutoFloorThree11')
     while not tdl.event.is_window_closed():
         root.clear()
         for x in range(MAP_WIDTH):
             for y in range(MAP_HEIGHT):
-                root.draw_char(x, y, myMap[x][y].character, main.myMap[x][y].fg, myMap[x][y].bg)
+                root.draw_char(x, y, myMap[x][y].character, myMap[x][y].fg, myMap[x][y].bg)
         tdl.flush()
 
