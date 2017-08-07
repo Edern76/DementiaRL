@@ -3979,6 +3979,7 @@ class Player:
         self.slowAttackCooldown = 0
         self.speed = speed #or 'slow' or 'fast'
         self.speedChance = speedChance
+        self.hpTextColor = colors.darker_green
 
         self.skills = []
         for skill in self.allTraits:
@@ -4036,16 +4037,22 @@ class Player:
         self.hpRatio = ((self.owner.Fighter.hp / self.owner.Fighter.maxHP) * 100)
         if self.hpRatio == 100:
             self.owner.color = (0, 210, 0)
+            self.hpTextColor = colors.darker_green
         elif self.hpRatio < 95 and self.hpRatio >= 75:
-            self.owner.color = (120, 255, 0)
+            self.owner.color = colors.chartreuse
+            self.hpTextColor = colors.darker_chartreuse
         elif self.hpRatio < 75 and self.hpRatio >= 50:
-            self.owner.color = (255, 255, 0)
+            self.owner.color = colors.yellow
+            self.hpTextColor = colors.darker_yellow
         elif self.hpRatio < 50 and self.hpRatio >= 25:
-            self.owner.color = (255, 120, 0)
+            self.owner.color = colors.orange
+            self.hpTextColor = colors.darker_orange
         elif self.hpRatio < 25 and self.hpRatio > 0:
-            self.owner.color = (255, 0, 0)
+            self.owner.color = colors.red
+            self.hpTextColor = colors.darker_red
         elif self.hpRatio == 0:
-            self.owner.color = (120, 0, 0)
+            self.owner.color = colors.darker_red
+            self.hpTextColor = colors.darkest_red
     
     def takeControl(self, target):
         player.Fighter.noVitHP = int(target.Fighter.BASE_MAX_HP)
@@ -8276,7 +8283,7 @@ def makeTutorialMap(level = 1):
         
         helmetComp = Equipment(slot = 'head', type = 'light armor', armorBonus=2, meleeWeapon=False)
         helmet = GameObject(0, 0, '[', 'helmet', colors.silver, Equipment=helmetComp, Item=Item(weight=2.0, pic = 'darksoulHelmet.xp', useText='Equip'))
-        fighterComp = Fighter(hp = 20, armor = 0, power = 3, accuracy = 60, evasion = 15, xp = 350, deathFunction=monsterDeath, lootFunction= [helmet], lootRate=[100], toEquip=[helmet], description = "One of Zargothrox's fighters, he seems to be guarding the entrance to the tower.")
+        fighterComp = Fighter(hp = 20, armor = 0, power = 3, accuracy = 60, evasion = 15, xp = 350, deathFunction=monsterDeath, lootFunction= [helmet], lootRate=[100], toEquip=[helmet], description = "One of Zarg's fighters, he seems to be guarding the entrance to the tower.")
         guard = GameObject(27, MID_MAP_HEIGHT, 'g', 'guard', colors.darker_han, blocks = True, Fighter=fighterComp, AI=BasicMonster(wanderer=False))
         
 
@@ -8300,7 +8307,7 @@ def makeTutorialMap(level = 1):
         
         helmetComp = Equipment(slot = 'head', type = 'light armor', armorBonus=2, meleeWeapon=False)
         helmet = GameObject(0, 0, '[', 'helmet', colors.silver, Equipment=helmetComp, Item=Item(weight=2.0, pic = 'darksoulHelmet.xp', useText='Equip'))
-        fighterComp = Fighter(hp = 20, armor = 0, power = 6, accuracy = 60, evasion = 15, xp = 350, deathFunction=monsterDeath, lootFunction= [helmet], lootRate=[100], toEquip=[helmet], description = "One of Zargothrox's fighters, he seems to be guarding the entrance to the tower.")
+        fighterComp = Fighter(hp = 20, armor = 0, power = 6, accuracy = 60, evasion = 15, xp = 350, deathFunction=monsterDeath, lootFunction= [helmet], lootRate=[100], toEquip=[helmet], description = "One of Zarg's fighters, he seems to be guarding the entrance to the tower.")
         guard = GameObject(115, 26, 'g', 'guard', colors.darker_han, blocks = True, Fighter=fighterComp, AI=BasicMonster(wanderer=False))
         
         equipmentComponent = Equipment(slot = 'two handed', type = 'missile weapon', powerBonus = 1, ranged = True, rangedPower = 7, maxRange = SIGHT_RADIUS, ammo = 'arrow')
@@ -8308,7 +8315,7 @@ def makeTutorialMap(level = 1):
         itemComponent = Item(stackable = True, amount = 30)
         arrows = GameObject(0, 0, '^', 'arrow', colors.light_orange, Item = itemComponent)
         shooterComp = RangedNPC(range = 10, power = 6, accuracy = 60)
-        fighterComp = Fighter(hp = 20, armor = 0, power = 6, accuracy = 60, evasion = 15, xp = 350, deathFunction=monsterDeath, lootFunction = [bow, arrows], lootRate = [100, 100], description = "One of Zargothrox's fighters, he seems to be guarding the entrance to the tower. He is equipped with a bow.", Ranged=shooterComp)
+        fighterComp = Fighter(hp = 20, armor = 0, power = 6, accuracy = 60, evasion = 15, xp = 350, deathFunction=monsterDeath, lootFunction = [bow, arrows], lootRate = [100, 100], description = "One of Zarg's fighters, he seems to be guarding the entrance to the tower. He is equipped with a bow.", Ranged=shooterComp)
         guard2 = GameObject(115, 34, 'g', 'guard', colors.darker_han, blocks = True, Fighter=fighterComp, AI=Shooter(wanderer=False))
         
         upStairs = GameObject(6, 11, '<', 'stairs', colors.light_grey, alwaysVisible = True, darkColor = colors.dark_grey, Stairs = TutoStairs(climb='up', branchesFrom=2, branchesTo=3))
@@ -8322,10 +8329,8 @@ def makeTutorialMap(level = 1):
     
     elif level == 3:
         myMap, objectsToCreate = layoutReader.readMap('tutoFloorThree11')
-        
-        
-        
-        objects = [player]
+        zarg = GameObject(33, 54, 'Z', 'Zarg', colors.darkest_violet, blocks = True)
+        objects = [player, zarg]
 
 
 def makeHiddenTown(fall = False):
@@ -9716,7 +9721,7 @@ def zombieDeath(monster):
     monster.Fighter = None
 
 #_____________ GUI _______________
-def renderBar(cons, x, y, totalWidth, name, value, maximum, barColor, backColor):
+def renderBar(cons, x, y, totalWidth, name, value, maximum, barColor, backColor, textColor = colors.white):
     if maximum == 0:
         trueMax = 1
         alwaysFull = True
@@ -9733,7 +9738,7 @@ def renderBar(cons, x, y, totalWidth, name, value, maximum, barColor, backColor)
         
     text = name + ': ' + str(value) + '/' + str(maximum)
     xCentered = x + (totalWidth - len(text))//2
-    cons.draw_str(xCentered, y, text, fg = colors.white, bg=None)
+    cons.draw_str(xCentered, y, text, fg = textColor, bg=None)
 
 def displayLog(height):
     global menuWindows, FOV_recompute
@@ -10482,8 +10487,8 @@ def Update():
     #panel.draw_str(1, 3, 'Dungeon level: ' + str(dungeonLevel), colors.white)
     panel.draw_str(1, 5, 'Player level: ' + str(player.level) + ' | Floor: ' + str(dungeonLevel), colors.white)
     panel.draw_str(1, 7, 'Money: ' + str(player.Player.money))
-    renderBar(panel, 1, 1, BAR_WIDTH, 'HP', player.Fighter.hp, player.Fighter.maxHP, player.color, colors.dark_gray)
-    renderBar(panel, 1, 3, BAR_WIDTH, 'MP', player.Fighter.MP, player.Fighter.maxMP, colors.blue, colors.dark_gray)
+    renderBar(panel, 1, 1, BAR_WIDTH, 'HP', player.Fighter.hp, player.Fighter.maxHP, player.color, colors.dark_gray, textColor = player.Player.hpTextColor)
+    renderBar(panel, 1, 3, BAR_WIDTH, 'MP', player.Fighter.MP, player.Fighter.maxMP, colors.blue, colors.dark_gray, colors.darkest_blue)
     
     panel.draw_str(BUFF_X, 1, 'Buffs:', colors.white)
     buffY = 2
@@ -11032,7 +11037,7 @@ def newGame():
 
     FOV_recompute = True
     initializeFOV()
-    message('Zargothrox says : Prepare to get lost in the Realm of Madness !', colors.dark_red)
+    message("Zarg says : 'Prepare to get lost in the Realm of Madness !'", colors.dark_violet)
     gameState = 'playing'
     
     equipmentComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus=3, meleeWeapon=True)
@@ -11384,6 +11389,84 @@ def nextLevel(boss = False, changeBranch = None, fall = False, fromStairs = None
         highCultistHasAppeared = False #Make so more high cultists can spawn at lower levels (still only one by floor though)
     initializeFOV()
 
+def displayTip(text, x = 0, y = 0, arrow = True, pointedDirection = 'right'):
+    global FOV_recompute
+    MAX_TIP_WIDTH = 80
+    if pointedDirection == 'right':
+        pointChar = '>'
+        bodyChar = '-'
+        bodyX = x - 1
+        bodyY = y
+    elif pointedDirection == 'left':
+        pointChar = '<'
+        bodyChar = '-'
+        bodyX = x + 1
+        bodyY = y
+    elif pointedDirection == 'up':
+        pointChar = '^'
+        bodyChar = chr(124)
+        bodyX = x
+        bodyY = y + 1
+    elif pointedDirection == 'down':
+        pointChar = 'V'
+        bodyChar = chr(124)
+        bodyX = x
+        bodyY = y - 1
+    arrowPoint = GameObject(x, y, pointChar, 'arrow', colors.red, Ghost = True, alwaysAlwaysVisible=True, darkColor=colors.red)
+    arrowBody = GameObject(bodyX, bodyY, bodyChar, 'arrow', colors.red, Ghost = True, alwaysAlwaysVisible=True, darkColor=colors.red)
+    objects.append(arrowPoint)
+    objects.append(arrowBody)
+    Update()
+    tdl.flush()
+    for object in objects:
+        object.clear()
+    width = len(text)
+    if width > MAX_TIP_WIDTH:
+        width = MAX_TIP_WIDTH
+    msgBox(text + ' (press ESCAPE to continue)', width + 2)
+    objects.remove(arrowPoint)
+    objects.remove(arrowBody)
+    FOV_recompute = True
+    Update()
+    tdl.flush()
+    for object in objects:
+        object.clear()
+    FOV_recompute = True
+
+def zargSpeech():
+    def waitForWait():
+        waited = False
+        while not waited:
+            input = tdl.event.key_wait()
+            if input.keychar.upper() == 'KP5' or input.keychar.upper() == 'W':
+                waited = True
+
+    global FOV_recompute, player
+    zarg = None
+    for object in objects:
+        if object.name == 'Zarg':
+            zarg = object
+            break
+    
+    projectile(zarg.x, zarg.y, player.x, player.y, chr(248), colors.light_han, False, True)
+    player.Fighter.hp = 1
+    FOV_recompute = True
+    message("Zarg says: 'Ha! I was waiting for you. I thought you would represent an actual challenge? Losing this miserably to a such simple spell really shows the inferiority of the human race.'", colors.dark_violet)
+    displayTip("Press 5 or 'w' to continue.", 0, 0, False)
+    zarg.moveTowards(player.x, player.y)
+    FOV_recompute = True
+    Update()
+    while zarg.distanceTo(player) > 3:
+        waitForWait()
+        zarg.moveTowards(player.x, player.y)
+        FOV_recompute = True
+        Update()
+    waitForWait()
+    message("Zarg says: 'Now kneel before the new ruler of this world.'", colors.dark_violet)
+    FOV_recompute = True
+    Update()
+    waitForWait()
+
 def playTutorial():
     global currentMusic, FOV_recompute, DEBUG, tutorial, hasSpokenToGeneral
     if currentMusic is None or currentMusic in ('No_Music.wav', 'Dusty_Feelings.wav', 'Sweltering_Battle.wav'):
@@ -11428,50 +11511,6 @@ def playTutorial():
     initializeFOV()
     gameState = 'playing'
     
-    def displayTip(text, x = 0, y = 0, arrow = True, pointedDirection = 'right'):
-        global FOV_recompute
-        MAX_TIP_WIDTH = 80
-        if pointedDirection == 'right':
-            pointChar = '>'
-            bodyChar = '-'
-            bodyX = x - 1
-            bodyY = y
-        elif pointedDirection == 'left':
-            pointChar = '<'
-            bodyChar = '-'
-            bodyX = x + 1
-            bodyY = y
-        elif pointedDirection == 'up':
-            pointChar = '^'
-            bodyChar = chr(124)
-            bodyX = x
-            bodyY = y + 1
-        elif pointedDirection == 'down':
-            pointChar = 'V'
-            bodyChar = chr(124)
-            bodyX = x
-            bodyY = y - 1
-        arrowPoint = GameObject(x, y, pointChar, 'arrow', colors.red, Ghost = True, alwaysAlwaysVisible=True, darkColor=colors.red)
-        arrowBody = GameObject(bodyX, bodyY, bodyChar, 'arrow', colors.red, Ghost = True, alwaysAlwaysVisible=True, darkColor=colors.red)
-        objects.append(arrowPoint)
-        objects.append(arrowBody)
-        Update()
-        tdl.flush()
-        for object in objects:
-            object.clear()
-        width = len(text)
-        if width > MAX_TIP_WIDTH:
-            width = MAX_TIP_WIDTH
-        msgBox(text + ' (press ESCAPE to continue)', width + 2)
-        objects.remove(arrowPoint)
-        objects.remove(arrowBody)
-        FOV_recompute = True
-        Update()
-        tdl.flush()
-        for object in objects:
-            object.clear()
-        FOV_recompute = True
-    
     tutorial = True
     displayedPickUp = False
     displayedInventory = False
@@ -11483,13 +11522,14 @@ def playTutorial():
     displayedLog = False
     displayedShoot = False
     displayedStairs = False
+    foughtZarg = False
     FOV_recompute = True
     Update()
     FOV_recompute = True
     generalObject = None
     
     displayTip('Move around using the directional ARROWS or the NUMPAD. Pressing 5 will pass a turn.', x = 0, y = 0, arrow = False)
-    while not tdl.event.isWindowClosed():
+    while not tdl.event.isWindowClosed() and not foughtZarg:
         Update()
         if myMap is None:
             raise TypeError("MYMAP IS NONE, PLAYTUT FUNC")
@@ -11564,6 +11604,9 @@ def playTutorial():
                 if object.Stairs and not displayedStairs and (object.x, object.y) in visibleTiles and object.distanceTo(player) <= 7:
                     displayedStairs = True
                     displayTip("These are the stairs allowing you to climb Zarg's tower. Press '<' to climb them up.", object.x - 1, object.y)
+                if object.name == 'Zarg' and (object.x, object.y) in visibleTiles and object.distanceTo(player) <= 10:
+                    zargSpeech()
+                    foughtZarg = True
                 if object.Fighter and object.Fighter.spellsOnCooldown and object.Fighter is not None:
                     try:
                         for spell in object.Fighter.spellsOnCooldown:
@@ -11696,9 +11739,12 @@ def playTutorial():
                 player.Player.hungerStatus = "full"
                 if prevStatus != "full":
                     message("You feel way less hungry")
-    
+
     DEBUG = False
-    quitGame('Window has been closed')
+    if foughtZarg:
+        newGame()
+    else:
+        quitGame('Window has been closed')
     
     
 #ISN project
