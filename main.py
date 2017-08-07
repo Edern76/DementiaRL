@@ -11537,6 +11537,7 @@ def playTutorial():
     Update()
     FOV_recompute = True
     generalObject = None
+    player.trueName = heroName
     
     displayTip('Move around using the directional ARROWS or the NUMPAD. Pressing 5 will pass a turn.', x = 0, y = 0, arrow = False)
     while not tdl.event.isWindowClosed() and not foughtZarg:
