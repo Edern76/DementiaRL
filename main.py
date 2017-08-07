@@ -2127,13 +2127,13 @@ def initializeTraits():
     elemental = Trait('Elemental magic', 'You master the power of the four elements.', type = 'skill', selectable=False, tier = 3, allowsSelection=[fireSkill, iceSkill])
     thirdTierSkills = [light, heavy, missile, armorEff, shield, hunger, constitution, occult, elemental, dexterity, critical]
 
-    melee = Trait('Melee weaponry', 'You are trained to wreck your enemies at close shotRange.', type = 'skill', selectable = False, tier = 2, allowsSelection=[light, heavy])
+    melee = Trait('Melee weaponry', 'You are trained to wreck your enemies at close range.', type = 'skill', selectable = False, tier = 2, allowsSelection=[light, heavy])
     ranged = Trait('Ranged weaponry', 'You shoot people in the knees.', type = 'skill', selectable = False, tier = 2, allowsSelection=[missile])
-    armorW = Trait('Armor wielding', 'You are trained to wield several types of armor.', type = 'skill', selectable = False, tier = 2, allowsSelection=[armorEff, shield])
+    armorW = Trait('Armor wearing', 'You are trained to wear several types of armor.', type = 'skill', selectable = False, tier = 2, allowsSelection=[armorEff, shield])
     endurance = Trait('Endurance', 'You are used to live in harsh conditions', type = 'skill', selectable = False, tier = 2, allowsSelection=[hunger, constitution])
     strength = Trait('Strength', 'You are as strong as a bear', type = 'skill', stren=(1, 0), selectable = False, tier = 2)
     willpower = Trait('Willpower', 'Your will is very strong', type = 'skill', mp=(5, 0), will = (1, 0), selectable = False, tier = 2)
-    cunning = Trait('Cunning', 'You are cunning, and can both use this to hide in the shadows, or to increase the potency of your spells', type = 'skill', selectable = False, tier = 2, allowsSelection=[dexterity, critical])
+    cunning = Trait('Cunning', 'You are cunning, and can use this to hide in the shadows in order to deliver sly but deadly attacks.', type = 'skill', selectable = False, tier = 2, allowsSelection=[dexterity, critical])
     magic = Trait('Magic ', 'You can use the power of your mind to bind reality to your will', type = 'skill', selectable = False, tier = 2, allowsSelection=[occult, elemental])
     secondTierSkills = [melee, ranged, armorW, strength, endurance, magic, willpower, cunning]
 
@@ -2300,13 +2300,13 @@ def characterCreation():
     elemental = Trait('Elemental magic', 'You master the power of the four elements.', type = 'skill', selectable=False, tier = 3, allowsSelection=[fireSkill, iceSkill])
     thirdTierSkills = [light, heavy, missile, armorEff, shield, hunger, constitution, occult, elemental, dexterity, critical]
 
-    melee = Trait('Melee Weaponry', 'You are trained to wreck your enemies at close shotRange.', type = 'skill', selectable = False, tier = 2, allowsSelection=[light, heavy])
+    melee = Trait('Melee Weaponry', 'You are trained to wreck your enemies at close range.', type = 'skill', selectable = False, tier = 2, allowsSelection=[light, heavy])
     ranged = Trait('Ranged Weaponry', 'You shoot people in the knees.', type = 'skill', selectable = False, tier = 2, allowsSelection=[missile])
-    armorW = Trait('Armor wielding', 'You are trained to wield several types of armor.', type = 'skill', selectable = False, tier = 2, allowsSelection=[armorEff, shield])
+    armorW = Trait('Armor wearing', 'You are trained to wear several types of armor.', type = 'skill', selectable = False, tier = 2, allowsSelection=[armorEff, shield])
     endurance = Trait('Endurance', 'You are used to live in harsh conditions', type = 'skill', selectable = False, tier = 2, allowsSelection=[hunger, constitution])
     strength = Trait('Strength', 'You are as strong as a bear', type = 'skill', stren=(1, 0), selectable = False, tier = 2)
     willpower = Trait('Willpower', 'Your will is very strong', type = 'skill', mp=(5, 0), will = (1, 0), selectable = False, tier = 2)
-    cunning = Trait('Cunning', 'You are cunning, and can both use this to hide in the shadows, or to increase the potency of your spells', type = 'skill', selectable = False, tier = 2, allowsSelection=[dexterity, critical])
+    cunning = Trait('Cunning', 'You are cunning, and can use this to hide in the shadows in order to deliver sly but deadly attacks.', type = 'skill', selectable = False, tier = 2, allowsSelection=[dexterity, critical])
     magic = Trait('Magic ', 'You can use the power of your mind to bind reality to your will', type = 'skill', selectable = False, tier = 2, allowsSelection=[occult, elemental])
     secondTierSkills = [melee, ranged, armorW, strength, endurance, magic, willpower, cunning]
 
@@ -6316,7 +6316,7 @@ def checkLevelUp():
                  'Missile Weapons (from ' + str(player.Player.getTrait(searchedType = 'skill', name = 'Missile weapons').amount) + ')',
                  'Throwing Weapons (from ' + str(player.Player.getTrait(searchedType = 'skill', name = 'Throwing weapons').amount) + ')',
                  'Magic (from ' + str(player.Player.getTrait(searchedType = 'skill', name = 'Magic ').amount) + ')',
-                 'Armor wielding (from ' + str(player.Player.getTrait(searchedType = 'skill', name = 'Armor wielding').amount) + ')',
+                 'Armor wearing (from ' + str(player.Player.getTrait(searchedType = 'skill', name = 'Armor wearing').amount) + ')',
                  'Athletics (from ' + str(player.Player.getTrait(searchedType = 'skill', name = 'Athletics').amount) + ')',
                  'Concentration (from ' + str(player.Player.getTrait(searchedType = 'skill', name = 'Concentration').amount) + ')',
                  'Dodge (from ' + str(player.Player.getTrait(searchedType = 'skill', name = 'Dodge').amount) + ')',
@@ -10271,9 +10271,9 @@ def launchTutorial(prologueEsc = True):
     missile = Trait('Missile weapons', '+20% damage per skillpoints with missile weapons', type = 'skill', selectable = False, tier = 3)
     shield = Trait('Shield mastery', 'You trained to master shield wielding.', type = 'skill', selectable = False, tier = 3)
     armorEff = Trait('Armor efficiency', 'You know very well how to maximize the protection brought by your armor', type = 'skill', selectable = False, tier = 3)
-    melee = Trait('Melee Weaponry', 'You are trained to wreck your enemies at close shotRange.', type = 'skill', selectable = False, tier = 2, allowsSelection=[light, heavy])
+    melee = Trait('Melee Weaponry', 'You are trained to wreck your enemies at close range.', type = 'skill', selectable = False, tier = 2, allowsSelection=[light, heavy])
     ranged = Trait('Ranged Weaponry', 'You shoot people in the knees.', type = 'skill', selectable = False, tier = 2, allowsSelection=[missile])
-    armorW = Trait('Armor wielding', 'You are trained to wield several types of armor.', type = 'skill', selectable = False, tier = 2, allowsSelection=[armorEff, shield])
+    armorW = Trait('Armor wearing', 'You are trained to wear several types of armor.', type = 'skill', selectable = False, tier = 2, allowsSelection=[armorEff, shield])
     martial = Trait('Martial training', 'You are trained to use a wide variety of weapons', type = 'skill', acc=(10, 0), allowsSelection=[melee, ranged, armorW])
     aggressive = Trait('Aggressive', 'You angry', type = 'trait', selectable=False, selected = False)
     traits = [martial, melee, ranged, armorW, light, heavy, missile, shield, armorEff, aggressive]
@@ -10441,7 +10441,7 @@ def testArena():
     armorEff = Trait('Armor efficiency', 'You know very well how to maximize the protection brought by your armor', type = 'skill', selectable = False, tier = 3)
     melee = Trait('Melee Weaponry', 'You are trained to wreck your enemies at close range.', type = 'skill', selectable = False, tier = 2, allowsSelection=[light, heavy])
     ranged = Trait('Ranged Weaponry', 'You shoot people in the knees.', type = 'skill', selectable = False, tier = 2, allowsSelection=[missile])
-    armorW = Trait('Armor wielding', 'You are trained to wield several types of armor.', type = 'skill', selectable = False, tier = 2, allowsSelection=[armorEff, shield])
+    armorW = Trait('Armor wearing', 'You are trained to wear several types of armor.', type = 'skill', selectable = False, tier = 2, allowsSelection=[armorEff, shield])
     martial = Trait('Martial training', 'You are trained to use a wide variety of weapons', type = 'skill', acc=(10, 0), allowsSelection=[melee, ranged, armorW])
     aggressive = Trait('Aggressive', 'You angry', type = 'trait', selectable=False, selected = False)
     traits = [martial, melee, ranged, armorW, light, heavy, missile, shield, armorEff, aggressive]
@@ -10600,8 +10600,8 @@ def Update():
                     inRange = (x, y) in tilesInRange
                     inPath = pathToTargetTile and (x,y) in pathToTargetTile
                     inRect = tilesInRect and (x, y) in tilesInRect
-                    if inRange and not tile.wall:
-                        con.draw_char(x, y, None, fg=None, bg=colors.darker_yellow)
+                    #if inRange and not tile.wall:
+                    #    con.draw_char(x, y, None, fg=None, bg=colors.darker_yellow)
                     if inPath:
                         if (x,y) != (player.x, player.y):
                             if not tile.wall:
