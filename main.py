@@ -907,10 +907,10 @@ def targetTileWrapper(caster = None):
     (x,y) = targetTile()
     return createObjectFromCoords(x, y)
 
-def singleTarget(startPoint, range = 0):
+def singleTarget(startPoint, shotRange = 0):
     return [(startPoint.x, startPoint.y)]
 
-def areaOfEffect(startPoint, range = 2):
+def areaOfEffect(startPoint, shotRange = 2):
     '''    
                               X
                     X        XXX 
@@ -943,15 +943,15 @@ Then find everything in affected tiles, fill in the targets list and return said
     '''
    
     startX, startY = startPoint.x, startPoint.y
-    bottomY = startY - range
+    bottomY = startY - shotRange
     affectedTiles = [(startX, bottomY)]
     curY = bottomY
     i = 1
     counter = 0
-    while i <= range: #Using while instead of for so as to avoid range() shenanigans
+    while i <= shotRange: #Using while instead of for so as to avoid range() shenanigans
         counter += 1
         if counter > 50:
-            raise InfiniteLoopPrevention("First outer while in AOE. I = {} Range = {}".format(i, range))
+            raise InfiniteLoopPrevention("First outer while in AOE. I = {} shotRange = {}".format(i, shotRange))
         curY += 1
         affectedTiles.append((startX, curY))
         moveCounter = 0
@@ -965,19 +965,19 @@ Then find everything in affected tiles, fill in the targets list and return said
             affectedTiles.append((startX + moveCounter, curY))
         i += 1
     k = 1
-    while (range - k) >= 0:
+    while (shotRange - k) >= 0:
         curY += 1
         counter += 1
         if counter > 50:
-            raise InfiniteLoopPrevention("Second outer while in AOE. MoveCounter = {} Range = {} K = {}".format(moveCounter, range, k))
+            raise InfiniteLoopPrevention("Second outer while in AOE. MoveCounter = {} shotRange = {} K = {}".format(moveCounter, shotRange, k))
         affectedTiles.append((startX, curY))
         moveCounter = 0
         innerCounter = 0
-        while moveCounter < (range - k):
+        while moveCounter < (shotRange - k):
             moveCounter += 1
             innerCounter += 1
             if innerCounter > 100:
-                raise InfiniteLoopPrevention("Second inner while in AOE. MoveCounter = {} Range = {} K = {}".format(moveCounter, range, k))
+                raise InfiniteLoopPrevention("Second inner while in AOE. MoveCounter = {} shotRange = {} K = {}".format(moveCounter, shotRange, k))
             affectedTiles.append((startX - moveCounter, curY))
             affectedTiles.append((startX + moveCounter, curY))
         k += 1
@@ -1249,26 +1249,26 @@ def castFreeze(caster = None, monsterTarget = None):
         message("The " + target.name + " is already frozen.")
         return 'cancelled'
     
-def castFireball(radius = 3, damage = 24, range = 4, caster = None, monsterTarget = player):
+def castFireball(radius = 3, damage = 24, shotRange = 4, caster = None, monsterTarget = player):
     global explodingTiles
     if caster is None or caster == player:
         caster = player
         message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
-        target = targetTile(maxRange = range)
+        target = targetTile(maxRange = shotRange)
     else:
-        if caster.distanceTo(monsterTarget) <= range:
+        if caster.distanceTo(monsterTarget) <= shotRange:
             target = (monsterTarget.x, monsterTarget.y)
         else:
             line = tdl.map.bresenham(caster.x, caster.y, monsterTarget.x, monsterTarget.y)
             counter = 0
             for tile in line:
                 (tx, ty) = line[counter]
-                if tileDistance(caster.x, caster.y, tx, ty) > range:
+                if tileDistance(caster.x, caster.y, tx, ty) > shotRange:
                     target = (tx, ty)
                     break
                 else:
                     counter += 1
-    #radmax = radius + 2
+    radmax = radius + 2
     if target == 'cancelled':
         message('Spell casting cancelled')
         return target
@@ -1284,11 +1284,11 @@ def castFireball(radius = 3, damage = 24, range = 4, caster = None, monsterTarge
                     message('You get burned for {} damage !'.format(damage), colors.orange)
                 obj.Fighter.takeDamage(damage, caster.name + "'s fireball spell")
                 applyBurn(obj)
-        #for x in range(targetX - radmax, targetX + radmax):
-            #for y in range(targetY - radmax, targetY + radmax):
-                #if tileDistance(targetX, targetY, x, y) <= radius and not myMap[x][y].block_sight:
-                    #explodingTiles.append((x,y))
-        #explode()
+        for x in range(targetX - radmax, targetX + radmax):
+            for y in range(targetY - radmax, targetY + radmax):
+                if tileDistance(targetX, targetY, x, y) <= radius and not myMap[x][y].block_sight:
+                    explodingTiles.append((x,y))
+        explode()
 
 def castArmageddon(radius = 4, damage = 80, caster = None, monsterTarget = None):
     global FOV_recompute
@@ -1318,12 +1318,12 @@ def castArmageddon(radius = 4, damage = 80, caster = None, monsterTarget = None)
     radmax = radius + 2
     global explodingTiles
     global gameState
-    for x in range (player.x - radmax, player.x + radmax):
-        for y in range (player.y - radmax, player.y + radmax):
+    for x in range(player.x - radmax, player.x + radmax):
+        for y in range(player.y - radmax, player.y + radmax):
             try: #Execute code below try if no error is encountered
                 if tileDistance(player.x, player.y, x, y) <= radius and not myMap[x][y].unbreakable:
                     myMap[x][y].applyGroundProperties(explode = True)
-                    if x in range (1, MAP_WIDTH-1) and y in range (1,MAP_HEIGHT - 1):
+                    if x in range(1, MAP_WIDTH-1) and y in range(1,MAP_HEIGHT - 1):
                         explodingTiles.append((x,y))
                     for obj in objects:
                         if obj.Fighter and obj.x == x and obj.y == y: 
@@ -1346,10 +1346,10 @@ def castEnrage(enrageTurns, caster = None, monsterTarget = None):
     enraged = Buff('enraged', colors.dark_red, cooldown = enrageTurns, applyFunction = lambda fighter: modifyFighterStats(fighter, pow = 10), removeFunction = lambda fighter: setFighterStatsBack(fighter))
     enraged.applyBuff(caster)
 
-def castRessurect(range = 4, caster = None, monsterTarget = None):
+def castRessurect(shotRange = 4, caster = None, monsterTarget = None):
     if caster is None or caster == player:
         caster = player
-    target = targetTile(range)
+    target = targetTile(shotRange)
     if target == "cancelled":
         message("Spell casting cancelled")
         return target
@@ -2044,11 +2044,7 @@ class Trait():
             cons.draw_str(x, self.y, '---', fg = color)
             cons.draw_str(x, self.y + 1, chr(92) + '__', fg = color)
 
-def characterCreation():
-    global createdCharacter
-    createdCharacter = {'pow': 0, 'acc': 20, 'ev': 0, 'arm': 0, 'hp': 0, 'mp': 0, 'crit': 0, 'str': 0, 'dex': 0, 'vit': 0, 'will': 0, 'ap': 0, 
-                    'powLvl': 0, 'accLvl': 0, 'evLvl': 0, 'armLvl': 0, 'hpLvl': 0, 'mpLvl': 0, 'critLvl': 0, 'strLvl': 0, 'dexLvl': 0, 'vitLvl': 0, 'willLvl': 0, 'apLvl': 0,
-                    'spells': [], 'load': 45.0}
+def initializeTraits():
     allTraits = []
     leftTraits = []
     rightTraits = []
@@ -2126,7 +2122,180 @@ def characterCreation():
     elemental = Trait('Elemental magic', 'You master the power of the four elements.', type = 'skill', selectable=False, tier = 3, allowsSelection=[fireSkill, iceSkill])
     thirdTierSkills = [light, heavy, missile, armorEff, shield, hunger, constitution, occult, elemental, dexterity, critical]
 
-    melee = Trait('Melee Weaponry', 'You are trained to wreck your enemies at close range.', type = 'skill', selectable = False, tier = 2, allowsSelection=[light, heavy])
+    melee = Trait('Melee weaponry', 'You are trained to wreck your enemies at close shotRange.', type = 'skill', selectable = False, tier = 2, allowsSelection=[light, heavy])
+    ranged = Trait('Ranged weaponry', 'You shoot people in the knees.', type = 'skill', selectable = False, tier = 2, allowsSelection=[missile])
+    armorW = Trait('Armor wielding', 'You are trained to wield several types of armor.', type = 'skill', selectable = False, tier = 2, allowsSelection=[armorEff, shield])
+    endurance = Trait('Endurance', 'You are used to live in harsh conditions', type = 'skill', selectable = False, tier = 2, allowsSelection=[hunger, constitution])
+    strength = Trait('Strength', 'You are as strong as a bear', type = 'skill', stren=(1, 0), selectable = False, tier = 2)
+    willpower = Trait('Willpower', 'Your will is very strong', type = 'skill', mp=(5, 0), will = (1, 0), selectable = False, tier = 2)
+    cunning = Trait('Cunning', 'You are cunning, and can both use this to hide in the shadows, or to increase the potency of your spells', type = 'skill', selectable = False, tier = 2, allowsSelection=[dexterity, critical])
+    magic = Trait('Magic ', 'You can use the power of your mind to bind reality to your will', type = 'skill', selectable = False, tier = 2, allowsSelection=[occult, elemental])
+    secondTierSkills = [melee, ranged, armorW, strength, endurance, magic, willpower, cunning]
+
+    martial = Trait('Martial training', 'You are trained to use a wide variety of weapons', type = 'skill', acc=(10, 0), allowsSelection=[melee, ranged, armorW])
+    physical = Trait('Physical training', 'You are muscular and are used to physical efforts', type = 'skill', allowsSelection=[strength, endurance])
+    mental = Trait('Mental training', 'Your mind is as fast as an arrow and as sharp as a scalpel', type = 'skill', allowsSelection=[magic, willpower, cunning])
+    basicSkills = [martial, physical, mental]
+    
+    skills = basicSkills
+    skills.extend(secondTierSkills)
+    skills.extend(thirdTierSkills)
+    skills.extend(fourthTierSkills)
+    
+    quarterX = (WIDTH - 2)//5
+    
+    def initiateSkill(skillList, maxHeight, heightCounter, originY = 0):
+        newHeight = maxHeight//len(skillList)
+        mid = newHeight//2
+        counter = 0
+        for skill in skillList:
+            skill.x = skill.tier * quarterX
+            skill.y = mid + counter * newHeight + heightCounter * maxHeight + originY
+            print(skill.name, skill.tier, len(skill.allowsSelection), skill.x, skill.y)
+            if skill.allowsSelection and len(skill.allowsSelection) > 0:
+                print('initiating selectable skills of ' + skill.name)
+                initiateSkill(skill.allowsSelection, newHeight, counter, maxHeight * heightCounter + originY)
+            counter += 1
+    
+    
+    newHeight = 76//3
+    mid = newHeight//2
+    counter = 0
+    for skill in basicSkills:
+        if skill.tier == 1:
+            skill.x = quarterX
+            skill.y = mid + newHeight * counter
+            print(skill.name, skill.tier, len(skill.allowsSelection), skill.x, skill.y)
+            if skill.allowsSelection and len(skill.allowsSelection) > 0:
+                print('initiating selectable skills of ' + skill.name)
+                initiateSkill(skill.allowsSelection, newHeight, counter)
+            counter += 1
+
+    ## classes ##
+    knight = Trait('Knight', 'A warrior who wears armor and wields shields', type ='class', arm=(1, 1), hp=(120, 14), mp=(30, 3))
+    barb = Trait('Barbarian', 'A brutal fighter who is mighty strong', type = 'class', hp=(160, 20), mp=(30, 3), stren=(1, 1), spells=[enrage])
+    rogue = Trait('Rogue', 'A rogue who is stealthy and backstabby (probably has a french accent)', type = 'class', acc=(8, 4), ev=(10, 2), hp=(90, 10), mp=(40, 5), crit=(3, 0))
+    mage = Trait('Mage ', 'A wizard who zaps everything', type ='class', hp=(70, 6), mp=(50, 7), will=(2, 0), spells=[fireball])
+    necro = Trait('Necromancer', 'A master of the occult arts who has the ability to raise and control the dead.', type = 'class', hp=(100, 4), mp=(15, 1), spells=[darkPact, ressurect])
+    classes = [knight, barb, rogue, mage, necro]
+    allTraits.extend(classes)
+    rightTraits.extend(classes)
+    
+    counter = 0
+    for classe in classes:
+        classe.x = RIGHT_X
+        classe.y = CLASS_Y + counter
+        counter += 1
+    
+    ## traits ##
+    aggressive = Trait('Aggressive', 'Your anger is uncontrollable', type = 'trait')
+    aura = Trait('Aura', 'You are surrounded by a potent aura', type = 'trait', mp=(20, 0))
+    evasive = Trait('Evasive', 'You are aware of how to stay out of trouble', type = 'trait', ev=(10, 0))
+    healthy = Trait('Healthy', 'You are healthy', type = 'trait', vit=(2, 0))
+    muscular = Trait('Muscular', 'You are very strong', type = 'trait', stren=(2, 0))
+    natArmor = Trait('Natural armor', 'Your skin is rock-hard', type = 'trait', arm = (1, 0))
+    mind = Trait('Strong mind', 'Your mind is fast and potent', type = 'trait', will=(2, 0))
+    agile = Trait('Agile', 'You have incredible reflexes', type = 'trait', dex=(2, 0))
+    training = Trait('Warrior training', 'You are trained to master all weapons', type = 'trait', acc=(7, 0))
+    tough = Trait('Tough', 'You can endure harm better', type = 'trait', hp=(40, 0))
+    traits = [aggressive, aura, evasive, healthy, muscular, natArmor, mind, agile, training, tough]
+    traits.extend(optionTraits)
+    allTraits.extend(traits)
+    rightTraits.extend(traits)
+    
+    counter = 0
+    for trait in traits:
+        trait.x = RIGHT_X
+        trait.y = TRAIT_Y + counter
+        counter += 1
+    
+    return allTraits, leftTraits, rightTraits, races, attributes, skills, classes, traits, skilled, human
+
+def characterCreation():
+    global createdCharacter
+    createdCharacter = {'pow': 0, 'acc': 20, 'ev': 0, 'arm': 0, 'hp': 0, 'mp': 0, 'crit': 0, 'str': 0, 'dex': 0, 'vit': 0, 'will': 0, 'ap': 0, 
+                    'powLvl': 0, 'accLvl': 0, 'evLvl': 0, 'armLvl': 0, 'hpLvl': 0, 'mpLvl': 0, 'critLvl': 0, 'strLvl': 0, 'dexLvl': 0, 'vitLvl': 0, 'willLvl': 0, 'apLvl': 0,
+                    'spells': [], 'load': 45.0}
+    #allTraits = []
+    #leftTraits = []
+    #rightTraits = []
+    LEFT_X = (WIDTH // 4)
+    RIGHT_X = WIDTH - (WIDTH // 4)
+    
+    '''
+    RACE_Y = 11
+    ATTRIBUTE_Y = 31
+    TRAIT_Y = 31
+    CLASS_Y = 11
+    SKILL_Y = 41
+
+    ## racial traits ##
+    fastLearn = Trait('Fast learner', 'You are very smart and learn from your wins or losses very fast', type = 'trait', selectable = False)
+    skilled = Trait('Skilled', 'You are already a skillful warrior', type = 'trait', selectable=False)
+    rage = Trait('Rage', 'When low on health, you will lose all control', type = 'trait', selectable = False)
+    horns = Trait('Horned', 'Your horns are very large and can be used in combats', type = 'trait', selectable = False)
+    carapace = Trait('Chitin carapace', 'Your natural exoskeleton is very resistant', type = 'trait', arm=(2, 0), selectable = False)
+    silence = Trait('Silent walk', 'Your paws are very soft, allowing you to be very sneaky', type = 'trait', selectable = False)
+    venom = Trait('Venomous glands', 'You are able to envenom your weapons', type = 'trait', selectable = False, spells = [envenom])
+    mimesis = Trait('Mimesis', 'You can mimic your environment, making it very hard to see you', type = 'trait', selectable = False)
+    wild = Trait('Wild instincts', 'Your natural transformation is even more deadly', type = 'trait', selectable = False)
+    optionTraits = [fastLearn, skilled, rage, horns, carapace, silence, venom, mimesis, wild]
+    
+    ## races ##
+    human = Trait('Human', 'Humans are the most common race. They have no special characteristic, and are neither better or worse at anything. However, they are good learners and gain experience faster.', type = 'race', allowsSelection=[fastLearn, skilled])
+    mino = Trait('Minotaur', 'Minotaurs, whose muscular bodies are topped with a taurine head, are tougher and stronger than humans, but are way less smart. They are uncontrollable and, when angered, can become a wrecking ball of muscles and thorns.', type= 'race', allowsSelection=[rage, horns], stren=(5, 0), dex=(-4, 0), vit=(4, 0), will=(-3, 0))
+    insect = Trait('Insectoid', 'Insectoids are a rare race of bipedal insects which are stronger than human but, more importantly, very good at arcane arts. They come in all kinds of forms, from the slender mantis to the bulky beetle.', type = 'race', allowsSelection=[carapace], stren=(1, 0), dex=(-1, 0), vit=(-2, 0), will=(2, 0))
+    cat = Trait('Felis', 'Felis, kinds of humanoid cats, are sneaky thieves and assassins. They usually move silently and can see in the dark.', type ='race', allowsSelection=[silence], stren = (2, 0), vit = (-2, 0))
+    rept = Trait('Reptilian', 'Reptilians are very agile but absurdly weak. Their scaled skin, however, sometimes provides them with natural camouflage, and they might use their natural venom on their daggers or arrows to make them even more deadly.', type = 'race', allowsSelection=[venom, mimesis], ev=(20, 0), stren=(-4, 0), dex=(2, 0))
+    demon = Trait('Demon Spawn', 'Demon spawns, a very uncommon breed of a human and a demon, are cursed with the heritage of  their demonic parents, which will make them grow disturbing mutations as they grow older and stronger.', type = 'race')
+    tree = Trait('Rootling', 'Rootlings, also called treants, are rare, sentient plants. They begin their life as a simple twig, but, with time, might become gigantic oaks.', type = 'race', stren=(-3, 0), dex=(-2, 0), vit=(-4, 0), will=(-3, 0))
+    wolf = Trait('Werewolf', 'Werewolves are a martyred and despised race. Very tough to kill, they are naturally stronger than basic humans and unconogreably shapeshift more or less regularly. However, older werewolves are used to these transformations and can even use them to their interests.', type = 'race', allowsSelection=[wild], stren=(2, 0), dex=(1, 0), vit=(-2, 0), will=(-4, 0))
+    devourer = Trait('Devourer', 'Devourers are strange, dreaded creatures from another dimension. Few have arrived in ours and even fewer have been described. These animals, half mantis, half lizard, are only born to kill and consume. Some of their breeds can even, after consuming anything - even a weapon - grow an organic replica of it.', type = 'race', vit = (-2, 0), will = (-10, 0))
+    virus = Trait('Virus ', 'Viruses are the physically weakest race, but do not base their success on their own bodies. Indeed, they are able to infect another race, making it their host and fully controllable by the virus. What is more, the virus own physical attributes, instead of applying to it directly, rather modifies the host metabolism, potentially making it stronger or tougher. However, this take-over is very harmful for the host, who will eventually die. The virus must then find a new host to continue living.', type = 'race', ev = (999, 0))
+    races = [human, mino, insect, cat, rept, demon, tree, wolf, devourer, virus]
+    allTraits.extend(races)
+    leftTraits.extend(races)
+    
+    counter = 0
+    for race in races:
+        race.x = LEFT_X
+        race.y = RACE_Y + counter
+        counter += 1
+    
+    ## attributes ##
+    stren = Trait('Strength', 'Strength augments the power of your attacks', type = 'attribute', maxAmount=5, stren=(1, 0))
+    dex = Trait('Dexterity', 'Dexterity augments your accuracy and your evasion', type = 'attribute', maxAmount=5, dex=(1, 0))
+    const = Trait('Constitution', 'Constitution augments your maximum health and your regeneration rate.', type = 'attribute', maxAmount=5, vit=(1, 0))
+    will = Trait('Willpower', 'Willpower augments your energy and the rate at which you regain it.', type = 'attribute', maxAmount=5, will=(1, 0))
+    attributes = [stren, dex, const, will]
+    allTraits.extend(attributes)
+    leftTraits.extend(attributes)
+    
+    counter = 0
+    for attribute in attributes:
+        attribute.x = LEFT_X
+        attribute.y = ATTRIBUTE_Y + counter
+        counter += 1
+    
+    ## skills ##
+    fireSkill = Trait('Fire', 'Launch a blazing fireball at the chosen location.', type = 'skill', selectable=False, tier = 4, spells = [fireball])
+    iceSkill = Trait('Water', 'Launch an ice bolt at your target in order to freeze it.', type = 'skill', selectable=False, tier = 4, spells = [ice])
+    fourthTierSkills = [fireSkill, iceSkill]
+    
+    light = Trait('Light weapons', '+20% damage per skillpoints with light weapons', type = 'skill', selectable = False, tier = 3)
+    heavy = Trait('Heavy weapons', '+20% damage per skillpoints with heavy weapons', type = 'skill', selectable = False, tier = 3)
+    missile = Trait('Missile weapons', '+20% damage per skillpoints with missile weapons', type = 'skill', selectable = False, tier = 3)
+    shield = Trait('Shield mastery', 'You trained to master shield wielding.', type = 'skill', selectable = False, tier = 3)
+    armorEff = Trait('Armor efficiency', 'You know very well how to maximize the protection brought by your armor', type = 'skill', selectable = False, tier = 3)
+    dexterity = Trait('Dexterity', 'You are Dexter.', type = 'skill', selectable = False, dex=(1, 0), tier = 3)
+    critical = Trait('Critical', 'You know every weaknesses of your enemies.', type = 'skill', selectable = False, crit=(3, 0), tier = 3)
+    constitution = Trait('Constitution', 'You are a sturdy person', type = 'skill', hp = (5, 0), vit = (1, 0), selectable = False, tier = 3)
+    hunger = Trait('Hunger management', 'You are used to starve and are now resilient to hunger.', type = 'skill', selectable=False, tier = 3)
+    occult = Trait('Occult magic', 'The black magic cannot hide any of its dark secrets to you.', type = 'skill', selectable=False, tier = 3)
+    elemental = Trait('Elemental magic', 'You master the power of the four elements.', type = 'skill', selectable=False, tier = 3, allowsSelection=[fireSkill, iceSkill])
+    thirdTierSkills = [light, heavy, missile, armorEff, shield, hunger, constitution, occult, elemental, dexterity, critical]
+
+    melee = Trait('Melee Weaponry', 'You are trained to wreck your enemies at close shotRange.', type = 'skill', selectable = False, tier = 2, allowsSelection=[light, heavy])
     ranged = Trait('Ranged Weaponry', 'You shoot people in the knees.', type = 'skill', selectable = False, tier = 2, allowsSelection=[missile])
     armorW = Trait('Armor wielding', 'You are trained to wield several types of armor.', type = 'skill', selectable = False, tier = 2, allowsSelection=[armorEff, shield])
     endurance = Trait('Endurance', 'You are used to live in harsh conditions', type = 'skill', selectable = False, tier = 2, allowsSelection=[hunger, constitution])
@@ -2175,27 +2344,6 @@ def characterCreation():
                 initiateSkill(skill.allowsSelection, newHeight, counter)
             counter += 1
 
-    '''
-    allTraits.extend(skills)
-    leftTraits.extend(skills)
-    
-    counter = 1
-    for skill in basicSkills:
-        skill.x = LEFT_X
-        skill.y = SKILL_Y + counter
-        counter += 4
-    
-    counter = 0
-    passLine = 0
-    for skill in secondTierSkills:
-        skill.x = LEFT_X + 20
-        if passLine == 3:
-            passLine = 0
-            counter += 1
-        skill.y = SKILL_Y + counter
-        passLine += 1
-        counter += 1
-    '''
     ## classes ##
     knight = Trait('Knight', 'A warrior who wears armor and wields shields', type ='class', arm=(1, 1), hp=(120, 14), mp=(30, 3))
     barb = Trait('Barbarian', 'A brutal fighter who is mighty strong', type = 'class', hp=(160, 20), mp=(30, 3), stren=(1, 1), spells=[enrage])
@@ -2233,6 +2381,10 @@ def characterCreation():
         trait.x = RIGHT_X
         trait.y = TRAIT_Y + counter
         counter += 1
+    '''
+    
+    allTraits, leftTraits, rightTraits, races, attributes, skills, classes, traits, skilled, human = initializeTraits()
+    
     
     #index
     index = 0
@@ -2478,6 +2630,7 @@ def enterName(race):
         elif key.keychar.upper() == 'ESCAPE':
             mainMenu()
 #______________CHARACTER GENERATION____________
+
 def heuristic(sourceX, sourceY, targetX, targetY):
     return abs(sourceX - targetX) + abs(sourceY - targetY)
 
@@ -3266,8 +3419,8 @@ class Fighter: #All NPCs, enemies and the player
         tdl.flush()
 
 class RangedNPC:
-    def __init__(self, range, power, accuracy, critical = 5, armorPenetration = 0, buffsOnAttack = [], leechRessource = '', attackFunctions = [], shootMessage = ' shoots {} for ', projChar = '/', projColor = colors.light_orange, continues = False, passesThrough = False, ghost = False):
-        self.range = range
+    def __init__(self, shotRange, power, accuracy, critical = 5, armorPenetration = 0, buffsOnAttack = [], leechRessource = '', attackFunctions = [], shootMessage = ' shoots {} for ', projChar = '/', projColor = colors.light_orange, continues = False, passesThrough = False, ghost = False):
+        self.shotRange = shotRange
         self.power = power
         self.accuracy = accuracy
         self.critical = critical
@@ -3396,15 +3549,17 @@ class Pathfinder(threading.Thread):
 class TargetSelector:
     def __init__(self):
         self.selectedTarget = None
+        self.targets = []
 
-    def setFuckingTarget(self, target):
+    def setFuckingTarget(self, target, targets):
         self.selectedTarget = target
+        self.targets = targets
     
     def selectTarget(self):
         monster = self.owner
-        targets = []
+        self.targets = []
         self.selectedTarget = None
-        self.setFuckingTarget(None)
+        self.setFuckingTarget(None, [])
         priorityTargetFound = False
         
         monsterVisibleTiles = tdl.map.quick_fov(x = monster.x, y = monster.y,callback = isVisibleTile , fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
@@ -3412,7 +3567,7 @@ class TargetSelector:
             #print(monster.name + " is less than 15 tiles to player.")
             for object in objects:
                 if (object.x, object.y) in monsterVisibleTiles and (object == player or (object.AI and object.AI.__class__.__name__ == "FriendlyMonster" and object.AI.friendlyTowards == player)):
-                    targets.append(object)
+                    self.targets.append(object)
                 elif object == player and (not (player.x, player.y) in monsterVisibleTiles):
                     print("WAAAAARNING")
                     print("+++++++++++++++++++++++++++++++++++++++++++++++++")
@@ -3423,31 +3578,31 @@ class TargetSelector:
                     print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
             if DEBUG:
                 print(monster.name.capitalize() + " can target", end=" ")
-                if targets:
-                    for loop in range (len(targets)):
+                if self.targets:
+                    for loop in range(len(self.targets)):
                         pass
-                        print(targets[loop].name.capitalize() + ", ", sep ="", end ="")
+                        print(self.targets[loop].name.capitalize() + ", ", sep ="", end ="")
                 else:
                     pass
                     print("absolutely nothing but nothingness.", end ="")
-            if targets:
-                if player in targets: #Target player in priority
+            if self.targets:
+                if player in self.targets: #Target player in priority
                     self.selectedTarget = player
                     print("PLAYER IN TARGETS")
                     print(self.selectedTarget)
                     try:
-                        targets.remove(targets.index(player))
+                        self.targets.remove(self.targets.index(player))
                     except:
                         print("================ERROR==================")
-                        for target in targets:
+                        for target in self.targets:
                             print(target.name)
                         print("=======================================")
                     if monster.distanceTo(player) < 2:
                         priorityTargetFound = True
                 print("BEFORE PRIORITY : {}".format(self.selectedTarget.name))
                 if not priorityTargetFound:
-                    for enemyIndex in range(len(targets)):
-                        enemy = targets[enemyIndex]
+                    for enemyIndex in range(len(self.targets)):
+                        enemy = self.targets[enemyIndex]
                         if monster.distanceTo(enemy) < 2:
                             print("PRIORITIZING ENEMY {}".format(enemy.name))
                             self.selectedTarget = enemy
@@ -3547,7 +3702,7 @@ class BasicMonster(TargetSelector): #Basic monsters' AI
                         self.failCounter += 1
                         mustCalculate = True
                         mobsToCalculate.append(monster)
-                    else:
+                    elif DEBUG:
                         message("{} has a dumb expression on its face.".format(monster.name))
                         self.wander()
                     
@@ -3753,7 +3908,7 @@ class Shooter(Fleeing):
                         monster.Fighter.attack(self.selectedTarget)
                     else:
                         self.flee()
-                elif monster.distanceTo(self.selectedTarget) <= rangedComp.range:
+                elif monster.distanceTo(self.selectedTarget) <= rangedComp.shotRange:
                     line = tdl.map.bresenham(monster.x, monster.y, self.selectedTarget.x, self.selectedTarget.y)
                     obstructed = False
                     for (x, y) in line:
@@ -3766,7 +3921,7 @@ class Shooter(Fleeing):
                     else:
                         print("SHOOTING")
                         rangedComp.shoot(self.selectedTarget)
-                elif monster.distanceTo(self.selectedTarget) > rangedComp.range:
+                elif monster.distanceTo(self.selectedTarget) > rangedComp.shotRange:
                     print("TRYING TO MOVE")
                     self.tryMove()
             else:
@@ -3840,7 +3995,7 @@ class FriendlyMonster:
             if DEBUG:
                 print(monster.name.capitalize() + " can target", end=" ")
                 if targets:
-                    for loop in range (len(targets)):
+                    for loop in range(len(targets)):
                         print(targets[loop].name.capitalize() + ", ", sep ="", end ="")
                 else:
                     print("absolutely nothing but nothingness.", end ="")
@@ -3881,43 +4036,22 @@ class FriendlyMonster:
         else:
             pass #Implement here code in case the monster is friendly towards another monster
     
-class Spellcaster():
+class Spellcaster(Fleeing):
+    def __init__(self, wanderer = True, meleeFighter = True):
+        Fleeing.__init__(self, wanderer)
+        self.meleeFighter = meleeFighter
+
     def takeTurn(self):
-        global FOV_recompute
+        global mustCalculate
         monster = self.owner
-        monsterVisibleTiles = tdl.map.quick_fov(x = monster.x, y = monster.y,callback = isVisibleTile , fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
+        self.dumbCounter = 0
+        self.failCounter = 0
+        self.didRecalcThisTurn = False
         
-        targets = []
-        selectedTarget = None
-        priorityTargetFound = False
         if not 'frozen' in convertBuffsToNames(self.owner.Fighter) and monster.distanceTo(player) <= 15:
-            print(monster.name + " is less than 15 tiles to player.")
-            for object in objects:
-                if (object.x, object.y) in monsterVisibleTiles and (object == player or (object.AI and object.AI.__class__.__name__ == "FriendlyMonster" and object.AI.friendlyTowards == player)):
-                    targets.append(object)
-            if DEBUG:
-                print(monster.name.capitalize() + " can target", end=" ")
-                if targets:
-                    for loop in range (len(targets)):
-                        print(targets[loop].name.capitalize() + ", ", sep ="", end ="")
-                else:
-                    print("absolutely nothing but nothingness.", end ="")
-                print()
-            if targets:
-                if player in targets: #Target player in priority
-                    selectedTarget = player
-                    del targets[targets.index(player)]
-                    if monster.distanceTo(player) < 2:
-                        priorityTargetFound = True
-                if not priorityTargetFound:
-                    for enemyIndex in range(len(targets)):
-                        enemy = targets[enemyIndex]
-                        if monster.distanceTo(enemy) < 2:
-                            selectedTarget = enemy
-                        else:
-                            if selectedTarget == None or monster.distanceTo(selectedTarget) > monster.distanceTo(enemy):
-                                selectedTarget = enemy
-            if selectedTarget is not None:
+            self.selectTarget()
+            if self.selectedTarget is not None:
+                print("SELECTED TARGET IS NOT NONE")
                 choseSpell = True
                 if len(monster.Fighter.knownSpells) > 0:
                     randSpell = randint(0, len(monster.Fighter.knownSpells) - 1)
@@ -3925,7 +4059,7 @@ class Spellcaster():
                     action = None
                     while action is None:
                         chosenSpell = monster.Fighter.knownSpells[randSpell]
-                        action = chosenSpell.cast(monster, selectedTarget)
+                        action = chosenSpell.cast(monster, self.selectedTarget)
                         if action == 'cancelled':
                             action = None
                             randSpell += 1
@@ -3940,28 +4074,16 @@ class Spellcaster():
                     choseSpell = False
                 
                 if not choseSpell:
-                    if monster.distanceTo(selectedTarget) < 2:
-                        monster.Fighter.attack(selectedTarget)
+                    if monster.distanceTo(self.selectedTarget) < 2 and self.meleeFighter:
+                        monster.Fighter.attack(self.selectedTarget)
                     else:
-                        state = monster.moveAstar(selectedTarget.x, selectedTarget.y, fallback = False)
-                        if state == "fail":
-                            diagState = checkDiagonals(monster, selectedTarget)
-                            if diagState is None:
-                                monster.moveTowards(selectedTarget.x, selectedTarget.y)
-            #elif (monster.x, monster.y) in visibleTiles and monster.distanceTo(player) >= 2:
-                #monster.moveAstar(player.x, player.y)
+                        self.flee()
             else:
-                if not 'frozen' in convertBuffsToNames(monster.Fighter) and monster.distanceTo(player) >= 2:
-                    pathState = "complete"
-                    diagPathState = None
-                    if monster.astarPath:
-                        pathState = monster.moveAstar()
-                    elif not monster.astarPath or pathState == "fail":
-                            if monster.distanceTo(player) <= 15 and not (monster.x == player.x and monster.y == player.y):
-                                diagPathState = checkDiagonals(monster, player)
-                            elif diagPathState is None or monster.distanceTo(player) > 15:
-                                monster.move(randint(-1, 1), randint(-1, 1)) #wandering
-            FOV_recompute = True
+                print("No target, still trying to move")
+                self.tryMove()
+                
+        elif not 'frozen' in convertBuffsToNames(self.owner.Fighter):
+            self.wander()
 
 class Player:
     def __init__(self, name, strength, dexterity, vitality, willpower, load, race, classes, allTraits, levelUpStats, baseHunger = BASE_HUNGER, speed = 'average', speedChance = 5, skillpoints = 0):
@@ -5692,7 +5814,7 @@ def projectile(sourceX, sourceY, destX, destY, char, color, continues = False, p
                         break
                 dx = newX - startX
                 dy = newY - startY
-            print("Projectile out of range")
+            print("Projectile out of shotRange")
             #message("Your arrow flies far away from your sight.")
             return (None, None)
     else:
@@ -6075,7 +6197,7 @@ def levelUpScreen(newSkillpoints = True, skillpoint = 3, fromCreation = False, s
         selectedSkill = origin.skills[index]
         selectedSkill.underCursor = True
 
-def checkLevelUp(fromTuto = False):
+def checkLevelUp():
     global FOV_recompute
     
     levelUp_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
@@ -6201,16 +6323,15 @@ def checkLevelUp(fromTuto = False):
                     choice = None
         '''
         
-        if not fromTuto:
-            if player.Player.getTrait('skill', 'Light weapons').amount >= 5 and player.Player.getTrait('trait', 'Dual wield') == 'not found':
-                message('You are now proficient enough with light weapons to wield two at the same time!', colors.yellow)
-                dual = Trait('Dual wield', 'Allows to wield two lights weapons at the same time.', 'trait')
-                dual.addTraitToPlayer()
-            
-            if player.Player.getTrait('skill', 'Mental training').amount >= 5 and player.Player.getTrait('trait', 'Self aware') == 'not found':
-                message('Your meditation training is now so strong you can be really aware of your health state!', colors.yellow)
-                aware = Trait('Self aware', 'Allows to see the buffs and debuffs cooldowns.', 'trait')
-                aware.addTraitToPlayer()
+        if player.Player.getTrait('skill', 'Light weapons').amount >= 5 and player.Player.getTrait('trait', 'Dual wield') == 'not found':
+            message('You are now proficient enough with light weapons to wield two at the same time!', colors.yellow)
+            dual = Trait('Dual wield', 'Allows to wield two lights weapons at the same time.', 'trait')
+            dual.addTraitToPlayer()
+        
+        if player.Player.getTrait('skill', 'Mental training').amount >= 5 and player.Player.getTrait('trait', 'Self aware') == 'not found':
+            message('Your meditation training is now so strong you can be really aware of your health state!', colors.yellow)
+            aware = Trait('Self aware', 'Allows to see the buffs and debuffs cooldowns.', 'trait')
+            aware.addTraitToPlayer()
 
 def isVisibleTile(x, y):
     global myMap
@@ -6309,15 +6430,15 @@ def monsterArmageddon(monsterName, monsterX, monsterY, radius = 4, damage = 40, 
     global gameState
     global FOV_recompute
     FOV_recompute = True
-    for x in range (monsterX - radmax, monsterX + radmax):
-        for y in range (monsterY - radmax, monsterY + radmax):
+    for x in range(monsterX - radmax, monsterX + radmax):
+        for y in range(monsterY - radmax, monsterY + radmax):
             try: #Execute code below try if no error is encountered
                 if tileDistance(monsterX, monsterY, x, y) <= radius and not myMap[x][y].unbreakable:
                     myMap[x][y].blocked = False
                     myMap[x][y].block_sight = False
                     myMap[x][y].wall = False
                     myMap[x][y].applyGroundProperties(explode=True)
-                    if x in range (1, MAP_WIDTH-1) and y in range (1,MAP_HEIGHT - 1):
+                    if x in range(1, MAP_WIDTH-1) and y in range(1,MAP_HEIGHT - 1):
                         explodingTiles.append((x,y))
                     for obj in objects:
                         if obj.Fighter and obj.x == x and obj.y == y: 
@@ -6683,7 +6804,7 @@ class Rectangle:
     
     @property
     def tiles(self):
-        tileList = [myMap[x][y] for x in range (self.x1 + 1, self.x2) for y in range (self.y1 + 1, self.y2)]
+        tileList = [myMap[x][y] for x in range(self.x1 + 1, self.x2) for y in range(self.y1 + 1, self.y2)]
         print("PRINTING LIST")
         print("GOING TO PRINT TILES LIST")
         print("PRINTING A LOT OF CAPITALIZED MESAGE SO IM SURE I WILL SEE THEM")
@@ -7711,7 +7832,7 @@ def makeMap(generateChasm = True, generateHole = False, fall = False, temple = F
         numberRooms = 0
         objects = [player]
     
-        for y in range (MAP_HEIGHT):
+        for y in range(MAP_HEIGHT):
             myMap[0][y].unbreakable = True
             myMap[MAP_WIDTH-1][y].unbreakable = True
         for x in range(MAP_WIDTH):
@@ -8039,7 +8160,7 @@ def makeBossLevel(fall = False, generateHole=False, temple = False):
     rooms = []
     numberRooms = 0
     
-    for y in range (MAP_HEIGHT):
+    for y in range(MAP_HEIGHT):
         myMap[0][y].unbreakable = True
         myMap[MAP_WIDTH-1][y].unbreakable = True
     for x in range(MAP_WIDTH):
@@ -8313,23 +8434,28 @@ def makeTutorialMap(level = 1):
         swordComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus = 10, meleeWeapon=True)
         sword = GameObject(121, 44, '-', 'longsword', colors.light_sky, Equipment = swordComponent, Item = Item(weight=3.5, pic = 'longSword.xp', useText='Equip'))
         
-        helmetComp = Equipment(slot = 'head', type = 'light armor', armorBonus=2, meleeWeapon=False)
-        helmet = GameObject(0, 0, '[', 'helmet', colors.silver, Equipment=helmetComp, Item=Item(weight=2.0, pic = 'darksoulHelmet.xp', useText='Equip'))
-        fighterComp = Fighter(hp = 20, armor = 0, power = 6, accuracy = 60, evasion = 15, xp = 350, deathFunction=monsterDeath, lootFunction= [helmet], lootRate=[100], toEquip=[helmet], description = "One of Zarg's fighters, he seems to be guarding the entrance to the tower.")
+        shieldComp = Equipment(slot = 'one handed', type = 'shield', armorBonus=3, meleeWeapon=False)
+        shield = GameObject(0, 0, '[', 'shield', colors.darker_orange, Equipment=shieldComp, Item=Item(weight=5.0, pic = 'shield.xp', useText='Equip'))
+        fighterComp = Fighter(hp = 20, armor = 0, power = 6, accuracy = 60, evasion = 15, xp = 350, deathFunction=monsterDeath, lootFunction= [shield], lootRate=[100], toEquip=[shield], description = "One of Zarg's fighters, he seems to be guarding the entrance to the tower.")
         guard = GameObject(115, 26, 'g', 'guard', colors.darker_han, blocks = True, Fighter=fighterComp, AI=BasicMonster(wanderer=False))
         
         equipmentComponent = Equipment(slot = 'two handed', type = 'missile weapon', powerBonus = 1, ranged = True, rangedPower = 7, maxRange = SIGHT_RADIUS, ammo = 'arrow')
         bow = GameObject(0, 0, ')', 'shortbow', colors.light_orange, Equipment = equipmentComponent, Item = Item(weight = 1.0, pic = 'bow.xp'))
         itemComponent = Item(stackable = True, amount = 30)
         arrows = GameObject(0, 0, '^', 'arrow', colors.light_orange, Item = itemComponent)
-        shooterComp = RangedNPC(range = 10, power = 6, accuracy = 60)
+        shooterComp = RangedNPC(shotRange = 10, power = 6, accuracy = 60)
         fighterComp = Fighter(hp = 20, armor = 0, power = 6, accuracy = 60, evasion = 15, xp = 350, deathFunction=monsterDeath, lootFunction = [bow, arrows], lootRate = [100, 100], description = "One of Zarg's fighters, he seems to be guarding the entrance to the tower. He is equipped with a bow.", Ranged=shooterComp)
         guard2 = GameObject(115, 34, 'g', 'guard', colors.darker_han, blocks = True, Fighter=fighterComp, AI=Shooter(wanderer=False))
+        
+        mobFireball = Spell(ressourceCost = 0, cooldown = 10, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 3, arg2 = 10, arg3 = 10)
+        spellbook = GameObject(0, 0, '=', 'spellbook of fireball', colors.violet, Item = Item(useFunction = learnSpell, arg1 = fireball, weight = 1.0, pic = 'spellbook.xp', description='The reading of this book will learn you how to cast mighty fireballs.', useText='Read'), blocks = False)
+        fighterComponent = Fighter(hp = 30, armor = 1, power = 5, xp = 350, deathFunction = monsterDeath, accuracy = 25, evasion = 40, maxMP = 30, knownSpells=[mobFireball], description = "One of Zarg's mages.", lootFunction=[spellbook], lootRate=[100])
+        mage = GameObject(MID_MAP_WIDTH, MID_MAP_HEIGHT, 'm', 'mage', colors.darker_han, blocks = True, Fighter=fighterComponent, AI=Spellcaster(wanderer=False, meleeFighter=False))
         
         upStairs = GameObject(6, 11, '<', 'stairs', colors.light_grey, alwaysVisible = True, darkColor = colors.dark_grey, Stairs = TutoStairs(climb='up', branchesFrom=2, branchesTo=3))
 
         
-        objects = [player, sword, guard, guard2, upStairs]
+        objects = [player, sword, guard, guard2, upStairs, mage]
         player.x = MAP_WIDTH - 2
         for attributeList in objectsToCreate:
             object = createNPCFromMapReader(attributeList)
@@ -8349,7 +8475,7 @@ def makeHiddenTown(fall = False):
     bossRoom = None
     numberRooms = 0
     
-    for y in range (MAP_HEIGHT):
+    for y in range(MAP_HEIGHT):
         myMap[0][y].unbreakable = True
         myMap[MAP_WIDTH-1][y].unbreakable = True
     for x in range(MAP_WIDTH):
@@ -8619,10 +8745,11 @@ class Wrath(Charger):
 #--Wrath--
 
 #-- High Inquisitor --
-class HighInquisitor(Fleeing):
+class HighInquisitor(Spellcaster):
     def __init__(self):
-        Fleeing.__init__(self)
-
+        Spellcaster.__init__(self)
+    
+    '''
     def takeTurn(self):
         global FOV_recompute
         monster = self.owner
@@ -8660,8 +8787,9 @@ class HighInquisitor(Fleeing):
         elif not 'frozen' in convertBuffsToNames(monster.Fighter):
             self.wander()
         FOV_recompute = True
+    '''
 #-- High Inquisitor --
-
+'''
 class TestInquisitor(BasicMonster):
     def __init__(self):
         BasicMonster.__init__(self)
@@ -8688,7 +8816,7 @@ class TestInquisitor(BasicMonster):
                     print(player.x, player.y, sep=";")
                     print(convertTilesToCoords(bossTiles))
                 self.wander()
-    
+'''    
 
 def placeBoss(name, x, y):
     if name == 'Gluttony':
@@ -8711,7 +8839,7 @@ def placeBoss(name, x, y):
     if name == 'High Inquisitor':
         inquisitorFireball = Spell(ressourceCost = 0, cooldown = 4, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 0, arg2 = 20, arg3 = 6)
         fighterComponent = Fighter(hp = 300, armor = 2, power = 5, xp = 1000, deathFunction = basicBossDeath, accuracy = 75, evasion = 25, maxMP = 50, knownSpells=[inquisitorFireball])
-        AI_component = TestInquisitor()
+        AI_component = HighInquisitor()
         boss = GameObject(x, y, char = 'I', color = colors.darker_magenta, name = name, blocks = True, Fighter = fighterComponent, AI = AI_component)
         objects.append(boss)
     
@@ -10098,12 +10226,14 @@ def controlBox():
 def launchTutorial(prologueEsc = True):
     global player
     showPrologue(prologueEsc)
+    
+    '''
     light = Trait('Light weapons', '+20% damage per skillpoints with light weapons', type = 'skill', selectable = False, tier = 3)
     heavy = Trait('Heavy weapons', '+20% damage per skillpoints with heavy weapons', type = 'skill', selectable = False, tier = 3)
     missile = Trait('Missile weapons', '+20% damage per skillpoints with missile weapons', type = 'skill', selectable = False, tier = 3)
     shield = Trait('Shield mastery', 'You trained to master shield wielding.', type = 'skill', selectable = False, tier = 3)
     armorEff = Trait('Armor efficiency', 'You know very well how to maximize the protection brought by your armor', type = 'skill', selectable = False, tier = 3)
-    melee = Trait('Melee Weaponry', 'You are trained to wreck your enemies at close range.', type = 'skill', selectable = False, tier = 2, allowsSelection=[light, heavy])
+    melee = Trait('Melee Weaponry', 'You are trained to wreck your enemies at close shotRange.', type = 'skill', selectable = False, tier = 2, allowsSelection=[light, heavy])
     ranged = Trait('Ranged Weaponry', 'You shoot people in the knees.', type = 'skill', selectable = False, tier = 2, allowsSelection=[missile])
     armorW = Trait('Armor wielding', 'You are trained to wield several types of armor.', type = 'skill', selectable = False, tier = 2, allowsSelection=[armorEff, shield])
     martial = Trait('Martial training', 'You are trained to use a wide variety of weapons', type = 'skill', acc=(10, 0), allowsSelection=[melee, ranged, armorW])
@@ -10137,10 +10267,33 @@ def launchTutorial(prologueEsc = True):
                 print('initiating selectable skills of ' + skill.name)
                 initiateSkill(skill.allowsSelection, newHeight, counter)
             counter += 1
+    '''
+    
+    allTraits, leftTraits, rightTraits, races, attributes, skills, classes, traits, skilled, human = initializeTraits()
+    toUpTraits = ['Muscular', 'Skilled', 'Tough', 'Knight', 'Human', 'Martial training', 'Physical training', 'Mental training', 'Magic ', 'Melee weaponry']
+    
+    allTraits.extend(skills)
+    for trait in allTraits:
+        print(trait.name, trait.type)
+        if trait.name in toUpTraits:
+            trait.selected = True
+            trait.amount = 1
+            for newTrait in trait.allowsSelection:
+                newTrait.selectable = True
+        elif (trait.name == 'Strength' or trait.name == 'Constitution') and trait.type == 'attribute':
+            trait.selected = True
+            trait.amount = 5
+            for newTrait in trait.allowsSelection:
+                newTrait.selectable = True
+        elif (trait.name == 'Willpower' or trait.name == 'Dexterity') and trait.type == 'attribute': 
+            trait.selected = True
+            trait.amount = 2
+            for newTrait in trait.allowsSelection:
+                newTrait.selectable = True
 
-    LvlUp = {'pow': 1, 'acc': 10, 'ev': 0, 'arm': 1, 'hp': 20, 'mp': 0, 'crit': 0, 'str': 0, 'dex': 0, 'vit': 0, 'will': 0, 'ap': 0}
-    playerComp = Player('Angus McFife', 0, 0, 0, 0, 45.0, 'Human', 'Knight', traits, LvlUp)
-    fighterComp = Fighter(hp = 120, power= 1, armor= 1, deathFunction=playerDeath, xp=0, evasion = 20, accuracy = 50, maxMP= 20, critical = 5)
+    LvlUp = {'pow': 1, 'acc': 10, 'ev': 0, 'arm': 1, 'hp': 14, 'mp': 3, 'crit': 0, 'str': 0, 'dex': 0, 'vit': 0, 'will': 0, 'ap': 0}
+    playerComp = Player('Angus McFife', 5, 2, 5, 2, 45.0, 'Human', 'Knight', allTraits, LvlUp)
+    fighterComp = Fighter(hp = 160, power= 1, armor= 1, deathFunction=playerDeath, xp=0, evasion = 0, accuracy = 30, maxMP= 30, critical = 5)
     player = GameObject(MAP_WIDTH - 2, MID_MAP_HEIGHT, '@', Fighter = fighterComp, Player = playerComp, name = 'Angus McFife', color = (0, 210, 0))
     player.level = 1
     player.Fighter.hp = player.Fighter.baseMaxHP
@@ -11471,11 +11624,12 @@ def zargSpeech():
         zarg.moveTowards(player.x, player.y)
         FOV_recompute = True
         Update()
-    waitForWait()
-    message("Zarg says: 'Now kneel before the new ruler of this world.'", colors.dark_violet)
+        if zarg.distanceTo(player) == 4:
+            message("Zarg says: 'Now kneel before the new ruler of this world.'", colors.dark_violet)
     FOV_recompute = True
     Update()
     waitForWait()
+    newGame()
 
 def playTutorial():
     global currentMusic, FOV_recompute, DEBUG, tutorial, hasSpokenToGeneral
@@ -11533,6 +11687,7 @@ def playTutorial():
     displayedShoot = False
     displayedStairs = False
     foughtZarg = False
+    displayedSpell = False
     FOV_recompute = True
     Update()
     FOV_recompute = True
@@ -11546,7 +11701,7 @@ def playTutorial():
             raise TypeError("MYMAP IS NONE, PLAYTUT FUNC")
             traceback.print_exc()
             os._exit(-1)
-        checkLevelUp(fromTuto=True)
+        checkLevelUp()
         tdl.flush()
         for object in objects:
             object.clear()
@@ -11618,6 +11773,9 @@ def playTutorial():
                 if object.name == 'Zarg' and (object.x, object.y) in visibleTiles and object.distanceTo(player) <= 10:
                     zargSpeech()
                     foughtZarg = True
+                if object.name == 'spellbook of fireball' and not displayedSpell:
+                    displayedSpell = True
+                    displayTip("This spellbook, when used, will learn you a new spell. In order to cast it, you have to press 'z'.", object.x - 1, object.y)
                 if object.Fighter and object.Fighter.spellsOnCooldown and object.Fighter is not None:
                     try:
                         for spell in object.Fighter.spellsOnCooldown:
@@ -11636,6 +11794,10 @@ def playTutorial():
                 else:
                     if object.Fighter:
                         print("{} has no spell on cooldown".format(object.name))
+                    
+                if object.Fighter and object.Fighter is not None: #If object is a creature
+                    for buff in object.Fighter.buffList:
+                        buff.passTurn()
                 
                 if object.Fighter and object.Fighter.MP < object.Fighter.maxMP and object.Fighter is not None:
                     object.Fighter.MPRegenCountdown -= 1
@@ -11752,10 +11914,8 @@ def playTutorial():
                     message("You feel way less hungry")
 
     DEBUG = False
-    if foughtZarg:
-        newGame()
-    else:
-        quitGame('Window has been closed')
+    #quitGame('Window has been closed')
+    playGame()
     
     
 #ISN project
