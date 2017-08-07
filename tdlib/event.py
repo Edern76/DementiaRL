@@ -36,7 +36,7 @@ import time as _time
 from tcod import ffi as _ffi
 from tcod import lib as _lib
 
-import tdl as _tdl
+import tdlib as _tdl
 from . import style as _style
 
 _eventQueue = []
