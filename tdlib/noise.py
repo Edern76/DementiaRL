@@ -15,7 +15,7 @@ import random as _random
 from tcod import ffi as _ffi
 from tcod import lib as _lib
 
-import tdl as _tdl
+import tdlib as _tdl
 from . import style as _style
 
 _MERSENNE_TWISTER = 1
