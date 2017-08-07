@@ -2984,7 +2984,12 @@ class GameObject:
             self.moveTowards(goal.x, goal.y)
 
 def createNPCFromMapReader(attributeList):
-    return GameObject(int(attributeList[0]), int(attributeList[1]), attributeList[2], attributeList[3], attributeList[4], blocks = True, socialComp = getattr(dial, attributeList[5]))
+    if attributeList[6] in ("None", "", " "):
+        shop = None
+    else:
+        mainModule = sys.modules[__name__] #Because "main" is not defined inside itself.
+        shop = getattr(mainModule, attributeList[6])
+    return GameObject(int(attributeList[0]), int(attributeList[1]), attributeList[2], attributeList[3], attributeList[4], blocks = True, socialComp = getattr(dial, attributeList[5]), shopComp = shop)
 
 class Fighter: #All NPCs, enemies and the player
     def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = [0], shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = None, slots = ['head', 'torso', 'left hand', 'right hand', 'legs', 'feet'], equipmentList = [], toEquip = [], attackFunctions = [], noDirectDamage = False, pic = 'ogre.xp', description = 'Placeholder', rangedPower = 0, Ranged = None):
@@ -8393,7 +8398,7 @@ def makeTutorialMap(level = 1):
             makeTutorialMap(self.branchesTo.level)
 
     if level == 1:
-        myMap, objectsToCreate = layoutReader.readMap('tutoFloorOne1')
+        myMap, objectsToCreate = layoutReader.readMap('tutoFloorOne')
         for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
             myMap[25][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 26, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
             myMap[27][y].onTriggerFunction = lambda tile: openTutorialGate(tile, 26, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
@@ -8430,7 +8435,7 @@ def makeTutorialMap(level = 1):
             objects.append(object)
         
     elif level == 2:
-        myMap, objectsToCreate = layoutReader.readMap('tutoFloorTwo1')
+        myMap, objectsToCreate = layoutReader.readMap('tutoFloorTwo')
         for y in range(MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4):
             myMap[109][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 110, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
             myMap[111][y].onTriggerFunction = lambda tile: openTutorialGate(tile, 110, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
@@ -8470,7 +8475,7 @@ def makeTutorialMap(level = 1):
             objects.append(object)
     
     elif level == 3:
-        myMap, objectsToCreate = layoutReader.readMap('tutoFloorThree11')
+        myMap, objectsToCreate = layoutReader.readMap('tutoFloorThree')
         zarg = GameObject(33, 54, 'Z', 'Zarg', colors.darkest_violet, blocks = True)
         objects = [player, zarg]
 

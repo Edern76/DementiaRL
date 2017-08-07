@@ -308,13 +308,14 @@ def openDetails(x, y):
                 index = 22
 
 class Object:
-    def __init__(self, x, y, char = '@', name = 'NPC', color = colors.white, dialog = 'Sample dialog'):
+    def __init__(self, x, y, char = '@', name = 'NPC', color = colors.white, dialog = 'Sample dialog', shop = "None"):
         self.x = x
         self.y = y
         self.char = char
         self.name = name
         self.color = color
         self.dialog = dialog
+        self.shop = shop
 
 def createNPC(x, y):
     global objects
@@ -333,7 +334,8 @@ def createNPC(x, y):
     name = npc.name
     color = npc.color
     dialog = npc.dialog
-    baseIndex = range(0, 4)
+    shop = npc.shop
+    baseIndex = range(-1, 4)
     Red, Green, Blue = 0, 0, 0
     while not quit:
         window.clear()
@@ -367,6 +369,12 @@ def createNPC(x, y):
             window.draw_str(1, 7, 'Dialog:', colors.green)
         window.draw_str(12, 7, dialog)
         
+        if index == -1 or index == 10:
+            window.draw_str(1, 9, 'Shop:', colors.black, colors.green)
+        else:
+            window.draw_str(1, 9, 'Shop:', colors.green)
+        window.draw_str(12, 9, shop)
+        
         root.blit(window, 65, 24, width, height)
         tdl.flush()
         
@@ -387,10 +395,13 @@ def createNPC(x, y):
             elif index == 9:
                 npc.dialog = dialog
                 index = 3
+            elif index == 10:
+                npc.shop = shop
+                index = -1
         elif userInput.keychar.upper() == 'UP':
             if index in baseIndex:
                 index -= 1
-                if index < 0:
+                if index < -1:
                     index = 3
             elif index == 4:
                 ascii += 1
@@ -412,7 +423,7 @@ def createNPC(x, y):
             if index in baseIndex:
                 index += 1
                 if index > 3:
-                    index = 0
+                    index = -1
             elif index == 4:
                 ascii -= 1
                 if ascii < 0:
@@ -449,16 +460,22 @@ def createNPC(x, y):
                 Red, Green, Blue = color
             elif index == 3:
                 index = 9
+            elif index == -1:
+                index = 10
         elif userInput.keychar in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890':
             if index == 5:
                 name += userInput.keychar
             elif index == 9:
                 dialog += userInput.keychar
+            elif index == 10:
+                shop += userInput.keychar
         elif userInput.keychar.upper() == 'SPACE':
             if index == 5:
                 name += ' '
             elif index == 9:
                 dialog += ' '
+            elif index == 10:
+                shop += ' '
         elif userInput.keychar.upper() == 'BACKSPACE':
             if index == 5 and name != '':
                 nameList = list(name)
@@ -472,6 +489,12 @@ def createNPC(x, y):
                 dialog = ''
                 for letter in dialogList:
                     dialog += letter
+            if index == 10 and shop != '':
+                shopList = list(shop)
+                shopList.pop()
+                shop = ''
+                for letter in shopList:
+                    shop += letter
     objects.append(npc)
 
 def findCurrentDir():
@@ -515,7 +538,7 @@ def promptFolderName(escapable=False):
         if userInput.keychar in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890":
             if len(letters) < 24:
                 letters.append(userInput.keychar)
-        elif userInput.keychar.upper() == 'BACKSPACE':
+        elif userInput.keychar.upper() == 'BACKSPACE' and len(letters) > 0:
             letters.pop()
         elif userInput.keychar.upper() == 'ENTER':
             if name == '':
@@ -650,6 +673,8 @@ def createMap():
             line += str(object.color)
             line += '/'
             line += object.dialog
+            line += '/'
+            line += object.shop
             line += '/'
             line += chr(92)
             line += '\n'
@@ -789,8 +814,11 @@ if __name__ == '__main__':
                 myMap = []
                 objects = []
                 myMap, objectsToCreate = readMap(folder, '.')
+    
                 for attributeList in objectsToCreate:
-                    object = Object(int(attributeList[0]), int(attributeList[1]), attributeList[2], attributeList[3], attributeList[4], attributeList[5])
+                    print(attributeList)
+                    object = Object(int(attributeList[0]), int(attributeList[1]), attributeList[2], attributeList[3], attributeList[4], attributeList[5], attributeList[6])
+                    print(object.dialog)
                     objects.append(object)
                 selectedTiles = [myMap[cursor.x][cursor.y]]
         elif userInput.keychar.upper() == 'S':
