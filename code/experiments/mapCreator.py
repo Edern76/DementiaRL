@@ -2,7 +2,7 @@ import colors, math, textwrap, time, os, sys, code, gzip, pathlib, traceback, ff
 import tdlib as tdl
 import threading, multiprocessing
 import dill #THIS IS NOT AN UNUSED IMPORT. Importing this changes the behavior of the pickle module (and the shelve module too), so as we can actually save lambda expressions. EDIT : It might actually be useless to import it here, since we import it in the dilledShelve module, but it freaking finally works perfectly fine so we're not touching this.
-from tdl import *
+from tdlib import *
 from random import randint, choice
 from math import *
 from code.custom_except import *

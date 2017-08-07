@@ -10,12 +10,13 @@ def findCurrentDir():
 
 curDir = findCurrentDir()
 relDirPath = "save"
-relPath = "save\\savegame"
-relPicklePath = "save\\equipment"
+relPath = os.path.join("save", "savegame")
+relPicklePath = os.path.join("save", "equipment")
 relAssetPath = "assets"
-relSoundPath = "assets\\sound"
-relAsciiPath = "assets\\ascii"
-relMetaPath = "metasave\\meta"
+relSoundPath = os.path.join("assets", "sound")
+relAsciiPath = os.path.join("assets", "ascii")
+relMusicPath = os.path.join("assets", "music")
+relMetaPath = os.path.join("metasave", "meta")
 relMetaDirPath = "metasave"
 absDirPath = os.path.join(curDir, relDirPath)
 absFilePath = os.path.join(curDir, relPath)

@@ -1,5 +1,5 @@
 import base64
-from tdl import *
+from tdlib import *
 
 ##################################
 # XpLoaderPy3

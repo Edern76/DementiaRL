@@ -6,7 +6,7 @@ import music as mus
 import simpleaudio as sa
 import threading, multiprocessing
 import dill #THIS IS NOT AN UNUSED IMPORT. Importing this changes the behavior of the pickle module (and the shelve module too), so as we can actually save lambda expressions. EDIT : It might actually be useless to import it here, since we import it in the dilledShelve module, but it freaking finally works perfectly fine so we're not touching this.
-from tdl import *
+from tdlib import *
 from random import randint, choice
 from math import *
 from code.custom_except import *
@@ -351,7 +351,10 @@ def convertMusics():
             print('MUSIC_CHK_WAR : Didnt found {}'.format(wavPath))
             if os.path.exists(mp3Path):
                 print('MUSIC_CONV : Converting {} to wav'.format(mp3Path))
-                ff = ffmpy.FFmpeg(inputs = {mp3Path : None}, outputs= {wavPath : None}, executable= executablePath)
+                if sys.platform.startswith('win32') or sys.platform.startswith('win64'):
+                    ff = ffmpy.FFmpeg(inputs = {mp3Path : None}, outputs= {wavPath : None}, executable= executablePath)
+                else:
+                    ff = ffmpy.FFmpeg(inputs = {mp3Path : None}, outputs= {wavPath : None})
                 ff.run()
                 print('MUSIC_CONV : Created {}'.format(wavPath))
             else:
