@@ -1,0 +1,4 @@
+NPC:0/0/@/NPC/(255, 255, 255)/Sample dialog/None/\
+NPC:47/26/@/NPC/(255, 255, 255)/test1/None/\
+NPC:63/26/@/NPC/(255, 255, 255)/test2/caca/\
+NPC:80/26/@/NPC/(255, 255, 255)/test3/shopTest/\

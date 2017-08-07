@@ -218,3 +218,4 @@ silver=(203,203,203)
 # miscellaneous
 celadon=(172,255,175)
 peach=(255,159,127)
+weird_purple = (188, 134, 255)

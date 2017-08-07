@@ -4,7 +4,7 @@ from random import randint
 from code.constants import *
 import colors
 
-SPELL_GEN_DEBUG = True
+SPELL_GEN_DEBUG = False
 BUFF_POTENTIAL_ATTENUATION_COEFFICIENT = 2
 
 class WeightedChoice:
@@ -12,7 +12,7 @@ class WeightedChoice:
         self.name = name
         self.prob = prob
         
-        print("FUCKING INITIALIZED AS A {}".format(self.__class__.__name__))
+        #print("FUCKING INITIALIZED AS A {}".format(self.__class__.__name__))
     '''
     def __iter__(self):
         print("Iterating")

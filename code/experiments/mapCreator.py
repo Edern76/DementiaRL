@@ -11,11 +11,13 @@ from os import makedirs
 from queue import *
 from multiprocessing import freeze_support, current_process
 from dill import objects
-from layoutReader import Tile, readMap
+from layoutReader import readMap
+from main import Tile
 
 MAP_WIDTH, MAP_HEIGHT = 140, 60
 myMap = [[Tile(blocked=False, x = x, y = y, block_sight=False, fg = colors.white, bg = colors.black, character = '.', dark_fg = colors.grey, dark_bg = colors.black) for y in range(MAP_HEIGHT)] for x in range(MAP_WIDTH)]
 selectedTiles = [myMap[0][0]]
+objects = []
 
 class Cursor:
     def __init__(self):
@@ -41,6 +43,11 @@ def update(showDark = False):
     root.draw_str(34, 70, 'r: load an existing map folder', fg = colors.yellow)
     root.draw_str(34, 72, 's: select a square', fg = colors.yellow)
     
+    root.draw_str(70, 62, 'n: create or modify an NPC', fg = colors.yellow)
+    root.draw_str(70, 64, 'd: delete an NPC', fg = colors.yellow)
+    root.draw_str(70, 66, 'l: copy an NPC', fg = colors.yellow)
+    root.draw_str(70, 68, 'm: paste an NPC', fg = colors.yellow)
+    
     for x in range(MAP_WIDTH):
         for y in range(MAP_HEIGHT):
             if myMap[x][y] in selectedTiles and not showDark:
@@ -51,11 +58,20 @@ def update(showDark = False):
                 root.draw_char(x, y, myMap[x][y].character, myMap[x][y].fg, myMap[x][y].bg)
             else:
                 root.draw_char(x, y, myMap[x][y].character, myMap[x][y].dark_fg, myMap[x][y].dark_bg)
+    for object in objects:
+        if myMap[object.x][object.y] in selectedTiles and not showDark:
+            root.draw_char(object.x, object.y, object.char, object.color, colors.dark_violet)
+        elif myMap[object.x][object.y] in selectedTiles and showDark:
+            root.draw_char(object.x, object.y, object.char, object.color, colors.dark_violet)
+        elif not showDark:
+            root.draw_char(object.x, object.y, object.char, object.color, myMap[object.x][object.y].bg)
+        else:
+            root.draw_char(object.x, object.y, object.char, object.color, myMap[object.x][object.y].dark_bg)
     tdl.flush()
 
 def openDetails(x, y):
     tile = myMap[x][y]
-    width, height = 36, 17
+    width, height = 36, 19
     window = tdl.Console(width, height)
     quit = False
     index = 0
@@ -76,6 +92,7 @@ def openDetails(x, y):
         else:
             window.draw_str(1, 1, 'Character:', colors.green)
         window.draw_char(12, 1, chr(ascii))
+        window.draw_str(14, 1, str(ascii))
         
         if index == 1 or index in range(8, 11):
             window.draw_str(1, 3, 'FG (lit):', colors.black, colors.green)
@@ -142,6 +159,8 @@ def openDetails(x, y):
         else:
             window.draw_str(1, 15, 'Explored', colors.green)
         window.draw_str(12, 15, str(explored))
+        
+        window.draw_str(1, 17, 'x: {}, y: {}'.format(x, y))
         
         root.blit(window, 65, 24, width, height)
         tdl.flush()
@@ -288,6 +307,196 @@ def openDetails(x, y):
             elif index == -1:
                 index = 22
 
+class Object:
+    def __init__(self, x, y, char = '@', name = 'NPC', color = colors.white, dialog = 'Sample dialog', shop = "None"):
+        self.x = x
+        self.y = y
+        self.char = char
+        self.name = name
+        self.color = color
+        self.dialog = dialog
+        self.shop = shop
+
+def createNPC(x, y):
+    global objects
+    found = False
+    for object in objects:
+        if object.x == x and object.y == y:
+            npc = object
+            found = True
+    if not found:
+        npc = Object(x, y)
+    width, height = 36, 17
+    window = tdl.Console(width, height)
+    quit = False
+    index = 0
+    ascii = ord(npc.char)
+    name = npc.name
+    color = npc.color
+    dialog = npc.dialog
+    shop = npc.shop
+    baseIndex = range(-1, 4)
+    Red, Green, Blue = 0, 0, 0
+    while not quit:
+        window.clear()
+        if index == 0 or index == 4:
+            window.draw_str(1, 1, 'Character:', colors.black, colors.green)
+        else:
+            window.draw_str(1, 1, 'Character:', colors.green)
+        window.draw_char(12, 1, chr(ascii))
+        
+        if index == 1 or index == 5:
+            window.draw_str(1, 3, 'Name:', colors.black, colors.green)
+        else:
+            window.draw_str(1, 3, 'Name:', colors.green)
+        window.draw_str(12, 3, name)
+        
+        if index == 2 or index in range(6, 9):
+            window.draw_str(1, 5, 'FG:', colors.black, colors.green)
+        else:
+            window.draw_str(1, 5, 'FG:', colors.green)
+        if index in range(6, 9):
+            window.draw_str(12, 5, '({}, {}, {})'.format(str(Red), str(Green), str(Blue)))
+            window.draw_str(30, 5, '   ', fg = None, bg = (Red, Green, Blue))
+        else:
+            R, G, B = color
+            window.draw_str(12, 5, '({}, {}, {})'.format(str(R), str(G), str(B)))
+            window.draw_str(30, 5, '   ', fg = None, bg = (R, G, B))
+        
+        if index == 3 or index == 9:
+            window.draw_str(1, 7, 'Dialog:', colors.black, colors.green)
+        else:
+            window.draw_str(1, 7, 'Dialog:', colors.green)
+        window.draw_str(12, 7, dialog)
+        
+        if index == -1 or index == 10:
+            window.draw_str(1, 9, 'Shop:', colors.black, colors.green)
+        else:
+            window.draw_str(1, 9, 'Shop:', colors.green)
+        window.draw_str(12, 9, shop)
+        
+        root.blit(window, 65, 24, width, height)
+        tdl.flush()
+        
+        userInput = tdl.event.key_wait()
+        if userInput.keychar.upper() == 'ESCAPE':
+            if index in baseIndex:
+                quit = True
+            elif index == 4:
+                npc.char = chr(ascii)
+                index = 0
+            elif index == 5:
+                npc.name = name
+                index = 1
+            elif index in range(6, 9):
+                index = 2
+                color = Red, Green, Blue
+                npc.color = color
+            elif index == 9:
+                npc.dialog = dialog
+                index = 3
+            elif index == 10:
+                npc.shop = shop
+                index = -1
+        elif userInput.keychar.upper() == 'UP':
+            if index in baseIndex:
+                index -= 1
+                if index < -1:
+                    index = 3
+            elif index == 4:
+                ascii += 1
+                if ascii > 255:
+                    ascii = 0
+            elif index == 6:
+                Red += 1
+                if Red > 255:
+                    Red = 0
+            elif index == 7:
+                Green += 1
+                if Green > 255:
+                    Green = 0
+            elif index == 8:
+                Blue += 1
+                if Blue > 255:
+                    Blue = 0
+        elif userInput.keychar.upper() == 'DOWN':
+            if index in baseIndex:
+                index += 1
+                if index > 3:
+                    index = -1
+            elif index == 4:
+                ascii -= 1
+                if ascii < 0:
+                    ascii = 255
+            elif index == 6:
+                Red -= 1
+                if Red < 0:
+                    Red = 255
+            elif index == 7:
+                Green -= 1
+                if Green < 0:
+                    Green = 255
+            elif index == 8:
+                Blue -= 1
+                if Blue < 0:
+                    Blue = 255
+        elif userInput.keychar.upper() == 'RIGHT':
+            if index in range(6, 9):
+                index += 1
+                if index > 8:
+                    index = 6
+        elif userInput.keychar.upper() == 'LEFT':
+            if index in range(6, 9):
+                index -= 1
+                if index < 6:
+                    index = 8
+        elif userInput.keychar.upper() == 'ENTER':
+            if index == 0:
+                index = 4
+            elif index == 1:
+                index = 5
+            elif index == 2:
+                index = 6
+                Red, Green, Blue = color
+            elif index == 3:
+                index = 9
+            elif index == -1:
+                index = 10
+        elif userInput.keychar in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890':
+            if index == 5:
+                name += userInput.keychar
+            elif index == 9:
+                dialog += userInput.keychar
+            elif index == 10:
+                shop += userInput.keychar
+        elif userInput.keychar.upper() == 'SPACE':
+            if index == 5:
+                name += ' '
+            elif index == 9:
+                dialog += ' '
+            elif index == 10:
+                shop += ' '
+        elif userInput.keychar.upper() == 'BACKSPACE':
+            if index == 5 and name != '':
+                nameList = list(name)
+                nameList.pop()
+                name = ''
+                for letter in nameList:
+                    name += letter
+            if index == 9 and dialog != '':
+                dialogList = list(dialog)
+                dialogList.pop()
+                dialog = ''
+                for letter in dialogList:
+                    dialog += letter
+            if index == 10 and shop != '':
+                shopList = list(shop)
+                shopList.pop()
+                shop = ''
+                for letter in shopList:
+                    shop += letter
+    objects.append(npc)
+
 def findCurrentDir():
     if getattr(sys, 'frozen', False):
         datadir = os.path.dirname(sys.executable)
@@ -329,7 +538,7 @@ def promptFolderName(escapable=False):
         if userInput.keychar in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890":
             if len(letters) < 24:
                 letters.append(userInput.keychar)
-        elif userInput.keychar.upper() == 'BACKSPACE':
+        elif userInput.keychar.upper() == 'BACKSPACE' and len(letters) > 0:
             letters.pop()
         elif userInput.keychar.upper() == 'ENTER':
             if name == '':
@@ -447,6 +656,30 @@ def createMap():
             line += '\n'
             dark_bgMap.write(line)
         dark_bgMap.close()
+        
+        objectsPath = os.path.join(absMapPath, 'objects.txt')
+        objectsMap = open(objectsPath, 'w')
+        for object in objects:
+            line = ''
+            line += 'NPC:'
+            line += str(object.x)
+            line += '/'
+            line += str(object.y)
+            line += '/'
+            line += object.char
+            line += '/'
+            line += object.name
+            line += '/'
+            line += str(object.color)
+            line += '/'
+            line += object.dialog
+            line += '/'
+            line += object.shop
+            line += '/'
+            line += chr(92)
+            line += '\n'
+            objectsMap.write(line)
+        objectsMap.close()
         return 'saved'
     else:
         return 'aborted'
@@ -481,6 +714,35 @@ def selectSquare():
         for y in range(min(startingTile.y, endTile.y), max(startingTile.y, endTile.y) + 1):
             selectedTiles.append(myMap[x][y])
 
+def selectLine():
+    global selectedTiles
+    startingTile = myMap[cursor.x][cursor.y]
+    quit = False
+    while not (tdl.event.is_window_closed() or quit):
+        userInput = tdl.event.key_wait()
+        if userInput.keychar.upper() == 'UP':
+            if cursor.y > 0:
+                cursor.y -= 1
+                selectedTiles = [myMap[cursor.x][cursor.y], startingTile]
+        elif userInput.keychar.upper() == 'DOWN':
+            if cursor.y < MAP_HEIGHT - 1:
+                cursor.y += 1
+                selectedTiles = [myMap[cursor.x][cursor.y], startingTile]
+        elif userInput.keychar.upper() == 'LEFT':
+            if cursor.x > 0:
+                cursor.x -= 1
+                selectedTiles = [myMap[cursor.x][cursor.y], startingTile]
+        elif userInput.keychar.upper() == 'RIGHT':
+            if cursor.x < MAP_WIDTH - 1:
+                cursor.x += 1
+                selectedTiles = [myMap[cursor.x][cursor.y], startingTile]
+        elif userInput.keychar.upper() == 'ENTER':
+            endTile = myMap[cursor.x][cursor.y]
+            quit = True
+        update(showDark)
+    for (x, y) in tdl.map.bresenham(startingTile.x, startingTile.y, endTile.x, endTile.y):
+        selectedTiles.append(myMap[x][y])
+
 if __name__ == '__main__':
     root = tdl.init(150, 80, 'Map Creator')
     cursor = Cursor()
@@ -488,6 +750,7 @@ if __name__ == '__main__':
     update(showDark)
     quit = False
     copy = None
+    copiedNPC = None
     selectedTiles = []
     while not (tdl.event.is_window_closed() or quit):
         userInput = tdl.event.key_wait()
@@ -577,10 +840,41 @@ if __name__ == '__main__':
             print('Enter the name of the folder to be read.')
             folder = promptFolderName(True)
             if folder:
-                myMap = readMap(folder, '.')
+                myMap = []
+                objects = []
+                myMap, objectsToCreate = readMap(folder, '.')
+    
+                for attributeList in objectsToCreate:
+                    print(attributeList)
+                    object = Object(int(attributeList[0]), int(attributeList[1]), attributeList[2], attributeList[3], attributeList[4], attributeList[5], attributeList[6])
+                    print(object.dialog)
+                    objects.append(object)
                 selectedTiles = [myMap[cursor.x][cursor.y]]
         elif userInput.keychar.upper() == 'S':
             selectSquare()
+        elif userInput.keychar.upper() == 'N':
+            createNPC(cursor.x, cursor.y)
+        elif userInput.keychar.upper() == 'L':
+            for object in objects:
+                if object.x == cursor.x and object.y == cursor.y:
+                    copiedNPC = Object(0, 0, object.char, object.name, object.color, object.dialog)
+        elif userInput.keychar.upper() == 'M':
+            if copiedNPC:
+                found = False
+                for object in objects:
+                    if object.x == cursor.x and object.y == cursor.y:
+                        found = True
+                if not found:
+                    copiedNPC.x = cursor.x
+                    copiedNPC.y = cursor.y
+                    objects.append(copiedNPC)
+                    copiedNPC = Object(0, 0, copiedNPC.char, copiedNPC.name, copiedNPC.color, copiedNPC.dialog)
+        elif userInput.keychar.upper() == 'D':
+            for object in objects:
+                if object.x == cursor.x and object.y == cursor.y:
+                    objects.remove(object)
+        elif userInput.keychar.upper() == 'X':
+            selectLine()
 
         update(showDark)
         
