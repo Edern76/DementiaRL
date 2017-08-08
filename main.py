@@ -120,7 +120,7 @@ MOVEMENT_KEYS = {
                  
                  }
 
-WIDTH, HEIGHT, LIMIT = 150, 80, 20 #Defaults : 150, 80, 20
+WIDTH, HEIGHT, LIMIT = 158, 80, 20 #Defaults : 150, 80, 20
 MAP_WIDTH, MAP_HEIGHT = 140, 60 #Defaults : 140, 60
 MID_MAP_WIDTH, MID_MAP_HEIGHT = MAP_WIDTH//2, MAP_HEIGHT//2
 MID_WIDTH, MID_HEIGHT = int(WIDTH/2), int(HEIGHT/2)
@@ -128,7 +128,7 @@ MID_WIDTH, MID_HEIGHT = int(WIDTH/2), int(HEIGHT/2)
 # - GUI Constants -
 BAR_WIDTH = 20 #Default : 20
 
-PANEL_HEIGHT = 10 #Default : 10
+PANEL_HEIGHT = 20 #Default : 10
 CON_HEIGHT = HEIGHT - PANEL_HEIGHT
 MID_CON_HEIGHT = int(CON_HEIGHT // 2)
 PANEL_Y = HEIGHT - PANEL_HEIGHT
@@ -3003,7 +3003,7 @@ def createNPCFromMapReader(attributeList):
     return GameObject(int(attributeList[0]), int(attributeList[1]), attributeList[2], attributeList[3], attributeList[4], blocks = True, socialComp = getattr(dial, attributeList[5]), shopComp = shop)
 
 class Fighter: #All NPCs, enemies and the player
-    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = [0], shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = None, slots = ['head', 'torso', 'left hand', 'right hand', 'legs', 'feet'], equipmentList = [], toEquip = [], attackFunctions = [], noDirectDamage = False, pic = 'ogre.xp', description = 'Placeholder', rangedPower = 0, Ranged = None):
+    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = [0], shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = None, slots = ['head', 'torso', 'left hand', 'right hand', 'legs', 'feet'], equipmentList = [], toEquip = [], attackFunctions = [], noDirectDamage = False, pic = 'ogre.xp', description = 'Placeholder', rangedPower = 0, Ranged = None, stamina = 0):
         self.noVitHP = hp
         self.BASE_MAX_HP = hp
         self.hp = hp
@@ -3025,6 +3025,9 @@ class Fighter: #All NPCs, enemies and the player
         self.lootRate = lootRate
         self.pic = pic
         self.description = description
+        self.BASE_STAMINA = stamina
+        self.noConstStamina = stamina
+        self.stamina = stamina
         
         self.leechRessource = leechRessource
         self.leechAmount = leechAmount
@@ -3107,6 +3110,13 @@ class Fighter: #All NPCs, enemies and the player
         return self.noWillMP + bonus
     
     @property
+    def baseMaxStamina(self):
+        bonus = 0
+        if self.owner == player:
+            bonus = 5* player.Player.vitality
+        return self.noConstStamina + bonus
+    
+    @property
     def knownSpellsToNames(self, returnActualSpell=False):
         '''
         Convert list of fighter's known spells to list of names of said spells.
@@ -3156,6 +3166,11 @@ class Fighter: #All NPCs, enemies and the player
     def armorPenetration(self):
         bonus = sum(equipment.armorPenetrationBonus for equipment in getAllEquipped(self.owner))
         return self.baseArmorPenetration + bonus
+    
+    @property
+    def maxStamina(self):
+        bonus = sum(equipment.staminaBonus for equipment in getAllEquipped(self.owner))
+        return self.baseMaxStamina + bonus
         
     def takeDamage(self, damage, damageSource):
         global lastHitter
@@ -4121,13 +4136,13 @@ class Player:
     def __init__(self, name, strength, dexterity, vitality, willpower, load, race, classes, allTraits, levelUpStats, baseHunger = BASE_HUNGER, speed = 'average', speedChance = 5, skillpoints = 0, baseStealth=0):
         self.name = name
 
-        self.strength = strength
+        self.baseStrength = strength
         self.BASE_STRENGTH = strength
-        self.dexterity = dexterity
+        self.baseDexterity = dexterity
         self.BASE_DEXTERITY = dexterity
-        self.vitality = vitality
+        self.baseVitality = vitality
         self.BASE_VITALITY = vitality
-        self.willpower = willpower
+        self.baseWillpower = willpower
         self.BASE_WILLPOWER = willpower
         self.baseMaxWeight = load
         self.BASE_STEALTH = baseStealth
@@ -4196,6 +4211,22 @@ class Player:
     @property
     def maxWeight(self):
         return self.baseMaxWeight + 3 * self.strength
+    
+    @property
+    def strength(self):
+        return sum(equipment.strengthBonus for equipment in getAllEquipped(self.owner)) + self.baseStrength
+    
+    @property
+    def dexterity(self):
+        return sum(equipment.dexterityBonus for equipment in getAllEquipped(self.owner)) + self.baseDexterity
+    
+    @property
+    def vitality(self):
+        return sum(equipment.vitalityBonus for equipment in getAllEquipped(self.owner)) + self.baseVitality
+    
+    @property
+    def willpower(self):
+        return sum(equipment.willpowerBonus for equipment in getAllEquipped(self.owner)) + self.baseWillpower
 
     def stealthValue(self, monster):
         return int(5*sqrt(self.dexterity) * math.log(player.distanceTo(monster)) + self.baseStealth)
@@ -4764,7 +4795,7 @@ class Item:
         return None
 
 class Enchantment:
-    def __init__(self, name, functionOnAttack = None, buffOnOwner = [], buffOnTarget = [], damageOnOwner = 0, damageOnTarget = 0, pow = 0, acc = 0, evas = 0, arm = 0, hp = 0, mp = 0, crit = 0, ap = 0, str = 0, dex = 0, vit = 0, will = 0):
+    def __init__(self, name, functionOnAttack = None, buffOnOwner = [], buffOnTarget = [], damageOnOwner = 0, damageOnTarget = 0, pow = 0, acc = 0, evas = 0, arm = 0, hp = 0, mp = 0, crit = 0, ap = 0, str = 0, dex = 0, vit = 0, will = 0, stamina = 0):
         self.name = name
         self.functionOnAttack = functionOnAttack
         self.buffOnOwner = buffOnOwner
@@ -4783,9 +4814,10 @@ class Enchantment:
         self.dex = dex
         self.vit = vit
         self.will = will
+        self.stamina = stamina
     
 class Equipment:
-    def __init__(self, slot, type, powerBonus=0, armorBonus=0, maxHP_Bonus=0, accuracyBonus=0, evasionBonus=0, criticalBonus = 0, maxMP_Bonus = 0, strengthBonus = 0, dexterityBonus = 0, vitalityBonus = 0, willpowerBonus = 0, ranged = False, rangedPower = 0, maxRange = 0, ammo = None, meleeWeapon = False, armorPenetrationBonus = 0, slow = False, enchant = None):
+    def __init__(self, slot, type, powerBonus=0, armorBonus=0, maxHP_Bonus=0, accuracyBonus=0, evasionBonus=0, criticalBonus = 0, maxMP_Bonus = 0, strengthBonus = 0, dexterityBonus = 0, vitalityBonus = 0, willpowerBonus = 0, ranged = False, rangedPower = 0, maxRange = 0, ammo = None, meleeWeapon = False, armorPenetrationBonus = 0, slow = False, enchant = None, staminaBonus = 0):
         self.slot = slot
         self.type = type
         self.basePowerBonus = powerBonus
@@ -4802,6 +4834,7 @@ class Equipment:
         self.baseDexterityBonus = dexterityBonus
         self.baseVitalityBonus = vitalityBonus
         self.baseWillpowerBonus = willpowerBonus
+        self.baseStaminaBonus = staminaBonus
         
         self.ranged = ranged
         self.baseRangedPower = rangedPower
@@ -4930,6 +4963,13 @@ class Equipment:
             return self.baseWillpowerBonus + self.enchant.will
         else:
             return self.baseWillpowerBonus
+    
+    @property
+    def staminaBonus(self):
+        if self.enchant:
+            return self.baseStaminaBonus + self.enchant.stamina
+        else:
+            return self.baseStaminaBonus
 
     def toggleEquip(self):
         self.updateState()
@@ -10713,10 +10753,12 @@ def Update():
         msgY += 1
     # Draw GUI
     #panel.draw_str(1, 3, 'Dungeon level: ' + str(dungeonLevel), colors.white)
-    panel.draw_str(1, 5, 'Player level: ' + str(player.level) + ' | Floor: ' + str(dungeonLevel), colors.white)
-    panel.draw_str(1, 7, 'Money: ' + str(player.Player.money))
+    panel.draw_str(1, 7, 'Player level: ' + str(player.level), colors.white)
+    panel.draw_str(1, 9, 'Floor: ' + str(dungeonLevel) + ' | Dungeon: ' + str(currentBranch.name), colors.white)
+    panel.draw_str(1, 11, 'Money: ' + str(player.Player.money))
     renderBar(panel, 1, 1, BAR_WIDTH, 'HP', player.Fighter.hp, player.Fighter.maxHP, player.color, colors.dark_gray, textColor = player.Player.hpTextColor)
     renderBar(panel, 1, 3, BAR_WIDTH, 'MP', player.Fighter.MP, player.Fighter.maxMP, colors.blue, colors.dark_gray, colors.darkest_blue)
+    renderBar(panel, 1, 5, BAR_WIDTH, 'Stamina', player.Fighter.stamina, player.Fighter.maxStamina, colors.lighter_yellow, colors.dark_grey, colors.darker_yellow)
     
     panel.draw_str(BUFF_X, 1, 'Buffs:', colors.white)
     buffY = 2
