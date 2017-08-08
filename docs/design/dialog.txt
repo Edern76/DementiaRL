@@ -57,3 +57,42 @@ Dialog choices :
 			- ID : Back
    3) Farewell.
 	-ID : End
+
+========General Guillem==========
+
+Encountered in : Tutorial
+
+Intro line : Greetings, [HERO_NAME]. This battle's outcome and along with it this world's future repose from now on solely on your shoulders. So please don't overlook anything in your preparations and tell me once you're ready
+
+Dialog choices : 
+  1) I am ready to take Zarg on. Please remind me the plan one last time
+	- ID : ready
+	- Answer : 
+	- Choices :		
+
+
+  2) What happened to the ones who snuck into Zarg's towerto unveil his plans ? Did they fought him ?
+	- ID : happened
+	- Answer : After discovering his weakness, they were spotted by the God of Madness and indeed had to confront him head on. Of course they were no match for him, and soon realized that they had to retreat. Some were killed during the fight with Zarg, others died on the way backhome due to their wounds, or because of unexpected ordeals, so well that though they were 8 when they set out on their journey, only 2 came back alive.
+	- Choices :
+		1) 
+			- ID : 
+			- Answer : 
+			- Choices :
+				1) 
+					- ID : 
+		2) 
+			- ID : 
+			- Answer : 
+				1) 
+					- ID : 
+		3) 
+			- ID : 
+			- Answer : 
+		4) (Back)
+			- ID
+   3) You fought a few times by the side of Zarg, before all of this started ? What do you know about the true Zarg ?
+	-ID : fought
+	-Answer : Well, he sure was... different to say the least. 
+   4) Farewell.
+	-ID : End
