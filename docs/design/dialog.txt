@@ -67,13 +67,17 @@ Intro line : Greetings, [HERO_NAME]. This battle's outcome and along with it thi
 Dialog choices : 
   1) I am ready to take Zarg on. Please remind me the plan one last time
 	- ID : ready
-	- Answer : 
-	- Choices :		
+	- Answer : Very well. You shall cross the barrier, get to the tower and climb until you find the Cube. Zarg will probably be there too, but your main objective is to destroy the Cube, since Zarg won't be able to carry on with his plan if he is deprived from his divine abilities.
+	- Choices :
+		1) Haven't you tried destroying the barrier to get the army through
+			- ID : 
+			- Answer : 
+			- Choices :	
 
 
-  2) What happened to the ones who snuck into Zarg's towerto unveil his plans ? Did they fought him ?
+  2) What happened to the ones who snuck into Zarg's tower to unveil his plans ? Did they fought him ?
 	- ID : happened
-	- Answer : After discovering his weakness, they were spotted by the God of Madness and indeed had to confront him head on. Of course they were no match for him, and soon realized that they had to retreat. Some were killed during the fight with Zarg, others died on the way backhome due to their wounds, or because of unexpected ordeals, so well that though they were 8 when they set out on their journey, only 2 came back alive.
+	- Answer : After discovering his weakness, they were spotted by the God of Madness and indeed had to confront him head on. Of course they were no match for him, and soon realized that they had to retreat. Some were killed during the fight with Zarg, others died on the way back home due to their wounds, or because of unexpected ordeals, so well that though they were 8 when they set out on their journey, only 2 came back alive.
 	- Choices :
 		1) 
 			- ID : 
@@ -91,8 +95,14 @@ Dialog choices :
 			- Answer : 
 		4) (Back)
 			- ID
-   3) You fought a few times by the side of Zarg, before all of this started ? What do you know about the true Zarg ?
+   3) You fought a few times by the side of Zarg, before all of this started. What do you know about him ?
 	-ID : fought
-	-Answer : Well, he sure was... different to say the least. 
+	-Answer : Yes, I did accompany him on a few adventures way back in the day, before I enlisted in the army, but he was a completly different man back then. The only thing he had in common with the God of Madness he is now was his incredible power : even when he was still only an human, little to no opponent stood a chance against him. I don't even want to imagine how stronger he has grown now that he has become a deity, so be careful when you face him and stick to the plan. 
+  	-Choices :
+		1)
+			- ID :
+			- Answer :
+
+
    4) Farewell.
 	-ID : End
