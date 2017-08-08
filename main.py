@@ -120,7 +120,7 @@ MOVEMENT_KEYS = {
                  
                  }
 
-WIDTH, HEIGHT, LIMIT = 158, 80, 20 #Defaults : 150, 80, 20
+WIDTH, HEIGHT, LIMIT = 159, 80, 20 #Defaults : 150, 80, 20
 MAP_WIDTH, MAP_HEIGHT = 140, 60 #Defaults : 140, 60
 MID_MAP_WIDTH, MID_MAP_HEIGHT = MAP_WIDTH//2, MAP_HEIGHT//2
 MID_WIDTH, MID_HEIGHT = int(WIDTH/2), int(HEIGHT/2)
@@ -129,6 +129,7 @@ MID_WIDTH, MID_HEIGHT = int(WIDTH/2), int(HEIGHT/2)
 BAR_WIDTH = 20 #Default : 20
 
 PANEL_HEIGHT = 20 #Default : 10
+PANEL_WIDTH = MAP_WIDTH #default: WIDTH
 CON_HEIGHT = HEIGHT - PANEL_HEIGHT
 MID_CON_HEIGHT = int(CON_HEIGHT // 2)
 PANEL_Y = HEIGHT - PANEL_HEIGHT
@@ -136,9 +137,9 @@ PANEL_Y = HEIGHT - PANEL_HEIGHT
 SIDE_PANEL_WIDTH = WIDTH - MAP_WIDTH #Default: WIDTH - PANEL_WIDTH
 SIDE_PANEL_X = MAP_WIDTH
 SIDE_PANEL_Y = 0
-SIDE_PANEL_MODES = ['enemies', 'items', 'inventory', 'equipment', 'buffs', 'stealth']
+SIDE_PANEL_MODES = ['enemies', 'items', 'inventory', 'equipment', 'spells', 'buffs', 'stealth']
 currentSidepanelMode = 0
-SIDE_PANEL_TEXT_WIDTH = SIDE_PANEL_WIDTH - 4
+SIDE_PANEL_TEXT_WIDTH = SIDE_PANEL_WIDTH - 5
 
 MSG_X = BAR_WIDTH + 10 #Default : BAR_WIDTH + 10
 MSG_WIDTH = WIDTH - BAR_WIDTH - 10 - 40 #Default : WIDTH - BAR_WIDTH - 10 - 40
@@ -604,17 +605,17 @@ def convertTilesToCoords(tilesList):
         newList.append((tile.x, tile.y))
     return newList
 
-def modifyFighterStats(fighter = None, pow = 0, acc = 0, evas = 0, arm = 0, hp = 0, mp = 0, crit = 0, ap = 0, str = 0, dex = 0, vit = 0, will = 0):
+def modifyFighterStats(fighter = None, power = 0, acc = 0, evas = 0, arm = 0, hp = 0, mp = 0, crit = 0, ap = 0, stren = 0, dex = 0, vit = 0, will = 0):
     hpDiff = fighter.baseMaxHP - fighter.hp
     print(fighter.baseMaxHP, fighter.hp, hpDiff)
     mpDiff = fighter.baseMaxMP - fighter.MP
     if fighter.owner == player:
-        player.Player.baseStrength += str
+        player.Player.baseStrength += stren
         player.Player.baseDexterity += dex
         player.Player.baseVitality += vit
         print(player.Player.BASE_VITALITY, player.Player.vitality, vit)
         player.Player.baseWillpower += will
-    fighter.noStrengthPower += pow
+    fighter.noStrengthPower += power
     fighter.noDexAccuracy += acc
     fighter.noDexEvasion += evas
     fighter.baseArmor += arm
@@ -855,10 +856,10 @@ def rSpellAttack(amount, type, caster, target):
         message(target.name.capitalize() + " should have had its attack decrease. But the developper was to lazy to implement it in time !") #TO-DO
     '''
     if type == "Buff":
-        enraged = Buff('enraged', colors.dark_red, cooldown = amount, applyFunction = lambda fighter: modifyFighterStats(fighter, pow = 10), removeFunction = lambda fighter: setFighterStatsBack(fighter))
+        enraged = Buff('enraged', colors.dark_red, cooldown = amount, applyFunction = lambda fighter: modifyFighterStats(fighter, power = 10), removeFunction = lambda fighter: setFighterStatsBack(fighter))
         enraged.applyBuff(target)
     else:
-        enraged = Buff('weakened', colors.light_red, cooldown = amount, applyFunction = lambda fighter: modifyFighterStats(fighter, pow = -10), removeFunction = lambda fighter: setFighterStatsBack(fighter))
+        enraged = Buff('weakened', colors.light_red, cooldown = amount, applyFunction = lambda fighter: modifyFighterStats(fighter, power = -10), removeFunction = lambda fighter: setFighterStatsBack(fighter))
         enraged.applyBuff(target)
 
 def rSpellDefense(amount, type, caster, target):
@@ -1358,7 +1359,7 @@ def castArmageddon(radius = 4, damage = 80, caster = None, monsterTarget = None)
 def castEnrage(enrageTurns, caster = None, monsterTarget = None):
     if caster is None or caster == player:
         caster = player
-    enraged = Buff('enraged', colors.dark_red, cooldown = enrageTurns, applyFunction = lambda fighter: modifyFighterStats(fighter, pow = 10), removeFunction = lambda fighter: setFighterStatsBack(fighter))
+    enraged = Buff('enraged', colors.dark_red, cooldown = enrageTurns, applyFunction = lambda fighter: modifyFighterStats(fighter, power = 10), removeFunction = lambda fighter: setFighterStatsBack(fighter))
     enraged.applyBuff(caster)
 
 def castRessurect(shotRange = 4, caster = None, monsterTarget = None):
@@ -1788,7 +1789,7 @@ spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressur
 #_____________SPELLS_____________
 
 #______________CHARACTER GENERATION____________
-createdCharacter = {'pow': 0, 'acc': 20, 'ev': 0, 'arm': 0, 'hp': 0, 'mp': 0, 'crit': 0, 'str': 0, 'dex': 0, 'vit': 0, 'will': 0, 'ap': 0, 
+createdCharacter = {'power': 0, 'acc': 20, 'ev': 0, 'arm': 0, 'hp': 0, 'mp': 0, 'crit': 0, 'stren': 0, 'dex': 0, 'vit': 0, 'will': 0, 'ap': 0, 
                     'powLvl': 0, 'accLvl': 0, 'evLvl': 0, 'armLvl': 0, 'hpLvl': 0, 'mpLvl': 0, 'critLvl': 0, 'strLvl': 0, 'dexLvl': 0, 'vitLvl': 0, 'willLvl': 0, 'apLvl': 0,
                     'spells': [], 'load': 45.0}
 
@@ -1808,14 +1809,14 @@ class Trait():
         self.allowsSelection = allowsSelection
         self.amount = amount
         self.maxAmount = maxAmount
-        self.pow, self.powPerLvl = power
+        self.power, self.powPerLvl = power
         self.acc, self.accPerLvl = acc
         self.ev, self.evPerLvl = ev
         self.arm, self.armPerLvl = arm
         self.hp, self.hpPerLvl = hp
         self.mp, self.mpPerLvl = mp
         self.crit, self.critPerLvl = crit
-        self.str, self.strPerLvl = stren
+        self.stren, self.strPerLvl = stren
         self.dex, self.dexPerLvl = dex
         self.vit, self.vitPerLvl = vit
         self.will,self.willPerLvl = will
@@ -1838,14 +1839,14 @@ class Trait():
         if charCreation:
             global createdCharacter
             if self.amount < self.maxAmount:
-                createdCharacter['pow'] += self.pow
+                createdCharacter['power'] += self.power
                 createdCharacter['acc'] += self.acc
                 createdCharacter['ev'] += self.ev
                 createdCharacter['arm'] += self.arm
                 createdCharacter['hp'] += self.hp
                 createdCharacter['mp'] += self.mp
                 createdCharacter['crit'] += self.crit
-                createdCharacter['str'] += self.str
+                createdCharacter['stren'] += self.stren
                 createdCharacter['dex'] += self.dex
                 createdCharacter['vit'] += self.vit
                 createdCharacter['will'] += self.will
@@ -1870,9 +1871,9 @@ class Trait():
                 for trait in self.allowsSelection:
                     trait.selectable = True
         else:
-            player.Fighter.noStrengthPower += self.pow
-            player.Fighter.BASE_POWER += self.pow
-            #player.Player.levelUpStats['pow'] += self.powPerLvl
+            player.Fighter.noStrengthPower += self.power
+            player.Fighter.BASE_POWER += self.power
+            #player.Player.levelUpStats['power'] += self.powPerLvl
             player.Fighter.noDexAccuracy += self.acc
             player.Fighter.BASE_ACCURACY += self.acc
             #player.Player.levelUpStats['acc'] += self.accPerLvl
@@ -1893,9 +1894,9 @@ class Trait():
             player.Fighter.baseCritical += self.crit
             player.Fighter.BASE_CRITICAL += self.crit
             #player.Player.levelUpStats['crit'] += self.critPerLvl
-            player.Player.strength += self.str
-            player.Player.BASE_STRENGTH += self.str
-            #player.Player.levelUpStats['str'] += self.strPerLvl
+            player.Player.strength += self.stren
+            player.Player.BASE_STRENGTH += self.stren
+            #player.Player.levelUpStats['stren'] += self.strPerLvl
             player.Player.dexterity += self.dex
             player.Player.BASE_DEXTERITY += self.dex
             #player.Player.levelUpStats['dex'] += self.dexPerLvl
@@ -1921,14 +1922,14 @@ class Trait():
         if charCreation:
             global createdCharacter
             if self.amount > 0:
-                createdCharacter['pow'] -= self.pow
+                createdCharacter['power'] -= self.power
                 createdCharacter['acc'] -= self.acc
                 createdCharacter['ev'] -= self.ev
                 createdCharacter['arm'] -= self.arm
                 createdCharacter['hp'] -= self.hp
                 createdCharacter['mp'] -= self.mp
                 createdCharacter['crit'] -= self.crit
-                createdCharacter['str'] -= self.str
+                createdCharacter['stren'] -= self.stren
                 createdCharacter['dex'] -= self.dex
                 createdCharacter['vit'] -= self.vit
                 createdCharacter['will'] -= self.will
@@ -1962,9 +1963,9 @@ class Trait():
                                 trait.amount = 0
                                 trait.selected = False
         else:
-            player.Fighter.noStrengthPower -= self.pow
-            player.Fighter.BASE_POWER -= self.pow
-            #player.Player.levelUpStats['pow'] -= self.powPerLvl
+            player.Fighter.noStrengthPower -= self.power
+            player.Fighter.BASE_POWER -= self.power
+            #player.Player.levelUpStats['power'] -= self.powPerLvl
             player.Fighter.noDexAccuracy -= self.acc
             player.Fighter.BASE_ACCURACY -= self.acc
             #player.Player.levelUpStats['acc'] -= self.accPerLvl
@@ -1985,9 +1986,9 @@ class Trait():
             player.Fighter.baseCritical -= self.crit
             player.Fighter.BASE_CRITICAL -= self.crit
             #player.Player.levelUpStats['crit'] -= self.critPerLvl
-            player.Player.strength -= self.str
-            player.Player.BASE_STRENGTH -= self.str
-            #player.Player.levelUpStats['str'] -= self.strPerLvl
+            player.Player.strength -= self.stren
+            player.Player.BASE_STRENGTH -= self.stren
+            #player.Player.levelUpStats['stren'] -= self.strPerLvl
             player.Player.dexterity -= self.dex
             player.Player.BASE_DEXTERITY -= self.dex
             #player.Player.levelUpStats['dex'] -= self.dexPerLvl
@@ -2041,7 +2042,7 @@ class Trait():
             self.description()
         
         if self.name == 'Strength' and self.type == 'attribute':
-            drawCenteredOnX(cons, self.x - 10, y = self.y, text = str(10 + createdCharacter['str']), fg = colors.white, bg = None)
+            drawCenteredOnX(cons, self.x - 10, y = self.y, text = str(10 + createdCharacter['stren']), fg = colors.white, bg = None)
         if self.name == 'Dexterity' and self.type == 'attribute':
             drawCenteredOnX(cons, self.x - 10, y = self.y, text = str(10 + createdCharacter['dex']), fg = colors.white, bg = None)
         if self.name == 'Constitution' and self.type == 'attribute':
@@ -2228,7 +2229,7 @@ def initializeTraits():
 
 def characterCreation():
     global createdCharacter
-    createdCharacter = {'pow': 0, 'acc': 20, 'ev': 0, 'arm': 0, 'hp': 0, 'mp': 0, 'crit': 0, 'str': 0, 'dex': 0, 'vit': 0, 'will': 0, 'ap': 0, 
+    createdCharacter = {'power': 0, 'acc': 20, 'ev': 0, 'arm': 0, 'hp': 0, 'mp': 0, 'crit': 0, 'stren': 0, 'dex': 0, 'vit': 0, 'will': 0, 'ap': 0, 
                     'powLvl': 0, 'accLvl': 0, 'evLvl': 0, 'armLvl': 0, 'hpLvl': 0, 'mpLvl': 0, 'critLvl': 0, 'strLvl': 0, 'dexLvl': 0, 'vitLvl': 0, 'willLvl': 0, 'apLvl': 0,
                     'spells': [], 'load': 45.0}
     #allTraits = []
@@ -2467,7 +2468,7 @@ def characterCreation():
         #Displaying stats
         eightScreen = WIDTH//5
         
-        text = 'Power: ' + str(createdCharacter['pow'] + createdCharacter['str'])
+        text = 'Power: ' + str(createdCharacter['power'] + createdCharacter['stren'])
         drawCenteredOnX(cons = root, x = eightScreen * 1, y = 74, text = text, fg = colors.white, bg = None)
         X = eightScreen * 1 + ((len(text) + 1)// 2)
         root.draw_str(x = X, y = 74, string = ' + ' + str(createdCharacter['powLvl'] + createdCharacter['strLvl']) + '/lvl', fg = colors.yellow, bg = None)
@@ -2502,7 +2503,7 @@ def characterCreation():
         X = eightScreen * 3 + ((len(text) + 1)// 2)
         root.draw_str(x = X, y = 76, string = ' + ' + str(createdCharacter['critLvl']) + '/lvl', fg = colors.yellow, bg = None)
         
-        text = 'Max load: ' + str(createdCharacter['load'] + 3 * createdCharacter['str']) + ' kg'
+        text = 'Max load: ' + str(createdCharacter['load'] + 3 * createdCharacter['stren']) + ' kg'
         drawCenteredOnX(cons = root, x = eightScreen * 4, y = 76, text = text, fg = colors.white, bg = None)
         X = eightScreen * 4 + ((len(text) + 1)// 2)
         root.draw_str(x = X, y = 76, string = ' + ' + str(3 * createdCharacter['strLvl']) + '/lvl', fg = colors.yellow, bg = None)
@@ -4288,6 +4289,13 @@ class Player:
                 return trait
         return 'not found'
 
+def drawHeaderAndValue(cons, x, y, header, value, headerColor = colors.amber, valueColor = colors.white, underline = True):
+    cons.draw_str(x, y, header + ':', headerColor)
+    cons.draw_str(x + len(header) + 2, y, value, valueColor)
+    if underline:
+        for dx in range(len(header) + 1):
+            cons.draw_char(x+ dx, y + 1, chr(249), headerColor)
+
 def displayCharacter():
     levelUp_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
     
@@ -4316,9 +4324,22 @@ def displayCharacter():
         window.draw_char(kMax, lMax, chr(217))
         if page == 1:
             window.draw_str(5, 1, player.Player.race + ' ' + player.Player.classes, fg = colors.amber)
-            window.draw_str(width - 1, 1, '>', colors.green)
+            window.draw_str(width - 1, 1, chr(26), colors.green)
             renderBar(window, 1, 3, BAR_WIDTH, 'EXP', player.Fighter.xp, levelUp_xp, colors.desaturated_cyan, colors.dark_gray)
             renderBar(window, 1, 5, BAR_WIDTH, 'Hunger', player.Player.hunger, BASE_HUNGER, colors.desaturated_lime, colors.dark_gray)
+            
+            drawHeaderAndValue(window, 1, 7, 'HP', str(player.Fighter.hp) +'/'+ str(player.Fighter.maxHP), underline = False)
+            drawHeaderAndValue(window, 20, 7, 'MP', str(player.Fighter.MP) +'/'+ str(player.Fighter.maxMP), underline = False)
+            drawHeaderAndValue(window, 1, 9, 'Armor', str(player.Fighter.armor), underline = False)
+            drawHeaderAndValue(window, 13, 9, 'Accuracy', str(player.Fighter.accuracy), underline = False)
+            drawHeaderAndValue(window, 30, 9, 'Evasion', str(player.Fighter.evasion), underline = False)
+            drawHeaderAndValue(window, 1, 11, 'Strength', str(player.Player.strength + 10), underline = False)
+            drawHeaderAndValue(window, 1, 13, 'Dexterity', str(player.Player.dexterity + 10), underline = False)
+            drawHeaderAndValue(window, 1, 15, 'Vitality', str(player.Player.vitality + 10), underline = False)
+            drawHeaderAndValue(window, 1, 17, 'Willpower', str(player.Player.willpower + 10), underline = False)
+            drawHeaderAndValue(window, 1, 19, 'Current load', str(getAllWeights(player)), underline = False)
+            drawHeaderAndValue(window, 20, 19, 'Max load', str(player.Player.maxWeight), underline = False)
+            '''
             window.draw_str(1, 7, 'HP: ' + str(player.Fighter.hp) + '/' + str(player.Fighter.maxHP))
             window.draw_str(20, 7, 'MP: ' + str(player.Fighter.MP) + '/' + str(player.Fighter.maxMP))
             window.draw_str(1, 9, 'Armor: ' + str(player.Fighter.armor))
@@ -4330,10 +4351,11 @@ def displayCharacter():
             window.draw_str(1, 17, 'Willpower: ' + str(player.Player.willpower + 10))
             window.draw_str(1, 19, 'Current load: ' + str(getAllWeights(player)))
             window.draw_str(20, 19, 'Max load: ' + str(player.Player.maxWeight))
+            '''
         elif page == 2:
             window.draw_str(5, 1, 'Traits:', fg = colors.amber)
-            window.draw_str(0, 1, '<', colors.green)
-            window.draw_str(width - 1, 1, '>', colors.green)
+            window.draw_str(0, 1, chr(27), colors.green)
+            window.draw_str(width - 1, 1, chr(26), colors.green)
             y = 3
             x = 1
             for trait in player.Player.traits:
@@ -4345,7 +4367,7 @@ def displayCharacter():
                     y += 2
         else:
             window.draw_str(5, 1, 'Absorbed Essences:', fg = colors.amber)
-            window.draw_str(0, 1, '<', colors.green)
+            window.draw_str(0, 1, chr(27), colors.green)
             y = 3
             index = 0
             values = list(player.Player.essences.values())
@@ -4613,38 +4635,46 @@ class Item:
     def fullDescription(self, width):
         equipmentComp = self.owner.Equipment
         fullDesc = []
-        equipmentStats = []
+        equipmentStats = {}
         fullDesc.extend(textwrap.wrap(self.description, width))
         if equipmentComp is not None:
             if equipmentComp.slot is not None:
-                equipmentStats.append(equipmentComp.slot.capitalize())
+                fullDesc.append(equipmentComp.slot.capitalize())
             if equipmentComp.type is not None:
-                equipmentStats.append(equipmentComp.type.capitalize())
+                fullDesc.append(equipmentComp.type.capitalize())
             if equipmentComp.powerBonus != 0:
-                equipmentStats.append('Power Bonus: ' + str(equipmentComp.powerBonus))
+                equipmentStats['Power Bonus'] = str(equipmentComp.powerBonus)
             if equipmentComp.armorBonus != 0:
-                equipmentStats.append('Armor Bonus: ' + str(equipmentComp.armorBonus))
+                equipmentStats['Armor Bonus'] = str(equipmentComp.armorBonus)
             if equipmentComp.maxHP_Bonus != 0:
-                equipmentStats.append('HP Bonus: ' + str(equipmentComp.maxHP_Bonus))
+                equipmentStats['HP Bonus'] = str(equipmentComp.maxHP_Bonus)
             if equipmentComp.maxMP_Bonus != 0:
-                equipmentStats.append('MP Bonus: ' + str(equipmentComp.maxMP_Bonus))
+                equipmentStats['MP Bonus'] = str(equipmentComp.maxMP_Bonus)
             if equipmentComp.accuracyBonus != 0:
-                equipmentStats.append('Accuracy Bonus: ' + str(equipmentComp.accuracyBonus))
+                equipmentStats['Accuracy Bonus'] = str(equipmentComp.accuracyBonus)
             if equipmentComp.evasionBonus != 0:
-                equipmentStats.append('Evasion Bonus: ' + str(equipmentComp.evasionBonus))
+                equipmentStats['Evasion Bonus'] = str(equipmentComp.evasionBonus)
             if equipmentComp.criticalBonus != 0:
-                equipmentStats.append('Critical Bonus: ' + str(equipmentComp.criticalBonus))
+                equipmentStats['Critical Bonus'] = str(equipmentComp.criticalBonus)
             if equipmentComp.armorPenetrationBonus != 0:
-                equipmentStats.append('Armor penetration: ' + str(equipmentComp.armorPenetrationBonus))
+                equipmentStats['Armor Penetration'] = str(equipmentComp.armorPenetrationBonus)
             if equipmentComp.ranged:
-                equipmentStats.append('Ranged damage: ' + str(equipmentComp.rangedPower))
+                equipmentStats['Ranged Damage'] = str(equipmentComp.rangedPower)
             if equipmentComp.slow:
-                equipmentStats.append('SLOW')
-        weightText = 'Weight: ' + str(self.weight)
-        fullDesc.append(weightText)
-        fullDesc.extend(equipmentStats)
-        return fullDesc
+                fullDesc.append('SLOW')
+        equipmentStats['Weight'] = str(self.weight)
+        return fullDesc, equipmentStats
     
+    def sortFullDesc(self, statList):
+        newList = ['Power Bonus', 'Armor Bonus', 'HP Bonus', 'MP Bonus', 'Accuracy Bonus', 'Evasion Bonus', 'Critical Bonus', 'Armor Penetration', 'Ranged Damage', 'Weight']
+        toRemove = []
+        for stat in newList:
+            if not (stat in statList):
+                toRemove.append(str(stat))
+        for stat in toRemove:
+            newList.remove(stat)
+        return newList
+        
     def displayItem(self, posX = 0):
         global FOV_recompute, menuWindows
         asciiFile = os.path.join(absAsciiPath, self.pic)
@@ -4659,8 +4689,9 @@ class Item:
         width = picWidth + 15
         if width < len(self.owner.name) + 3:
             width = len(self.owner.name) + 3
-        desc = self.fullDescription(width - 2)
-        descriptionHeight = len(desc)
+        desc, stats = self.fullDescription(width - 2)
+        headers = self.sortFullDesc(list(stats.keys()))
+        descriptionHeight = len(desc) + len(headers)
         if desc == '':
             descriptionHeight = 0
         height = descriptionHeight + 6 + int(picHeight) + 1
@@ -4711,6 +4742,9 @@ class Item:
         window.draw_str(1, 1, self.owner.name.capitalize() + ':', fg = colors.amber, bg = None)
         for i, line in enumerate(desc):
             window.draw_str(1, int(picHeight) + 5 + i, desc[i], fg = colors.white)
+        finalI = i
+        for i, header in enumerate(headers):
+            drawHeaderAndValue(window, 1, int(picHeight) + 6 + finalI + i, header, stats[header], underline = False)
         posY = MID_HEIGHT - height//2
         root.blit(window, posX, posY, width, height, 0, 0)
         
@@ -4730,8 +4764,9 @@ class Item:
         lData = attributes["layer_data"]
         
         width = picWidth + 15
-        desc = self.fullDescription(width - 2)
-        descriptionHeight = len(desc)
+        desc, stats = self.fullDescription(width - 2)
+        headers = self.sortFullDesc(list(stats.keys()))
+        descriptionHeight = len(desc) + len(headers)
         if desc == '':
             descriptionHeight = 0
         height = descriptionHeight + len(options) + 6 + int(picHeight) + 1
@@ -4777,6 +4812,9 @@ class Item:
             window.draw_str(1, 1, self.owner.name.capitalize() + ':', fg = colors.amber, bg = None)
             for i, line in enumerate(desc):
                 window.draw_str(1, int(picHeight) + 5 + i, desc[i], fg = colors.white)
+            finalI = i
+            for i, header in enumerate(headers):
+                drawHeaderAndValue(window, 1, int(picHeight) + 6 + finalI + i, header, stats[header], underline = False)
 
             y = descriptionHeight + picHeight + 6
             letterIndex = ord('a')
@@ -4807,14 +4845,14 @@ class Item:
         return None
 
 class Enchantment:
-    def __init__(self, name, functionOnAttack = None, buffOnOwner = [], buffOnTarget = [], damageOnOwner = 0, damageOnTarget = 0, pow = 0, acc = 0, evas = 0, arm = 0, hp = 0, mp = 0, crit = 0, ap = 0, str = 0, dex = 0, vit = 0, will = 0, stamina = 0):
+    def __init__(self, name, functionOnAttack = None, buffOnOwner = [], buffOnTarget = [], damageOnOwner = 0, damageOnTarget = 0, power = 0, acc = 0, evas = 0, arm = 0, hp = 0, mp = 0, crit = 0, ap = 0, stren = 0, dex = 0, vit = 0, will = 0, stamina = 0):
         self.name = name
         self.functionOnAttack = functionOnAttack
         self.buffOnOwner = buffOnOwner
         self.buffOnTarget = buffOnTarget
         self.damageOnOwner = damageOnOwner
         self.damageOnTarget = damageOnTarget
-        self.pow = pow
+        self.power = power
         self.acc = acc
         self.evas = evas
         self.arm = arm
@@ -4822,7 +4860,7 @@ class Enchantment:
         self.mp = mp
         self.crit = crit
         self.ap = ap
-        self.str = str
+        self.stren = stren
         self.dex = dex
         self.vit = vit
         self.will = will
@@ -4875,7 +4913,7 @@ class Equipment:
         else:
             bonus = 0
         if self.enchant:
-            return int(self.basePowerBonus * bonus + self.basePowerBonus + self.enchant.pow)
+            return int(self.basePowerBonus * bonus + self.basePowerBonus + self.enchant.power)
         else:
             return int(self.basePowerBonus * bonus + self.basePowerBonus)
     
@@ -4884,18 +4922,18 @@ class Equipment:
         if self.type == 'missile weapon':
             bonus = (20 * player.Player.getTrait('skill', 'Missile weapons').amount) / 100
             if self.enchant:
-                return int(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.dexterity + self.enchant.pow)
+                return int(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.dexterity + self.enchant.power)
             else:
                 return int(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.dexterity)
         elif self.type == 'throwing weapon':
             bonus = (20 * player.Player.getTrait('skill', 'Throwing weapons').amount) / 100
             if self.enchant:
-                return int(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.strength + self.enchant.pow)
+                return int(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.strength + self.enchant.power)
             else:
                 int(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.strength)
         else:
             if self.enchant:
-                return self.baseRangedPower + self.enchant.pow
+                return self.baseRangedPower + self.enchant.power
             else:
                 return self.baseRangedPower
     
@@ -4951,7 +4989,7 @@ class Equipment:
     @property
     def strengthBonus(self):
         if self.enchant:
-            return self.baseStrengthBonus + self.enchant.str
+            return self.baseStrengthBonus + self.enchant.stren
         else:
             return self.baseStrengthBonus
     
@@ -6304,8 +6342,8 @@ def checkLevelUp():
         message('Your battle skills grow stronger! You reached level ' + str(player.level) + '!', colors.yellow)
         
         #applying Class specific stat boosts
-        player.Fighter.noStrengthPower += player.Player.levelUpStats['pow']
-        player.Fighter.BASE_POWER += player.Player.levelUpStats['pow']
+        player.Fighter.noStrengthPower += player.Player.levelUpStats['power']
+        player.Fighter.BASE_POWER += player.Player.levelUpStats['power']
         player.Fighter.noDexAccuracy += player.Player.levelUpStats['acc']
         player.Fighter.BASE_ACCURACY += player.Player.levelUpStats['acc']
         player.Fighter.noDexEvasion += player.Player.levelUpStats['ev']
@@ -6320,8 +6358,8 @@ def checkLevelUp():
         player.Fighter.BASE_MAX_MP += player.Player.levelUpStats['mp']
         player.Fighter.baseCritical += player.Player.levelUpStats['crit']
         player.Fighter.BASE_CRITICAL += player.Player.levelUpStats['crit']
-        player.Player.strength += player.Player.levelUpStats['str']
-        player.Player.BASE_STRENGTH += player.Player.levelUpStats['str']
+        player.Player.strength += player.Player.levelUpStats['stren']
+        player.Player.BASE_STRENGTH += player.Player.levelUpStats['stren']
         player.Player.dexterity += player.Player.levelUpStats['dex']
         player.Player.BASE_DEXTERITY += player.Player.levelUpStats['dex']
         player.Player.vitality += player.Player.levelUpStats['vit']
@@ -10415,7 +10453,7 @@ def launchTutorial(prologueEsc = True):
             for newTrait in trait.allowsSelection:
                 newTrait.selectable = True
 
-    LvlUp = {'pow': 1, 'acc': 10, 'ev': 0, 'arm': 1, 'hp': 14, 'mp': 3, 'crit': 0, 'str': 0, 'dex': 0, 'vit': 0, 'will': 0, 'ap': 0}
+    LvlUp = {'power': 1, 'acc': 10, 'ev': 0, 'arm': 1, 'hp': 14, 'mp': 3, 'crit': 0, 'stren': 0, 'dex': 0, 'vit': 0, 'will': 0, 'ap': 0}
     playerComp = Player('Angus McFife', 5, 2, 5, 2, 45.0, 'Human', 'Knight', allTraits, LvlUp)
     fighterComp = Fighter(hp = 160, power= 1, armor= 1, deathFunction=playerDeath, xp=0, evasion = 0, accuracy = 30, maxMP= 30, critical = 5)
     player = GameObject(MAP_WIDTH - 2, MID_MAP_HEIGHT, '@', Fighter = fighterComp, Player = playerComp, name = 'Angus McFife', color = (0, 210, 0))
@@ -10481,9 +10519,9 @@ def mainMenu():
                             if trait.type == 'class' and trait.selected:
                                 chosenClass = trait.name
                         name = enterName(chosenRace)
-                        LvlUp = {'pow': createdCharacter['powLvl'], 'acc': createdCharacter['accLvl'], 'ev': createdCharacter['evLvl'], 'arm': createdCharacter['armLvl'], 'hp': createdCharacter['hpLvl'], 'mp': createdCharacter['mpLvl'], 'crit': createdCharacter['critLvl'], 'str': createdCharacter['strLvl'], 'dex': createdCharacter['dexLvl'], 'vit': createdCharacter['vitLvl'], 'will': createdCharacter['willLvl'], 'ap': createdCharacter['apLvl']}
-                        playComp = Player(name, playerComponent['str'], playerComponent['dex'], playerComponent['vit'], playerComponent['will'], playerComponent['load'], chosenRace, chosenClass, allTraits, LvlUp, skillpoints=skillpoints)
-                        playFight = Fighter(hp = playerComponent['hp'], power= playerComponent['pow'], armor= playerComponent['arm'], deathFunction=playerDeath, xp=0, evasion = playerComponent['ev'], accuracy = playerComponent['acc'], maxMP= playerComponent['mp'], knownSpells=playerComponent['spells'], critical = playerComponent['crit'], armorPenetration = playerComponent['ap'])
+                        LvlUp = {'power': createdCharacter['powLvl'], 'acc': createdCharacter['accLvl'], 'ev': createdCharacter['evLvl'], 'arm': createdCharacter['armLvl'], 'hp': createdCharacter['hpLvl'], 'mp': createdCharacter['mpLvl'], 'crit': createdCharacter['critLvl'], 'stren': createdCharacter['strLvl'], 'dex': createdCharacter['dexLvl'], 'vit': createdCharacter['vitLvl'], 'will': createdCharacter['willLvl'], 'ap': createdCharacter['apLvl']}
+                        playComp = Player(name, playerComponent['stren'], playerComponent['dex'], playerComponent['vit'], playerComponent['will'], playerComponent['load'], chosenRace, chosenClass, allTraits, LvlUp, skillpoints=skillpoints)
+                        playFight = Fighter(hp = playerComponent['hp'], power= playerComponent['power'], armor= playerComponent['arm'], deathFunction=playerDeath, xp=0, evasion = playerComponent['ev'], accuracy = playerComponent['acc'], maxMP= playerComponent['mp'], knownSpells=playerComponent['spells'], critical = playerComponent['crit'], armorPenetration = playerComponent['ap'])
                         player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = name, color = (0, 210, 0))
                         player.level = 1
                         player.Fighter.hp = player.Fighter.baseMaxHP
@@ -10562,7 +10600,7 @@ def testArena():
                 initiateSkill(skill.allowsSelection, newHeight, counter)
             counter += 1
 
-    LvlUp = {'pow': 1, 'acc': 10, 'ev': 0, 'arm': 1, 'hp': 20, 'mp': 0, 'crit': 0, 'str': 0, 'dex': 0, 'vit': 0, 'will': 0, 'ap': 0}
+    LvlUp = {'power': 1, 'acc': 10, 'ev': 0, 'arm': 1, 'hp': 20, 'mp': 0, 'crit': 0, 'stren': 0, 'dex': 0, 'vit': 0, 'will': 0, 'ap': 0}
     playerComp = Player('You', 0, 0, 0, 0, 45.0, 'Human', 'Knight', traits, LvlUp)
     fighterComp = Fighter(hp = 120, power= 1, armor= 1, deathFunction=playerDeath, xp=0, evasion = 20, accuracy = 50, maxMP= 20, critical = 5)
     player = GameObject(40, 25, '@', Fighter = fighterComp, Player = playerComp, name = 'You', color = (0, 210, 0))
@@ -10755,18 +10793,20 @@ def Update():
                 object.draw()
                 if object.Fighter and (SIDE_PANEL_MODES[currentSidepanelMode] == 'enemies'):
                     name = textwrap.wrap(object.name, SIDE_PANEL_TEXT_WIDTH)
-                    sidePanel.draw_char(2, panelY, object.char, fg = object.color)
-                    for line in name:
-                        sidePanel.draw_str(4, panelY, line, fg = colors.white)
+                    if not panelY + len(name) >= HEIGHT:
+                        sidePanel.draw_char(2, panelY, object.char, fg = object.color)
+                        for line in name:
+                            sidePanel.draw_str(4, panelY, line, fg = colors.white)
+                            panelY += 1
                         panelY += 1
-                    panelY += 1
                 if object.Item and SIDE_PANEL_MODES[currentSidepanelMode] == 'items':
                     name = textwrap.wrap(object.name, SIDE_PANEL_TEXT_WIDTH)
-                    sidePanel.draw_char(2, panelY, object.char, fg = object.color)
-                    for line in name:
-                        sidePanel.draw_str(4, panelY, line, fg = colors.white)
+                    if not panelY + len(name) >= HEIGHT:
+                        sidePanel.draw_char(2, panelY, object.char, fg = object.color)
+                        for line in name:
+                            sidePanel.draw_str(4, panelY, line, fg = colors.white)
+                            panelY += 1
                         panelY += 1
-                    panelY += 1
                 #if object.AI and object.AI.__class__.__name__ == 'Charger' or object.AI.__class__.__name__ == 'Wrath':
                 #    for sign in object.AI.chargePathSigns:
                 #        sign.draw()
@@ -10790,9 +10830,14 @@ def Update():
         msgY += 1
     # Draw GUI
     #panel.draw_str(1, 3, 'Dungeon level: ' + str(dungeonLevel), colors.white)
-    panel.draw_str(1, 7, 'Player level: ' + str(player.level), colors.white)
-    panel.draw_str(1, 9, 'Floor: ' + str(dungeonLevel) + ' | Dungeon: ' + str(currentBranch.name), colors.white)
-    panel.draw_str(1, 11, 'Money: ' + str(player.Player.money))
+    panel.draw_str(1, 7, 'Player level:', colors.amber)
+    panel.draw_str(15, 7, str(player.level), colors.white)
+    panel.draw_str(1, 9, 'Floor:', colors.amber)
+    panel.draw_str(9, 9, str(dungeonLevel), colors.white)
+    panel.draw_str(10 + len(str(dungeonLevel)), 9, chr(179) + ' Dungeon:', colors.amber)
+    panel.draw_str(21 + len(str(dungeonLevel)), 9, currentBranch.name, colors.white)
+    panel.draw_str(1, 11, 'Money: ', colors.amber)
+    panel.draw_str(8, 11, str(player.Player.money), colors.white)
     renderBar(panel, 1, 1, BAR_WIDTH, 'HP', player.Fighter.hp, player.Fighter.maxHP, player.color, colors.dark_gray, textColor = player.Player.hpTextColor)
     renderBar(panel, 1, 3, BAR_WIDTH, 'MP', player.Fighter.MP, player.Fighter.maxMP, colors.blue, colors.dark_gray, colors.darkest_blue)
     renderBar(panel, 1, 5, BAR_WIDTH, 'Stamina', player.Fighter.stamina, player.Fighter.maxStamina, colors.lighter_yellow, colors.dark_grey, colors.darker_yellow)
@@ -10812,16 +10857,19 @@ def Update():
     
     #side panel modes
     mode = SIDE_PANEL_MODES[currentSidepanelMode]
-    sidePanel.draw_str(2, 5, mode.capitalize()+':', colors.white, None)
+    sidePanel.draw_str(2, 5, mode.capitalize()+':', colors.amber, None)
+    for dx in range(len(mode) + 1):
+        sidePanel.draw_char(2 + dx, 6, chr(249), colors.amber)
     if mode == 'equipment':
         panelY = 7
         for equipment in equipmentList:
             name = textwrap.wrap(equipment.name, SIDE_PANEL_TEXT_WIDTH)
-            sidePanel.draw_char(2, panelY, equipment.char, fg = equipment.color)
-            for line in name:
-                sidePanel.draw_str(4, panelY, line, fg = colors.white)
+            if not panelY + len(name) >= HEIGHT:
+                sidePanel.draw_char(2, panelY, equipment.char, fg = equipment.color)
+                for line in name:
+                    sidePanel.draw_str(4, panelY, line, fg = colors.white)
+                    panelY += 1
                 panelY += 1
-            panelY += 1
     if mode == 'buffs':
         panelY = 7
         selfAware = player.Player.getTrait('trait', 'Self aware') != 'not found'
@@ -10832,19 +10880,21 @@ def Update():
                 else:
                     buffText = buff.name.capitalize()
                 text = textwrap.wrap(buffText, SIDE_PANEL_TEXT_WIDTH)
-                for line in text:
-                    sidePanel.draw_str(2, panelY, line, buff.color)
+                if not panelY + len(text) >= HEIGHT:
+                    for line in text:
+                        sidePanel.draw_str(2, panelY, line, buff.color)
+                        panelY += 1
                     panelY += 1
-                panelY += 1
     if mode == 'inventory':
         panelY = 7
         for item in inventory:
             name = textwrap.wrap(item.name, SIDE_PANEL_TEXT_WIDTH)
-            sidePanel.draw_char(2, panelY, item.char, fg = item.color)
-            for line in name:
-                sidePanel.draw_str(4, panelY, line, fg = colors.white)
+            if not panelY + len(name) >= HEIGHT:
+                sidePanel.draw_char(2, panelY, item.char, fg = item.color)
+                for line in name:
+                    sidePanel.draw_str(4, panelY, line, fg = colors.white)
+                    panelY += 1
                 panelY += 1
-            panelY += 1
     if mode == 'stealth':
         panelY = 7
         detected = False
@@ -10855,11 +10905,29 @@ def Update():
                     detected = True
                     numberEnemies += 1
         if not detected:
-            sidePanel.draw_str(2, panelY, 'Concealed', fg = colors.green)
+            sidePanel.draw_str(2, panelY, 'Concealed', fg = colors.white)
         else:
             sidePanel.draw_str(2, panelY, 'Spotted! ({})'.format(str(numberEnemies)), fg = colors.red)
+    if mode == 'spells':
+        panelY = 7
+        allSpells = []
+        allSpells.extend(player.Fighter.knownSpells)
+        allSpells.extend(player.Fighter.spellsOnCooldown)
+        allSpells = sortSpells(allSpells)
+        for spell in allSpells:
+            color = colors.white
+            text = spell.name
+            if spell.curCooldown > 0:
+                text += ' ({})'.format(spell.curCooldown)
+                color = colors.grey
+            name = textwrap.wrap(text, SIDE_PANEL_TEXT_WIDTH)
+            if not panelY + len(name) >= HEIGHT:
+                for line in name:
+                    sidePanel.draw_str(2, panelY, line, fg = color)
+                    panelY += 1
+                panelY += 1
     root.blit(sidePanel, SIDE_PANEL_X, SIDE_PANEL_Y, SIDE_PANEL_WIDTH, HEIGHT, 0, 0)
-    root.blit(panel, 0, PANEL_Y, WIDTH, PANEL_HEIGHT, 0, 0)
+    root.blit(panel, 0, PANEL_Y, PANEL_WIDTH, PANEL_HEIGHT, 0, 0)
     
 def chat():
     '''
@@ -12253,7 +12321,7 @@ def playGame(noSave = False):
                             object.Player.shapeshifted = True
     
                     human = Buff('human', colors.lightest_yellow, cooldown = player.Player.human, showBuff = False, applyFunction = lambda fighter: setFighterStatsBack(fighter), removeFunction = lambda fighter: shapeshift(fighter))
-                    wolf = Buff('in wolf form', colors.amber, cooldown = player.Player.wolf, applyFunction = lambda fighter: modifyFighterStats(fighter, str = 5, dex = 3, vit = 4, will = -5), removeFunction = lambda fighter: shapeshift(fighter, fromHuman=False, fromWolf=True))
+                    wolf = Buff('in wolf form', colors.amber, cooldown = player.Player.wolf, applyFunction = lambda fighter: modifyFighterStats(fighter, stren = 5, dex = 3, vit = 4, will = -5), removeFunction = lambda fighter: shapeshift(fighter, fromHuman=False, fromWolf=True))
                     if object.Player.shapeshifted:
                         if object.Player.shapeshift == 'wolf':
                             message('You feel your wild instincts overwhelming you! You have turned into your wolf form!', colors.amber)
