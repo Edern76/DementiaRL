@@ -1270,7 +1270,7 @@ def castFireball(radius = 3, damage = 24, shotRange = 4, caster = None, monsterT
     if caster is None or caster == player:
         caster = player
         message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
-        target = targetTile(maxRange = shotRange)
+        target = targetTile(maxRange = shotRange, AOE = True, rangeAOE=radius)
     else:
         if caster.distanceTo(monsterTarget) <= shotRange:
             target = (monsterTarget.x, monsterTarget.y)
@@ -10026,15 +10026,25 @@ def renderBar(cons, x, y, totalWidth, name, value, maximum, barColor, backColor,
         trueMax = maximum
         alwaysFull = False
     barWidth = int(float(value) / trueMax * totalWidth) #Width of the bar is proportional to the ratio of the current value over the maximum value
-    cons.draw_rect(x, y, totalWidth, 1, None, bg = backColor)#Background of the bar
+    cons.draw_rect(x + 1, y, totalWidth, 1, None, bg = backColor)#Background of the bar
     
     if barWidth > 0 and not alwaysFull:
-        cons.draw_rect(x, y, barWidth, 1, None, bg = barColor)#The actual bar
+        cons.draw_rect(x + 1, y, barWidth, 1, None, bg = barColor)#The actual bar
     elif alwaysFull:
-        cons.draw_rect(x, y, totalWidth, 1, None, bg = barColor)
+        cons.draw_rect(x + 1, y, totalWidth, 1, None, bg = barColor)
+    
+    fg = backColor
+    if barWidth == totalWidth or alwaysFull:
+        fg = barColor
+    cons.draw_char(x + totalWidth + 1, y, chr(180), fg = fg)
+    
+    fg = barColor
+    if barWidth == 0 and not alwaysFull:
+        fg = backColor
+    cons.draw_char(x, y, chr(195), fg = fg)
         
     text = name + ': ' + str(value) + '/' + str(maximum)
-    xCentered = x + (totalWidth - len(text))//2
+    xCentered = x + 1 + (totalWidth - len(text))//2
     cons.draw_str(xCentered, y, text, fg = textColor, bg=None)
 
 def displayLog(height):
@@ -10812,7 +10822,10 @@ def Update():
                 #        sign.draw()
     player.draw()
     for x in range(WIDTH):
-        con.draw_char(x, PANEL_Y - 1, chr(196))
+        if x ==0:
+            con.draw_char(x, PANEL_Y - 1, chr(205))
+        else:
+            con.draw_char(x, PANEL_Y - 1, chr(196))
     
 
     '''
@@ -10844,10 +10857,12 @@ def Update():
 
     sidePanel.draw_str(2, 1, '?: Help', colors.green)
     for y in range(HEIGHT):
-        if y != PANEL_Y - 1:
+        if y == 0:
+            sidePanel.draw_char(0, y, chr(186))
+        elif y != PANEL_Y - 1:
             sidePanel.draw_char(0, y, chr(179), colors.white)
         else:
-            sidePanel.draw_char(0, y, chr(217), colors.white)
+            sidePanel.draw_char(0, y, chr(188), colors.white)
             break
     # Look code
     if gameState == 'looking' and lookCursor != None:
@@ -11170,7 +11185,7 @@ def GetNamesUnderLookCursor():
     names = ', '.join(names)
     return names
 
-def targetTile(maxRange = None, showBresenham = False, unlimited = False):
+def targetTile(maxRange = None, showBresenham = False, unlimited = False, AOE = False, rangeAOE = 0, styleAOE = 'circle'):
     global gameState
     global cursor
     global tilesInRange
@@ -11179,7 +11194,7 @@ def targetTile(maxRange = None, showBresenham = False, unlimited = False):
     
     if maxRange == 0:
         return (player.x, player.y)
-    
+    dotsAOE = []
     gameState = 'targeting'
     cursor = GameObject(x = player.x, y = player.y, char = 'X', name = 'cursor', color = colors.yellow, Ghost = True)
     objects.append(cursor)
@@ -11208,6 +11223,8 @@ def targetTile(maxRange = None, showBresenham = False, unlimited = False):
             tilesInRange = []
             if pathToTargetTile:
                 pathToTargetTile = []
+            for dot in dotsAOE:
+                objects.remove(dot)
             con.clear()
             Update()
             return 'cancelled'
@@ -11221,6 +11238,31 @@ def targetTile(maxRange = None, showBresenham = False, unlimited = False):
                     for i in range(len(brLine)):
                         pathToTargetTile.append(brLine[i])
                     #print(pathToTargetTile)
+                for dot in dotsAOE:
+                    objects.remove(dot)
+                dotsAOE = []
+                if AOE:
+                    if styleAOE == 'circle':
+                        for tx in range(cursor.x - rangeAOE - 1, cursor.x + rangeAOE + 1):
+                            for ty in range(cursor.y - rangeAOE - 1, cursor.y + rangeAOE + 1):
+                                if cursor.distanceToCoords(tx, ty) <= rangeAOE and not myMap[tx][ty].blocked:
+                                    dot = GameObject(x = tx, y = ty, char = '.', name = 'AOE dot', color = colors.yellow, Ghost = True)
+                                    objects.append(dot)
+                                    dotsAOE.append(dot)
+                                    dot.sendToBack()
+                    elif styleAOE == 'cardinal cross':
+                        for tx in range(cursor.x - rangeAOE, cursor.x + rangeAOE + 1):
+                            if not myMap[tx][cursor.y].blocked:
+                                dot = GameObject(x = tx, y = cursor.y, char = '.', name = 'AOE dot', color = colors.yellow, Ghost = True)
+                                objects.append(dot)
+                                dotsAOE.append(dot)
+                                dot.sendToBack()
+                        for ty in range(cursor.y - rangeAOE, cursor.y + rangeAOE + 1):
+                            if not myMap[cursor.x][ty].blocked:
+                                dot = GameObject(x = tx, y = cursor.y, char = '.', name = 'AOE dot', color = colors.yellow, Ghost = True)
+                                objects.append(dot)
+                                dotsAOE.append(dot)
+                                dot.sendToBack()
                 Update()
                 tdl.flush()
                 for object in objects:
@@ -11236,6 +11278,8 @@ def targetTile(maxRange = None, showBresenham = False, unlimited = False):
             del cursor
             if pathToTargetTile:
                 pathToTargetTile = []
+            for dot in dotsAOE:
+                objects.remove(dot)
             con.clear()
             Update()
             return (x, y)
