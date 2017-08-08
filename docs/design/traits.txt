@@ -1,12 +1,12 @@
     ## racial traits ## STATUS: 4 (at 100%) / 9 (gotta add some more too)
-    fastLearn = Trait('Fast learner', 'You are very smart and learn from your wins or losses very fast', type = 'trait', selectable = False)  STATUS: implemented EFFECT: +10%xp
-    skilled = Trait('Skilled', 'You are already a skillful warrior', type = 'trait', selectable=False) STATUS: implemented EFFECT: +1 skillpoint
-    rage = Trait('Rage', 'When low on health, you will lose all control', type = 'trait', selectable = False) STATUS: kinda implemented EFFECT: ++autocast Enrage when <25% hp (not done)
-    horns = Trait('Horned', 'Your horns are very large and can be used in combats', type = 'trait', selectable = False) STATUS: unimplemented EFFECT: ++dmg, ++knockback ability
-    carapace = Trait('Chitin carapace', 'Your natural exoskeleton is very resistant', type = 'trait', arm=(2, 0), selectable = False) STATUS: implemented EFFECT: +armor
-    silence = Trait('Silent walk', 'Your paws are very soft, allowing you to be very sneaky', type = 'trait', selectable = False) STATUS: unimplemented EFFECT: ++stealth (this shit ain't gonna implemen itself on its own)
-    venom = Trait('Venomous glands', 'You are able to envenom your weapons', type = 'trait', selectable = False, spells = [envenom]) STATUS: implemented EFFECT: +envenom ability
-    mimesis = Trait('Mimesis', 'You can mimic your environment, making it very hard to see you', type = 'trait', selectable = False) STATUS: unimplemented EFFECT: ++stealth
+    XXfastLearn = Trait('Fast learner', 'You are very smart and learn from your wins or losses very fast', type = 'trait', selectable = False)  STATUS: implemented EFFECT: +10%xp
+    XXskilled = Trait('Skilled', 'You are already a skillful warrior', type = 'trait', selectable=False) STATUS: implemented EFFECT: +1 skillpoint
+    XXrage = Trait('Rage', 'When low on health, you will lose all control', type = 'trait', selectable = False) STATUS: implemented EFFECT: +autocast Enrage when <25% hp
+    XXhorns = Trait('Horned', 'Your horns are very large and can be used in combats', type = 'trait', selectable = False) STATUS: implemented EFFECT: +dmg, +knockback ability
+    XXcarapace = Trait('Chitin carapace', 'Your natural exoskeleton is very resistant', type = 'trait', arm=(2, 0), selectable = False) STATUS: implemented EFFECT: +armor
+    XXsilence = Trait('Silent walk', 'Your paws are very soft, allowing you to be very sneaky', type = 'trait', selectable = False) STATUS: implemented EFFECT: +stealth
+    XXvenom = Trait('Venomous glands', 'You are able to envenom your weapons', type = 'trait', selectable = False, spells = [envenom]) STATUS: implemented EFFECT: +envenom ability
+    XXmimesis = Trait('Mimesis', 'You can mimic your environment, making it very hard to see you', type = 'trait', selectable = False) STATUS: implemented EFFECT: +stealth
     wild = Trait('Wild instincts', 'Your natural transformation is even more deadly', type = 'trait', selectable = False) STATUS: unimplemented EFFECT: ++more random, stronger transformations
     
     ## races ##  STATUS: 2 (at 100%) / 9 
@@ -75,3 +75,4 @@
     agile = Trait('Agile', 'You have incredible reflexes', type = 'trait', dex=(2, 0)) STATUS: implemented EFFECT: +2 dex
     training = Trait('Warrior training', 'You are trained to master all weapons', type = 'trait', acc=(7, 0))STATUS: implemented EFFECT: +7 acc
     tough = Trait('Tough', 'You can endure harm better', type = 'trait', hp=(40, 0))STATUS: implemented EFFECT: +40 hp
+

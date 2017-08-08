@@ -28,6 +28,7 @@ import code.holeGen as holeGen
 
 from tkinter import *
 from tkinter.messagebox import * #For making obvious freaking error boxes when the console gets too bloated to read anything useful.
+from win32gui import CreateDC
 
 
 
@@ -758,6 +759,11 @@ class Spell:
             FOV_recompute = True
             message(caster.name.capitalize() + ' does not have enough MP to cast ' + self.name +'.')
             return 'cancelled'
+        if self.ressource == 'Stamina' and caster.Fighter.stamina < self.ressourceCost:
+            FOV_recompute = True
+            message(caster.name.capitalize() + ' does not have enough stamina to cast ' + self.name +'.')
+            return 'cancelled'
+            
 
         if self.arg1 is None:
             if self.useFunction(caster, target) != 'cancelled':
@@ -769,6 +775,8 @@ class Spell:
                     caster.Fighter.MP -= self.ressourceCost
                 elif self.ressource == 'HP':
                     caster.Fighter.takeDamage(self.ressourceCost, 'your spell')
+                elif self.ressource == 'Stamina':
+                    caster.Fighter.stamina -= self.ressourceCost
                 return 'used'
             else:
                 return 'cancelled'
@@ -782,6 +790,8 @@ class Spell:
                     caster.Fighter.MP -= self.ressourceCost
                 elif self.ressource == 'HP':
                     caster.Fighter.takeDamage(self.ressourceCost, 'your spell')
+                elif self.ressource == 'Stamina':
+                    caster.Fighter.stamina -= self.ressourceCost
                 return 'used'
             else:
                 return 'cancelled'
@@ -795,6 +805,8 @@ class Spell:
                     caster.Fighter.MP -= self.ressourceCost
                 elif self.ressource == 'HP':
                     caster.Fighter.takeDamage(self.ressourceCost, 'your spell')
+                elif self.ressource == 'Stamina':
+                    caster.Fighter.stamina -= self.ressourceCost
                 return 'used'
             else:
                 return 'cancelled'
@@ -808,6 +820,8 @@ class Spell:
                     caster.Fighter.MP -= self.ressourceCost
                 elif self.ressource == 'HP':
                     caster.Fighter.takeDamage(self.ressourceCost, 'your spell')
+                elif self.ressource == 'Stamina':
+                    caster.Fighter.stamina -= self.ressourceCost
                 return 'used'
             else:
                 return 'cancelled'
@@ -870,11 +884,11 @@ def rSpellDefense(amount, type, caster, target):
         message(target.name.capitalize() + " should have had its defense decrease. But the developper was to lazy to implement it in time !") #TO-DO
     '''
     if type == "Buff":
-        enraged = Buff('invigorated', colors.cyan, cooldown = amount, applyFunction = lambda fighter: modifyFighterStats(fighter, arm = 10), removeFunction = lambda fighter: setFighterStatsBack(fighter))
-        enraged.applyBuff(target)
+        armor = Buff('invigorated', colors.cyan, cooldown = amount, applyFunction = lambda fighter: modifyFighterStats(fighter, arm = 10), removeFunction = lambda fighter: setFighterStatsBack(fighter))
+        armor.applyBuff(target)
     else:
-        enraged = Buff('vulnerable', colors.dark_cyan, cooldown = amount, applyFunction = lambda fighter: modifyFighterStats(fighter, arm = -10), removeFunction = lambda fighter: setFighterStatsBack(fighter))
-        enraged.applyBuff(target)
+        armor = Buff('vulnerable', colors.dark_cyan, cooldown = amount, applyFunction = lambda fighter: modifyFighterStats(fighter, arm = -10), removeFunction = lambda fighter: setFighterStatsBack(fighter))
+        armor.applyBuff(target)
         
 def rSpellSpeed(amount, type, caster, target):
     if type == "Buff":
@@ -899,8 +913,8 @@ def rSpellRemoveBuff(buffToRemove, caster, target):
 def targetSelf(caster):
     return caster
 
-def targetMonster(maxRange = None):
-    target = targetTile(maxRange)
+def targetMonster(maxRange = None, melee = False):
+    target = targetTile(maxRange, melee = melee)
     if target == 'cancelled':
         return None
     else:
@@ -1509,6 +1523,26 @@ def castMakeTileYellow(caster = None, monsterTarget = None):
         else:
             message("Invalid tile !", colors.red)
             return 'cancelled'
+
+def castKnockback(caster = None, monsterTarget = None, abilityRange = 1, KBrange = 1, damage = randint(2, 7)):
+    if caster is None or caster == player:
+        caster = player
+        melee = False
+        if abilityRange == 1:
+            melee = True
+        target = targetMonster(abilityRange, melee = melee)
+    if target:
+        target.Fighter.takeDamage(damage, 'player', armored = True)
+        message('You ram into {}!'.format(target.name), colors.yellow)
+        dx = target.x - caster.x
+        dy = target.y - caster.y
+        for kb in range(KBrange):
+            target.move(dx, dy)
+        stunned = Buff('stunned', colors.yellow, cooldown = 2)
+        stunned.applyBuff(target)
+        return
+    else:
+        return 'cancelled'
     
 def resetDjik():
     global djikVisitedTiles
@@ -1765,7 +1799,8 @@ def profileDjik(caster = None, target = None):
     
 def detailedProfilerWrapperDjik(caster = None, target = None):
     calcDjikPlayer(profile = True)
-    
+
+ram = Spell(ressourceCost=15, cooldown = 20, useFunction=castKnockback, name = 'Ram', ressource = 'Stamina', type = 'Racial')    
 fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 1, arg2 = 12, arg3 = 4)
 heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 20)
 darkPact = Spell(ressourceCost = DARK_PACT_DAMAGE, cooldown = 8, useFunction = castDarkRitual, name = "Dark ritual", ressource = 'HP', type = "Occult", magicLevel = 2, arg1 = 5, arg2 = DARK_PACT_DAMAGE)
@@ -1785,19 +1820,19 @@ dispDjik = Spell(ressourceCost= 0, cooldown = 1, useFunction=toggleDrawDjik, nam
 detDjik = Spell(ressourceCost= 0, cooldown = 1, useFunction=detailedProfilerWrapperDjik, name = 'DEBUG : Calculate Djikstra Map (with detailed Profiler)', ressource='MP', type = 'Occult')
 yellowify = Spell(ressourceCost= 0, cooldown = 1, useFunction=castMakeTileYellow, name = 'DEBUG : Make tile look yellow', ressource='MP', type = 'Occult')
 
-spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport, djik, dispDjik, djikProf, detDjik, yellowify])
+spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport, djik, dispDjik, djikProf, detDjik, yellowify, ram])
 #_____________SPELLS_____________
 
 #______________CHARACTER GENERATION____________
 createdCharacter = {'power': 0, 'acc': 20, 'ev': 0, 'arm': 0, 'hp': 0, 'mp': 0, 'crit': 0, 'stren': 0, 'dex': 0, 'vit': 0, 'will': 0, 'ap': 0, 
                     'powLvl': 0, 'accLvl': 0, 'evLvl': 0, 'armLvl': 0, 'hpLvl': 0, 'mpLvl': 0, 'critLvl': 0, 'strLvl': 0, 'dexLvl': 0, 'vitLvl': 0, 'willLvl': 0, 'apLvl': 0,
-                    'spells': [], 'load': 45.0}
+                    'spells': [], 'load': 45.0, 'stealth': 0, 'stamina': 0, 'stamLvl': 0}
 
 class Trait():
     '''
     Actually used for everything in the character creation, from race to skills etc
     '''
-    def __init__(self, name, description, type, x = 0, y = 0, underCursor = False, selectable = True, selected = False, allowsSelection = [], amount = 0, maxAmount = 1, tier = 1, power = (0, 0), acc = (0, 0), ev = (0, 0), arm = (0, 0), hp = (0, 0), mp = (0, 0), crit = (0, 0), stren = (0, 0), dex = (0, 0), vit = (0, 0), will = (0, 0), spells = None, load = 0, ap = (0, 0)):
+    def __init__(self, name, description, type, x = 0, y = 0, underCursor = False, selectable = True, selected = False, allowsSelection = [], amount = 0, maxAmount = 1, tier = 1, power = (0, 0), acc = (0, 0), ev = (0, 0), arm = (0, 0), hp = (0, 0), mp = (0, 0), crit = (0, 0), stren = (0, 0), dex = (0, 0), vit = (0, 0), will = (0, 0), spells = None, load = 0, ap = (0, 0), stealth = 0, stam = (0, 0)):
         self.name = name
         self.desc = description
         self.type = type
@@ -1821,7 +1856,9 @@ class Trait():
         self.vit, self.vitPerLvl = vit
         self.will,self.willPerLvl = will
         self.ap, self.apPerLvl = ap
+        self.stamina, self.stamPerLvl = stam
         self.load = load
+        self.stealth = stealth
         self.spells = spells
         self.tier = tier
         self.owner = None
@@ -1851,6 +1888,8 @@ class Trait():
                 createdCharacter['vit'] += self.vit
                 createdCharacter['will'] += self.will
                 createdCharacter['ap'] += self.ap
+                createdCharacter['stamina'] += self.stamina
+                createdCharacter['stealth'] += self.stealth
                 if self.spells is not None:
                     createdCharacter['spells'].extend(self.spells)
                 createdCharacter['load'] += self.load
@@ -1866,6 +1905,7 @@ class Trait():
                 createdCharacter['vitLvl'] += self.vitPerLvl
                 createdCharacter['willLvl'] += self.willPerLvl
                 createdCharacter['apLvl'] += self.apPerLvl
+                createdCharacter['stamLvl'] += self.stamPerLvl
                 self.amount += 1
                 self.selected = True
                 for trait in self.allowsSelection:
@@ -1909,6 +1949,8 @@ class Trait():
             player.Fighter.baseArmorPenetration += self.ap
             player.Fighter.BASE_ARMOR_PENETRATION += self.ap
             #player.Player.levelUpStats['ap'] += self.apPerLvl
+            player.Player.baseStealth += self.stealth
+            player.Fighter.noConstStamina += self.stamina
             self.amount += 1
             if self.spells is not None:
                 for spell in self.spells:
@@ -1934,6 +1976,8 @@ class Trait():
                 createdCharacter['vit'] -= self.vit
                 createdCharacter['will'] -= self.will
                 createdCharacter['ap'] -= self.ap
+                createdCharacter['stamina'] -= self.stamina
+                createdCharacter['stealth'] -= self.stealth
                 if self.spells is not None:
                     for spell in self.spells:
                         createdCharacter['spells'].remove(spell)
@@ -1950,12 +1994,14 @@ class Trait():
                 createdCharacter['vitLvl'] -= self.vitPerLvl
                 createdCharacter['willLvl'] -= self.willPerLvl
                 createdCharacter['apLvl'] -= self.apPerLvl
+                createdCharacter['stamLvl'] -= self.stamPerLvl
                 self.amount -= 1
                 if self.amount <= 0:
                     self.selected = False
                     if self.spells is not None:
                         for spell in self.spells:
-                            createdCharacter['spells'].remove(spell)
+                            if spell in createdCharacter['spells']:
+                                createdCharacter['spells'].remove(spell)
                     if not keepDependantSkills:
                         for trait in self.allowsSelection:
                             trait.selectable = False
@@ -2001,6 +2047,8 @@ class Trait():
             player.Fighter.baseArmorPenetration -= self.ap
             player.Fighter.BASE_ARMOR_PENETRATION -= self.ap
             #player.Player.levelUpStats['ap'] -= self.apPerLvl
+            player.Player.baseStealth -= self.stealth
+            player.Fighter.noConstStamina -= self.stamina
             self.amount -= 1
             player.Player.baseMaxWeight -= self.load
             if self.amount <= 0:
@@ -2022,6 +2070,7 @@ class Trait():
         elif self.type == 'trait':
             player.Player.traits.append(self)
         player.Player.allTraits.append(self)
+        self.applyBonus(False)
         self.selected = True
     
     def drawTrait(self, cons = root):
@@ -2076,11 +2125,11 @@ def initializeTraits():
     fastLearn = Trait('Fast learner', 'You are very smart and learn from your wins or losses very fast', type = 'trait', selectable = False)
     skilled = Trait('Skilled', 'You are already a skillful warrior', type = 'trait', selectable=False)
     rage = Trait('Rage', 'When low on health, you will lose all control', type = 'trait', selectable = False)
-    horns = Trait('Horned', 'Your horns are very large and can be used in combats', type = 'trait', selectable = False)
+    horns = Trait('Horned', 'Your horns are very large and can be used in combats', type = 'trait', selectable = False, spells=[ram], power = (2, 0))
     carapace = Trait('Chitin carapace', 'Your natural exoskeleton is very resistant', type = 'trait', arm=(2, 0), selectable = False)
-    silence = Trait('Silent walk', 'Your paws are very soft, allowing you to be very sneaky', type = 'trait', selectable = False)
+    silence = Trait('Silent walk', 'Your paws are very soft, allowing you to be very sneaky', type = 'trait', selectable = False, stealth=15)
     venom = Trait('Venomous glands', 'You are able to envenom your weapons', type = 'trait', selectable = False, spells = [envenom])
-    mimesis = Trait('Mimesis', 'You can mimic your environment, making it very hard to see you', type = 'trait', selectable = False)
+    mimesis = Trait('Mimesis', 'You can mimic your environment, making it very hard to see you', type = 'trait', selectable = False, stealth = 15)
     wild = Trait('Wild instincts', 'Your natural transformation is even more deadly', type = 'trait', selectable = False)
     optionTraits = [fastLearn, skilled, rage, horns, carapace, silence, venom, mimesis, wild]
     
@@ -2231,7 +2280,7 @@ def characterCreation():
     global createdCharacter
     createdCharacter = {'power': 0, 'acc': 20, 'ev': 0, 'arm': 0, 'hp': 0, 'mp': 0, 'crit': 0, 'stren': 0, 'dex': 0, 'vit': 0, 'will': 0, 'ap': 0, 
                     'powLvl': 0, 'accLvl': 0, 'evLvl': 0, 'armLvl': 0, 'hpLvl': 0, 'mpLvl': 0, 'critLvl': 0, 'strLvl': 0, 'dexLvl': 0, 'vitLvl': 0, 'willLvl': 0, 'apLvl': 0,
-                    'spells': [], 'load': 45.0}
+                    'spells': [], 'load': 45.0, 'stealth': 0, 'stamina': 0, 'stamLvl': 0}
     #allTraits = []
     #leftTraits = []
     #rightTraits = []
@@ -2466,7 +2515,7 @@ def characterCreation():
         drawCentered(cons = root, y = 71, text = 'Cancel', fg = colors.white, bg = None)
 
         #Displaying stats
-        eightScreen = WIDTH//5
+        eightScreen = WIDTH//6
         
         text = 'Power: ' + str(createdCharacter['power'] + createdCharacter['stren'])
         drawCenteredOnX(cons = root, x = eightScreen * 1, y = 74, text = text, fg = colors.white, bg = None)
@@ -2507,6 +2556,15 @@ def characterCreation():
         drawCenteredOnX(cons = root, x = eightScreen * 4, y = 76, text = text, fg = colors.white, bg = None)
         X = eightScreen * 4 + ((len(text) + 1)// 2)
         root.draw_str(x = X, y = 76, string = ' + ' + str(3 * createdCharacter['strLvl']) + '/lvl', fg = colors.yellow, bg = None)
+        
+        text = 'Stealth: ' + str(createdCharacter['stealth'])
+        drawCenteredOnX(root, x = eightScreen * 5, y = 74, text = text, fg = colors.white, bg = None)
+        X = eightScreen * 5 + (len(text) + 1)//2
+        
+        text = 'Stamina: ' + str(createdCharacter['stamina'] + 5 * createdCharacter['vit'])
+        drawCenteredOnX(cons = root, x = eightScreen * 5, y = 76, text = text, fg = colors.white, bg = None)
+        X = eightScreen * 5 + ((len(text) + 1)// 2)
+        root.draw_str(x = X, y = 76, string = ' + ' + str(5 * createdCharacter['vitLvl'] + createdCharacter['stamLvl']) + '/lvl', fg = colors.yellow, bg = None)
 
         for trait in allTraits:
             if index == allTraits.index(trait):
@@ -2886,7 +2944,7 @@ class GameObject:
         self.move(dx, dy)
 
     def move(self, dx, dy):
-        if self.Fighter and 'frozen' in convertBuffsToNames(self.Fighter):
+        if self.Fighter and not self.Fighter.canTakeTurn:
             pass
         elif not isBlocked(self.x + dx, self.y + dy) or self.ghost:
             self.x += dx
@@ -2900,7 +2958,7 @@ class GameObject:
                 return 'didnt-take-turn'
     
     def moveTo(self, otherX, otherY):
-        if self.Fighter and 'frozen' in convertBuffsToNames(self.Fighter):
+        if self.Fighter and not self.Fighter.canTakeTurn:
             pass
         elif not isBlocked(otherX, otherY) or self.ghost:
             self.x = int(otherX)
@@ -3181,10 +3239,19 @@ class Fighter: #All NPCs, enemies and the player
     def maxStamina(self):
         bonus = sum(equipment.staminaBonus for equipment in getAllEquipped(self.owner))
         return self.baseMaxStamina + bonus
+    
+    @property
+    def canTakeTurn(self):
+        if not 'frozen' in convertBuffsToNames(self) and not 'stunned' in convertBuffsToNames(self):
+            return True
+        else:
+            return False
         
-    def takeDamage(self, damage, damageSource):
+    def takeDamage(self, damage, damageSource, armored = False, armorPenetration=0):
         global lastHitter
         lastHitter = damageSource
+        if armored:
+            damage = damage - (self.armor - armorPenetration)
         if damage > 0:
             self.hp -= damage
             self.updateDamageText()
@@ -3278,7 +3345,7 @@ class Fighter: #All NPCs, enemies and the player
                         damage = randint(self.power - 2, self.power + 2) + 4 - penetratedArmor
                     else:
                         damage = randint(self.power - 2, self.power + 2) - penetratedArmor
-                if not 'frozen' in convertBuffsToNames(self):
+                if self.canTakeTurn:
                     if not self.owner.Player:
                         if damage > 0:
                             if target == player:
@@ -3540,7 +3607,7 @@ class RangedNPC:
                 damage = (randint(self.power - 2, self.power + 2) - penetratedArmor) * 3
             else:
                 damage = randint(self.power - 2, self.power + 2) - penetratedArmor
-            if not 'frozen' in convertBuffsToNames(self.owner):
+            if self.owner.canTakeTurn:
                 if damage > 0:
                     if target == player:
                         if criticalHit:
@@ -3618,7 +3685,7 @@ class TargetSelector:
         priorityTargetFound = False
         
         monsterVisibleTiles = tdl.map.quick_fov(x = monster.x, y = monster.y,callback = isVisibleTile , fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
-        if not 'frozen' in convertBuffsToNames(self.owner.Fighter) and monster.distanceTo(player) <= 15:
+        if self.owner.Fighter.canTakeTurn and monster.distanceTo(player) <= 15:
             #print(monster.name + " is less than 15 tiles to player.")
             for object in objects:
                 if (object.x, object.y) in monsterVisibleTiles and (object == player or (object.AI and object.AI.__class__.__name__ == "FriendlyMonster" and object.AI.friendlyTowards == player)):
@@ -3700,7 +3767,7 @@ class BasicMonster(TargetSelector): #Basic monsters' AI
         self.failCounter = 0
         self.didRecalcThisTurn = False
         
-        if not 'frozen' in convertBuffsToNames(self.owner.Fighter) and monster.distanceTo(player) <= 15:
+        if self.owner.Fighter.canTakeTurn and monster.distanceTo(player) <= 15:
             self.selectTarget()
             if self.selectedTarget is not None:
                 print("SELECTED TARGET IS NOT NONE")
@@ -3713,13 +3780,13 @@ class BasicMonster(TargetSelector): #Basic monsters' AI
                 print("No target, still trying to move")
                 self.tryMove()
                 
-        elif not 'frozen' in convertBuffsToNames(self.owner.Fighter):
+        elif self.owner.Fighter.canTakeTurn:
             self.wander()
     
     def tryMove(self):
         global mustCalculate
         monster = self.owner
-        if not 'frozen' in convertBuffsToNames(monster.Fighter) and monster.distanceTo(player) >= 2:
+        if monster.Fighter.canTakeTurn and monster.distanceTo(player) >= 2:
             print("IN TRYMOVE BLOCK")
             print("SELECTED TARGET : {}".format(self.selectedTarget))
             pathState = "fail"
@@ -3916,7 +3983,7 @@ class Fleeing(BasicMonster):
         monsterVisibleTiles = tdl.map.quick_fov(x = monster.x, y = monster.y,callback = isVisibleTile , fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
         bestX = monster.x
         bestY = monster.y
-        if not 'frozen' in convertBuffsToNames(self.owner.Fighter) and monster.distanceTo(player) <= 15:
+        if self.owner.Fighter.canTakeTurn and monster.distanceTo(player) <= 15:
             for x in range(monster.x - SIGHT_RADIUS - 1, monster.x + SIGHT_RADIUS + 1):
                 for y in range(monster.y - SIGHT_RADIUS - 1, monster.y + SIGHT_RADIUS + 1):
                     if (x, y) in monsterVisibleTiles and player.distanceToCoords(x, y) > player.distanceToCoords(bestX, bestY) and not isBlocked(x, y):
@@ -3937,10 +4004,10 @@ class Fleeing(BasicMonster):
     
     def takeTurn(self):
         monster = self.owner
-        if not 'frozen' in convertBuffsToNames(self.owner.Fighter) and monster.distanceTo(player) <= 15:
+        if self.owner.Fighter.canTakeTurn and monster.distanceTo(player) <= 15:
             self.flee()
                 
-        elif not 'frozen' in convertBuffsToNames(self.owner.Fighter):
+        elif self.owner.Fighter.canTakeTurn:
             self.wander()
 
 class Shooter(Fleeing):
@@ -3956,7 +4023,7 @@ class Shooter(Fleeing):
         self.failCounter = 0
         self.didRecalcThisTurn = False
         
-        if not 'frozen' in convertBuffsToNames(self.owner.Fighter) and monster.distanceTo(player) <= 15:
+        if self.owner.Fighter.canTakeTurn and monster.distanceTo(player) <= 15:
             self.selectTarget()
             if self.selectedTarget is not None:
                 print("SELECTED TARGET IS NOT NONE")
@@ -3985,7 +4052,7 @@ class Shooter(Fleeing):
                 print("No target, still trying to move")
                 self.tryMove()
                 
-        elif not 'frozen' in convertBuffsToNames(self.owner.Fighter):
+        elif self.owner.Fighter.canTakeTurn:
             self.wander()
 
 class HostileStationnary(TargetSelector):
@@ -3994,7 +4061,7 @@ class HostileStationnary(TargetSelector):
 
     def takeTurn(self):
         monster = self.owner
-        if not 'frozen' in convertBuffsToNames(self.owner.Fighter):
+        if self.owner.Fighter.canTakeTurn:
             self.selectTarget()
             if self.selectedTarget is not None:
                 if monster.distanceTo(self.selectedTarget) < 2:
@@ -4011,7 +4078,7 @@ class SplosionAI:
         if (monster.x, monster.y) in visibleTiles: #chasing the player
             if monster.distanceTo(player) >= 3:
                 monster.moveTowards(player.x, player.y)
-            elif player.Fighter.hp > 0 and not 'frozen' in convertBuffsToNames(monster.Fighter):
+            elif player.Fighter.hp > 0 and monster.Fighter.canTakeTurn:
                 monsterArmageddon(monster.name, monster.x, monster.y)
         else:
             monster.move(randint(-1, 1), randint(-1, 1))
@@ -4045,7 +4112,7 @@ class FriendlyMonster:
         targets = []
         selectedTarget = None
         monsterVisibleTiles = tdl.map.quick_fov(x = monster.x, y = monster.y,callback = isVisibleTile , fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
-        if self.friendlyTowards == player and not 'frozen' in convertBuffsToNames(self.owner.Fighter): #If the monster is friendly towards the player
+        if self.friendlyTowards == player and self.owner.Fighter.canTakeTurn: #If the monster is friendly towards the player
             for object in objects:
                 if (object.x, object.y) in monsterVisibleTiles and object.AI and object.AI.__class__.__name__ != "FriendlyMonster" and object.Fighter and object.Fighter.hp > 0:
                     targets.append(object)
@@ -4076,7 +4143,7 @@ class FriendlyMonster:
                         if diagState is None:
                             monster.moveTowards(selectedTarget.x, selectedTarget.y)
             else:
-                if not 'frozen' in convertBuffsToNames(monster.Fighter) and monster.distanceTo(player) >= 2:
+                if monster.Fighter.canTakeTurn and monster.distanceTo(player) >= 2:
                     if (player.x, player.y) in monsterVisibleTiles:
                         pathState = monster.moveAstar(player.x, player.y, fallback = False)
                         diagPathState = None
@@ -4105,7 +4172,7 @@ class Spellcaster(Fleeing):
         self.failCounter = 0
         self.didRecalcThisTurn = False
         
-        if not 'frozen' in convertBuffsToNames(self.owner.Fighter) and monster.distanceTo(player) <= 15:
+        if self.owner.Fighter.canTakeTurn and monster.distanceTo(player) <= 15:
             self.selectTarget()
             if self.selectedTarget is not None:
                 print("SELECTED TARGET IS NOT NONE")
@@ -4139,7 +4206,7 @@ class Spellcaster(Fleeing):
                 print("No target, still trying to move")
                 self.tryMove()
                 
-        elif not 'frozen' in convertBuffsToNames(self.owner.Fighter):
+        elif self.owner.Fighter.canTakeTurn:
             self.wander()
 
 class Player:
@@ -4174,7 +4241,7 @@ class Player:
         for skill in self.allTraits:
             if skill.type == 'skill':
                 self.skills.append(skill)
-                skill.maxAmount = 5
+                skill.maxAmount = 10
         self.traits = []
         for trait in self.allTraits:
             if trait.type == 'trait':
@@ -5503,6 +5570,7 @@ def getInput():
         player.Player.BASE_WILLPOWER += 1000
         player.Fighter.hp = player.Fighter.maxHP
         player.Fighter.MP = player.Fighter.maxMP
+        player.Fighter.stamina = player.Fighter.maxStamina
         message('Healed player and increased their maximum HP and MP value by 1000', colors.purple)
         FOV_recompute = True
     elif userInput.keychar.upper() == "F6" and DEBUG and not tdl.event.isWindowClosed():
@@ -6208,7 +6276,7 @@ def levelUpScreen(newSkillpoints = True, skillpoint = 3, fromCreation = False, s
             if skill != selectedSkill:
                 skill.underCursor = False
 
-            toAdd = ' ' + str(skill.amount) + '/5'
+            toAdd = ' ' + str(skill.amount) + '/10'
             if skill.selectable and not skill.selected:
                 color = colors.white
             elif skill.selectable and skill.selected and (skill in notConfirmed or fromCreation):
@@ -6291,7 +6359,7 @@ def levelUpScreen(newSkillpoints = True, skillpoint = 3, fromCreation = False, s
             index = origin.skills.index(newSkill)
         elif key.keychar.upper() == 'ENTER':
             skill = origin.skills[index]
-            if skill.selectable and skill.amount < 5 and origin.skillpoints > 0:
+            if skill.selectable and skill.amount < skill.maxAmount and origin.skillpoints > 0:
                 formerAmount = skill.amount
                 skill.selected = True
                 if not skill in notConfirmed:
@@ -6358,13 +6426,13 @@ def checkLevelUp():
         player.Fighter.BASE_MAX_MP += player.Player.levelUpStats['mp']
         player.Fighter.baseCritical += player.Player.levelUpStats['crit']
         player.Fighter.BASE_CRITICAL += player.Player.levelUpStats['crit']
-        player.Player.strength += player.Player.levelUpStats['stren']
+        player.Player.baseStrength += player.Player.levelUpStats['stren']
         player.Player.BASE_STRENGTH += player.Player.levelUpStats['stren']
-        player.Player.dexterity += player.Player.levelUpStats['dex']
+        player.Player.baseDexterity += player.Player.levelUpStats['dex']
         player.Player.BASE_DEXTERITY += player.Player.levelUpStats['dex']
-        player.Player.vitality += player.Player.levelUpStats['vit']
+        player.Player.baseVitality += player.Player.levelUpStats['vit']
         player.Player.BASE_VITALITY += player.Player.levelUpStats['vit']
-        player.Player.willpower += player.Player.levelUpStats['will']
+        player.Player.baseWillpower += player.Player.levelUpStats['will']
         player.Player.BASE_WILLPOWER += player.Player.levelUpStats['will']
         player.Fighter.baseArmorPenetration += player.Player.levelUpStats['ap']
         player.Fighter.BASE_ARMOR_PENETRATION += player.Player.levelUpStats['ap']
@@ -8802,7 +8870,7 @@ class Gluttony():
         
         fatSpread(1)
         
-        if not 'frozen' in convertBuffsToNames(boss.Fighter):
+        if boss.Fighter.canTakeTurn:
             if boss.distanceTo(player) < 2:
                 boss.Fighter.attack(player)
             elif (player.x, player.y) in bossVisibleTiles:
@@ -8915,7 +8983,7 @@ class HighInquisitor(Spellcaster):
         global FOV_recompute
         monster = self.owner
         selectedTarget = None
-        if not 'frozen' in convertBuffsToNames(self.owner.Fighter) and monster.distanceTo(player) <= 15:
+        if self.owner.Fighter.canTakeTurn and monster.distanceTo(player) <= 15:
             self.selectTarget()
             if selectedTarget is not None:
                 choseSpell = True
@@ -8958,7 +9026,7 @@ class TestInquisitor(BasicMonster):
     def takeTurn(self):
         global FOV_recompute
         monster = self.owner
-        if (not 'frozen' in convertBuffsToNames(self.owner.Fighter)) and ((player.x, player.y) in convertTilesToCoords(bossTiles)):
+        if (self.owner.Fighter.canTakeTurn and ((player.x, player.y) in convertTilesToCoords(bossTiles)):
             sX, sY = self.owner.x, self.owner.y
             curDjik = myMap[sX][sY].djikValue
             if curDjik < -1.2:
@@ -8972,7 +9040,7 @@ class TestInquisitor(BasicMonster):
             else:
                 self.owner.Fighter.attack(player)
         else:
-            if not 'frozen' in convertBuffsToNames(monster.Fighter):
+            if self.owner.Fighter.canTakeTurn:
                 if not (player.x, player.y) in convertTilesToCoords(bossTiles):
                     print(player.x, player.y, sep=";")
                     print(convertTilesToCoords(bossTiles))
@@ -10133,7 +10201,7 @@ def inventoryMenu(header, invList = None, noItemMessage = 'Inventory is empty'):
     #show a menu with each item of the inventory as an option
     global inventory
     displayItem = True
-    if 'frozen' in convertBuffsToNames(player.Fighter):
+    if not player.Fighter.canTakeTurn:
         message('You cannot check your inventory right now !', colors.red)
         return None
     else:
@@ -10200,7 +10268,7 @@ def spellsMenu(header):
 
 
 def equipmentMenu(header):
-    if 'frozen' in convertBuffsToNames(player.Fighter):
+    if player.Fighter.canTakeTurn:
         message("You cannot change your equipment right now !")
     else:
         if len(equipmentList) == 0:
@@ -10736,8 +10804,8 @@ def Update():
                     inRange = (x, y) in tilesInRange
                     inPath = pathToTargetTile and (x,y) in pathToTargetTile
                     inRect = tilesInRect and (x, y) in tilesInRect
-                    #if inRange and not tile.wall:
-                    #    con.draw_char(x, y, None, fg=None, bg=colors.darker_yellow)
+                    if inRange and not tile.wall:
+                        con.draw_char(x, y, None, fg=None, bg=colors.darker_yellow)
                     if inPath:
                         if (x,y) != (player.x, player.y):
                             if not tile.wall:
@@ -11185,7 +11253,7 @@ def GetNamesUnderLookCursor():
     names = ', '.join(names)
     return names
 
-def targetTile(maxRange = None, showBresenham = False, unlimited = False, AOE = False, rangeAOE = 0, styleAOE = 'circle'):
+def targetTile(maxRange = None, showBresenham = False, unlimited = False, AOE = False, rangeAOE = 0, styleAOE = 'circle', melee = False):
     global gameState
     global cursor
     global tilesInRange
@@ -11199,9 +11267,22 @@ def targetTile(maxRange = None, showBresenham = False, unlimited = False, AOE = 
     cursor = GameObject(x = player.x, y = player.y, char = 'X', name = 'cursor', color = colors.yellow, Ghost = True)
     objects.append(cursor)
     if not unlimited:
-        for (rx, ry) in visibleTiles:
-                if maxRange is None or player.distanceToCoords(rx,ry) <= maxRange:
-                    tilesInRange.append((rx, ry))
+        if not melee:
+            for (rx, ry) in visibleTiles:
+                    if maxRange is None or player.distanceToCoords(rx,ry) <= maxRange:
+                        tilesInRange.append((rx, ry))
+        else:
+            x, y = player.x, player.y
+            middle = (x, y)
+            up = (x, y-1)
+            upR = (x+1, y-1)
+            right = (x+1, y)
+            downR = (x+1, y+1)
+            down = (x, y+1)
+            downL = (x-1, y+1)
+            left = (x-1, y)
+            upL = (x-1, y-1)
+            tilesInRange = [middle, up, upR, right, downR, down, downL, left, upL]
     else:
         for rx in range(MAP_WIDTH):
             for ry in range(MAP_HEIGHT):
@@ -12107,7 +12188,7 @@ def playTutorial():
                             if monster.Fighter and not monster == player and (monster.x, monster.y) in visibleTiles:
                                 monsterInSight = True
                                 break
-                        if not 'burning' in convertBuffsToNames(player.Fighter) and not 'frozen' in convertBuffsToNames(player.Fighter) and player.Fighter.hp != player.Fighter.maxHP and not monsterInSight and not player.Player.hungerStatus == 'starving' and not 'poisoned' in convertBuffsToNames(player.Fighter):
+                        if not 'burning' in convertBuffsToNames(player.Fighter) and not 'frozen' in convertBuffsToNames(player.Fighter) and player.Fighter.hp != player.Fighter.maxHP and not monsterInSight and not player.Player.hungerStatus == 'starving' and not 'poisoned' in convertBuffsToNames(player.Fighter) and not 'stunned' in convertBuffsToNames(player.Fighter):
                             player.Fighter.healCountdown -= 1
                             if player.Fighter.healCountdown < 0:
                                 player.Fighter.healCountdown = 0
@@ -12455,8 +12536,17 @@ def playGame(noSave = False):
                 player.Player.hungerStatus = "full"
                 if prevStatus != "full":
                     message("You feel way less hungry")        
-                
-            
+        
+        ratioHP = int((player.Fighter.hp / player.Fighter.maxHP) * 100)
+        for trait in player.Player.allTraits:
+            if trait.name == 'Rage' and trait.selected:
+                if ratioHP <= 25 and not 'enraged' in convertBuffsToNames(player.Fighter):
+                    enraged = Buff('uncontrollable', colors.dark_red, cooldown = 99999, applyFunction = lambda fighter: modifyFighterStats(fighter, power = 10), removeFunction = lambda fighter: setFighterStatsBack(fighter))
+                    enraged.applyBuff(player)
+                break
+        
+        if 'uncontrollable' in convertBuffsToNames(player.Fighter) and ratioHP > 25:
+            buff.removeBuff()
         
         actions = 1
         if player.Player.speed == 'fast' and randint(1, 100) <= player.Player.speedChance:
