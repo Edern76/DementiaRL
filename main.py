@@ -10229,7 +10229,7 @@ def equipmentMenu(header):
                     else:
                         text = text + ' (on ' + item.Equipment.slot + ')'
                 options.append(text)
-        index = menu(header, options, INVENTORY_WIDTH, equipmentList, displayItem=True)
+        index = menu(header, options, INVENTORY_WIDTH, equipmentList, noItemMessage='You have nothing equipped', displayItem=True)
         if index is None or len(equipmentList) == 0 or index == "cancelled":
             return None
         else:
@@ -11814,29 +11814,15 @@ def displayTip(text, x = 0, y = 0, arrow = True, pointedDirection = 'right'):
     global FOV_recompute
     MAX_TIP_WIDTH = 80
     if pointedDirection == 'right':
-        pointChar = '>'
-        bodyChar = '-'
-        bodyX = x - 1
-        bodyY = y
+        pointChar = chr(26)
     elif pointedDirection == 'left':
-        pointChar = '<'
-        bodyChar = '-'
-        bodyX = x + 1
-        bodyY = y
+        pointChar = chr(27)
     elif pointedDirection == 'up':
-        pointChar = '^'
-        bodyChar = chr(124)
-        bodyX = x
-        bodyY = y + 1
+        pointChar = chr(24)
     elif pointedDirection == 'down':
-        pointChar = 'V'
-        bodyChar = chr(124)
-        bodyX = x
-        bodyY = y - 1
+        pointChar = chr(25)
     arrowPoint = GameObject(x, y, pointChar, 'arrow', colors.red, Ghost = True, alwaysAlwaysVisible=True, darkColor=colors.red)
-    arrowBody = GameObject(bodyX, bodyY, bodyChar, 'arrow', colors.red, Ghost = True, alwaysAlwaysVisible=True, darkColor=colors.red)
     objects.append(arrowPoint)
-    objects.append(arrowBody)
     Update()
     tdl.flush()
     for object in objects:
@@ -11846,7 +11832,6 @@ def displayTip(text, x = 0, y = 0, arrow = True, pointedDirection = 'right'):
         width = MAX_TIP_WIDTH
     msgBox(text + ' (press ESCAPE to continue)', width + 2)
     objects.remove(arrowPoint)
-    objects.remove(arrowBody)
     FOV_recompute = True
     Update()
     tdl.flush()
@@ -12000,7 +11985,7 @@ def playTutorial():
             '''
             
             if displayedGeneral and not displayedLog:
-                displayTip('Do not forget to regularly check the message log for additional informations about your surroundings.', MID_WIDTH, MAP_HEIGHT - 1, True, 'down')
+                displayTip('Do not forget to regularly check the message log for additional informations about your surroundings.', MID_WIDTH, MAP_HEIGHT - 2, True, 'down')
                 displayedLog = True
             for object in inventory:
                 if object.Item and not displayedInventory:
