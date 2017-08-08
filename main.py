@@ -133,6 +133,13 @@ CON_HEIGHT = HEIGHT - PANEL_HEIGHT
 MID_CON_HEIGHT = int(CON_HEIGHT // 2)
 PANEL_Y = HEIGHT - PANEL_HEIGHT
 
+SIDE_PANEL_WIDTH = WIDTH - MAP_WIDTH #Default: WIDTH - PANEL_WIDTH
+SIDE_PANEL_X = MAP_WIDTH
+SIDE_PANEL_Y = 0
+SIDE_PANEL_MODES = ['enemies', 'items', 'inventory', 'equipment', 'buffs', 'stealth']
+currentSidepanelMode = 0
+SIDE_PANEL_TEXT_WIDTH = SIDE_PANEL_WIDTH - 4
+
 MSG_X = BAR_WIDTH + 10 #Default : BAR_WIDTH + 10
 MSG_WIDTH = WIDTH - BAR_WIDTH - 10 - 40 #Default : WIDTH - BAR_WIDTH - 10 - 40
 MSG_HEIGHT = PANEL_HEIGHT - 1 #Default : PANEL_HEIGHT - 1
@@ -177,12 +184,14 @@ if (__name__ == '__main__' or __name__ == 'main__main__') and not consolesDispla
     root = tdl.init(WIDTH, HEIGHT, 'Dementia')
     con = NamedConsole('con', WIDTH, HEIGHT)
     panel = NamedConsole('panel', WIDTH, PANEL_HEIGHT)
+    sidePanel = NamedConsole('side panel', SIDE_PANEL_WIDTH, HEIGHT)
     consolesDisplayed = True
 else:
     print(__name__)
     root = None
     con = None
     panel = None
+    sidePanel = None
 # - Consoles
 
 FOV_recompute = True
@@ -600,11 +609,11 @@ def modifyFighterStats(fighter = None, pow = 0, acc = 0, evas = 0, arm = 0, hp =
     print(fighter.baseMaxHP, fighter.hp, hpDiff)
     mpDiff = fighter.baseMaxMP - fighter.MP
     if fighter.owner == player:
-        player.Player.strength += str
-        player.Player.dexterity += dex
-        player.Player.vitality += vit
+        player.Player.baseStrength += str
+        player.Player.baseDexterity += dex
+        player.Player.baseVitality += vit
         print(player.Player.BASE_VITALITY, player.Player.vitality, vit)
-        player.Player.willpower += will
+        player.Player.baseWillpower += will
     fighter.noStrengthPower += pow
     fighter.noDexAccuracy += acc
     fighter.noDexEvasion += evas
@@ -625,11 +634,11 @@ def setFighterStatsBack(fighter = None):
     mpDiff = fighter.baseMaxMP - fighter.MP
     print(player.Player.vitality, player.Player.BASE_VITALITY)
     if fighter.owner == player:
-        player.Player.strength = player.Player.BASE_STRENGTH
-        player.Player.dexterity = player.Player.BASE_DEXTERITY
-        player.Player.vitality = player.Player.BASE_VITALITY
+        player.Player.baseStrength = player.Player.BASE_STRENGTH
+        player.Player.baseDexterity = player.Player.BASE_DEXTERITY
+        player.Player.baseVitality = player.Player.BASE_VITALITY
         print(player.Player.vitality)
-        player.Player.willpower = player.Player.BASE_WILLPOWER
+        player.Player.baseWillpower = player.Player.BASE_WILLPOWER
     fighter.noStrengthPower = fighter.BASE_POWER
     fighter.noDexAccuracy = fighter.BASE_ACCURACY
     fighter.noDexEvasion = fighter.BASE_EVASION
@@ -4229,7 +4238,10 @@ class Player:
         return sum(equipment.willpowerBonus for equipment in getAllEquipped(self.owner)) + self.baseWillpower
 
     def stealthValue(self, monster):
-        return int(5*sqrt(self.dexterity) * math.log(player.distanceTo(monster)) + self.baseStealth)
+        dex = self.dexterity
+        if dex < 0:
+            dex = 0
+        return int(5*sqrt(dex) * math.log(player.distanceTo(monster)) + self.baseStealth)
     
     def changeColor(self):
         self.hpRatio = ((self.owner.Fighter.hp / self.owner.Fighter.maxHP) * 100)
@@ -5447,9 +5459,9 @@ def getInput():
         FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'F5' and DEBUG and not tdl.event.isWindowClosed(): #Don't know if tdl.event.isWindowClosed() is necessary here but added it just to be sure
-        player.Player.vitality += 1000
+        player.Player.baseVitality += 1000
         player.Player.BASE_VITALITY += 1000
-        player.Player.willpower += 1000
+        player.Player.baseWillpower += 1000
         player.Player.BASE_WILLPOWER += 1000
         player.Fighter.hp = player.Fighter.maxHP
         player.Fighter.MP = player.Fighter.maxMP
@@ -5585,6 +5597,12 @@ def getInput():
             return 'didnt-take-turn'
         else:
             return
+    
+    elif userInput.keychar.upper() == 'TAB':
+        global currentSidepanelMode
+        currentSidepanelMode += 1
+        if currentSidepanelMode >= len(SIDE_PANEL_MODES):
+            currentSidepanelMode = 0
 
     if gameState == 'looking':
         global lookCursor
@@ -10279,7 +10297,7 @@ def controlBox():
     FOV_recompute = True
     Update()
     width = 45
-    height = 31
+    height = 33
     window = NamedConsole('controlBox', width, height)
     assert isinstance(window, tdl.Console)
     
@@ -10320,8 +10338,9 @@ def controlBox():
     displayControl(1, 21, 's', 'Open skills and level up menu')
     displayControl(1, 23, 'l', 'Enter look mode')
     displayControl(1, 25, 'L', 'Display message log')
-    displayControl(1, 27, '>', 'Climb up stairs')
-    displayControl(1, 29, '<', 'Climb down stairs')
+    displayControl(1, 27, 'Tab', 'Circle through side panel informations')
+    displayControl(1, 29, '>', 'Climb up stairs')
+    displayControl(1, 31, '<', 'Climb down stairs')
     x = MID_WIDTH - int(width/2)
     y = MID_CON_HEIGHT - int(height/2)
     root.blit(window, x, y, width, height, 0, 0)
@@ -10403,6 +10422,7 @@ def launchTutorial(prologueEsc = True):
     player.level = 1
     player.Fighter.hp = player.Fighter.baseMaxHP
     player.Fighter.MP = player.Fighter.baseMaxMP
+    player.Fighter.stamina = player.Fighter.maxStamina
     makeTutorialMap(1)
     playTutorial()
 
@@ -10468,6 +10488,7 @@ def mainMenu():
                         player.level = 1
                         player.Fighter.hp = player.Fighter.baseMaxHP
                         player.Fighter.MP = player.Fighter.baseMaxMP
+                        player.Fighter.stamina = player.Fighter.maxStamina
     
                         newGame()
                         playGame()
@@ -10723,19 +10744,35 @@ def Update():
                         con.draw_char(x,y,'+', fg= colors.white, bg = colors.red)
                 else:
                     print("No Djik Value")
-                            
+
+    panel.clear(fg=colors.white, bg=colors.black)
+    sidePanel.clear(fg = colors.white, bg = colors.black)
+    
+    panelY = 7
     for object in objects:
         if object != player:
             if (object.x, object.y) in visibleTiles or (object.alwaysVisible and myMap[object.x][object.y].explored) or REVEL:
                 object.draw()
+                if object.Fighter and (SIDE_PANEL_MODES[currentSidepanelMode] == 'enemies'):
+                    name = textwrap.wrap(object.name, SIDE_PANEL_TEXT_WIDTH)
+                    sidePanel.draw_char(2, panelY, object.char, fg = object.color)
+                    for line in name:
+                        sidePanel.draw_str(4, panelY, line, fg = colors.white)
+                        panelY += 1
+                    panelY += 1
+                if object.Item and SIDE_PANEL_MODES[currentSidepanelMode] == 'items':
+                    name = textwrap.wrap(object.name, SIDE_PANEL_TEXT_WIDTH)
+                    sidePanel.draw_char(2, panelY, object.char, fg = object.color)
+                    for line in name:
+                        sidePanel.draw_str(4, panelY, line, fg = colors.white)
+                        panelY += 1
+                    panelY += 1
                 #if object.AI and object.AI.__class__.__name__ == 'Charger' or object.AI.__class__.__name__ == 'Wrath':
                 #    for sign in object.AI.chargePathSigns:
                 #        sign.draw()
     player.draw()
     for x in range(WIDTH):
         con.draw_char(x, PANEL_Y - 1, chr(196))
-
-    panel.clear(fg=colors.white, bg=colors.black)
     
 
     '''
@@ -10759,26 +10796,69 @@ def Update():
     renderBar(panel, 1, 1, BAR_WIDTH, 'HP', player.Fighter.hp, player.Fighter.maxHP, player.color, colors.dark_gray, textColor = player.Player.hpTextColor)
     renderBar(panel, 1, 3, BAR_WIDTH, 'MP', player.Fighter.MP, player.Fighter.maxMP, colors.blue, colors.dark_gray, colors.darkest_blue)
     renderBar(panel, 1, 5, BAR_WIDTH, 'Stamina', player.Fighter.stamina, player.Fighter.maxStamina, colors.lighter_yellow, colors.dark_grey, colors.darker_yellow)
-    
-    panel.draw_str(BUFF_X, 1, 'Buffs:', colors.white)
-    buffY = 2
-    selfAware = player.Player.getTrait('trait', 'Self aware') != 'not found'
-    for buff in player.Fighter.buffList:
-        if buff.showBuff:
-            if selfAware and buff.showCooldown:
-                buffText = buff.name.capitalize() + ' (' + str(buff.curCooldown) + ')'
-            else:
-                buffText = buff.name.capitalize()
-            panel.draw_str(BUFF_X, buffY, buffText, buff.color)
-            buffY += 1
-    root.draw_str(WIDTH-8, 1, '?: Help', colors.green)
+
+    sidePanel.draw_str(2, 1, '?: Help', colors.green)
+    for y in range(HEIGHT):
+        if y != PANEL_Y - 1:
+            sidePanel.draw_char(0, y, chr(179), colors.white)
+        else:
+            sidePanel.draw_char(0, y, chr(217), colors.white)
+            break
     # Look code
     if gameState == 'looking' and lookCursor != None:
         global lookCursor
         lookCursor.draw()
         panel.draw_str(1, 0, GetNamesUnderLookCursor(), bg=None, fg = colors.yellow)
- 
-        
+    
+    #side panel modes
+    mode = SIDE_PANEL_MODES[currentSidepanelMode]
+    sidePanel.draw_str(2, 5, mode.capitalize()+':', colors.white, None)
+    if mode == 'equipment':
+        panelY = 7
+        for equipment in equipmentList:
+            name = textwrap.wrap(equipment.name, SIDE_PANEL_TEXT_WIDTH)
+            sidePanel.draw_char(2, panelY, equipment.char, fg = equipment.color)
+            for line in name:
+                sidePanel.draw_str(4, panelY, line, fg = colors.white)
+                panelY += 1
+            panelY += 1
+    if mode == 'buffs':
+        panelY = 7
+        selfAware = player.Player.getTrait('trait', 'Self aware') != 'not found'
+        for buff in player.Fighter.buffList:
+            if buff.showBuff:
+                if selfAware and buff.showCooldown:
+                    buffText = buff.name.capitalize() + ' (' + str(buff.curCooldown) + ')'
+                else:
+                    buffText = buff.name.capitalize()
+                text = textwrap.wrap(buffText, SIDE_PANEL_TEXT_WIDTH)
+                for line in text:
+                    sidePanel.draw_str(2, panelY, line, buff.color)
+                    panelY += 1
+                panelY += 1
+    if mode == 'inventory':
+        panelY = 7
+        for item in inventory:
+            name = textwrap.wrap(item.name, SIDE_PANEL_TEXT_WIDTH)
+            sidePanel.draw_char(2, panelY, item.char, fg = item.color)
+            for line in name:
+                sidePanel.draw_str(4, panelY, line, fg = colors.white)
+                panelY += 1
+            panelY += 1
+    if mode == 'stealth':
+        panelY = 7
+        detected = False
+        numberEnemies = 0
+        for object in objects:
+            if object.AI:
+                if object.AI.detectedPlayer:
+                    detected = True
+                    numberEnemies += 1
+        if not detected:
+            sidePanel.draw_str(2, panelY, 'Concealed', fg = colors.green)
+        else:
+            sidePanel.draw_str(2, panelY, 'Spotted! ({})'.format(str(numberEnemies)), fg = colors.red)
+    root.blit(sidePanel, SIDE_PANEL_X, SIDE_PANEL_Y, SIDE_PANEL_WIDTH, HEIGHT, 0, 0)
     root.blit(panel, 0, PANEL_Y, WIDTH, PANEL_HEIGHT, 0, 0)
     
 def chat():
@@ -12060,7 +12140,8 @@ def playGame(noSave = False):
         global FOV_recompute, DEBUG, actions
         Update()
         checkLevelUp()
-        drawDetectionStatus()
+        if SIDE_PANEL_MODES[currentSidepanelMode] == 'stealth':
+            drawDetectionStatus()
         tdl.flush()
         for object in objects:
             object.clear()
