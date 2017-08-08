@@ -206,6 +206,7 @@ nemesisList = []
 mobsToCalculate = []
 mustCalculate = False
 currentMusic = 'No_Music.wav'
+detectedPlayerThisTurn = []
 
 tutorial = False
 hasSpokenToGeneral = False
@@ -2834,6 +2835,7 @@ class GameObject:
         self.socialComp = socialComp
         self.shopComp = shopComp
         self.questList = questList
+        self.detectionStatus = '?'
         
         if self.Item:
             if self.Item.useText == 'Use' and self.Equipment:
@@ -2903,7 +2905,11 @@ class GameObject:
     
     def draw(self):
         if (self.x, self.y) in visibleTiles or REVEL:
-            con.draw_char(self.x, self.y, self.char, self.color, bg=None)
+            bg = None
+            if self.Fighter:
+                if 'frozen' in convertBuffsToNames(self.Fighter):
+                    bg = colors.light_violet
+            con.draw_char(self.x, self.y, self.char, self.color, bg=bg)
         elif self.alwaysVisible and myMap[self.x][self.y].explored:
             con.draw_char(self.x, self.y, self.char, self.darkColor, bg=None)
         elif self.alwaysAlwaysVisible:
@@ -3560,10 +3566,24 @@ class TargetSelector:
     def __init__(self):
         self.selectedTarget = None
         self.targets = []
+        self.detectedPlayer = False
 
     def setFuckingTarget(self, target, targets):
         self.selectedTarget = target
         self.targets = targets
+    
+    def tryDetection(self):
+        global detectedPlayerThisTurn
+        dice = randint(1, 100)
+        playerStealth = player.Player.stealthValue(self.owner)
+        if dice >= playerStealth:
+            if not self.detectedPlayer:
+                detectedPlayerThisTurn.append(self.owner)
+                #message('{} detects you!'.format(self.owner.name.capitalize()), self.owner.color)
+            self.detectedPlayer = True
+            return True
+        else:
+            return False
     
     def selectTarget(self):
         monster = self.owner
@@ -3577,7 +3597,10 @@ class TargetSelector:
             #print(monster.name + " is less than 15 tiles to player.")
             for object in objects:
                 if (object.x, object.y) in monsterVisibleTiles and (object == player or (object.AI and object.AI.__class__.__name__ == "FriendlyMonster" and object.AI.friendlyTowards == player)):
-                    self.targets.append(object)
+                    if object == player and (self.detectedPlayer or self.tryDetection()):
+                        self.targets.append(object)
+                    elif object != player:
+                        self.targets.append(object)
                 elif object == player and (not (player.x, player.y) in monsterVisibleTiles):
                     print("WAAAAARNING")
                     print("+++++++++++++++++++++++++++++++++++++++++++++++++")
@@ -3586,6 +3609,7 @@ class TargetSelector:
                     print(monsterVisibleTiles)
                     print(player.x, player.y, sep = ";")
                     print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+                    self.detectedPlayer = False
             if DEBUG:
                 print(monster.name.capitalize() + " can target", end=" ")
                 if self.targets:
@@ -3629,6 +3653,7 @@ class BasicMonster(TargetSelector): #Basic monsters' AI
         self.failCounter = 0
         self.didRecalcThisTurn = False
         self.wanderer = wanderer
+        #super(TargetSelector, self).__init__()
     
     def takeTurn(self):
         self.takeBasicTurn()
@@ -3712,8 +3737,7 @@ class BasicMonster(TargetSelector): #Basic monsters' AI
                         self.failCounter += 1
                         mustCalculate = True
                         mobsToCalculate.append(monster)
-                    elif DEBUG:
-                        message("{} has a dumb expression on its face.".format(monster.name))
+                    else:
                         self.wander()
                     
             elif not monster.astarPath or pathState == "fail":
@@ -3726,8 +3750,6 @@ class BasicMonster(TargetSelector): #Basic monsters' AI
                 else:
                     print("No target")
                     self.wander()
-                    if self.failCounter > MAX_ASTAR_FAILS:
-                        message("{} has a dumb expression on its face.".format(monster.name))
 
 
 class Charger:
@@ -4096,7 +4118,7 @@ class Spellcaster(Fleeing):
             self.wander()
 
 class Player:
-    def __init__(self, name, strength, dexterity, vitality, willpower, load, race, classes, allTraits, levelUpStats, baseHunger = BASE_HUNGER, speed = 'average', speedChance = 5, skillpoints = 0):
+    def __init__(self, name, strength, dexterity, vitality, willpower, load, race, classes, allTraits, levelUpStats, baseHunger = BASE_HUNGER, speed = 'average', speedChance = 5, skillpoints = 0, baseStealth=0):
         self.name = name
 
         self.strength = strength
@@ -4108,6 +4130,8 @@ class Player:
         self.willpower = willpower
         self.BASE_WILLPOWER = willpower
         self.baseMaxWeight = load
+        self.BASE_STEALTH = baseStealth
+        self.baseStealth = baseStealth
 
         self.race = race
         self.classes = classes
@@ -4172,7 +4196,10 @@ class Player:
     @property
     def maxWeight(self):
         return self.baseMaxWeight + 3 * self.strength
-        
+
+    def stealthValue(self, monster):
+        return int(5*sqrt(self.dexterity) * math.log(player.distanceTo(monster)) + self.baseStealth)
+    
     def changeColor(self):
         self.hpRatio = ((self.owner.Fighter.hp / self.owner.Fighter.maxHP) * 100)
         if self.hpRatio == 100:
@@ -11957,7 +11984,25 @@ def playTutorial():
     DEBUG = False
     #quitGame('Window has been closed')
     playGame()
-    
+
+def drawDetectionStatus():
+    global detectedPlayerThisTurn
+    for monster in objects:
+        if monster in detectedPlayerThisTurn:
+            monster.detectionStatus = '!'
+        elif monster.AI:
+            if monster.AI.detectedPlayer:
+                monster.detectionStatus = None
+            else:
+                monster.detectionStatus = '?'
+        if monster.AI and (monster.x, monster.y) in visibleTiles:
+            if monster.detectionStatus is None:
+                fg = None
+            else:
+                fg = monster.color
+            root.draw_char(monster.x, monster.y - 1, monster.detectionStatus, fg, None)
+    tdl.flush()
+    detectedPlayerThisTurn = []
     
 #ISN project
 def playGame(noSave = False):
@@ -11973,6 +12018,7 @@ def playGame(noSave = False):
         global FOV_recompute, DEBUG, actions
         Update()
         checkLevelUp()
+        drawDetectionStatus()
         tdl.flush()
         for object in objects:
             object.clear()
