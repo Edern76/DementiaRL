@@ -28,7 +28,6 @@ import code.holeGen as holeGen
 
 from tkinter import *
 from tkinter.messagebox import * #For making obvious freaking error boxes when the console gets too bloated to read anything useful.
-from win32gui import CreateDC
 
 
 
@@ -269,6 +268,7 @@ bossEntrance = None
 gameMsgs = [] #List of game messages
 logMsgs = []
 tilesInRange = []
+showTilesInRange = False
 explodingTiles = []
 tilesinPath = []
 tilesInRect = []
@@ -606,16 +606,18 @@ def convertTilesToCoords(tilesList):
         newList.append((tile.x, tile.y))
     return newList
 
-def modifyFighterStats(fighter = None, power = 0, acc = 0, evas = 0, arm = 0, hp = 0, mp = 0, crit = 0, ap = 0, stren = 0, dex = 0, vit = 0, will = 0):
+def modifyFighterStats(fighter = None, power = 0, acc = 0, evas = 0, arm = 0, hp = 0, mp = 0, crit = 0, ap = 0, stren = 0, dex = 0, vit = 0, will = 0, stam = 0, stealth = 0):
     hpDiff = fighter.baseMaxHP - fighter.hp
     print(fighter.baseMaxHP, fighter.hp, hpDiff)
     mpDiff = fighter.baseMaxMP - fighter.MP
+    stamDiff = fighter.baseMaxStamina - fighter.stamina
     if fighter.owner == player:
         player.Player.baseStrength += stren
         player.Player.baseDexterity += dex
         player.Player.baseVitality += vit
         print(player.Player.BASE_VITALITY, player.Player.vitality, vit)
         player.Player.baseWillpower += will
+        player.Player.baseStealth += stealth
     fighter.noStrengthPower += power
     fighter.noDexAccuracy += acc
     fighter.noDexEvasion += evas
@@ -629,18 +631,22 @@ def modifyFighterStats(fighter = None, power = 0, acc = 0, evas = 0, arm = 0, hp
     fighter.MP = fighter.baseMaxMP - mpDiff
     fighter.baseCritical += crit
     fighter.baseArmorPenetration += ap
+    fighter.noConstStamina += stam
+    fighter.stamina = fighter.baseMaxStamina - stamDiff
 
 def setFighterStatsBack(fighter = None):
     hpDiff = fighter.baseMaxHP - fighter.hp
     print(fighter.baseMaxHP, fighter.hp, hpDiff, fighter.noVitHP)
     mpDiff = fighter.baseMaxMP - fighter.MP
     print(player.Player.vitality, player.Player.BASE_VITALITY)
+    stamDiff = fighter.baseMaxStamina - fighter.stamina
     if fighter.owner == player:
         player.Player.baseStrength = player.Player.BASE_STRENGTH
         player.Player.baseDexterity = player.Player.BASE_DEXTERITY
         player.Player.baseVitality = player.Player.BASE_VITALITY
         print(player.Player.vitality)
         player.Player.baseWillpower = player.Player.BASE_WILLPOWER
+        player.Player.baseStealth = player.Player.BASE_STEALTH
     fighter.noStrengthPower = fighter.BASE_POWER
     fighter.noDexAccuracy = fighter.BASE_ACCURACY
     fighter.noDexEvasion = fighter.BASE_EVASION
@@ -653,6 +659,9 @@ def setFighterStatsBack(fighter = None):
 
     fighter.noWillMP = fighter.BASE_MAX_MP
     fighter.MP = fighter.baseMaxMP - mpDiff
+    
+    fighter.noConstStamina = fighter.BASE_STAMINA
+    fighter.stamina = fighter.baseMaxStamina - stamDiff
 
     fighter.baseCritical = fighter.BASE_CRITICAL
     fighter.baseArmorPenetration = fighter.BASE_ARMOR_PENETRATION
@@ -1543,6 +1552,26 @@ def castKnockback(caster = None, monsterTarget = None, abilityRange = 1, KBrange
         return
     else:
         return 'cancelled'
+
+def castMovement(caster = None, monsterTarget = None, tileRange = 4, ignoresChasm = True):
+    if caster is None or caster == player:
+        caster = player
+        line = targetTile(tileRange, True, returnBresenham=True)
+    if line != 'cancelled':
+        if caster == player:
+            message('You leap!', colors.amber)
+        formerFlight = caster.flying
+        if ignoresChasm:
+            caster.flying = True
+        for (nextX, nextY) in line:
+            caster.moveTo(nextX, nextY)
+            animStep(0.1)
+            if isBlocked(nextX, nextY):
+                break
+        caster.flying = formerFlight
+        return
+    else:
+        return 'cancelled'
     
 def resetDjik():
     global djikVisitedTiles
@@ -1800,6 +1829,7 @@ def profileDjik(caster = None, target = None):
 def detailedProfilerWrapperDjik(caster = None, target = None):
     calcDjikPlayer(profile = True)
 
+leap = Spell(ressourceCost=5, cooldown = 30, useFunction=castMovement, name = 'Leap', ressource='Stamina', type = 'racial')
 ram = Spell(ressourceCost=15, cooldown = 20, useFunction=castKnockback, name = 'Ram', ressource = 'Stamina', type = 'Racial')    
 fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 1, arg2 = 12, arg3 = 4)
 heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 20)
@@ -1820,7 +1850,7 @@ dispDjik = Spell(ressourceCost= 0, cooldown = 1, useFunction=toggleDrawDjik, nam
 detDjik = Spell(ressourceCost= 0, cooldown = 1, useFunction=detailedProfilerWrapperDjik, name = 'DEBUG : Calculate Djikstra Map (with detailed Profiler)', ressource='MP', type = 'Occult')
 yellowify = Spell(ressourceCost= 0, cooldown = 1, useFunction=castMakeTileYellow, name = 'DEBUG : Make tile look yellow', ressource='MP', type = 'Occult')
 
-spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport, djik, dispDjik, djikProf, detDjik, yellowify, ram])
+spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport, djik, dispDjik, djikProf, detDjik, yellowify, ram, leap])
 #_____________SPELLS_____________
 
 #______________CHARACTER GENERATION____________
@@ -1950,6 +1980,7 @@ class Trait():
             player.Fighter.BASE_ARMOR_PENETRATION += self.ap
             #player.Player.levelUpStats['ap'] += self.apPerLvl
             player.Player.baseStealth += self.stealth
+            player.Fighter.BASE_STAMINA += self.stamina
             player.Fighter.noConstStamina += self.stamina
             self.amount += 1
             if self.spells is not None:
@@ -2049,6 +2080,7 @@ class Trait():
             #player.Player.levelUpStats['ap'] -= self.apPerLvl
             player.Player.baseStealth -= self.stealth
             player.Fighter.noConstStamina -= self.stamina
+            player.Fighter.BASE_STAMINA -= self.stamina
             self.amount -= 1
             player.Player.baseMaxWeight -= self.load
             if self.amount <= 0:
@@ -2137,7 +2169,7 @@ def initializeTraits():
     human = Trait('Human', 'Humans are the most common race. They have no special characteristic, and are neither better or worse at anything. However, they are good learners and gain experience faster.', type = 'race', allowsSelection=[fastLearn, skilled])
     mino = Trait('Minotaur', 'Minotaurs, whose muscular bodies are topped with a taurine head, are tougher and stronger than humans, but are way less smart. They are uncontrollable and, when angered, can become a wrecking ball of muscles and thorns.', type= 'race', allowsSelection=[rage, horns], stren=(5, 0), dex=(-4, 0), vit=(4, 0), will=(-3, 0))
     insect = Trait('Insectoid', 'Insectoids are a rare race of bipedal insects which are stronger than human but, more importantly, very good at arcane arts. They come in all kinds of forms, from the slender mantis to the bulky beetle.', type = 'race', allowsSelection=[carapace], stren=(1, 0), dex=(-1, 0), vit=(-2, 0), will=(2, 0))
-    cat = Trait('Felis', 'Felis, kinds of humanoid cats, are sneaky thieves and assassins. They usually move silently and can see in the dark.', type ='race', allowsSelection=[silence], stren = (2, 0), vit = (-2, 0))
+    cat = Trait('Felis', 'Felis, kinds of humanoid cats, are sneaky thieves and assassins. They usually move silently and can see in the dark.', type ='race', allowsSelection=[silence], stren = (2, 0), vit = (-2, 0), spells = [leap], dex = (1, 0), stealth = 5)
     rept = Trait('Reptilian', 'Reptilians are very agile but absurdly weak. Their scaled skin, however, sometimes provides them with natural camouflage, and they might use their natural venom on their daggers or arrows to make them even more deadly.', type = 'race', allowsSelection=[venom, mimesis], ev=(20, 0), stren=(-4, 0), dex=(2, 0))
     demon = Trait('Demon Spawn', 'Demon spawns, a very uncommon breed of a human and a demon, are cursed with the heritage of  their demonic parents, which will make them grow disturbing mutations as they grow older and stronger.', type = 'race')
     tree = Trait('Rootling', 'Rootlings, also called treants, are rare, sentient plants. They begin their life as a simple twig, but, with time, might become gigantic oaks.', type = 'race', stren=(-3, 0), dex=(-2, 0), vit=(-4, 0), will=(-3, 0))
@@ -2237,11 +2269,11 @@ def initializeTraits():
             counter += 1
 
     ## classes ##
-    knight = Trait('Knight', 'A warrior who wears armor and wields shields', type ='class', arm=(1, 1), hp=(120, 14), mp=(30, 3))
-    barb = Trait('Barbarian', 'A brutal fighter who is mighty strong', type = 'class', hp=(160, 20), mp=(30, 3), stren=(1, 1), spells=[enrage])
-    rogue = Trait('Rogue', 'A rogue who is stealthy and backstabby (probably has a french accent)', type = 'class', acc=(8, 4), ev=(10, 2), hp=(90, 10), mp=(40, 5), crit=(3, 0))
-    mage = Trait('Mage ', 'A wizard who zaps everything', type ='class', hp=(70, 6), mp=(50, 7), will=(2, 0), spells=[fireball])
-    necro = Trait('Necromancer', 'A master of the occult arts who has the ability to raise and control the dead.', type = 'class', hp=(100, 4), mp=(15, 1), spells=[darkPact, ressurect])
+    knight = Trait('Knight', 'A warrior who wears armor and wields shields', type ='class', arm=(1, 1), hp=(120, 14), mp=(30, 3), stam = (60, 6))
+    barb = Trait('Barbarian', 'A brutal fighter who is mighty strong', type = 'class', hp=(160, 20), mp=(30, 3), stren=(1, 1), spells=[enrage], stam = (70, 10))
+    rogue = Trait('Rogue', 'A rogue who is stealthy and backstabby (probably has a french accent)', type = 'class', acc=(8, 4), ev=(10, 2), hp=(90, 10), mp=(40, 5), crit=(3, 0), stam = (50, 3))
+    mage = Trait('Mage ', 'A wizard who zaps everything', type ='class', hp=(70, 6), mp=(50, 7), will=(2, 0), spells=[fireball], stam=(20, 1))
+    necro = Trait('Necromancer', 'A master of the occult arts who has the ability to raise and control the dead.', type = 'class', hp=(100, 4), mp=(15, 1), spells=[darkPact, ressurect], stam=(50, 3))
     classes = [knight, barb, rogue, mage, necro]
     allTraits.extend(classes)
     rightTraits.extend(classes)
@@ -4277,6 +4309,10 @@ class Player:
             self.possibleMutations = {extra: 100}
             self.mutationsGotten = []
             self.mutationLevel = [2]
+        
+        self.sightRadius = SIGHT_RADIUS
+        if self.race == 'Felis':
+            self.sightRadius += 2
         
         self.hasDiscoveredTown = False
         self.money = 0
@@ -6436,6 +6472,7 @@ def checkLevelUp():
         player.Player.BASE_WILLPOWER += player.Player.levelUpStats['will']
         player.Fighter.baseArmorPenetration += player.Player.levelUpStats['ap']
         player.Fighter.BASE_ARMOR_PENETRATION += player.Player.levelUpStats['ap']
+        player.Fighter.noConstStamina += player.Player.levelUpStats['stamina']
         
         if player.Player.race == 'Demon Spawn':
             if player.Player.possibleMutations and player.level in player.Player.mutationLevel:
@@ -10531,7 +10568,7 @@ def launchTutorial(prologueEsc = True):
             for newTrait in trait.allowsSelection:
                 newTrait.selectable = True
 
-    LvlUp = {'power': 1, 'acc': 10, 'ev': 0, 'arm': 1, 'hp': 14, 'mp': 3, 'crit': 0, 'stren': 0, 'dex': 0, 'vit': 0, 'will': 0, 'ap': 0}
+    LvlUp = {'power': 1, 'acc': 10, 'ev': 0, 'arm': 1, 'hp': 14, 'mp': 3, 'crit': 0, 'stren': 0, 'dex': 0, 'vit': 0, 'will': 0, 'ap': 0, 'stamina': 0}
     playerComp = Player('Angus McFife', 5, 2, 5, 2, 45.0, 'Human', 'Knight', allTraits, LvlUp)
     fighterComp = Fighter(hp = 160, power= 1, armor= 1, deathFunction=playerDeath, xp=0, evasion = 0, accuracy = 30, maxMP= 30, critical = 5)
     player = GameObject(MAP_WIDTH - 2, MID_MAP_HEIGHT, '@', Fighter = fighterComp, Player = playerComp, name = 'Angus McFife', color = (0, 210, 0))
@@ -10597,9 +10634,9 @@ def mainMenu():
                             if trait.type == 'class' and trait.selected:
                                 chosenClass = trait.name
                         name = enterName(chosenRace)
-                        LvlUp = {'power': createdCharacter['powLvl'], 'acc': createdCharacter['accLvl'], 'ev': createdCharacter['evLvl'], 'arm': createdCharacter['armLvl'], 'hp': createdCharacter['hpLvl'], 'mp': createdCharacter['mpLvl'], 'crit': createdCharacter['critLvl'], 'stren': createdCharacter['strLvl'], 'dex': createdCharacter['dexLvl'], 'vit': createdCharacter['vitLvl'], 'will': createdCharacter['willLvl'], 'ap': createdCharacter['apLvl']}
-                        playComp = Player(name, playerComponent['stren'], playerComponent['dex'], playerComponent['vit'], playerComponent['will'], playerComponent['load'], chosenRace, chosenClass, allTraits, LvlUp, skillpoints=skillpoints)
-                        playFight = Fighter(hp = playerComponent['hp'], power= playerComponent['power'], armor= playerComponent['arm'], deathFunction=playerDeath, xp=0, evasion = playerComponent['ev'], accuracy = playerComponent['acc'], maxMP= playerComponent['mp'], knownSpells=playerComponent['spells'], critical = playerComponent['crit'], armorPenetration = playerComponent['ap'])
+                        LvlUp = {'power': createdCharacter['powLvl'], 'acc': createdCharacter['accLvl'], 'ev': createdCharacter['evLvl'], 'arm': createdCharacter['armLvl'], 'hp': createdCharacter['hpLvl'], 'mp': createdCharacter['mpLvl'], 'crit': createdCharacter['critLvl'], 'stren': createdCharacter['strLvl'], 'dex': createdCharacter['dexLvl'], 'vit': createdCharacter['vitLvl'], 'will': createdCharacter['willLvl'], 'ap': createdCharacter['apLvl'], 'stamina': createdCharacter['stamLvl']}
+                        playComp = Player(name, playerComponent['stren'], playerComponent['dex'], playerComponent['vit'], playerComponent['will'], playerComponent['load'], chosenRace, chosenClass, allTraits, LvlUp, skillpoints=skillpoints, baseStealth=createdCharacter['stealth'])
+                        playFight = Fighter(hp = playerComponent['hp'], power= playerComponent['power'], armor= playerComponent['arm'], deathFunction=playerDeath, xp=0, evasion = playerComponent['ev'], accuracy = playerComponent['acc'], maxMP= playerComponent['mp'], knownSpells=playerComponent['spells'], critical = playerComponent['crit'], armorPenetration = playerComponent['ap'], stamina=createdCharacter['stamina'])
                         player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = name, color = (0, 210, 0))
                         player.level = 1
                         player.Fighter.hp = player.Fighter.baseMaxHP
@@ -10770,7 +10807,7 @@ def initializeFOV():
     global FOV_recompute, visibleTiles, pathfinder, menuWindows
     FOV_recompute = True
     menuWindows = []
-    visibleTiles = tdl.map.quickFOV(player.x, player.y, isVisibleTile, fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
+    visibleTiles = tdl.map.quickFOV(player.x, player.y, isVisibleTile, fov = FOV_ALGO, radius = player.Player.sightRadius, lightWalls = FOV_LIGHT_WALLS)
     pathfinder = tdl.map.AStar(MAP_WIDTH, MAP_HEIGHT, callback = getMoveCost, diagnalCost=1, advanced=False)
     print("shortName = ", currentBranch.shortName)
     con.clear()
@@ -10788,7 +10825,7 @@ def Update():
     if FOV_recompute:
         FOV_recompute = False
         global pathfinder
-        visibleTiles = tdl.map.quickFOV(player.x, player.y, isVisibleTile, fov = FOV_ALGO, radius = SIGHT_RADIUS, lightWalls = FOV_LIGHT_WALLS)
+        visibleTiles = tdl.map.quickFOV(player.x, player.y, isVisibleTile, fov = FOV_ALGO, radius = player.Player.sightRadius, lightWalls = FOV_LIGHT_WALLS)
         pathfinder = tdl.map.AStar(MAP_WIDTH, MAP_HEIGHT, callback = getMoveCost, diagnalCost=1, advanced=False)
         for y in range(MAP_HEIGHT):
             for x in range(MAP_WIDTH):
@@ -10804,7 +10841,7 @@ def Update():
                     inRange = (x, y) in tilesInRange
                     inPath = pathToTargetTile and (x,y) in pathToTargetTile
                     inRect = tilesInRect and (x, y) in tilesInRect
-                    if inRange and not tile.wall:
+                    if inRange and not tile.wall and showTilesInRange:
                         con.draw_char(x, y, None, fg=None, bg=colors.darker_yellow)
                     if inPath:
                         if (x,y) != (player.x, player.y):
@@ -11253,15 +11290,19 @@ def GetNamesUnderLookCursor():
     names = ', '.join(names)
     return names
 
-def targetTile(maxRange = None, showBresenham = False, unlimited = False, AOE = False, rangeAOE = 0, styleAOE = 'circle', melee = False):
+def targetTile(maxRange = None, showBresenham = False, unlimited = False, AOE = False, rangeAOE = 0, styleAOE = 'circle', melee = False, returnBresenham = False):
     global gameState
     global cursor
-    global tilesInRange
+    global tilesInRange, showTilesInRange
     global FOV_recompute
     global pathToTargetTile
     
     if maxRange == 0:
         return (player.x, player.y)
+    if not (maxRange is None or unlimited or maxRange == player.Player.sightRadius):
+        showTilesInRange = True
+    else:
+        showTilesInRange = False
     dotsAOE = []
     gameState = 'targeting'
     cursor = GameObject(x = player.x, y = player.y, char = 'X', name = 'cursor', color = colors.yellow, Ghost = True)
@@ -11363,7 +11404,10 @@ def targetTile(maxRange = None, showBresenham = False, unlimited = False, AOE = 
                 objects.remove(dot)
             con.clear()
             Update()
-            return (x, y)
+            if not returnBresenham:
+                return (x, y)
+            else:
+                return tdl.map.bresenham(player.x, player.y, x, y)
 
 def targetAnyTile(startX = None, startY = None, drawRectangle = False):
     global gameState, FOV_recompute, tilesInRect
@@ -11551,7 +11595,7 @@ def reloadEntrance():
     return myMap[bossEntrance.x][bossEntrance.y]
 
 def newGame():
-    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, gameMsgs, identifiedItems, equipmentList, currentBranch, bossDungeonsAppeared, DEBUG, REVEL, logMsgs, tilesInRange, tilesinPath, tilesInRect, menuWindows, explodingTiles, hiroshimanNumber, FOV_recompute, bossTiles, bossEntrance
+    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, gameMsgs, identifiedItems, equipmentList, currentBranch, bossDungeonsAppeared, DEBUG, REVEL, logMsgs, tilesInRange, showTilesInRange, tilesinPath, tilesInRect, menuWindows, explodingTiles, hiroshimanNumber, FOV_recompute, bossTiles, bossEntrance
     
     DEBUG = False
     REVEL = False
@@ -11562,6 +11606,7 @@ def newGame():
     objects = [player]
     logMsgs = []
     tilesInRange = []
+    showTilesInRange = False
     explodingTiles = []
     tilesinPath = []
     tilesInRect = []
@@ -11590,7 +11635,7 @@ def newGame():
     inventory.append(object)
     object.alwaysVisible = True
     if player.Player.classes == 'Rogue':
-        equipmentComponent = Equipment(slot = 'two handed', type = 'missile weapon', powerBonus = 1, ranged = True, rangedPower = 7, maxRange = SIGHT_RADIUS, ammo = 'arrow')
+        equipmentComponent = Equipment(slot = 'two handed', type = 'missile weapon', powerBonus = 1, ranged = True, rangedPower = 7, maxRange = player.Player.sightRadius, ammo = 'arrow')
         object = GameObject(0, 0, ')', 'shortbow', colors.light_orange, Equipment = equipmentComponent, Item = Item(weight = 1.0, pic = 'bow.xp'), darkColor = colors.dark_orange)
         inventory.append(object)
         object.alwaysVisible = True
@@ -12008,7 +12053,7 @@ def playTutorial():
     music.start()
     activeProcess.append(music)
     
-    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, gameMsgs, identifiedItems, equipmentList, currentBranch, bossDungeonsAppeared, DEBUG, REVEL, logMsgs, tilesInRange, tilesinPath, tilesInRect, menuWindows, explodingTiles, hiroshimanNumber, FOV_recompute, bossTiles, bossEntrance
+    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, gameMsgs, identifiedItems, equipmentList, currentBranch, bossDungeonsAppeared, DEBUG, REVEL, logMsgs, tilesInRange, showTilesInRange, tilesinPath, tilesInRect, menuWindows, explodingTiles, hiroshimanNumber, FOV_recompute, bossTiles, bossEntrance
     
     DEBUG = False
     REVEL = False
@@ -12016,6 +12061,7 @@ def playTutorial():
     gameMsgs = []
     logMsgs = []
     tilesInRange = []
+    showTilesInRange = False
     explodingTiles = []
     tilesinPath = []
     tilesInRect = []
@@ -12422,17 +12468,31 @@ def playGame(noSave = False):
                                 player.Fighter.healCountdown= 25 - player.Player.vitality
     
                 if object.Player and object.Player.race == 'Werewolf':
-                    def shapeshift(fighter, fromWolf = False, fromHuman = True):
-                        if fromWolf:
-                            player.Player.shapeshift = 'human'
-                            object.Player.shapeshifted = True
-                        if fromHuman:
-                            player.Player.shapeshift = 'wolf'
-                            object.Player.shapeshifted = True
-    
-                    human = Buff('human', colors.lightest_yellow, cooldown = player.Player.human, showBuff = False, applyFunction = lambda fighter: setFighterStatsBack(fighter), removeFunction = lambda fighter: shapeshift(fighter))
-                    wolf = Buff('in wolf form', colors.amber, cooldown = player.Player.wolf, applyFunction = lambda fighter: modifyFighterStats(fighter, stren = 5, dex = 3, vit = 4, will = -5), removeFunction = lambda fighter: shapeshift(fighter, fromHuman=False, fromWolf=True))
                     if object.Player.shapeshifted:
+                        def shapeshift(fighter, fromWolf = False, fromHuman = True):
+                            if fromWolf:
+                                player.Player.shapeshift = 'human'
+                                object.Player.shapeshifted = True
+                            if fromHuman:
+                                player.Player.shapeshift = 'wolf'
+                                object.Player.shapeshifted = True
+                        
+                        wild = player.Player.getTrait('trait', 'Wild instincts').selected
+                        wolfCooldown = player.Player.wolf
+                        humanCooldown = player.Player.human
+                        strenBonus = 5
+                        dexBonus = 3
+                        vitBonus = 4
+                        willMalus = -5
+                        if wild:
+                            wolfCooldown += randint(0, 30)
+                            humanCooldown += randint(-75, 75)
+                            strenBonus += randint(-3, 3)
+                            dexBonus += randint(-2, 2)
+                            vitBonus += randint(-3, 3)
+                            willMalus += randint(-2, 2)
+                        human = Buff('human', colors.lightest_yellow, cooldown = humanCooldown, showBuff = False, applyFunction = lambda fighter: setFighterStatsBack(fighter), removeFunction = lambda fighter: shapeshift(fighter))
+                        wolf = Buff('in wolf form', colors.amber, cooldown = wolfCooldown, applyFunction = lambda fighter: modifyFighterStats(fighter, stren = strenBonus, dex = dexBonus, vit = vitBonus, will = willMalus), removeFunction = lambda fighter: shapeshift(fighter, fromHuman=False, fromWolf=True))
                         if object.Player.shapeshift == 'wolf':
                             message('You feel your wild instincts overwhelming you! You have turned into your wolf form!', colors.amber)
                             wolf.applyBuff(player)
