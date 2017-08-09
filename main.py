@@ -3111,6 +3111,7 @@ class Fighter: #All NPCs, enemies and the player
         
         self.healCountdown = 25
         self.MPRegenCountdown = 10
+        self.staminaRegenCountdown = 15
 
         self.baseShootCooldown = shootCooldown
         self.curShootCooldown = 0
@@ -12489,6 +12490,19 @@ def playGame(noSave = False):
                             object.Fighter.MPRegenCountdown = 10
                         object.Fighter.MP += 1
     
+                if object.Fighter and object.Fighter.stamina < object.Fighter.maxStamina and object.Fighter is not None:
+                    object.Fighter.staminaRegenCountdown -= 1
+                    if object.Fighter.staminaRegenCountdown < 0:
+                        object.Fighter.staminaRegenCountdown = 0
+                    if object.Fighter.staminaRegenCountdown == 0:
+                        if object == player:
+                            regen = 15 - player.Player.vitality
+                            if regen <= 0:
+                                regen = 1
+                            object.Fighter.staminaRegenCountdown = regen
+                        else:
+                            object.Fighter.staminaRegenCountdown = 15
+                        object.Fighter.stamina += 1
                 if object.Player is not None:
                     if NATURAL_REGEN:
                         monsterInSight = False
