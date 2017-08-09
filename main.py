@@ -217,6 +217,7 @@ mobsToCalculate = []
 mustCalculate = False
 currentMusic = 'No_Music.wav'
 detectedPlayerThisTurn = []
+monstersDetected = [[],[],[],[],[]]
 
 tutorial = False
 hasSpokenToGeneral = False
@@ -606,7 +607,7 @@ def convertTilesToCoords(tilesList):
         newList.append((tile.x, tile.y))
     return newList
 
-def modifyFighterStats(fighter = None, power = 0, acc = 0, evas = 0, arm = 0, hp = 0, mp = 0, crit = 0, ap = 0, stren = 0, dex = 0, vit = 0, will = 0, stam = 0, stealth = 0):
+def modifyFighterStats(fighter = None, power = 0, acc = 0, evas = 0, arm = 0, hp = 0, mp = 0, crit = 0, ap = 0, stren = 0, dex = 0, vit = 0, will = 0, stam = 0, stealth = 0, flight = None):
     hpDiff = fighter.baseMaxHP - fighter.hp
     print(fighter.baseMaxHP, fighter.hp, hpDiff)
     mpDiff = fighter.baseMaxMP - fighter.MP
@@ -633,6 +634,8 @@ def modifyFighterStats(fighter = None, power = 0, acc = 0, evas = 0, arm = 0, hp
     fighter.baseArmorPenetration += ap
     fighter.noConstStamina += stam
     fighter.stamina = fighter.baseMaxStamina - stamDiff
+    if flight is not None:
+        fighter.owner.flying = flight
 
 def setFighterStatsBack(fighter = None):
     hpDiff = fighter.baseMaxHP - fighter.hp
@@ -665,6 +668,23 @@ def setFighterStatsBack(fighter = None):
 
     fighter.baseCritical = fighter.BASE_CRITICAL
     fighter.baseArmorPenetration = fighter.BASE_ARMOR_PENETRATION
+    fighter.owner.flying = fighter.owner.BASE_FLYING
+
+def consumeRessource(fighter, buff, ressources = {'stamina': 1}):
+    ressourcelist = list(ressources.keys())
+    for ressource in ressourcelist:
+        if ressource == 'stamina':
+            fighter.stamina -= ressources[ressource]
+            if fighter.stamina <= 0:
+                buff.removeBuff()
+        if ressource == 'MP':
+            fighter.MP -= ressources[ressource]
+            if fighter.MP <= 0:
+                buff.remove()
+        if ressource == 'HP':
+            fighter.hp -= ressources[ressource]
+            if fighter.hp <= 0:
+                buff.remove()
 
 def randomDamage(name, fighter = None, chance = 33, minDamage = 1, maxDamage = 1, dmgMessage = None, dmgColor = colors.red, msgPlayerOnly = True):
     dice = randint(1, 100)
@@ -740,7 +760,7 @@ class Buff: #also (and mainly) used for debuffs
 
 class Spell:
     "Class used by all active abilites (not just spells)"
-    def __init__(self,  ressourceCost, cooldown, useFunction, name, ressource = 'MP', type = 'Magic', magicLevel = 0, arg1 = None, arg2 = None, arg3 = None):
+    def __init__(self,  ressourceCost, cooldown, useFunction, name, ressource = 'MP', type = 'Magic', magicLevel = 0, arg1 = None, arg2 = None, arg3 = None, hiddenName = None):
         self.ressource = ressource
         self.ressourceCost = ressourceCost
         self.maxCooldown = cooldown
@@ -752,6 +772,10 @@ class Spell:
         self.arg1 = arg1
         self.arg2 = arg2
         self.arg3 = arg3
+        if hiddenName:
+            self.hiddenName = hiddenName
+        else:
+            self.hiddenName = name
 
     def updateSpellStats(self):
         if self.name == 'Fireball':
@@ -772,14 +796,11 @@ class Spell:
             FOV_recompute = True
             message(caster.name.capitalize() + ' does not have enough stamina to cast ' + self.name +'.')
             return 'cancelled'
-            
 
         if self.arg1 is None:
             if self.useFunction(caster, target) != 'cancelled':
                 FOV_recompute = True
-                caster.Fighter.knownSpells.remove(self)
-                self.curCooldown = self.maxCooldown
-                caster.Fighter.spellsOnCooldown.append(self)
+                self.setOnCooldown(caster.Fighter)
                 if self.ressource == 'MP':
                     caster.Fighter.MP -= self.ressourceCost
                 elif self.ressource == 'HP':
@@ -792,9 +813,7 @@ class Spell:
         elif self.arg2 is None and self.arg1 is not None:
             if self.useFunction(self.arg1, caster, target) != 'cancelled':
                 FOV_recompute = True
-                caster.Fighter.knownSpells.remove(self)
-                self.curCooldown = self.maxCooldown
-                caster.Fighter.spellsOnCooldown.append(self)
+                self.setOnCooldown(caster.Fighter)
                 if self.ressource == 'MP':
                     caster.Fighter.MP -= self.ressourceCost
                 elif self.ressource == 'HP':
@@ -807,9 +826,7 @@ class Spell:
         elif self.arg3 is None and self.arg2 is not None:
             if self.useFunction(self.arg1, self.arg2, caster, target) != 'cancelled':
                 FOV_recompute = True
-                caster.Fighter.knownSpells.remove(self)
-                self.curCooldown = self.maxCooldown
-                caster.Fighter.spellsOnCooldown.append(self)
+                self.setOnCooldown(caster.Fighter)
                 if self.ressource == 'MP':
                     caster.Fighter.MP -= self.ressourceCost
                 elif self.ressource == 'HP':
@@ -822,9 +839,7 @@ class Spell:
         elif self.arg3 is not None:
             if self.useFunction(self.arg1, self.arg2, self.arg3, caster, target) != 'cancelled':
                 FOV_recompute = True
-                caster.Fighter.knownSpells.remove(self)
-                self.curCooldown = self.maxCooldown
-                caster.Fighter.spellsOnCooldown.append(self)
+                self.setOnCooldown(caster.Fighter)
                 if self.ressource == 'MP':
                     caster.Fighter.MP -= self.ressourceCost
                 elif self.ressource == 'HP':
@@ -834,6 +849,14 @@ class Spell:
                 return 'used'
             else:
                 return 'cancelled'
+    
+    def setOnCooldown(self, fighter):
+        try:
+            fighter.knownSpells.remove(self)
+            self.curCooldown = self.maxCooldown
+            fighter.spellsOnCooldown.append(self)
+        except ValueError:
+            print('SPELL {} is not in known spell list when trying to set it on cooldown'.format(self.name))
 
 
 def rSpellDamage(amount, caster, target, type):
@@ -1192,28 +1215,32 @@ def convertRandTemplateToSpell(template = None):
     #TO-DO : Finish this
     
 
-def learnSpell(spell):
-    if not (spell in player.Fighter.knownSpells or spell.name in player.Fighter.knownSpellsToNames):
+def learnSpell(spell, silent = False):
+    if not (spell in player.Fighter.knownSpells or spell.name in player.Fighter.knownSpellsToNames or spell.name in player.Fighter.allSpellsToNames):
         player.Fighter.knownSpells.append(spell)
-        message("You learn " + spell.name + " !", colors.green)
+        if not silent:
+            message("You learn " + spell.name + " !", colors.green)
     else:
-        message("You already know this spell")
+        if not silent:
+            message("You already know this spell")
         return "cancelled"
 
-def unlearnSpell(spell):
-    if spell in player.Fighter.knownSpells:
-        player.Fighter.knownSpells.remove(spell)
-        message('You forget ' + spell.name + '!', colors.red)
-    else:
-        found = False
-        for knownSpell in player.Fighter.knownSpellsToNames(True):
-            if spell.name == knownSpell.name:
-                found = True
-                player.Fighter.knownSpells.remove(knownSpell)
-                message('You forget ' + knownSpell.name + '!', colors.red)
-        if not found:
-            message('You did not know this spell.', colors.white)
-            return 'cancelled'
+def unlearnSpell(spell, silent = False):
+    for listedSpell in player.Fighter.knownSpells:
+        if spell.name == listedSpell.name:
+            player.Fighter.knownSpells.remove(listedSpell)
+            if not silent:
+                message('You forget ' + spell.name + '!', colors.red)
+            return
+    for listedSpell in player.Fighter.spellsOnCooldown:
+        if spell.name == listedSpell.name:
+            player.Fighter.spellsOnCooldown.remove(listedSpell)
+            if not silent:
+                message('You forget ' + spell.name + '!', colors.red)
+            return
+    if not silent:
+        message('You did not know this spell.', colors.white)
+    return 'cancelled'
                 
 
 def castRegenMana(regenAmount, caster = None, target = None):
@@ -1565,13 +1592,63 @@ def castMovement(caster = None, monsterTarget = None, tileRange = 4, ignoresChas
             caster.flying = True
         for (nextX, nextY) in line:
             caster.moveTo(nextX, nextY)
-            animStep(0.1)
+            animStep(0.05)
             if isBlocked(nextX, nextY):
                 break
         caster.flying = formerFlight
         return
     else:
         return 'cancelled'
+
+def removeFlightBuff(fighter, evasion, spellNameToLearn):
+    allSpells = []
+    allSpells.extend(player.Fighter.knownSpells)
+    allSpells.extend(player.Fighter.spellsOnCooldown)
+    for spell in allSpells:
+        if spell.name == 'Stop Flying':
+            unlearnSpell(spell, True)
+            break
+    for spell in player.Fighter.knownSpells:
+        if spell.hiddenName == spellNameToLearn:
+            learnSpell(spellNameToLearn, True)
+            spellNameToLearn.setOnCooldown(player.Fighter)
+            break
+    player.flying = player.BASE_FLYING
+    player.Fighter.noDexEvasion -= evasion
+    if myMap[player.x][player.y].chasm and not player.flying:
+        temporaryBox('You fall deeper into the dungeon...')
+        if dungeonLevel + 1 in currentBranch.bossLevels:
+            nextLevel(boss = True, fall = True)
+        else:
+            nextLevel(fall = True)
+    return
+
+def castStopFly(caster=None, monsterTarget=None):
+    if caster is None or caster == player:
+        caster = player
+    
+    for buff in caster.Fighter.buffList:
+        if buff.name == 'flying':
+            buff.removeBuff()
+            return
+            
+
+def castFly(caster=None, monsterTarget=None, ressources = {'stamina': 1}, cooldown = 99999, evasionBonus = 10, spellHiddenName = None):
+    stopFlight = Spell(ressourceCost=0, cooldown=0, useFunction=castStopFly, name='Stop Flying', type='None')
+    if caster is None or caster == player:
+        caster = player
+        learnSpell(stopFlight, True)
+        for spell in player.Fighter.knownSpells:
+            if spell.hiddenName == spellHiddenName:
+                unlearnSpell(spell, True)
+                break
+    
+    flying = Buff('flying', colors.light_azure, cooldown = cooldown, showCooldown=False,
+                  applyFunction= lambda fighter: modifyFighterStats(fighter, evas = 10, flight = True),
+                  removeFunction = lambda fighter : removeFlightBuff(fighter, evasionBonus, spellHiddenName))
+    flying.continuousFunction = lambda fighter: consumeRessource(fighter, buff = flying, ressources = ressources)
+    flying.applyBuff(caster)
+    return
     
 def resetDjik():
     global djikVisitedTiles
@@ -1829,6 +1906,8 @@ def profileDjik(caster = None, target = None):
 def detailedProfilerWrapperDjik(caster = None, target = None):
     calcDjikPlayer(profile = True)
 
+insectFly = Spell(ressourceCost=4, cooldown= 50, useFunction = lambda caster, monsterTarget: castFly(caster, monsterTarget, spellHiddenName = 'insectFly'),
+                  name = 'Fly', ressource='Stamina', type = 'racial', hiddenName='insectFly')
 leap = Spell(ressourceCost=5, cooldown = 30, useFunction=castMovement, name = 'Leap', ressource='Stamina', type = 'racial')
 ram = Spell(ressourceCost=15, cooldown = 20, useFunction=castKnockback, name = 'Ram', ressource = 'Stamina', type = 'Racial')    
 fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 1, arg2 = 12, arg3 = 4)
@@ -2141,7 +2220,7 @@ class Trait():
             cons.draw_str(x, self.y, '---', fg = color)
             cons.draw_str(x, self.y + 1, chr(92) + '__', fg = color)
 
-class unlockableTrait(Trait):
+class UnlockableTrait(Trait):
     def __init__(self, name, description, type, x = 0, y = 0, underCursor = False, selectable = False, selected = False, allowsSelection = [],
                  amount = 0, maxAmount = 1, tier = 1, power = (0, 0), acc = (0, 0), ev = (0, 0), arm = (0, 0), hp = (0, 0), mp = (0, 0), crit = (0, 0),
                   stren = (0, 0), dex = (0, 0), vit = (0, 0), will = (0, 0), spells = None, load = 0, ap = (0, 0), stealth = 0, stam = (0, 0),
@@ -2164,6 +2243,7 @@ class unlockableTrait(Trait):
             
             if unlocked == len(required):
                 self.addTraitToPlayer()
+                message('You gain the trait {}!'.format(self.name), colors.green)
 
 def initializeTraits():
     allTraits = []
@@ -2178,6 +2258,7 @@ def initializeTraits():
     CLASS_Y = 11
     SKILL_Y = 41
     
+    '''
     ## racial traits ##
     fastLearn = Trait('Fast learner', 'You are very smart and learn from your wins or losses very fast', type = 'trait', selectable = False)
     skilled = Trait('Skilled', 'You are already a skillful warrior', type = 'trait', selectable=False)
@@ -2189,16 +2270,17 @@ def initializeTraits():
     mimesis = Trait('Mimesis', 'You can mimic your environment, making it very hard to see you', type = 'trait', selectable = False, stealth = 15)
     wild = Trait('Wild instincts', 'Your natural transformation is even more deadly', type = 'trait', selectable = False)
     optionTraits = [fastLearn, skilled, rage, horns, carapace, silence, venom, mimesis, wild]
+    '''
     
     ## races ##
-    human = Trait('Human', 'Humans are the most common race. They have no special characteristic, and are neither better or worse at anything. However, they are good learners and gain experience faster.', type = 'race', allowsSelection=[fastLearn, skilled])
-    mino = Trait('Minotaur', 'Minotaurs, whose muscular bodies are topped with a taurine head, are tougher and stronger than humans, but are way less smart. They are uncontrollable and, when angered, can become a wrecking ball of muscles and thorns.', type= 'race', allowsSelection=[rage, horns], stren=(5, 0), dex=(-4, 0), vit=(4, 0), will=(-3, 0))
-    insect = Trait('Insectoid', 'Insectoids are a rare race of bipedal insects which are stronger than human but, more importantly, very good at arcane arts. They come in all kinds of forms, from the slender mantis to the bulky beetle.', type = 'race', allowsSelection=[carapace], stren=(1, 0), dex=(-1, 0), vit=(-2, 0), will=(2, 0))
-    cat = Trait('Felis', 'Felis, kinds of humanoid cats, are sneaky thieves and assassins. They usually move silently and can see in the dark.', type ='race', allowsSelection=[silence], stren = (2, 0), vit = (-2, 0), spells = [leap], dex = (1, 0), stealth = 5)
-    rept = Trait('Reptilian', 'Reptilians are very agile but absurdly weak. Their scaled skin, however, sometimes provides them with natural camouflage, and they might use their natural venom on their daggers or arrows to make them even more deadly.', type = 'race', allowsSelection=[venom, mimesis], ev=(20, 0), stren=(-4, 0), dex=(2, 0))
+    human = Trait('Human', 'Humans are the most common race. They have no special characteristic, and are neither better or worse at anything. However, they are good learners and gain experience faster.', type = 'race') #, allowsSelection=[fastLearn, skilled])
+    mino = Trait('Minotaur', 'Minotaurs, whose muscular bodies are topped with a taurine head, are tougher and stronger than humans, but are way less smart. They are uncontrollable and, when angered, can become a wrecking ball of muscles and thorns.', type= 'race', stren=(5, 0), dex=(-4, 0), vit=(4, 0), will=(-3, 0), spells = [ram]) #, allowsSelection=[rage, horns])
+    insect = Trait('Insectoid', 'Insectoids are a rare race of bipedal insects which are stronger than human but, more importantly, very good at arcane arts. They come in all kinds of forms, from the slender mantis to the bulky beetle.', type = 'race', stren=(1, 0), dex=(-1, 0), vit=(-2, 0), will=(2, 0), spells = [insectFly]) #, allowsSelection=[carapace])
+    cat = Trait('Felis', 'Felis, kinds of humanoid cats, are sneaky thieves and assassins. They usually move silently and can see in the dark.', type ='race', stren = (2, 0), vit = (-2, 0), spells = [leap], dex = (1, 0), stealth = 20) #, allowsSelection=[silence]
+    rept = Trait('Reptilian', 'Reptilians are very agile but absurdly weak. Their scaled skin, however, sometimes provides them with natural camouflage, and they might use their natural venom on their daggers or arrows to make them even more deadly.', type = 'race', ev=(20, 0), stren=(-4, 0), dex=(2, 0), spells = [envenom]) #, allowsSelection=[venom, mimesis])
     demon = Trait('Demon Spawn', 'Demon spawns, a very uncommon breed of a human and a demon, are cursed with the heritage of  their demonic parents, which will make them grow disturbing mutations as they grow older and stronger.', type = 'race')
     tree = Trait('Rootling', 'Rootlings, also called treants, are rare, sentient plants. They begin their life as a simple twig, but, with time, might become gigantic oaks.', type = 'race', stren=(-3, 0), dex=(-2, 0), vit=(-4, 0), will=(-3, 0))
-    wolf = Trait('Werewolf', 'Werewolves are a martyred and despised race. Very tough to kill, they are naturally stronger than basic humans and unconogreably shapeshift more or less regularly. However, older werewolves are used to these transformations and can even use them to their interests.', type = 'race', allowsSelection=[wild], stren=(2, 0), dex=(1, 0), vit=(-2, 0), will=(-4, 0))
+    wolf = Trait('Werewolf', 'Werewolves are a martyred and despised race. Very tough to kill, they are naturally stronger than basic humans and unconogreably shapeshift more or less regularly. However, older werewolves are used to these transformations and can even use them to their interests.', type = 'race', stren=(2, 0), dex=(1, 0), vit=(-2, 0), will=(-4, 0)) #, allowsSelection=[wild]
     devourer = Trait('Devourer', 'Devourers are strange, dreaded creatures from another dimension. Few have arrived in ours and even fewer have been described. These animals, half mantis, half lizard, are only born to kill and consume. Some of their breeds can even, after consuming anything - even a weapon - grow an organic replica of it.', type = 'race', vit = (-2, 0), will = (-10, 0))
     virus = Trait('Virus ', 'Viruses are the physically weakest race, but do not base their success on their own bodies. Indeed, they are able to infect another race, making it their host and fully controllable by the virus. What is more, the virus own physical attributes, instead of applying to it directly, rather modifies the host metabolism, potentially making it stronger or tougher. However, this take-over is very harmful for the host, who will eventually die. The virus must then find a new host to continue living.', type = 'race', ev = (999, 0))
     races = [human, mino, insect, cat, rept, demon, tree, wolf, devourer, virus]
@@ -2249,7 +2331,7 @@ def initializeTraits():
     armorW = Trait('Armor wearing', 'You are trained to wear several types of armor.', type = 'skill', selectable = False, tier = 2, allowsSelection=[armorEff, shield])
     endurance = Trait('Endurance', 'You are used to live in harsh conditions', type = 'skill', selectable = False, tier = 2, allowsSelection=[hunger, constitution])
     strength = Trait('Strength', 'You are as strong as a bear', type = 'skill', stren=(1, 0), selectable = False, tier = 2)
-    willpower = Trait('Willpower', 'Your will is very strong', type = 'skill', mp=(5, 0), will = (1, 0), selectable = False, tier = 2)
+    willpower = Trait('Power of will', 'Your will is very strong', type = 'skill', mp=(5, 0), will = (1, 0), selectable = False, tier = 2)
     cunning = Trait('Cunning', 'You are cunning, and can use this to hide in the shadows in order to deliver sly but deadly attacks.', type = 'skill', selectable = False, tier = 2, allowsSelection=[dexterity, critical])
     magic = Trait('Magic ', 'You can use the power of your mind to bind reality to your will', type = 'skill', selectable = False, tier = 2, allowsSelection=[occult, elemental])
     secondTierSkills = [melee, ranged, armorW, strength, endurance, magic, willpower, cunning]
@@ -2321,7 +2403,7 @@ def initializeTraits():
     training = Trait('Warrior training', 'You are trained to master all weapons', type = 'trait', acc=(7, 0))
     tough = Trait('Tough', 'You can endure harm better', type = 'trait', hp=(40, 0))
     traits = [aggressive, aura, evasive, healthy, muscular, natArmor, mind, agile, training, tough]
-    traits.extend(optionTraits)
+    #traits.extend(optionTraits)
     allTraits.extend(traits)
     rightTraits.extend(traits)
     
@@ -2346,11 +2428,13 @@ def initializeTraits():
                 return
         
     shapeshift = Spell(ressourceCost=10, cooldown = 100, useFunction=castShapeshift, name = 'Shapeshift', ressource='MP', type = 'racial')
-    controllableWerewolf = unlockableTrait('Shape control', 'You are able to shapeshift at will.', type = 'trait', spells = [shapeshift], requiredTraits={'player level': 3})
+    controllableWerewolf = UnlockableTrait('Shape control', 'You are able to shapeshift at will.', type = 'trait', spells = [shapeshift], requiredTraits={'player level': 5})
+    dual = UnlockableTrait('Dual wield', 'Allows to wield two lights weapons at the same time.', 'trait', requiredTraits={'Light weapons': 4})
+    aware = UnlockableTrait('Self aware', 'Allows to see the buffs and debuffs cooldowns.', 'trait', requiredTraits={'Power of will': 4})
+            
+    unlockableTraits.extend([controllableWerewolf, dual, aware])
     
-    unlockableTraits.extend([controllableWerewolf])
-    
-    return allTraits, leftTraits, rightTraits, races, attributes, skills, classes, traits, skilled, human, unlockableTraits
+    return allTraits, leftTraits, rightTraits, races, attributes, skills, classes, traits, human, unlockableTraits #skilled, human, unlockableTraits
 
 def characterCreation():
     global createdCharacter
@@ -2363,168 +2447,7 @@ def characterCreation():
     LEFT_X = (WIDTH // 4)
     RIGHT_X = WIDTH - (WIDTH // 4)
     
-    '''
-    RACE_Y = 11
-    ATTRIBUTE_Y = 31
-    TRAIT_Y = 31
-    CLASS_Y = 11
-    SKILL_Y = 41
-
-    ## racial traits ##
-    fastLearn = Trait('Fast learner', 'You are very smart and learn from your wins or losses very fast', type = 'trait', selectable = False)
-    skilled = Trait('Skilled', 'You are already a skillful warrior', type = 'trait', selectable=False)
-    rage = Trait('Rage', 'When low on health, you will lose all control', type = 'trait', selectable = False)
-    horns = Trait('Horned', 'Your horns are very large and can be used in combats', type = 'trait', selectable = False)
-    carapace = Trait('Chitin carapace', 'Your natural exoskeleton is very resistant', type = 'trait', arm=(2, 0), selectable = False)
-    silence = Trait('Silent walk', 'Your paws are very soft, allowing you to be very sneaky', type = 'trait', selectable = False)
-    venom = Trait('Venomous glands', 'You are able to envenom your weapons', type = 'trait', selectable = False, spells = [envenom])
-    mimesis = Trait('Mimesis', 'You can mimic your environment, making it very hard to see you', type = 'trait', selectable = False)
-    wild = Trait('Wild instincts', 'Your natural transformation is even more deadly', type = 'trait', selectable = False)
-    optionTraits = [fastLearn, skilled, rage, horns, carapace, silence, venom, mimesis, wild]
-    
-    ## races ##
-    human = Trait('Human', 'Humans are the most common race. They have no special characteristic, and are neither better or worse at anything. However, they are good learners and gain experience faster.', type = 'race', allowsSelection=[fastLearn, skilled])
-    mino = Trait('Minotaur', 'Minotaurs, whose muscular bodies are topped with a taurine head, are tougher and stronger than humans, but are way less smart. They are uncontrollable and, when angered, can become a wrecking ball of muscles and thorns.', type= 'race', allowsSelection=[rage, horns], stren=(5, 0), dex=(-4, 0), vit=(4, 0), will=(-3, 0))
-    insect = Trait('Insectoid', 'Insectoids are a rare race of bipedal insects which are stronger than human but, more importantly, very good at arcane arts. They come in all kinds of forms, from the slender mantis to the bulky beetle.', type = 'race', allowsSelection=[carapace], stren=(1, 0), dex=(-1, 0), vit=(-2, 0), will=(2, 0))
-    cat = Trait('Felis', 'Felis, kinds of humanoid cats, are sneaky thieves and assassins. They usually move silently and can see in the dark.', type ='race', allowsSelection=[silence], stren = (2, 0), vit = (-2, 0))
-    rept = Trait('Reptilian', 'Reptilians are very agile but absurdly weak. Their scaled skin, however, sometimes provides them with natural camouflage, and they might use their natural venom on their daggers or arrows to make them even more deadly.', type = 'race', allowsSelection=[venom, mimesis], ev=(20, 0), stren=(-4, 0), dex=(2, 0))
-    demon = Trait('Demon Spawn', 'Demon spawns, a very uncommon breed of a human and a demon, are cursed with the heritage of  their demonic parents, which will make them grow disturbing mutations as they grow older and stronger.', type = 'race')
-    tree = Trait('Rootling', 'Rootlings, also called treants, are rare, sentient plants. They begin their life as a simple twig, but, with time, might become gigantic oaks.', type = 'race', stren=(-3, 0), dex=(-2, 0), vit=(-4, 0), will=(-3, 0))
-    wolf = Trait('Werewolf', 'Werewolves are a martyred and despised race. Very tough to kill, they are naturally stronger than basic humans and unconogreably shapeshift more or less regularly. However, older werewolves are used to these transformations and can even use them to their interests.', type = 'race', allowsSelection=[wild], stren=(2, 0), dex=(1, 0), vit=(-2, 0), will=(-4, 0))
-    devourer = Trait('Devourer', 'Devourers are strange, dreaded creatures from another dimension. Few have arrived in ours and even fewer have been described. These animals, half mantis, half lizard, are only born to kill and consume. Some of their breeds can even, after consuming anything - even a weapon - grow an organic replica of it.', type = 'race', vit = (-2, 0), will = (-10, 0))
-    virus = Trait('Virus ', 'Viruses are the physically weakest race, but do not base their success on their own bodies. Indeed, they are able to infect another race, making it their host and fully controllable by the virus. What is more, the virus own physical attributes, instead of applying to it directly, rather modifies the host metabolism, potentially making it stronger or tougher. However, this take-over is very harmful for the host, who will eventually die. The virus must then find a new host to continue living.', type = 'race', ev = (999, 0))
-    races = [human, mino, insect, cat, rept, demon, tree, wolf, devourer, virus]
-    allTraits.extend(races)
-    leftTraits.extend(races)
-    
-    counter = 0
-    for race in races:
-        race.x = LEFT_X
-        race.y = RACE_Y + counter
-        counter += 1
-    
-    ## attributes ##
-    stren = Trait('Strength', 'Strength augments the power of your attacks', type = 'attribute', maxAmount=5, stren=(1, 0))
-    dex = Trait('Dexterity', 'Dexterity augments your accuracy and your evasion', type = 'attribute', maxAmount=5, dex=(1, 0))
-    const = Trait('Constitution', 'Constitution augments your maximum health and your regeneration rate.', type = 'attribute', maxAmount=5, vit=(1, 0))
-    will = Trait('Willpower', 'Willpower augments your energy and the rate at which you regain it.', type = 'attribute', maxAmount=5, will=(1, 0))
-    attributes = [stren, dex, const, will]
-    allTraits.extend(attributes)
-    leftTraits.extend(attributes)
-    
-    counter = 0
-    for attribute in attributes:
-        attribute.x = LEFT_X
-        attribute.y = ATTRIBUTE_Y + counter
-        counter += 1
-    
-    ## skills ##
-    fireSkill = Trait('Fire', 'Launch a blazing fireball at the chosen location.', type = 'skill', selectable=False, tier = 4, spells = [fireball])
-    iceSkill = Trait('Water', 'Launch an ice bolt at your target in order to freeze it.', type = 'skill', selectable=False, tier = 4, spells = [ice])
-    fourthTierSkills = [fireSkill, iceSkill]
-    
-    light = Trait('Light weapons', '+20% damage per skillpoints with light weapons', type = 'skill', selectable = False, tier = 3)
-    heavy = Trait('Heavy weapons', '+20% damage per skillpoints with heavy weapons', type = 'skill', selectable = False, tier = 3)
-    missile = Trait('Missile weapons', '+20% damage per skillpoints with missile weapons', type = 'skill', selectable = False, tier = 3)
-    shield = Trait('Shield mastery', 'You trained to master shield wielding.', type = 'skill', selectable = False, tier = 3)
-    armorEff = Trait('Armor efficiency', 'You know very well how to maximize the protection brought by your armor', type = 'skill', selectable = False, tier = 3)
-    dexterity = Trait('Dexterity', 'You are Dexter.', type = 'skill', selectable = False, dex=(1, 0), tier = 3)
-    critical = Trait('Critical', 'You know every weaknesses of your enemies.', type = 'skill', selectable = False, crit=(3, 0), tier = 3)
-    constitution = Trait('Constitution', 'You are a sturdy person', type = 'skill', hp = (5, 0), vit = (1, 0), selectable = False, tier = 3)
-    hunger = Trait('Hunger management', 'You are used to starve and are now resilient to hunger.', type = 'skill', selectable=False, tier = 3)
-    occult = Trait('Occult magic', 'The black magic cannot hide any of its dark secrets to you.', type = 'skill', selectable=False, tier = 3)
-    elemental = Trait('Elemental magic', 'You master the power of the four elements.', type = 'skill', selectable=False, tier = 3, allowsSelection=[fireSkill, iceSkill])
-    thirdTierSkills = [light, heavy, missile, armorEff, shield, hunger, constitution, occult, elemental, dexterity, critical]
-
-    melee = Trait('Melee Weaponry', 'You are trained to wreck your enemies at close range.', type = 'skill', selectable = False, tier = 2, allowsSelection=[light, heavy])
-    ranged = Trait('Ranged Weaponry', 'You shoot people in the knees.', type = 'skill', selectable = False, tier = 2, allowsSelection=[missile])
-    armorW = Trait('Armor wearing', 'You are trained to wear several types of armor.', type = 'skill', selectable = False, tier = 2, allowsSelection=[armorEff, shield])
-    endurance = Trait('Endurance', 'You are used to live in harsh conditions', type = 'skill', selectable = False, tier = 2, allowsSelection=[hunger, constitution])
-    strength = Trait('Strength', 'You are as strong as a bear', type = 'skill', stren=(1, 0), selectable = False, tier = 2)
-    willpower = Trait('Willpower', 'Your will is very strong', type = 'skill', mp=(5, 0), will = (1, 0), selectable = False, tier = 2)
-    cunning = Trait('Cunning', 'You are cunning, and can use this to hide in the shadows in order to deliver sly but deadly attacks.', type = 'skill', selectable = False, tier = 2, allowsSelection=[dexterity, critical])
-    magic = Trait('Magic ', 'You can use the power of your mind to bind reality to your will', type = 'skill', selectable = False, tier = 2, allowsSelection=[occult, elemental])
-    secondTierSkills = [melee, ranged, armorW, strength, endurance, magic, willpower, cunning]
-
-    martial = Trait('Martial training', 'You are trained to use a wide variety of weapons', type = 'skill', acc=(10, 0), allowsSelection=[melee, ranged, armorW])
-    physical = Trait('Physical training', 'You are muscular and are used to physical efforts', type = 'skill', allowsSelection=[strength, endurance])
-    mental = Trait('Mental training', 'Your mind is as fast as an arrow and as sharp as a scalpel', type = 'skill', allowsSelection=[magic, willpower, cunning])
-    basicSkills = [martial, physical, mental]
-    
-    skills = basicSkills
-    skills.extend(secondTierSkills)
-    skills.extend(thirdTierSkills)
-    skills.extend(fourthTierSkills)
-    
-    quarterX = (WIDTH - 2)//5
-    
-    def initiateSkill(skillList, maxHeight, heightCounter, originY = 0):
-        newHeight = maxHeight//len(skillList)
-        mid = newHeight//2
-        counter = 0
-        for skill in skillList:
-            skill.x = skill.tier * quarterX
-            skill.y = mid + counter * newHeight + heightCounter * maxHeight + originY
-            print(skill.name, skill.tier, len(skill.allowsSelection), skill.x, skill.y)
-            if skill.allowsSelection and len(skill.allowsSelection) > 0:
-                print('initiating selectable skills of ' + skill.name)
-                initiateSkill(skill.allowsSelection, newHeight, counter, maxHeight * heightCounter + originY)
-            counter += 1
-    
-    
-    newHeight = 76//3
-    mid = newHeight//2
-    counter = 0
-    for skill in basicSkills:
-        if skill.tier == 1:
-            skill.x = quarterX
-            skill.y = mid + newHeight * counter
-            print(skill.name, skill.tier, len(skill.allowsSelection), skill.x, skill.y)
-            if skill.allowsSelection and len(skill.allowsSelection) > 0:
-                print('initiating selectable skills of ' + skill.name)
-                initiateSkill(skill.allowsSelection, newHeight, counter)
-            counter += 1
-
-    ## classes ##
-    knight = Trait('Knight', 'A warrior who wears armor and wields shields', type ='class', arm=(1, 1), hp=(120, 14), mp=(30, 3))
-    barb = Trait('Barbarian', 'A brutal fighter who is mighty strong', type = 'class', hp=(160, 20), mp=(30, 3), stren=(1, 1), spells=[enrage])
-    rogue = Trait('Rogue', 'A rogue who is stealthy and backstabby (probably has a french accent)', type = 'class', acc=(8, 4), ev=(10, 2), hp=(90, 10), mp=(40, 5), crit=(3, 0))
-    mage = Trait('Mage ', 'A wizard who zaps everything', type ='class', hp=(70, 6), mp=(50, 7), will=(2, 0), spells=[fireball])
-    necro = Trait('Necromancer', 'A master of the occult arts who has the ability to raise and control the dead.', type = 'class', hp=(100, 4), mp=(15, 1), spells=[darkPact, ressurect])
-    classes = [knight, barb, rogue, mage, necro]
-    allTraits.extend(classes)
-    rightTraits.extend(classes)
-    
-    counter = 0
-    for classe in classes:
-        classe.x = RIGHT_X
-        classe.y = CLASS_Y + counter
-        counter += 1
-    
-    ## traits ##
-    aggressive = Trait('Aggressive', 'Your anger is uncontrollable', type = 'trait')
-    aura = Trait('Aura', 'You are surrounded by a potent aura', type = 'trait', mp=(20, 0))
-    evasive = Trait('Evasive', 'You are aware of how to stay out of trouble', type = 'trait', ev=(10, 0))
-    healthy = Trait('Healthy', 'You are healthy', type = 'trait', vit=(2, 0))
-    muscular = Trait('Muscular', 'You are very strong', type = 'trait', stren=(2, 0))
-    natArmor = Trait('Natural armor', 'Your skin is rock-hard', type = 'trait', arm = (1, 0))
-    mind = Trait('Strong mind', 'Your mind is fast and potent', type = 'trait', will=(2, 0))
-    agile = Trait('Agile', 'You have incredible reflexes', type = 'trait', dex=(2, 0))
-    training = Trait('Martial training', 'You are trained to master all weapons', type = 'trait', acc=(7, 0))
-    tough = Trait('Tough', 'You can endure harm better', type = 'trait', hp=(40, 0))
-    traits = [aggressive, aura, evasive, healthy, muscular, natArmor, mind, agile, training, tough]
-    traits.extend(optionTraits)
-    allTraits.extend(traits)
-    rightTraits.extend(traits)
-    
-    counter = 0
-    for trait in traits:
-        trait.x = RIGHT_X
-        trait.y = TRAIT_Y + counter
-        counter += 1
-    '''
-    
-    allTraits, leftTraits, rightTraits, races, attributes, skills, classes, traits, skilled, human, unlockableTraits = initializeTraits()
+    allTraits, leftTraits, rightTraits, races, attributes, skills, classes, traits, human, unlockableTraits = initializeTraits() #skilled, human, unlockableTraits = initializeTraits()
     
     
     #index
@@ -2564,8 +2487,8 @@ def characterCreation():
         
         skillsPoints = 0
         maxSkill = 1
-        if skilled.selected:
-            maxSkill=2
+        #if skilled.selected:
+        #    maxSkill=2
         for skill in skills:
             skillsPoints += skill.amount
         print(skillsPoints)
@@ -2586,7 +2509,10 @@ def characterCreation():
         drawCenteredOnX(cons = root, x = LEFT_X, y = 39, text = str(skillsPoints) + '/' + str(maxSkill), fg = colors.dark_red, bg = None)
         '''
         drawCentered(cons = root, y = 9, text = '-- DESCRIPTION --', fg = colors.darker_red, bg = None)
-        drawCentered(cons = root, y = 69, text = 'Continue to skills screen', fg = colors.white, bg = None)
+        color = colors.white
+        if maxSkill - skillsPoints > 0:
+            color = colors.green
+        drawCentered(cons = root, y = 69, text = 'Continue to skills screen', fg = color, bg = None)
         drawCentered(cons = root, y = 70, text = 'Start Game', fg = colors.white, bg = None)
         drawCentered(cons = root, y = 71, text = 'Cancel', fg = colors.white, bg = None)
 
@@ -2698,7 +2624,7 @@ def characterCreation():
                     playWavSound('error.wav')
                     error = True
             if index == maxIndex:
-                return 'cancelled', 'cancelled', 'cancelled'
+                return 'cancelled', 'cancelled', 'cancelled', 'cancelled'
 
             if not error:
                 trait = allTraits[index]
@@ -2722,10 +2648,10 @@ def characterCreation():
         if key.keychar.upper() == 'BACKSPACE':
             if index != maxIndex and index != maxIndex - 1:
                 trait = allTraits[index]
-                if trait == skilled or (trait == human and skilled.selected):
-                    for skill in skills:
-                        if skill.selected:
-                            skill.removeBonus()
+                #if trait == skilled or (trait == human and skilled.selected):
+                #    for skill in skills:
+                #        if skill.selected:
+                #            skill.removeBonus()
                 if trait.selected:
                     trait.removeBonus()
             else:
@@ -2954,6 +2880,7 @@ class GameObject:
             self.alwaysVisible = True
         self.darkColor = darkColor
         self.flying = flying
+        self.BASE_FLYING = flying
         if self.Fighter:  #let the fighter component know who owns it
             self.Fighter.owner = self
         self.AI = AI
@@ -3048,7 +2975,10 @@ class GameObject:
                 return 'didnt-take-turn'
     
     def draw(self):
-        if (self.x, self.y) in visibleTiles or REVEL:
+        allMonstersDetected = []
+        for monsters in monstersDetected:
+            allMonstersDetected.extend(monsters)
+        if (self.x, self.y) in visibleTiles or REVEL or self in allMonstersDetected:
             bg = None
             if self.Fighter:
                 if 'frozen' in convertBuffsToNames(self.Fighter):
@@ -3208,8 +3138,10 @@ class Fighter: #All NPCs, enemies and the player
         
         if knownSpells != None:
             self.knownSpells = knownSpells
+            self.allSpells = knownSpells
         else:
             self.knownSpells = []
+            self.allSpells = []
         
         self.spellsOnCooldown = []
         
@@ -3270,6 +3202,17 @@ class Fighter: #All NPCs, enemies and the player
             return [spell for spell in self.knownSpells]
         else:
             return [spell.name for spell in self.knownSpells]
+        
+    @property
+    def allSpellsToNames(self, returnActualSpell=False):
+        '''
+        Convert list of fighter's known spells to list of hidden names of said spells.
+        This doesn't necessarily respects alphabetical order
+        '''
+        if returnActualSpell:
+            return [spell for spell in self.allSpells]
+        else:
+            return [spell.name for spell in self.allSpells]
 
     @property
     def power(self):
@@ -3328,6 +3271,11 @@ class Fighter: #All NPCs, enemies and the player
         lastHitter = damageSource
         if armored:
             damage = damage - (self.armor - armorPenetration)
+        if self.owner == player and player.Player.race == 'Insectoid':
+            #formerDamage = damage
+            damage -= int(damage/10)
+            #if formerDamage != damage:
+            #    message('The damage was reduced to {} thanks to your chitin carapace!'.format(str(damage)), colors.sea)
         if damage > 0:
             self.hp -= damage
             self.updateDamageText()
@@ -3342,6 +3290,7 @@ class Fighter: #All NPCs, enemies and the player
                     xp = self.xp
                 player.Fighter.xp += xp
                 player.Player.baseScore += xp
+        return damage
 
     def onAttack(self, target):
         print('on attck function:', self.owner.name, target.name)
@@ -3406,6 +3355,37 @@ class Fighter: #All NPCs, enemies and the player
 
     def attack(self, target):
         [hit, criticalHit] = self.toHit(target)
+        damageTaken = 0
+        baseText = '{} {} hit{} {} for {} hit points!'
+        baseNoDmgText = '{} attack{} {} but it has no effect.'
+        textColor = {'dark_green': True, 'orange':False, 'darker_green':False, 'dark_orange':False}
+        if self.owner == player:
+            attackerText = 'You'
+            thirdPsnAdd = ''
+        elif self.owner.AI and self.owner.AI.__class__.__name__ == "FriendlyMonster" and self.owner.AI.friendlyTowards == player:
+            attackerText = 'Your fellow ' + self.owner.name.capitalize()
+            thirdPsnAdd = 's'
+        else:
+            attackerText = self.owner.name.capitalize()
+            thirdPsnAdd = 's'
+            textColor['orange'] = True
+            textColor['dark_green'] = False
+        if criticalHit:
+            critText = 'critically'
+            if textColor['orange']:
+                textColor['dark_orange'] = True
+                textColor['orange'] = False
+            else:
+                textColor['darker_green'] = True
+                textColor['dark_green'] = False
+        else:
+            critText = ''
+        if target == player:
+            targetText = 'you'
+        else:
+            targetText = target.name
+        finalColor = colors.dark_green
+
         if hit:
             if not self.noDirectDamage:
                 penetratedArmor = target.Fighter.armor - self.armorPenetration
@@ -3422,37 +3402,27 @@ class Fighter: #All NPCs, enemies and the player
                     else:
                         damage = randint(self.power - 2, self.power + 2) - penetratedArmor
                 if self.canTakeTurn:
-                    if not self.owner.Player:
-                        if damage > 0:
-                            if target == player:
-                                if criticalHit:
-                                    message(self.owner.name.capitalize() + ' critically hits you for ' + str(damage) + ' hit points!', colors.dark_orange)
-                                else:
-                                    message(self.owner.name.capitalize() + ' attacks you for ' + str(damage) + ' hit points.', colors.orange)
-                            elif self.owner.AI and self.owner.AI.__class__.__name__ == "FriendlyMonster" and self.owner.AI.friendlyTowards == player:
-                                if criticalHit:
-                                    message('Your fellow ' + self.owner.name + ' critically hits '+ target.name +' for ' + str(damage) + ' hit points!', colors.darker_green)
-                                else:
-                                    message('Your fellow ' + self.owner.name + ' attacks '+ target.name + ' for ' + str(damage) + ' hit points.', colors.dark_green)
+                    damageTaken = target.Fighter.takeDamage(damage, self.owner.name)
+                
+                if damageTaken > 0:
+                    for color in list(textColor.keys()):
+                        if textColor[color]:
+                            if color == 'dark_green':
+                                finalColor = colors.dark_green
+                            elif color == 'darker_green':
+                                finalColor = colors.darker_green
+                            elif color == 'orange':
+                                finalColor = colors.orange
                             else:
-                                if criticalHit:
-                                    message(self.owner.name.capitalize() + ' critically hits '+ target.name +' for ' + str(damage) + ' hit points!')
-                                else:
-                                    message(self.owner.name.capitalize() + ' attacks '+ target.name + ' for ' + str(damage) + ' hit points.')
-                            target.Fighter.takeDamage(damage, self.owner.name)
-                        else:
-                            if target == player:
-                                message(self.owner.name.capitalize() + ' attacks you but it has no effect !')
+                                finalColor = colors.dark_orange
+                    message(baseText.format(attackerText, critText, thirdPsnAdd, targetText, str(damageTaken)), finalColor)
+                else:
+                    if self.owner == player:
+                        finalColor = colors.dark_grey
                     else:
-                        if damage > 0:
-                            if criticalHit:
-                                message('You critically hit ' + target.name + ' for ' + str(damage) + ' hit points!', colors.darker_green)
-                            else:
-                                message('You attack ' + target.name + ' for ' + str(damage) + ' hit points.', colors.dark_green)
-                            target.Fighter.takeDamage(damage, self.owner.name)
-                        
-                        else:
-                            message('You attack ' + target.name + ' but it has no effect!', colors.grey)
+                        finalColor = colors.white
+                    message(baseNoDmgText.format(attackerText, thirdPsnAdd, targetText), finalColor)
+                    
             self.onAttack(target)
         
         else:
@@ -4339,6 +4309,10 @@ class Player:
             self.hostDeath = 0
             self.inHost = False
             self.timeOutsideLeft = 50
+        
+        if self.race == 'Reptilian':
+            self.reptSightRange = 20
+            self.reptSightChance = 15
         
         if self.race == 'Demon Spawn':
             class Mutation:
@@ -6140,7 +6114,7 @@ def moveOrAttack(dx, dy):
     if not 'confused' in convertBuffsToNames(player.Fighter):
         x = player.x + dx
         y = player.y + dy
-        if myMap[x][y].chasm and not myMap[x][y].wall:
+        if myMap[x][y].chasm and not myMap[x][y].wall and not player.flying:
             temporaryBox('You fall deeper into the dungeon...')
             if dungeonLevel + 1 in currentBranch.bossLevels:
                 nextLevel(boss = True, fall = True)
@@ -6586,6 +6560,8 @@ def checkLevelUp():
             message('You feel your wooden corpse thickening!', colors.celadon)
         
         levelUpScreen()
+        for trait in player.Player.unlockableTraits:
+            trait.checkForRequirements()
         tdl.flush()
         FOV_recompute = True
         Update()
@@ -6616,18 +6592,6 @@ def checkLevelUp():
                 else:
                     choice = None
         '''
-        for trait in player.Player.unlockableTraits:
-            trait.checkForRequirements()
-        
-        if player.Player.getTrait('skill', 'Light weapons').amount >= 5 and player.Player.getTrait('trait', 'Dual wield') == 'not found':
-            message('You are now proficient enough with light weapons to wield two at the same time!', colors.yellow)
-            dual = Trait('Dual wield', 'Allows to wield two lights weapons at the same time.', 'trait')
-            dual.addTraitToPlayer()
-        
-        if player.Player.getTrait('skill', 'Mental training').amount >= 5 and player.Player.getTrait('trait', 'Self aware') == 'not found':
-            message('Your meditation training is now so strong you can be really aware of your health state!', colors.yellow)
-            aware = Trait('Self aware', 'Allows to see the buffs and debuffs cooldowns.', 'trait')
-            aware.addTraitToPlayer()
 
 def isVisibleTile(x, y):
     global myMap
@@ -10351,7 +10315,7 @@ def spellsMenu(header):
         except TDLError:
             options = []
             borked = True
-    index = menu(header, options, INVENTORY_WIDTH)
+    index = menu(header, options, INVENTORY_WIDTH, noItemMessage="You don't have any spells ready right now")
     if index is None or len(player.Fighter.knownSpells) == 0 or borked or index == "cancelled":
         global DEBUG
         if DEBUG:
@@ -10603,7 +10567,7 @@ def launchTutorial(prologueEsc = True):
             counter += 1
     '''
     
-    allTraits, leftTraits, rightTraits, races, attributes, skills, classes, traits, skilled, human, unlockableTraits = initializeTraits()
+    allTraits, leftTraits, rightTraits, races, attributes, skills, classes, traits, human, unlockableTraits = initializeTraits() #skilled, human, unlockableTraits = initializeTraits()
     toUpTraits = ['Muscular', 'Skilled', 'Tough', 'Knight', 'Human', 'Martial training', 'Physical training', 'Mental training', 'Magic ', 'Melee weaponry']
     
     allTraits.extend(skills)
@@ -10960,10 +10924,13 @@ def Update():
     panel.clear(fg=colors.white, bg=colors.black)
     sidePanel.clear(fg = colors.white, bg = colors.black)
     
+    allMonstersDetected = []
+    for monsters in monstersDetected:
+        allMonstersDetected.extend(monsters)
     panelY = 7
     for object in objects:
         if object != player:
-            if (object.x, object.y) in visibleTiles or (object.alwaysVisible and myMap[object.x][object.y].explored) or REVEL:
+            if (object.x, object.y) in visibleTiles or (object.alwaysVisible and myMap[object.x][object.y].explored) or REVEL or object in allMonstersDetected:
                 object.draw()
                 if object.Fighter and (SIDE_PANEL_MODES[currentSidepanelMode] == 'enemies'):
                     name = textwrap.wrap(object.name, SIDE_PANEL_TEXT_WIDTH)
@@ -12385,6 +12352,10 @@ def playTutorial():
                 player.Player.hungerStatus = "full"
                 if prevStatus != "full":
                     message("You feel way less hungry")
+                if prevStatus == 'starving':
+                    for buff in player.Fighter.buffList:
+                        if buff.name == 'starving':
+                            buff.removeBuff()
 
     DEBUG = False
     #quitGame('Window has been closed')
@@ -12411,7 +12382,7 @@ def drawDetectionStatus():
     
 #ISN project
 def playGame(noSave = False):
-    global currentMusic
+    global currentMusic, monstersDetected
     if currentMusic is None or currentMusic in ('No_Music.wav', 'Dusty_Feelings.wav'):
         currentMusic = 'Bumpy_Roots.wav'
     stopProcess()
@@ -12454,6 +12425,13 @@ def playGame(noSave = False):
             global mobsToCalculate
             global mustCalculate
             mobsToCalculate = []
+            
+            newList = [[],[],[],[],[]]
+            for i, list in enumerate(monstersDetected):
+                if i < 4:
+                    newList[i + 1] = list
+            monstersDetected = newList
+            
             for object in objects:
                 if object.AI:
                     try:
@@ -12536,29 +12514,33 @@ def playGame(noSave = False):
                                 player.Player.shapeshift = 'wolf'
                                 player.Player.shapeshifted = True
                         
-                        wild = player.Player.getTrait('trait', 'Wild instincts').selected
+                        #wild = player.Player.getTrait('trait', 'Wild instincts').selected
                         wolfCooldown = player.Player.wolf
                         humanCooldown = player.Player.human
                         strenBonus = 5
                         dexBonus = 3
                         vitBonus = 4
                         willMalus = -5
-                        if wild:
-                            wolfCooldown += randint(0, 30)
-                            humanCooldown += randint(-75, 75)
-                            strenBonus += randint(-3, 3)
-                            dexBonus += randint(-2, 2)
-                            vitBonus += randint(-3, 3)
-                            willMalus += randint(-2, 2)
+                        #if wild:
+                        #    wolfCooldown += randint(0, 30)
+                        #    humanCooldown += randint(-75, 75)
+                        #    strenBonus += randint(-3, 3)
+                        #    dexBonus += randint(-2, 2)
+                        #    vitBonus += randint(-3, 3)
+                        #    willMalus += randint(-2, 2)
                         human = Buff('human', colors.lightest_yellow, cooldown = humanCooldown, showBuff = False, applyFunction = lambda fighter: setFighterStatsBack(fighter), removeFunction = lambda fighter: shapeshift(fighter))
                         wolf = Buff('in wolf form', colors.amber, cooldown = wolfCooldown, applyFunction = lambda fighter: modifyFighterStats(fighter, stren = strenBonus, dex = dexBonus, vit = vitBonus, will = willMalus), removeFunction = lambda fighter: shapeshift(fighter, fromHuman=False, fromWolf=True))
                         if object.Player.shapeshift == 'wolf':
                             message('You feel your wild instincts overwhelming you! You have turned into your wolf form!', colors.amber)
                             wolf.applyBuff(player)
+                            learnSpell(leap, True)
                             object.Player.shapeshifted = False
                         if object.Player.shapeshift == 'human':
                             human.applyBuff(player)
                             object.Player.shapeshifted = False
+                            for spell in player.Fighter.allSpells:
+                                if spell.name == 'Leap':
+                                    unlearnSpell(spell, True)
                 
                 if object.Player and object.Player.race == 'Virus ':
                     if object.Player.inHost:
@@ -12575,7 +12557,7 @@ def playGame(noSave = False):
                 
                 x = object.x
                 y = object.y
-                if myMap[x][y].acid and object.Fighter and object.Fighter is not None:
+                if myMap[x][y].acid and object.Fighter and object.Fighter is not None and not object.flying:
                     object.Fighter.takeDamage(1, 'acid')
                     object.Fighter.acidify()
                 
@@ -12584,7 +12566,14 @@ def playGame(noSave = False):
                     if object.Fighter.acidifiedCooldown <= 0:
                         object.Fighter.acidified = False
                         object.Fighter.baseArmor = object.Fighter.BASE_ARMOR
-            
+                
+                if object.Fighter and player.Player.race == 'Reptilian' and not (object.x, object.y) in visibleTiles:
+                    print(object.name, 'is eligible for rept detection. dist = ', object.distanceTo(player))
+                    dice = randint(1, 100)
+                    print(dice)
+                    if object.distanceTo(player) <= player.Player.reptSightRange and dice <= player.Player.reptSightChance:
+                        print('monster is detected')
+                        monstersDetected[0].append(object)
             #ISN project
             #for object in objects:    
                 if object.Fighter and object.Fighter is not None: #If object is a creature
