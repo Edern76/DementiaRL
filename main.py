@@ -1964,16 +1964,16 @@ class Trait():
             player.Fighter.baseCritical += self.crit
             player.Fighter.BASE_CRITICAL += self.crit
             #player.Player.levelUpStats['crit'] += self.critPerLvl
-            player.Player.strength += self.stren
+            player.Player.baseStrength += self.stren
             player.Player.BASE_STRENGTH += self.stren
             #player.Player.levelUpStats['stren'] += self.strPerLvl
-            player.Player.dexterity += self.dex
+            player.Player.baseDexterity += self.dex
             player.Player.BASE_DEXTERITY += self.dex
             #player.Player.levelUpStats['dex'] += self.dexPerLvl
-            player.Player.vitality += self.vit
+            player.Player.baseVitality += self.vit
             player.Player.BASE_VITALITY += self.vit
             #player.Player.levelUpStats['vit'] += self.vitPerLvl
-            player.Player.willpower += self.will
+            player.Player.baseWillpower += self.will
             player.Player.BASE_WILLPOWER += self.will
             #player.Player.levelUpStats['will'] += self.willPerLvl
             player.Fighter.baseArmorPenetration += self.ap
@@ -2063,16 +2063,16 @@ class Trait():
             player.Fighter.baseCritical -= self.crit
             player.Fighter.BASE_CRITICAL -= self.crit
             #player.Player.levelUpStats['crit'] -= self.critPerLvl
-            player.Player.strength -= self.stren
+            player.Player.baseStrength -= self.stren
             player.Player.BASE_STRENGTH -= self.stren
             #player.Player.levelUpStats['stren'] -= self.strPerLvl
-            player.Player.dexterity -= self.dex
+            player.Player.baseDexterity -= self.dex
             player.Player.BASE_DEXTERITY -= self.dex
             #player.Player.levelUpStats['dex'] -= self.dexPerLvl
-            player.Player.vitality -= self.vit
+            player.Player.baseVitality -= self.vit
             player.Player.BASE_VITALITY -= self.vit
             #player.Player.levelUpStats['vit'] -= self.vitPerLvl
-            player.Player.willpower -= self.will
+            player.Player.baseWillpower -= self.will
             player.Player.BASE_WILLPOWER -= self.will
             #player.Player.levelUpStats['will'] -= self.willPerLvl
             player.Fighter.baseArmorPenetration -= self.ap
@@ -2141,8 +2141,33 @@ class Trait():
             cons.draw_str(x, self.y, '---', fg = color)
             cons.draw_str(x, self.y + 1, chr(92) + '__', fg = color)
 
+class unlockableTrait(Trait):
+    def __init__(self, name, description, type, x = 0, y = 0, underCursor = False, selectable = False, selected = False, allowsSelection = [],
+                 amount = 0, maxAmount = 1, tier = 1, power = (0, 0), acc = (0, 0), ev = (0, 0), arm = (0, 0), hp = (0, 0), mp = (0, 0), crit = (0, 0),
+                  stren = (0, 0), dex = (0, 0), vit = (0, 0), will = (0, 0), spells = None, load = 0, ap = (0, 0), stealth = 0, stam = (0, 0),
+                  requiredTraits = {}): #requiredTraits = {'player level': 5, 'Light weapons': 4}
+        
+        Trait.__init__(self, name, description, type, x, y, underCursor, selectable, selected, allowsSelection, amount, maxAmount, tier, power, acc, ev, arm, hp, mp, crit, stren, dex, vit, will, spells, load, ap, stealth, stam)
+        self.requiredTraits = requiredTraits
+    
+    def checkForRequirements(self):
+        if not self.selected:
+            unlocked = 0
+            required = list(self.requiredTraits.keys())
+            
+            for trait in required:
+                if trait == 'player level':
+                    if player.level >= self.requiredTraits[trait]:
+                        unlocked += 1
+                elif player.Player.getTrait(name = trait).amount >= self.requiredTraits[trait]:
+                    unlocked += 1
+            
+            if unlocked == len(required):
+                self.addTraitToPlayer()
+
 def initializeTraits():
     allTraits = []
+    unlockableTraits = []
     leftTraits = []
     rightTraits = []
     LEFT_X = (WIDTH // 4)
@@ -2306,7 +2331,26 @@ def initializeTraits():
         trait.y = TRAIT_Y + counter
         counter += 1
     
-    return allTraits, leftTraits, rightTraits, races, attributes, skills, classes, traits, skilled, human
+    def castShapeshift(caster = None, monsterTarget = None):
+        caster = player
+        for buff in caster.Fighter.buffList:
+            if buff.name == 'in wolf form':
+                caster.Player.shapeshifted = True
+                caster.Player.shapeshift = 'human'
+                buff.removeBuff()
+                return
+            elif buff.name == 'human':
+                caster.Player.shapeshifted = True
+                caster.Player.shapeshift = 'wolf'
+                buff.removeBuff()
+                return
+        
+    shapeshift = Spell(ressourceCost=10, cooldown = 100, useFunction=castShapeshift, name = 'Shapeshift', ressource='MP', type = 'racial')
+    controllableWerewolf = unlockableTrait('Shape control', 'You are able to shapeshift at will.', type = 'trait', spells = [shapeshift], requiredTraits={'player level': 3})
+    
+    unlockableTraits.extend([controllableWerewolf])
+    
+    return allTraits, leftTraits, rightTraits, races, attributes, skills, classes, traits, skilled, human, unlockableTraits
 
 def characterCreation():
     global createdCharacter
@@ -2480,7 +2524,7 @@ def characterCreation():
         counter += 1
     '''
     
-    allTraits, leftTraits, rightTraits, races, attributes, skills, classes, traits, skilled, human = initializeTraits()
+    allTraits, leftTraits, rightTraits, races, attributes, skills, classes, traits, skilled, human, unlockableTraits = initializeTraits()
     
     
     #index
@@ -2649,7 +2693,7 @@ def characterCreation():
                 if raceSelected and classSelected:
                     allTraits.extend(skills)
                     print(createdCharacter)
-                    return createdCharacter, allTraits, maxSkill - skillsPoints
+                    return createdCharacter, allTraits, maxSkill - skillsPoints, unlockableTraits
                 else:
                     playWavSound('error.wav')
                     error = True
@@ -4242,7 +4286,7 @@ class Spellcaster(Fleeing):
             self.wander()
 
 class Player:
-    def __init__(self, name, strength, dexterity, vitality, willpower, load, race, classes, allTraits, levelUpStats, baseHunger = BASE_HUNGER, speed = 'average', speedChance = 5, skillpoints = 0, baseStealth=0):
+    def __init__(self, name, strength, dexterity, vitality, willpower, load, race, classes, allTraits, levelUpStats, baseHunger = BASE_HUNGER, speed = 'average', speedChance = 5, skillpoints = 0, baseStealth=0, unlockableTraits = []):
         self.name = name
 
         self.baseStrength = strength
@@ -4268,7 +4312,9 @@ class Player:
         self.speed = speed #or 'slow' or 'fast'
         self.speedChance = speedChance
         self.hpTextColor = colors.darker_green
-
+        
+        self.unlockableTraits = unlockableTraits
+        
         self.skills = []
         for skill in self.allTraits:
             if skill.type == 'skill':
@@ -4386,10 +4432,19 @@ class Player:
         self.inHost = True
         self.hostDeath = self.HOST_DEATH
     
-    def getTrait(self, searchedType, name):
-        for trait in self.allTraits:
-            if trait.type == searchedType and trait.name == name:
-                return trait
+    def getTrait(self, searchedType = 'all', name = 'Trait'):
+        if searchedType == 'skill':
+            for trait in self.skills:
+                if trait.name == name:
+                    return trait
+        elif searchedType == 'trait':
+            for trait in self.traits:
+                if trait.name == name:
+                    return trait
+        elif searchedType == 'all':
+            for trait in self.allTraits:
+                if trait.name == name:
+                    return trait
         return 'not found'
 
 def drawHeaderAndValue(cons, x, y, header, value, headerColor = colors.amber, valueColor = colors.white, underline = True):
@@ -6561,6 +6616,8 @@ def checkLevelUp():
                 else:
                     choice = None
         '''
+        for trait in player.Player.unlockableTraits:
+            trait.checkForRequirements()
         
         if player.Player.getTrait('skill', 'Light weapons').amount >= 5 and player.Player.getTrait('trait', 'Dual wield') == 'not found':
             message('You are now proficient enough with light weapons to wield two at the same time!', colors.yellow)
@@ -10546,7 +10603,7 @@ def launchTutorial(prologueEsc = True):
             counter += 1
     '''
     
-    allTraits, leftTraits, rightTraits, races, attributes, skills, classes, traits, skilled, human = initializeTraits()
+    allTraits, leftTraits, rightTraits, races, attributes, skills, classes, traits, skilled, human, unlockableTraits = initializeTraits()
     toUpTraits = ['Muscular', 'Skilled', 'Tough', 'Knight', 'Human', 'Martial training', 'Physical training', 'Mental training', 'Magic ', 'Melee weaponry']
     
     allTraits.extend(skills)
@@ -10569,7 +10626,9 @@ def launchTutorial(prologueEsc = True):
                 newTrait.selectable = True
 
     LvlUp = {'power': 1, 'acc': 10, 'ev': 0, 'arm': 1, 'hp': 14, 'mp': 3, 'crit': 0, 'stren': 0, 'dex': 0, 'vit': 0, 'will': 0, 'ap': 0, 'stamina': 0}
-    playerComp = Player('Angus McFife', 5, 2, 5, 2, 45.0, 'Human', 'Knight', allTraits, LvlUp)
+    playerComp = Player('Angus McFife', 5, 2, 5, 2, 45.0, 'Human', 'Knight', allTraits, LvlUp, unlockableTraits=unlockableTraits
+                        
+                        )
     fighterComp = Fighter(hp = 160, power= 1, armor= 1, deathFunction=playerDeath, xp=0, evasion = 0, accuracy = 30, maxMP= 30, critical = 5)
     player = GameObject(MAP_WIDTH - 2, MID_MAP_HEIGHT, '@', Fighter = fighterComp, Player = playerComp, name = 'Angus McFife', color = (0, 210, 0))
     player.level = 1
@@ -10625,7 +10684,7 @@ def mainMenu():
                 if index == 0:
                     launchTutorial()
                 elif index == 1:
-                    (playerComponent, allTraits, skillpoints) = characterCreation()
+                    (playerComponent, allTraits, skillpoints, unlockableTraits) = characterCreation()
                     if playerComponent != 'cancelled':
                         for trait in allTraits:
                             if trait.type == 'race' and trait.selected:
@@ -10635,7 +10694,7 @@ def mainMenu():
                                 chosenClass = trait.name
                         name = enterName(chosenRace)
                         LvlUp = {'power': createdCharacter['powLvl'], 'acc': createdCharacter['accLvl'], 'ev': createdCharacter['evLvl'], 'arm': createdCharacter['armLvl'], 'hp': createdCharacter['hpLvl'], 'mp': createdCharacter['mpLvl'], 'crit': createdCharacter['critLvl'], 'stren': createdCharacter['strLvl'], 'dex': createdCharacter['dexLvl'], 'vit': createdCharacter['vitLvl'], 'will': createdCharacter['willLvl'], 'ap': createdCharacter['apLvl'], 'stamina': createdCharacter['stamLvl']}
-                        playComp = Player(name, playerComponent['stren'], playerComponent['dex'], playerComponent['vit'], playerComponent['will'], playerComponent['load'], chosenRace, chosenClass, allTraits, LvlUp, skillpoints=skillpoints, baseStealth=createdCharacter['stealth'])
+                        playComp = Player(name, playerComponent['stren'], playerComponent['dex'], playerComponent['vit'], playerComponent['will'], playerComponent['load'], chosenRace, chosenClass, allTraits, LvlUp, skillpoints=skillpoints, baseStealth=createdCharacter['stealth'], unlockableTraits=unlockableTraits)
                         playFight = Fighter(hp = playerComponent['hp'], power= playerComponent['power'], armor= playerComponent['arm'], deathFunction=playerDeath, xp=0, evasion = playerComponent['ev'], accuracy = playerComponent['acc'], maxMP= playerComponent['mp'], knownSpells=playerComponent['spells'], critical = playerComponent['crit'], armorPenetration = playerComponent['ap'], stamina=createdCharacter['stamina'])
                         player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = name, color = (0, 210, 0))
                         player.level = 1
@@ -12472,10 +12531,10 @@ def playGame(noSave = False):
                         def shapeshift(fighter, fromWolf = False, fromHuman = True):
                             if fromWolf:
                                 player.Player.shapeshift = 'human'
-                                object.Player.shapeshifted = True
+                                player.Player.shapeshifted = True
                             if fromHuman:
                                 player.Player.shapeshift = 'wolf'
-                                object.Player.shapeshifted = True
+                                player.Player.shapeshifted = True
                         
                         wild = player.Player.getTrait('trait', 'Wild instincts').selected
                         wolfCooldown = player.Player.wolf
