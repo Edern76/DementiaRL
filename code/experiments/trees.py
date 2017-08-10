@@ -41,6 +41,16 @@ class Square:
         else:
             tileList = [mapToUse[x][y] for x in range(self.x1, self.x2 + 1) for y in range(self.y1, self.y2 + 1)]
         return tileList
+    
+    def __str__(self):
+        return '{};{}; side = {}'.format(str(self.x1), str(self.y1), str(self.s))
+
+class SquareObject:
+    def __init__(self, squareComp, generateSmaller = False):
+        self.Square = squareComp
+        
+        if generateSmaller:
+            self.smallerSquareObject = SquareObject(squareComp = self.Square)
 
 def createLeaves(mapToUse):
     for x in range(MAP_WIDTH):
@@ -120,6 +130,16 @@ def clearanceMap(mapToUse):
     return mapToUse
 
 makeMap()
+'''
+squareComp = Square(10, 10, 3)
+fatherSquare = SquareObject(squareComp=squareComp, generateSmaller=True)
+print(squareComp)
+print(fatherSquare.Square)
+print(fatherSquare.smallerSquareObject.Square)
+fatherSquare.Square.s += 3
+print(fatherSquare.Square)
+print(fatherSquare.smallerSquareObject.Square)
+'''
 while not tdl.event.is_window_closed():
     root.clear()
     for x in range(MAP_WIDTH):

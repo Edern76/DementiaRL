@@ -28,6 +28,7 @@ import code.holeGen as holeGen
 
 from tkinter import *
 from tkinter.messagebox import * #For making obvious freaking error boxes when the console gets too bloated to read anything useful.
+from builtins import property
 
 
 
@@ -2942,7 +2943,7 @@ class Stairs:
 
 class GameObject:
     "A generic object, represented by a character"
-    def __init__(self, x, y, char, name, color = colors.white, blocks = False, Fighter = None, AI = None, Player = None, Ghost = False, flying = False, Item = None, alwaysVisible = False, darkColor = None, Equipment = None, pName = None, Essence = None, socialComp = None, shopComp = None, questList = [], Stairs = None, alwaysAlwaysVisible = False):
+    def __init__(self, x, y, char, name, color = colors.white, blocks = False, Fighter = None, AI = None, Player = None, Ghost = False, flying = False, Item = None, alwaysVisible = False, darkColor = None, Equipment = None, pName = None, Essence = None, socialComp = None, shopComp = None, questList = [], Stairs = None, alwaysAlwaysVisible = False, size = 1, sizeChar = [], sizeColor = [], sizeDarkColor = [], smallChar = None):
         self.x = x
         self.y = y
         self.char = char
@@ -2987,6 +2988,51 @@ class GameObject:
         self.questList = questList
         self.detectionStatus = '?'
         
+        self.owner = None
+        self.smallChar = smallChar
+        
+        self.size = size
+        self.sizeChar = sizeChar#a list of characters which will form the final object. The list needs to be created with this pattern in mind, as does sizeColor:
+                                #X 2 5
+                                #0 3 6
+                                #1 4 7
+        self.sizeColor = sizeColor
+        self.sizeDarkColor = sizeDarkColor
+        if self.size > 1:
+            global objects
+            sizeCompNum = self.size * self.size - 1
+            if not self.sizeChar:
+                self.sizeChar = []
+                for char in range(sizeCompNum):
+                    self.sizeChar.append(self.char)
+            if not self.sizeColor:
+                self.sizeColor = []
+                for color in range(sizeCompNum):
+                    self.sizeColor.append(self.color)
+            if not self.sizeDarkColor:
+                self.sizeDarkColor = []
+                for color in range(sizeCompNum):
+                    self.sizeDarkColor.append(self.color)
+            
+            self.sizeComponents = [] #a list of gameObjects linked to the father GameObject
+            maxX = self.size
+            maxY = maxX
+            i = 0
+            for x in range(maxX):
+                for y in range(maxY):
+                    if (x, y) != (0, 0):
+                        newComp = GameObject(self.x + x, self.y + y, char = self.sizeChar[i], name = self.name, color = self.sizeColor[i], blocks = self.blocks, Fighter = self.Fighter, AI = None, Player = None, Ghost = self.ghost, flying = self.flying, Item = None, alwaysVisible = self.alwaysAlwaysVisible, darkColor = self.sizeDarkColor, Equipment = None, pName = None, Essence = self.Essence, socialComp = self.socialComp, shopComp = self.shopComp, questList = self.questList, Stairs = None, alwaysAlwaysVisible = self.alwaysAlwaysVisible, size = 1, sizeChar = [], sizeColor = [], sizeDarkColor = [])
+                        newComp.owner = self
+                        self.sizeComponents.append(newComp)
+                        objects.append(newComp)
+                        i += 1
+            
+            for comp in self.sizeComponents:
+                print(comp.name)
+                
+        else:
+            self.sizeComponents = None
+        
         if self.Item:
             if self.Item.useText == 'Use' and self.Equipment:
                 self.Item.useText = 'Equip'
@@ -3024,39 +3070,72 @@ class GameObject:
         dx = int(round(dx / distance))
         dy = int(round(dy / distance))
         self.move(dx, dy)
-
-    def move(self, dx, dy):
+    
+    def checkForMove(self, x, y):
         if self.Fighter and (not self.Fighter.canTakeTurn or not self.Fighter.canMove):
-            if self != player:
-                pass
+            return False
+        if self.size > 1:
+            dx = x - self.x
+            dy = y - self.y
+            if isBlocked(x, y, True, self):
+                return False
+            for object in self.sizeComponents:
+                if isBlocked(object.x + dx, object.y + dy, True, self):
+                    return False
+        return True
+        
+    def move(self, dx, dy):
+        if not self.size > 1:
+            if self.Fighter and (not self.Fighter.canTakeTurn or not self.Fighter.canMove):
+                if self != player:
+                    pass
+                else:
+                    return 'didnt-take-turn'
+            elif not isBlocked(self.x + dx, self.y + dy) or self.ghost:
+                self.x += dx
+                self.y += dy
+                if self.Player:
+                    myMap[self.x][self.y].triggerFunc()
             else:
-                return 'didnt-take-turn'
-        elif not isBlocked(self.x + dx, self.y + dy) or self.ghost:
-            self.x += dx
-            self.y += dy
-            if self.Player:
-                myMap[self.x][self.y].triggerFunc()
+                if self.Player and self.Fighter and 'confused' in convertBuffsToNames(self.Fighter):
+                    message('You bump into a wall !')
+                elif self == player:
+                    return 'didnt-take-turn'
         else:
-            if self.Player and self.Fighter and 'confused' in convertBuffsToNames(self.Fighter):
-                message('You bump into a wall !')
-            elif self == player:
-                return 'didnt-take-turn'
+            moveable = self.checkForMove(self.x + dx, self.y + dy)
+            if moveable:
+                self.x += dx
+                self.y += dy
+                for monsterPart in self.sizeComponents:
+                    monsterPart.x += dx
+                    monsterPart.y += dy
     
     def moveTo(self, otherX, otherY):
-        if self.Fighter and (not self.Fighter.canTakeTurn or not self.Fighter.canMove):
-            pass
-        elif not isBlocked(otherX, otherY) or self.ghost:
-            self.x = int(otherX)
-            self.y = int(otherY)
-            if self.Player:
-                myMap[self.x][self.y].triggerFunc()
+        if self.size <= 1:
+            if self.Fighter and (not self.Fighter.canTakeTurn or not self.Fighter.canMove):
+                pass
+            elif not isBlocked(otherX, otherY) or self.ghost:
+                self.x = int(otherX)
+                self.y = int(otherY)
+                if self.Player:
+                    myMap[self.x][self.y].triggerFunc()
+            else:
+                if self.Player and self.Fighter and 'confused' in convertBuffsToNames(self.Fighter):
+                    message('You bump into a wall !')
+                elif self == player:
+                    return 'didnt-take-turn'
         else:
-            if self.Player and self.Fighter and 'confused' in convertBuffsToNames(self.Fighter):
-                message('You bump into a wall !')
-            elif self == player:
-                return 'didnt-take-turn'
+            moveable = self.checkForMove(otherX, otherY)
+            if moveable:
+                dx = otherX - self.x
+                dy = otherY - self.y
+                self.x = otherX
+                self.y = otherY
+                for monsterPart in self.sizeComponents:
+                    monsterPart.x += dx
+                    monsterPart.y += dy
     
-    def draw(self):
+    def basicDraw(self):
         allMonstersDetected = []
         for monsters in monstersDetected:
             allMonstersDetected.extend(monsters)
@@ -3066,10 +3145,16 @@ class GameObject:
                 if 'frozen' in convertBuffsToNames(self.Fighter):
                     bg = colors.light_violet
             con.draw_char(self.x, self.y, self.char, self.color, bg=bg)
-        elif self.alwaysVisible and myMap[self.x][self.y].explored:
-            con.draw_char(self.x, self.y, self.char, self.darkColor, bg=None)
         elif self.alwaysAlwaysVisible:
             con.draw_char(self.x, self.y, self.char, self.darkColor, bg=None)
+        elif self.alwaysVisible and myMap[self.x][self.y].explored:
+            con.draw_char(self.x, self.y, self.char, self.darkColor, bg=None)
+
+    def draw(self):
+        self.basicDraw()
+        if self.sizeComponents:
+            for comp in self.sizeComponents:
+                comp.basicDraw()
         
     def clear(self):
         con.draw_char(self.x, self.y, ' ', self.color, bg=None)
@@ -6696,7 +6781,7 @@ def isVisibleTile(x, y):
     else:
         return True
 
-def isBlocked(x, y): #With this function, making a check such as myMap[x][y].blocked is deprecated and should not be used anymore outside of this function (or FOV related stuff), since the latter does exactly the same job in addition to checking for blocking objects.
+def isBlocked(x, y, ignoreSelfSize = True, bigMonster = None): #With this function, making a check such as myMap[x][y].blocked is deprecated and should not be used anymore outside of this function (or FOV related stuff), since the latter does exactly the same job in addition to checking for blocking objects.
     try:
         if myMap[x][y].blocked:
             return True #If the Tile is already set as blocking, there's no point in making further checks
@@ -6709,7 +6794,14 @@ def isBlocked(x, y): #With this function, making a check such as myMap[x][y].blo
     
     for object in objects:
         try: #As all statements starting with this, ignore PyDev warning. However, please note that objects refers to the list of objects that we created and IS NOT defined by default in any library used (so don't call it out of the blue), contrary to object.
-            if object.blocks and object.x == x and object.y == y: #With this, we're checking every single object created, which might lead to performance issue. Fixing this could be one of many possible improvements, but this isn't a priority at the moment. 
+            if ignoreSelfSize and bigMonster is not None:
+                if object == bigMonster or object in bigMonster.sizeComponents:
+                    pass
+                elif (object.blocks or object == player) and object.x == x and object.y == y: #With this, we're checking every single object created, which might lead to performance issue. Fixing this could be one of many possible improvements, but this isn't a priority at the moment. 
+                    return True
+                else:
+                    print('object is not on the way: ', object.x, object.y)
+            elif object.blocks and object.x == x and object.y == y: #With this, we're checking every single object created, which might lead to performance issue. Fixing this could be one of many possible improvements, but this isn't a priority at the moment. 
                 return True
         except AttributeError:
             print(objects)
@@ -8916,6 +9008,15 @@ def makeHiddenTown(fall = False):
     objects.append(upStairs)
     upStairs.sendToBack()
     
+    class MoveTowardsAI:
+        def takeTurn(self):
+            if (self.owner.x, self.owner.y) in visibleTiles:
+                self.owner.moveTowards(player.x, player.y)
+    
+    bigFighter = Fighter(hp = 50, armor = 0, power = 0, accuracy=0, evasion=0, xp=0, deathFunction=monsterDeath)
+    bigThing = GameObject(MID_MAP_WIDTH, MID_MAP_HEIGHT, chr(179), 'The Big Fat Stuff', color = colors.blue, blocks = True, Fighter = bigFighter, AI = MoveTowardsAI(), size = 3, sizeChar=[chr(179), chr(192), None, chr(179), '^', chr(179), chr(179), chr(217)], smallChar = 'W')
+    objects.append(bigThing)
+    
     for x in range(MAP_WIDTH):
         for y in range(MAP_HEIGHT):
             myMap[x][y].unbreakable = True
@@ -10205,17 +10306,19 @@ def playerDeath(player):
         deathMenu()
 
     
-def monsterDeath(monster):
-    message(monster.name.capitalize() + ' is dead! You gain ' + str(monster.Fighter.xp) + ' XP.', colors.dark_sky) #TO-DO (PRIORITY) : Fix it so it shows only if you actually gained XP on kill
-    
-    if monster.Fighter.lootFunction is not None:
-        itemIndex = 0
-        for item in monster.Fighter.lootFunction:
-            loot = randint(1, 100)
-            if loot <= monster.Fighter.lootRate[itemIndex]:
-                lootItem(item, monster.x, monster.y)
-            itemIndex += 1
-
+def monsterDeath(monster, alreadyDropped = False):
+    #try:
+    if monster.Fighter and not alreadyDropped:
+        message(monster.name.capitalize() + ' is dead! You gain ' + str(monster.Fighter.xp) + ' XP.', colors.dark_sky) #TO-DO (PRIORITY) : Fix it so it shows only if you actually gained XP on kill
+        if monster.Fighter.lootFunction is not None:
+            itemIndex = 0
+            for item in monster.Fighter.lootFunction:
+                loot = randint(1, 100)
+                if loot <= monster.Fighter.lootRate[itemIndex]:
+                    lootItem(item, monster.x, monster.y)
+                itemIndex += 1
+    #except:
+    #    pass
     monster.char = '%'
     monster.color = colors.dark_red
     monster.blocks = False
@@ -10223,6 +10326,15 @@ def monsterDeath(monster):
     monster.trueName = 'remains of ' + monster.name
     monster.Fighter = None
     monster.sendToBack()
+    if monster.owner and not alreadyDropped:
+        monsterDeath(monster.owner, True)
+        for monsterPart in monster.owner.sizeComponents:
+            if monsterPart != monster:
+                monsterDeath(monsterPart, True)
+    if monster.sizeComponents:
+        for monsterPart in monster.sizeComponents:
+            monsterDeath(monsterPart, True)
+        
 
 def zombieDeath(monster):
     global objects
@@ -11025,10 +11137,13 @@ def Update():
         if object != player:
             if (object.x, object.y) in visibleTiles or (object.alwaysVisible and myMap[object.x][object.y].explored) or REVEL or object in allMonstersDetected:
                 object.draw()
-                if object.Fighter and (SIDE_PANEL_MODES[currentSidepanelMode] == 'enemies'):
+                if object.Fighter and (SIDE_PANEL_MODES[currentSidepanelMode] == 'enemies') and object.owner is None:
                     name = textwrap.wrap(object.name, SIDE_PANEL_TEXT_WIDTH)
+                    char = object.char
+                    if object.size > 1 and object.smallChar:
+                        char = object.smallChar
                     if not panelY + len(name) >= HEIGHT:
-                        sidePanel.draw_char(2, panelY, object.char, fg = object.color)
+                        sidePanel.draw_char(2, panelY, char, fg = object.color)
                         for line in name:
                             sidePanel.draw_str(4, panelY, line, fg = colors.white)
                             panelY += 1
