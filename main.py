@@ -760,7 +760,7 @@ class Buff: #also (and mainly) used for debuffs
 
 class Spell:
     "Class used by all active abilites (not just spells)"
-    def __init__(self,  ressourceCost, cooldown, useFunction, name, ressource = 'MP', type = 'Magic', magicLevel = 0, arg1 = None, arg2 = None, arg3 = None, hiddenName = None):
+    def __init__(self,  ressourceCost, cooldown, useFunction, name, ressource = 'MP', type = 'Magic', magicLevel = 0, arg1 = None, arg2 = None, arg3 = None, hiddenName = None, onRecoverLearn = []):
         self.ressource = ressource
         self.ressourceCost = ressourceCost
         self.maxCooldown = cooldown
@@ -776,6 +776,7 @@ class Spell:
             self.hiddenName = hiddenName
         else:
             self.hiddenName = name
+        self.onRecoverLearn = onRecoverLearn
 
     def updateSpellStats(self):
         if self.name == 'Fireball':
@@ -1649,7 +1650,74 @@ def castFly(caster=None, monsterTarget=None, ressources = {'stamina': 1}, cooldo
     flying.continuousFunction = lambda fighter: consumeRessource(fighter, buff = flying, ressources = ressources)
     flying.applyBuff(caster)
     return
-    
+
+def castExpandRoots(caster = None, monsterTarget = None, mode = 'AOE', AOERange = 3, cooldown = 5, damage = 3, regenRatio = 5, dummySpell = 'expandRootsDummy'): #or mode = 'regen'
+    global FOV_recompute, myMap
+    rootedTiles = []
+    rootedTilesChar = []
+    rooted = Buff('rooted', colors.dark_sepia, cooldown = cooldown + 3)
+    if caster is None or caster == player:
+        caster = player
+        rooted.applyBuff(caster)
+        if mode == 'AOE':
+            for tx in range(caster.x - AOERange - 1, caster.x + AOERange + 1):
+                for ty in range(caster.y - AOERange - 1, caster.y + AOERange + 1):
+                    if 0 < caster.distanceToCoords(tx, ty) <= AOERange and not myMap[tx][ty].blocked and not myMap[tx][ty].chasm:
+                        rootedTiles.append((tx, ty))
+                        rootedTilesChar.append(myMap[tx][ty].character)
+                        myMap[tx][ty].character = "'"
+            FOV_recompute = True
+            Update()
+            i = 0
+            for (x, y) in rootedTiles:
+                myMap[x][y].character = rootedTilesChar[i]
+                i += 1
+            time.sleep(0.150)
+            FOV_recompute = True
+            Update()
+            for object in objects:
+                if object.Fighter and (object.x, object.y) in rootedTiles:
+                    rooted = Buff('rooted', colors.dark_sepia, cooldown = cooldown, continuousFunction=lambda fighter: randomDamage(caster.name + "'s roots", fighter, 100, damage - 1, damage + 2, dmgMessage = '{} suffers {} damage from your roots!'.format(object.name.capitalize(), '{}'), dmgColor = colors.dark_sepia, msgPlayerOnly = False))
+                    rooted.applyBuff(object)
+        elif mode == 'regen':
+            hpRecover = int(regenRatio * caster.Fighter.maxHP/100)
+            formerHP = caster.Fighter.hp
+            caster.Fighter.hp += hpRecover
+            if caster.Fighter.hp > caster.Fighter.maxHP:
+                hpRecover = caster.Fighter.maxHP - formerHP
+                caster.Fighter.hp = caster.Fighter.maxHP
+            
+            mpRecover = int(regenRatio * caster.Fighter.maxMP/100)
+            formerMP = caster.Fighter.MP
+            caster.Fighter.MP += mpRecover
+            if caster.Fighter.MP > caster.Fighter.maxMP:
+                mpRecover = caster.Fighter.maxMP - formerMP
+                caster.Fighter.MP = caster.Fighter.maxMP
+            
+            stamRecover = int(regenRatio * caster.Fighter.maxStamina/100)
+            formerStam = caster.Fighter.stamina
+            caster.Fighter.stamina += stamRecover
+            if caster.Fighter.stamina > caster.Fighter.maxStamina:
+                stamRecover = caster.Fighter.maxStamina - formerStam
+                caster.Fighter.stamina = caster.Fighter.maxStamina
+            
+            message('You recover {} HP, {} MP and {} stamina thanks to the nutrients of the ground!'.format(str(hpRecover), str(mpRecover), str(stamRecover)), colors.light_green)
+                
+        for spell in caster.Fighter.allSpells:
+            print(spell.name)
+            if spell.name == 'Expand roots (damage)' or spell.name == 'Expand roots (regeneration)':
+                if spell in caster.Fighter.knownSpells:
+                    print('removing spell')
+                    caster.Fighter.knownSpells.remove(spell)
+                elif spell in caster.Fighter.spellsOnCooldown:
+                    caster.Fighter.spellsOnCooldown.remove(spell)
+        for dumSpell in spells:
+            if dumSpell.hiddenName == dummySpell:
+                learnSpell(dumSpell, True)
+                dumSpell.setOnCooldown(caster.Fighter)
+        
+        return
+
 def resetDjik():
     global djikVisitedTiles
     djikVisitedTiles = []
@@ -1906,6 +1974,9 @@ def profileDjik(caster = None, target = None):
 def detailedProfilerWrapperDjik(caster = None, target = None):
     calcDjikPlayer(profile = True)
 
+expandRootsDmg = Spell(ressourceCost=6, cooldown = 100, useFunction= castExpandRoots, name = 'Expand roots (damage)', ressource = 'Stamina', type = 'racial')
+expandRootsRegen = Spell(ressourceCost=6, cooldown = 100, useFunction= lambda caster, monsterTarget: castExpandRoots(caster, monsterTarget, mode = 'regen'), name = 'Expand roots (regeneration)', ressource = 'Stamina', type = 'racial')
+expandRootsDummy = Spell(ressourceCost=0, cooldown=100, useFunction = None, name = 'Expand roots', onRecoverLearn=[expandRootsDmg, expandRootsRegen], hiddenName= 'expandRootsDummy')
 insectFly = Spell(ressourceCost=4, cooldown= 50, useFunction = lambda caster, monsterTarget: castFly(caster, monsterTarget, spellHiddenName = 'insectFly'),
                   name = 'Fly', ressource='Stamina', type = 'racial', hiddenName='insectFly')
 leap = Spell(ressourceCost=5, cooldown = 30, useFunction=castMovement, name = 'Leap', ressource='Stamina', type = 'racial')
@@ -1920,7 +1991,7 @@ ice = Spell(ressourceCost = 9, cooldown = 5, useFunction = castFreeze, name = 'I
 ressurect = Spell(ressourceCost = 10, cooldown = 15, useFunction=castRessurect, name = "Dark ressurection", ressource = 'MP', type = "Occult", arg1 = 4)
 placeTag = Spell(ressourceCost = 0, cooldown = 1, useFunction=castPlaceTag, name = 'DEBUG : Place tag', ressource = 'MP', type = 'Occult')
 drawRect = Spell(ressourceCost = 0, cooldown = 1, useFunction=castDrawRectangle, name = 'DEBUG : Draw Rectangle', ressource = 'MP', type = 'Occult')
-envenom = Spell(ressourceCost= 3, cooldown = 20, useFunction=castEnvenom, name = 'Envenom weapons', ressource='MP', type = 'Racial')
+envenom = Spell(ressourceCost= 10, cooldown = 20, useFunction=castEnvenom, name = 'Envenom weapons', ressource='Stamina', type = 'Racial')
 drawAstarPath = Spell(ressourceCost = 0, cooldown = 1, useFunction=castAstarPath, name = 'DEBUG : Draw A* path', ressource = 'MP', type = 'Occult')
 teleport = Spell(ressourceCost = 0, cooldown = 1, useFunction=castTeleportTo, name = 'DEBUG : Teleport', ressource = 'HP', type = 'Occult')
 djik = Spell(ressourceCost= 0, cooldown = 1, useFunction=calcDjikPlayer, name = 'DEBUG : Calculate Djikstra Map', ressource='MP', type = 'Occult')
@@ -1929,7 +2000,7 @@ dispDjik = Spell(ressourceCost= 0, cooldown = 1, useFunction=toggleDrawDjik, nam
 detDjik = Spell(ressourceCost= 0, cooldown = 1, useFunction=detailedProfilerWrapperDjik, name = 'DEBUG : Calculate Djikstra Map (with detailed Profiler)', ressource='MP', type = 'Occult')
 yellowify = Spell(ressourceCost= 0, cooldown = 1, useFunction=castMakeTileYellow, name = 'DEBUG : Make tile look yellow', ressource='MP', type = 'Occult')
 
-spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport, djik, dispDjik, djikProf, detDjik, yellowify, ram, leap])
+spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport, djik, dispDjik, djikProf, detDjik, yellowify, ram, leap, expandRootsDmg, expandRootsDummy, expandRootsRegen])
 #_____________SPELLS_____________
 
 #______________CHARACTER GENERATION____________
@@ -2279,7 +2350,7 @@ def initializeTraits():
     cat = Trait('Felis', 'Felis, kinds of humanoid cats, are sneaky thieves and assassins. They usually move silently and can see in the dark.', type ='race', stren = (2, 0), vit = (-2, 0), spells = [leap], dex = (1, 0), stealth = 20) #, allowsSelection=[silence]
     rept = Trait('Reptilian', 'Reptilians are very agile but absurdly weak. Their scaled skin, however, sometimes provides them with natural camouflage, and they might use their natural venom on their daggers or arrows to make them even more deadly.', type = 'race', ev=(20, 0), stren=(-4, 0), dex=(2, 0), spells = [envenom]) #, allowsSelection=[venom, mimesis])
     demon = Trait('Demon Spawn', 'Demon spawns, a very uncommon breed of a human and a demon, are cursed with the heritage of  their demonic parents, which will make them grow disturbing mutations as they grow older and stronger.', type = 'race')
-    tree = Trait('Rootling', 'Rootlings, also called treants, are rare, sentient plants. They begin their life as a simple twig, but, with time, might become gigantic oaks.', type = 'race', stren=(-3, 0), dex=(-2, 0), vit=(-4, 0), will=(-3, 0))
+    tree = Trait('Rootling', 'Rootlings, also called treants, are rare, sentient plants. They begin their life as a simple twig, but, with time, might become gigantic oaks.', type = 'race', stren=(-3, 0), dex=(-2, 0), vit=(-4, 0), will=(-3, 0), spells = [expandRootsDmg, expandRootsRegen])
     wolf = Trait('Werewolf', 'Werewolves are a martyred and despised race. Very tough to kill, they are naturally stronger than basic humans and unconogreably shapeshift more or less regularly. However, older werewolves are used to these transformations and can even use them to their interests.', type = 'race', stren=(2, 0), dex=(1, 0), vit=(-2, 0), will=(-4, 0)) #, allowsSelection=[wild]
     devourer = Trait('Devourer', 'Devourers are strange, dreaded creatures from another dimension. Few have arrived in ours and even fewer have been described. These animals, half mantis, half lizard, are only born to kill and consume. Some of their breeds can even, after consuming anything - even a weapon - grow an organic replica of it.', type = 'race', vit = (-2, 0), will = (-10, 0))
     virus = Trait('Virus ', 'Viruses are the physically weakest race, but do not base their success on their own bodies. Indeed, they are able to infect another race, making it their host and fully controllable by the virus. What is more, the virus own physical attributes, instead of applying to it directly, rather modifies the host metabolism, potentially making it stronger or tougher. However, this take-over is very harmful for the host, who will eventually die. The virus must then find a new host to continue living.', type = 'race', ev = (999, 0))
@@ -2947,8 +3018,11 @@ class GameObject:
         self.move(dx, dy)
 
     def move(self, dx, dy):
-        if self.Fighter and not self.Fighter.canTakeTurn:
-            pass
+        if self.Fighter and (not self.Fighter.canTakeTurn or not self.Fighter.canMove):
+            if self != player:
+                pass
+            else:
+                return 'didnt-take-turn'
         elif not isBlocked(self.x + dx, self.y + dy) or self.ghost:
             self.x += dx
             self.y += dy
@@ -2961,7 +3035,7 @@ class GameObject:
                 return 'didnt-take-turn'
     
     def moveTo(self, otherX, otherY):
-        if self.Fighter and not self.Fighter.canTakeTurn:
+        if self.Fighter and (not self.Fighter.canTakeTurn or not self.Fighter.canMove):
             pass
         elif not isBlocked(otherX, otherY) or self.ghost:
             self.x = int(otherX)
@@ -3263,6 +3337,13 @@ class Fighter: #All NPCs, enemies and the player
     @property
     def canTakeTurn(self):
         if not 'frozen' in convertBuffsToNames(self) and not 'stunned' in convertBuffsToNames(self):
+            return True
+        else:
+            return False
+    
+    @property
+    def canMove(self):
+        if not 'rooted' in convertBuffsToNames(self) and not 'burdened' in convertBuffsToNames(self):
             return True
         else:
             return False
@@ -6115,7 +6196,7 @@ def moveOrAttack(dx, dy):
     if not 'confused' in convertBuffsToNames(player.Fighter):
         x = player.x + dx
         y = player.y + dy
-        if myMap[x][y].chasm and not myMap[x][y].wall and not player.flying:
+        if myMap[x][y].chasm and not myMap[x][y].wall and not player.flying and player.Fighter.canMove:
             temporaryBox('You fall deeper into the dungeon...')
             if dungeonLevel + 1 in currentBranch.bossLevels:
                 nextLevel(boss = True, fall = True)
@@ -8682,8 +8763,8 @@ def makeTutorialMap(level = 1):
         fighterComp = Fighter(hp = 20, armor = 0, power = 3, accuracy = 60, evasion = 15, xp = 350, deathFunction=monsterDeath, lootFunction= [halberd], lootRate=[100], toEquip=[halberd], description = "One of Zarg's fighters, he seems to be guarding the entrance to the tower.")
         guard2 = GameObject(20, 34, 'g', 'guard', colors.darker_han, blocks = True, Fighter=fighterComp, AI=BasicMonster(wanderer=False))
 
-        potion = GameObject(20, 24, '!', 'healing potion', colors.red, Item = Item(useFunction = lambda: castHeal(player.Fighter.maxHP), weight = 0.4, stackable=True, amount = 2, pic = 'redPotion.xp', description = "A potion that stimulates cell growth when ingested, which allows for wounds to heal signifcantly faster. However, it also notably increases risk of cancer, but if you're in a situation where you have to drink such a potion, this is probably one of the least of your worries.", identified=True, useText = 'Drink'), blocks = False)
-        potion2 = GameObject(21, 26, '!', 'healing potion', colors.red, Item = Item(useFunction = lambda: castHeal(player.Fighter.maxHP), weight = 0.4, stackable=True, amount = 2, pic = 'redPotion.xp', description = "A potion that stimulates cell growth when ingested, which allows for wounds to heal signifcantly faster. However, it also notably increases risk of cancer, but if you're in a situation where you have to drink such a potion, this is probably one of the least of your worries.", identified=True, useText = 'Drink'), blocks = False)
+        potion = GameObject(20, 24, chr(173), 'healing potion', colors.red, Item = Item(useFunction = lambda: castHeal(player.Fighter.maxHP), weight = 0.4, stackable=True, amount = 2, pic = 'redPotion.xp', description = "A potion that stimulates cell growth when ingested, which allows for wounds to heal signifcantly faster. However, it also notably increases risk of cancer, but if you're in a situation where you have to drink such a potion, this is probably one of the least of your worries.", identified=True, useText = 'Drink'), blocks = False)
+        potion2 = GameObject(21, 26, chr(173), 'healing potion', colors.red, Item = Item(useFunction = lambda: castHeal(player.Fighter.maxHP), weight = 0.4, stackable=True, amount = 2, pic = 'redPotion.xp', description = "A potion that stimulates cell growth when ingested, which allows for wounds to heal signifcantly faster. However, it also notably increases risk of cancer, but if you're in a situation where you have to drink such a potion, this is probably one of the least of your worries.", identified=True, useText = 'Drink'), blocks = False)
         bread = GameObject(17, 34, ',', "slice of bread", colors.yellow, Item = Item(useFunction=satiateHunger, arg1 = 200, arg2 = "a slice of bread", weight = 0.2, stackable=True, amount = 5, description = "This has probably been lying on the ground for ages, but you'll have to deal with it if you don't want to starve.", itemtype = 'food', useText = 'Eat'), blocks = False, pName = "slices of bread") 
         
         objects = [player, guard, potion, potion2, bread, guard2]
@@ -9383,9 +9464,9 @@ def createPotion(x, y):
     if unIdentifiedName in identifiedItems:
         identified = True
     if potionChoice == 'heal':
-        potion = GameObject(x, y, '!', 'healing potion', color, Item = Item(useFunction = castHeal, weight = 0.4, stackable=True, amount = randint(1, 2), pic = pic, description = "A potion that stimulates cell growth when ingested, which allows for wounds to heal signifcantly faster. However, it also notably increases risk of cancer, but if you're in a situation where you have to drink such a potion, this is probably one of the least of your worries.", unIDName=unIdentifiedName, identified=identified, unIDpName=pName, unIDdesc = desc), blocks = False)
+        potion = GameObject(x, y, chr(173), 'healing potion', color, Item = Item(useFunction = castHeal, weight = 0.4, stackable=True, amount = randint(1, 2), pic = pic, description = "A potion that stimulates cell growth when ingested, which allows for wounds to heal signifcantly faster. However, it also notably increases risk of cancer, but if you're in a situation where you have to drink such a potion, this is probably one of the least of your worries.", unIDName=unIdentifiedName, identified=identified, unIDpName=pName, unIDdesc = desc), blocks = False)
     if potionChoice == 'mana':
-        potion = GameObject(x, y, '!', 'mana regeneration potion', color, Item = Item(useFunction = castRegenMana, arg1 = 10, weight = 0.4, stackable = True, pic = pic, description = "The awkward look of this potion scared more than one novice mage, but it actually tastes quite good and has no other short-term effect other than replenishing your life-force. However, the [PLACEHOLDER  WORLD (the 'normal' one, not Realm of Madness) NAME]'s Guild of Alchemists is still debating about whether or not it causes detrimental long-term effects.", unIDName=unIdentifiedName, identified=identified, unIDpName=pName, unIDdesc = desc), blocks = False)
+        potion = GameObject(x, y, chr(173), 'mana regeneration potion', color, Item = Item(useFunction = castRegenMana, arg1 = 10, weight = 0.4, stackable = True, pic = pic, description = "The awkward look of this potion scared more than one novice mage, but it actually tastes quite good and has no other short-term effect other than replenishing your life-force. However, the [PLACEHOLDER  WORLD (the 'normal' one, not Realm of Madness) NAME]'s Guild of Alchemists is still debating about whether or not it causes detrimental long-term effects.", unIDName=unIdentifiedName, identified=identified, unIDpName=pName, unIDdesc = desc), blocks = False)
     potion.Item.useText = 'Drink'
     return potion
 
@@ -12224,10 +12305,21 @@ def playTutorial():
                             if spell.curCooldown < 0:
                                 spell.curCooldown = 0
                             if spell.curCooldown == 0:
-                                object.Fighter.spellsOnCooldown.remove(spell)
-                                object.Fighter.knownSpells.append(spell)
-                                if object == player:
-                                    message(spell.name + " is now ready.")
+                                print('{} spell is at 0 cooldown. On recover learn:'.format(spell.name), spell.onRecoverLearn)
+                                if not spell.onRecoverLearn:
+                                    print('spell has no onrecoverlearn')
+                                    object.Fighter.spellsOnCooldown.remove(spell)
+                                    object.Fighter.knownSpells.append(spell)
+                                    if object == player:
+                                        message(spell.name + " is now ready.")
+                                else:
+                                    print('spell has some recoverlearn:')
+                                    if object == player:
+                                        message(spell.name + " is now ready.")
+                                    for newSpell in spell.onRecoverLearn:
+                                        print(newSpell.name)
+                                        object.Fighter.knownSpells.append(newSpell)
+                                    object.Fighter.spellsOnCooldown.remove(spell)
                     except Exception as error:
                         traceback.print_exc()
                         message("OMG SPELLS NOT WORKING SEE CONSOLE", colors.red)
@@ -12464,10 +12556,17 @@ def playGame(noSave = False):
                             if spell.curCooldown < 0:
                                 spell.curCooldown = 0
                             if spell.curCooldown == 0:
-                                object.Fighter.spellsOnCooldown.remove(spell)
-                                object.Fighter.knownSpells.append(spell)
-                                if object == player:
-                                    message(spell.name + " is now ready.")
+                                if not spell.onRecoverLearn:
+                                    object.Fighter.spellsOnCooldown.remove(spell)
+                                    object.Fighter.knownSpells.append(spell)
+                                    if object == player:
+                                        message(spell.name + " is now ready.")
+                                else:
+                                    if object == player:
+                                        message(spell.name + " is now ready.")
+                                    for newSpell in spell.onRecoverLearn:
+                                        object.Fighter.knownSpells.append(newSpell)
+                                    object.Fighter.spellsOnCooldown.remove(spell)
                     except Exception as error:
                         traceback.print_exc()
                         message("OMG SPELLS NOT WORKING SEE CONSOLE", colors.red)
