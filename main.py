@@ -134,16 +134,22 @@ CON_HEIGHT = HEIGHT - PANEL_HEIGHT
 MID_CON_HEIGHT = int(CON_HEIGHT // 2)
 PANEL_Y = HEIGHT - PANEL_HEIGHT
 
+LOOK_HEIGHT = PANEL_HEIGHT
+LOOK_Y = PANEL_Y
+LOOK_WIDTH = 21 #Default: 15
+LOOK_X = MAP_WIDTH - LOOK_WIDTH + 1
+
 SIDE_PANEL_WIDTH = WIDTH - MAP_WIDTH #Default: WIDTH - PANEL_WIDTH
 SIDE_PANEL_X = MAP_WIDTH
 SIDE_PANEL_Y = 0
 SIDE_PANEL_MODES = ['enemies', 'items', 'inventory', 'equipment', 'spells', 'buffs', 'stealth']
 currentSidepanelMode = 0
 SIDE_PANEL_TEXT_WIDTH = SIDE_PANEL_WIDTH - 5
+SIDE_PANEL_INFO_Y = 4 #Default: 5
 
-MSG_X = BAR_WIDTH + 10 #Default : BAR_WIDTH + 10
+MSG_X = BAR_WIDTH + 9 #Default : BAR_WIDTH + 10
 MSG_WIDTH = WIDTH - BAR_WIDTH - 10 - 40 #Default : WIDTH - BAR_WIDTH - 10 - 40
-MSG_HEIGHT = PANEL_HEIGHT - 1 #Default : PANEL_HEIGHT - 1
+MSG_HEIGHT = PANEL_HEIGHT - 2 #Default : PANEL_HEIGHT - 1
 
 BUFF_WIDTH = 30 #Default : 30
 BUFF_X = WIDTH - 35 #Default : WIDTH - 35
@@ -186,6 +192,7 @@ if (__name__ == '__main__' or __name__ == 'main__main__') and not consolesDispla
     con = NamedConsole('con', WIDTH, HEIGHT)
     panel = NamedConsole('panel', WIDTH, PANEL_HEIGHT)
     sidePanel = NamedConsole('side panel', SIDE_PANEL_WIDTH, HEIGHT)
+    lookPanel = NamedConsole('look panel', LOOK_WIDTH, LOOK_HEIGHT)
     consolesDisplayed = True
 else:
     print(__name__)
@@ -193,6 +200,7 @@ else:
     con = None
     panel = None
     sidePanel = None
+    lookPanel = None
 # - Consoles
 
 FOV_recompute = True
@@ -2558,8 +2566,8 @@ def characterCreation():
         
         skillsPoints = 0
         maxSkill = 1
-        #if skilled.selected:
-        #    maxSkill=2
+        if human.selected:
+            maxSkill=3
         for skill in skills:
             skillsPoints += skill.amount
         print(skillsPoints)
@@ -2719,10 +2727,10 @@ def characterCreation():
         if key.keychar.upper() == 'BACKSPACE':
             if index != maxIndex and index != maxIndex - 1:
                 trait = allTraits[index]
-                #if trait == skilled or (trait == human and skilled.selected):
-                #    for skill in skills:
-                #        if skill.selected:
-                #            skill.removeBonus()
+                if trait == human: # or (trait == human and skilled.selected):
+                    for skill in skills:
+                        if skill.selected:
+                            skill.removeBonus()
                 if trait.selected:
                     trait.removeBonus()
             else:
@@ -4538,7 +4546,7 @@ def displayCharacter():
         window.draw_char(kMax, lMax, chr(217))
         if page == 1:
             window.draw_str(5, 1, player.Player.race + ' ' + player.Player.classes, fg = colors.amber)
-            window.draw_str(width - 1, 1, chr(26), colors.green)
+            window.draw_str(width - 1, 1, chr(26), fg = colors.black, bg = colors.amber)
             renderBar(window, 1, 3, BAR_WIDTH, 'EXP', player.Fighter.xp, levelUp_xp, colors.desaturated_cyan, colors.dark_gray)
             renderBar(window, 1, 5, BAR_WIDTH, 'Hunger', player.Player.hunger, BASE_HUNGER, colors.desaturated_lime, colors.dark_gray)
             
@@ -4568,8 +4576,8 @@ def displayCharacter():
             '''
         elif page == 2:
             window.draw_str(5, 1, 'Traits:', fg = colors.amber)
-            window.draw_str(0, 1, chr(27), colors.green)
-            window.draw_str(width - 1, 1, chr(26), colors.green)
+            window.draw_str(0, 1, chr(27), fg = colors.black, bg = colors.amber)
+            window.draw_str(width - 1, 1, chr(26), fg = colors.black, bg = colors.amber)
             y = 3
             x = 1
             for trait in player.Player.traits:
@@ -4581,7 +4589,7 @@ def displayCharacter():
                     y += 2
         else:
             window.draw_str(5, 1, 'Absorbed Essences:', fg = colors.amber)
-            window.draw_str(0, 1, chr(27), colors.green)
+            window.draw_str(0, 1, chr(27), fg = colors.black, bg = colors.amber)
             y = 3
             index = 0
             values = list(player.Player.essences.values())
@@ -10317,9 +10325,9 @@ def displayLog(height):
                 y += 1
             
             if curStartIndex > 0:
-                window.draw_char(kMax, 1, '^', colors.green)
+                window.draw_char(kMax, 1, chr(24), fg = colors.black, bg = colors.amber)
             if curStartIndex + displayableHeight < lastMsgIndex:
-                window.draw_char(kMax, lMax - 1, 'v', colors.green)
+                window.draw_char(kMax, lMax - 1, chr(25), fg = colors.black, bg = colors.amber)
         windowX = MID_WIDTH - int(width/2)
         windowY = MID_HEIGHT - int(height/2)
         root.blit(window, windowX, windowY, width, height, 0, 0)
@@ -11005,11 +11013,12 @@ def Update():
 
     panel.clear(fg=colors.white, bg=colors.black)
     sidePanel.clear(fg = colors.white, bg = colors.black)
+    lookPanel.clear(fg = colors.white, bg = colors.black)
     
     allMonstersDetected = []
     for monsters in monstersDetected:
         allMonstersDetected.extend(monsters)
-    panelY = 7
+    panelY = 6
     for object in objects:
         if object != player:
             if (object.x, object.y) in visibleTiles or (object.alwaysVisible and myMap[object.x][object.y].explored) or REVEL or object in allMonstersDetected:
@@ -11034,13 +11043,51 @@ def Update():
                 #    for sign in object.AI.chargePathSigns:
                 #        sign.draw()
     player.draw()
-    for x in range(WIDTH):
-        if x ==0:
-            con.draw_char(x, PANEL_Y - 1, chr(205))
-        else:
-            con.draw_char(x, PANEL_Y - 1, chr(196))
     
-
+    for x in range(WIDTH):
+        con.draw_char(x, PANEL_Y - 1, chr(196))
+    con.draw_char(MSG_X - 2, PANEL_Y - 1, chr(254), colors.amber)
+    con.draw_char(MSG_X - 3, PANEL_Y - 1, chr(254), colors.amber)
+    con.draw_char(MSG_X + MSG_WIDTH + 1, PANEL_Y - 1, chr(254), colors.amber)
+    con.draw_char(MSG_X + MSG_WIDTH + 2, PANEL_Y - 1, chr(254), colors.amber)
+    con.draw_char(0, PANEL_Y - 1, chr(254), colors.amber)
+    con.draw_char(WIDTH - 1, PANEL_Y - 1, chr(254), colors.amber)
+    
+    con.draw_str(MSG_X + MSG_WIDTH//2 - 2, PANEL_Y - 1, 'LOG', colors.darker_amber, colors.amber)
+    con.draw_str(LOOK_X + LOOK_WIDTH//2 - 2, PANEL_Y - 1, 'LOOK', colors.darker_amber, colors.amber)
+    con.draw_str(MSG_X//2 - 4, PANEL_Y - 1, 'STATUS', colors.darker_amber, colors.amber)
+    
+    for py in range(PANEL_HEIGHT):
+        panel.draw_char(MSG_X - 2, py, chr(179))
+        panel.draw_char(MSG_X - 3, py, chr(179))
+        panel.draw_char(MSG_X + MSG_WIDTH + 1, py, chr(179))
+    panel.draw_char(MSG_X - 2, PANEL_HEIGHT - 1, chr(254), colors.amber)
+    panel.draw_char(MSG_X - 3, PANEL_HEIGHT - 1, chr(254), colors.amber)
+    panel.draw_char(MSG_X + MSG_WIDTH + 1, PANEL_HEIGHT - 1, chr(254), colors.amber)
+        
+    '''
+    for x in range(WIDTH):
+        con.draw_char(x, PANEL_Y - 1, chr(196))
+    con.draw_char(MSG_X - 2, PANEL_Y - 1, chr(217), colors.amber)
+    con.draw_char(MSG_X - 3, PANEL_Y - 1, chr(192), colors.amber)
+    con.draw_char(MSG_X + MSG_WIDTH + 1, PANEL_Y - 1, chr(192), colors.amber)
+    con.draw_char(MSG_X + MSG_WIDTH + 2, PANEL_Y - 1, chr(217), colors.amber)
+    
+    con.draw_str(MSG_X + MSG_WIDTH//2 - 2, PANEL_Y - 1, 'LOG', colors.darker_amber, colors.amber)
+    
+    for py in range(PANEL_HEIGHT):
+        panel.draw_char(MSG_X - 2, py, chr(179))
+        panel.draw_char(MSG_X + MSG_WIDTH + 1, py, chr(179))
+    for px in range(MSG_X - 1, PANEL_WIDTH):
+        panel.draw_char(px, 0, chr(196))
+        panel.draw_char(px, PANEL_HEIGHT - 1, chr(196))
+    panel.draw_char(MSG_X - 2, 0, chr(217), colors.amber)
+    panel.draw_char(MSG_X - 3, 0, chr(192), colors.amber)
+    panel.draw_char(MSG_X - 2, PANEL_HEIGHT - 1, chr(191), colors.amber)
+    panel.draw_char(MSG_X + MSG_WIDTH + 1, PANEL_HEIGHT - 1, chr(218), colors.amber)
+    panel.draw_char(MSG_X + MSG_WIDTH + 1, 0, chr(192), colors.amber)
+    panel.draw_str(MSG_X + MSG_WIDTH//2 - 2, 0, 'LOG', colors.darker_amber, colors.amber)
+    '''
     '''
     if bossTiles:
         for tile in bossTiles:
@@ -11058,38 +11105,55 @@ def Update():
     #panel.draw_str(1, 3, 'Dungeon level: ' + str(dungeonLevel), colors.white)
     panel.draw_str(1, 7, 'Player level:', colors.amber)
     panel.draw_str(15, 7, str(player.level), colors.white)
-    panel.draw_str(1, 9, 'Floor:', colors.amber)
-    panel.draw_str(9, 9, str(dungeonLevel), colors.white)
-    panel.draw_str(10 + len(str(dungeonLevel)), 9, chr(179) + ' Dungeon:', colors.amber)
-    panel.draw_str(21 + len(str(dungeonLevel)), 9, currentBranch.name, colors.white)
-    panel.draw_str(1, 11, 'Money: ', colors.amber)
-    panel.draw_str(8, 11, str(player.Player.money), colors.white)
+    panel.draw_str(1, 9, 'Dungeon:', colors.amber)
+    panel.draw_str(10, 9, currentBranch.name, colors.white)
+    panel.draw_str(1, 11, 'Floor:', colors.amber)
+    panel.draw_str(9, 11, str(dungeonLevel), colors.white)
+    panel.draw_str(1, 13, 'Money: ', colors.amber)
+    panel.draw_str(8, 13, str(player.Player.money), colors.white)
     renderBar(panel, 1, 1, BAR_WIDTH, 'HP', player.Fighter.hp, player.Fighter.maxHP, player.color, colors.dark_gray, textColor = player.Player.hpTextColor)
     renderBar(panel, 1, 3, BAR_WIDTH, 'MP', player.Fighter.MP, player.Fighter.maxMP, colors.blue, colors.dark_gray, colors.darkest_blue)
     renderBar(panel, 1, 5, BAR_WIDTH, 'Stamina', player.Fighter.stamina, player.Fighter.maxStamina, colors.lighter_yellow, colors.dark_grey, colors.darker_yellow)
 
     sidePanel.draw_str(2, 1, '?: Help', colors.green)
     for y in range(HEIGHT):
-        if y == 0:
-            sidePanel.draw_char(0, y, chr(186))
-        elif y != PANEL_Y - 1:
+        #if y == 0:
+        #    sidePanel.draw_char(0, y, chr(186))
+        if y != SIDE_PANEL_INFO_Y and y != PANEL_Y - 1 and y != 0:
             sidePanel.draw_char(0, y, chr(179), colors.white)
         else:
-            sidePanel.draw_char(0, y, chr(188), colors.white)
-            break
+            sidePanel.draw_char(0, y, chr(254), colors.amber)
+            
     # Look code
+    for ly in range(LOOK_HEIGHT):
+        lookPanel.draw_char(0, ly, chr(179), fg = colors.white)
+        lookPanel.draw_char(LOOK_WIDTH - 1, ly, chr(179), fg = colors.white)
+    lookPanel.draw_char(0, LOOK_HEIGHT - 1, chr(254), fg = colors.amber)
+    lookPanel.draw_char(LOOK_WIDTH - 1, LOOK_HEIGHT - 1, chr(254), fg = colors.amber)
+    
     if gameState == 'looking' and lookCursor != None:
         global lookCursor
         lookCursor.draw()
-        panel.draw_str(1, 0, GetNamesUnderLookCursor(), bg=None, fg = colors.yellow)
+        text = GetNamesUnderLookCursor()
+        print(text)
+        lookPanel.draw_str(1, 1, textwrap.wrap(text, LOOK_WIDTH - 2), fg = colors.white, bg = colors.black)
+    
     
     #side panel modes
     mode = SIDE_PANEL_MODES[currentSidepanelMode]
-    sidePanel.draw_str(2, 5, mode.capitalize()+':', colors.amber, None)
-    for dx in range(len(mode) + 1):
-        sidePanel.draw_char(2 + dx, 6, chr(249), colors.amber)
+    leftX = SIDE_PANEL_WIDTH//2 - len(mode)//2
+    rightX = leftX + len(mode)
+    sidePanel.draw_str(leftX, SIDE_PANEL_INFO_Y, mode.upper(), fg = colors.darker_amber, bg = colors.amber)
+    for sx in range(1, leftX):
+        sidePanel.draw_str(sx, SIDE_PANEL_INFO_Y, chr(196), fg = colors.white)
+    for sx in range(rightX, SIDE_PANEL_WIDTH):
+        sidePanel.draw_str(sx, SIDE_PANEL_INFO_Y, chr(196), fg = colors.white)
+    sidePanel.draw_char(SIDE_PANEL_WIDTH - 1, SIDE_PANEL_INFO_Y, chr(254), colors.amber)
+        
+    #for dx in range(len(mode) + 1):
+    #    sidePanel.draw_char(2 + dx, 6, chr(249), colors.amber)
     if mode == 'equipment':
-        panelY = 7
+        panelY = 6
         for equipment in equipmentList:
             name = textwrap.wrap(equipment.name, SIDE_PANEL_TEXT_WIDTH)
             if not panelY + len(name) >= HEIGHT:
@@ -11099,7 +11163,7 @@ def Update():
                     panelY += 1
                 panelY += 1
     if mode == 'buffs':
-        panelY = 7
+        panelY = 6
         selfAware = player.Player.getTrait('trait', 'Self aware') != 'not found'
         for buff in player.Fighter.buffList:
             if buff.showBuff:
@@ -11114,7 +11178,7 @@ def Update():
                         panelY += 1
                     panelY += 1
     if mode == 'inventory':
-        panelY = 7
+        panelY = 6
         for item in inventory:
             name = textwrap.wrap(item.name, SIDE_PANEL_TEXT_WIDTH)
             if not panelY + len(name) >= HEIGHT:
@@ -11124,7 +11188,7 @@ def Update():
                     panelY += 1
                 panelY += 1
     if mode == 'stealth':
-        panelY = 7
+        panelY = 6
         detected = False
         numberEnemies = 0
         for object in objects:
@@ -11137,7 +11201,7 @@ def Update():
         else:
             sidePanel.draw_str(2, panelY, 'Spotted! ({})'.format(str(numberEnemies)), fg = colors.red)
     if mode == 'spells':
-        panelY = 7
+        panelY = 6
         allSpells = []
         allSpells.extend(player.Fighter.knownSpells)
         allSpells.extend(player.Fighter.spellsOnCooldown)
@@ -11156,10 +11220,11 @@ def Update():
                 panelY += 1
     root.blit(sidePanel, SIDE_PANEL_X, SIDE_PANEL_Y, SIDE_PANEL_WIDTH, HEIGHT, 0, 0)
     root.blit(panel, 0, PANEL_Y, PANEL_WIDTH, PANEL_HEIGHT, 0, 0)
+    root.blit(lookPanel, LOOK_X, LOOK_Y, LOOK_WIDTH, LOOK_HEIGHT, 0, 0)
     
 def chat():
     '''
-    Miaou
+    Meow
     '''
     target = targetDirection()
     if target == 'cancelled':
@@ -11185,7 +11250,7 @@ def chat():
             tree.currentScreen = copy(tree.origScreen)
             #assert isinstance(tree.currentScreen, dial.DialogScreen)
             state = 'starting'
-            if tutorial:
+            if tutorial and NPC.name == 'General Guillem':
                 global hasSpokenToGeneral
                 hasSpokenToGeneral = True
             while state != 'END':
@@ -11198,6 +11263,7 @@ def chat():
                     #tree.currentScreen = NPC.questList[0].screenGive
                     pass
                 con.clear()
+                drawCentered(con, y = 2, text = NPC.name, fg = NPC.color)
                 dialLength = len(tree.currentScreen.dialogText) - 1
                 ty = (CON_HEIGHT // 2) - (dialLength // 2)
                 for line in tree.currentScreen.dialogText:
@@ -12264,7 +12330,7 @@ def playTutorial():
             '''
             
             if displayedGeneral and not displayedLog:
-                displayTip('Do not forget to regularly check the message log for additional informations about your surroundings.', MID_WIDTH, MAP_HEIGHT - 2, True, 'down')
+                displayTip('Do not forget to regularly check the message log for additional informations about your surroundings.', MSG_X + MSG_WIDTH//2 - 1, MAP_HEIGHT - 2, True, 'down')
                 displayedLog = True
             for object in inventory:
                 if object.Item and not displayedInventory:
