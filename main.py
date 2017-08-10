@@ -8121,7 +8121,7 @@ def removeAllChasms():
             myMap[x][y].chasm = False
 
 
-def makeMap(generateChasm = True, generateHole = False, fall = False, temple = False):
+def makeMap(generateChasm = True, generateHole = False, fall = False, temple = False, genPlayer = True):
     global myMap, noCheckTiles, stairs, objects, upStairs, bossDungeonsAppeared, color_dark_wall, color_light_wall, color_dark_ground, color_light_ground, color_dark_gravel, color_light_gravel, townStairs, gluttonyStairs, stairs, upStairs, nemesisList, roomTiles, tunnelTiles, unchasmable, rooms, wrathStairs, maxRooms, roomMaxSize, roomMinSize, bossTiles
     regen = True
     while regen:
@@ -8206,7 +8206,7 @@ def makeMap(generateChasm = True, generateHole = False, fall = False, temple = F
                 (new_x, new_y) = newRoom.center()
      
                 if numberRooms == 0:
-                    if not fall:
+                    if not fall and genPlayer:
                         player.x = new_x
                         player.y = new_y
                     for x in range(newRoom.x1 + 1, newRoom.x2):
@@ -8274,13 +8274,14 @@ def makeMap(generateChasm = True, generateHole = False, fall = False, temple = F
         print("DONE IDING")
         r = 0
         roomCounter = 0
-        for room in rooms:
-            roomCounter += 1
-            print("ROOMS LENGTH = {} AND SWE ARE AT THE {}TH TIME PLACING FREAKING OBJECTS".format(len(rooms), roomCounter))
-            if r == 0:
-                placeObjects(room, True)
-            else:
-                placeObjects(room)
+        if genPlayer:
+            for room in rooms:
+                roomCounter += 1
+                print("ROOMS LENGTH = {} AND SWE ARE AT THE {}TH TIME PLACING FREAKING OBJECTS".format(len(rooms), roomCounter))
+                if r == 0:
+                    placeObjects(room, True)
+                else:
+                    placeObjects(room)
         
         print("DONE ITEMS")
         
@@ -8337,10 +8338,11 @@ def makeMap(generateChasm = True, generateHole = False, fall = False, temple = F
                             break
                     (x, y) = room.center()
                     wrongCentre = False
-                    for object in objects:
-                        if object.x == x and object.y == y:
-                            wrongCentre = True
-                            break
+                    if genPlayer:
+                        for object in objects:
+                            if object.x == x and object.y == y:
+                                wrongCentre = True
+                                break
                     if not wrongCentre and not chasmedRoom:
                         newStairs = GameObject(x, y, '>', 'stairs to ' + branch.name, branch.lightStairsColor, alwaysVisible = True, darkColor = branch.darkStairsColor, Stairs=Stairs('down', currentBranch, branch))
                         objects.append(newStairs)
@@ -11032,7 +11034,10 @@ def Update():
                             panelY += 1
                         panelY += 1
                 if object.Item and SIDE_PANEL_MODES[currentSidepanelMode] == 'items':
-                    name = textwrap.wrap(object.name, SIDE_PANEL_TEXT_WIDTH)
+                    name = object.name
+                    if object.Item.amount > 1:
+                        name += ' ({})'.format(str(object.Item.amount))
+                    name = textwrap.wrap(name, SIDE_PANEL_TEXT_WIDTH)
                     if not panelY + len(name) >= HEIGHT:
                         sidePanel.draw_char(2, panelY, object.char, fg = object.color)
                         for line in name:
@@ -11136,7 +11141,12 @@ def Update():
         lookCursor.draw()
         text = GetNamesUnderLookCursor()
         print(text)
-        lookPanel.draw_str(1, 1, textwrap.wrap(text, LOOK_WIDTH - 2), fg = colors.white, bg = colors.black)
+        text = textwrap.wrap(text, LOOK_WIDTH - 2)
+        print(text)
+        ly = 0
+        for line in text:
+            lookPanel.draw_str(1, 1 + ly, line, colors.white)
+            ly += 1
     
     
     #side panel modes

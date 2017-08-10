@@ -1,7 +1,8 @@
-import tdlib, colors, copy, pdb, traceback, os, sys, time
+import colors, copy, pdb, traceback, os, sys, time
 from random import *
 from copy import deepcopy
 from code.custom_except import *
+import tdlib as tdl
 
 
 WIDTH, HEIGHT, LIMIT = 150, 80, 20

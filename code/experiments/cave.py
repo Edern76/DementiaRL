@@ -1,7 +1,8 @@
-import tdlib, colors, copy, pdb, traceback, os, sys, time
+import colors, copy, pdb, traceback, os, sys, time
 from random import *
 from colors import darker_sepia
 from code.custom_except import *
+import tdlib as tdl
 
 
 WIDTH, HEIGHT, LIMIT = 150, 80, 20
@@ -558,6 +559,9 @@ def generateMap():
         
         connectRooms(rooms)
         connectRooms(rooms, True)
+        #refreshEmptyTiles()
+        #time.sleep(1)
+        #mapToFuckingUse = doStep(mapToFuckingUse)
         state = "normal"
         refreshEmptyTiles()
         update(mapToFuckingUse)
