@@ -685,15 +685,18 @@ def consumeRessource(fighter, buff, ressources = {'stamina': 1}):
         if ressource == 'stamina':
             fighter.stamina -= ressources[ressource]
             if fighter.stamina <= 0:
+                fighter.stamina = 0
                 buff.removeBuff()
         if ressource == 'MP':
             fighter.MP -= ressources[ressource]
             if fighter.MP <= 0:
-                buff.remove()
+                fighter.MP = 0
+                buff.removeBuff()
         if ressource == 'HP':
             fighter.hp -= ressources[ressource]
             if fighter.hp <= 0:
-                buff.remove()
+                fighter.hp = 0
+                buff.removeBuff()
 
 def randomDamage(name, fighter = None, chance = 33, minDamage = 1, maxDamage = 1, dmgMessage = None, dmgColor = colors.red, msgPlayerOnly = True):
     dice = randint(1, 100)
@@ -1624,10 +1627,13 @@ def removeFlightBuff(fighter, evasion, spellNameToLearn):
         if spell.name == 'Stop Flying':
             unlearnSpell(spell, True)
             break
-    for spell in player.Fighter.knownSpells:
+    print(spellNameToLearn)
+    for spell in fighter.hiddenSpells:
+        print(spell.hiddenName)
         if spell.hiddenName == spellNameToLearn:
-            learnSpell(spellNameToLearn, True)
-            spellNameToLearn.setOnCooldown(player.Fighter)
+            fighter.knownSpells.append(spell)
+            fighter.hiddenSpells.remove(spell)
+            spell.setOnCooldown(player.Fighter)
             break
     player.flying = player.BASE_FLYING
     player.Fighter.noDexEvasion -= evasion
@@ -1656,11 +1662,12 @@ def castFly(caster=None, monsterTarget=None, ressources = {'stamina': 1}, cooldo
         learnSpell(stopFlight, True)
         for spell in player.Fighter.knownSpells:
             if spell.hiddenName == spellHiddenName:
-                unlearnSpell(spell, True)
+                caster.Fighter.knownSpells.remove(spell)
+                caster.Fighter.hiddenSpells.append(spell)
                 break
     
     flying = Buff('flying', colors.light_azure, cooldown = cooldown, showCooldown=False,
-                  applyFunction= lambda fighter: modifyFighterStats(fighter, evas = 10, flight = True),
+                  applyFunction= lambda fighter: modifyFighterStats(fighter, evas = evasionBonus, flight = True),
                   removeFunction = lambda fighter : removeFlightBuff(fighter, evasionBonus, spellHiddenName))
     flying.continuousFunction = lambda fighter: consumeRessource(fighter, buff = flying, ressources = ressources)
     flying.applyBuff(caster)
@@ -1732,6 +1739,60 @@ def castExpandRoots(caster = None, monsterTarget = None, mode = 'AOE', AOERange 
                 dumSpell.setOnCooldown(caster.Fighter)
         
         return
+
+def removeDemonBuff(fighter, power, armor, accuracy, evasion, spellNameToLearn):
+    allSpells = []
+    allSpells.extend(player.Fighter.knownSpells)
+    allSpells.extend(player.Fighter.spellsOnCooldown)
+    for spell in allSpells:
+        if spell.name == 'Shift back to normal form':
+            unlearnSpell(spell, True)
+            break
+    for spell in player.Fighter.hiddenSpells:
+        if spell.hiddenName == spellNameToLearn:
+            fighter.knownSpells.append(spell)
+            fighter.hiddenSpells.remove(spell)
+            spell.setOnCooldown(player.Fighter)
+            break
+    player.flying = player.BASE_FLYING
+    player.Fighter.noDexEvasion -= evasion
+    player.Fighter.noStrengthPower -= power
+    player.Fighter.noDexAccuracy -= accuracy
+    player.Fighter.baseArmor -= armor
+    if myMap[player.x][player.y].chasm and not player.flying:
+        temporaryBox('You fall deeper into the dungeon...')
+        if dungeonLevel + 1 in currentBranch.bossLevels:
+            nextLevel(boss = True, fall = True)
+        else:
+            nextLevel(fall = True)
+    return
+
+def castStopDemon(caster=None, monsterTarget=None):
+    if caster is None or caster == player:
+        caster = player
+    
+    for buff in caster.Fighter.buffList:
+        if buff.name == 'in Demon form':
+            buff.removeBuff()
+            return 
+
+def castDemonForm(caster=None, monsterTarget=None, ressources = {'stamina': 2, 'HP':1, 'MP': 3}, cooldown = 99999, powerBonus = 5, armorBonus = 5, accuracyBonus = 10, evasionBonus = 10, spellHiddenName = None):
+    stopDemon = Spell(ressourceCost=0, cooldown=0, useFunction=castStopDemon, name='Shift back to normal form', type='None')
+    if caster is None or caster == player:
+        caster = player
+        learnSpell(stopDemon, True)
+        for spell in player.Fighter.knownSpells:
+            if spell.hiddenName == spellHiddenName:
+                caster.Fighter.knownSpells.remove(spell)
+                caster.Fighter.hiddenSpells.append(spell)
+                break
+    
+    demon = Buff('in Demon form', colors.dark_flame, cooldown = cooldown, showCooldown=False,
+                  applyFunction= lambda fighter: modifyFighterStats(fighter, power = powerBonus, arm = armorBonus, acc = accuracyBonus, evas = evasionBonus, flight = True),
+                  removeFunction = lambda fighter : removeDemonBuff(fighter, powerBonus, armorBonus, accuracyBonus, evasionBonus, spellHiddenName))
+    demon.continuousFunction = lambda fighter: consumeRessource(fighter, buff = demon, ressources = ressources)
+    demon.applyBuff(caster)
+    return
 
 def resetDjik():
     global djikVisitedTiles
@@ -1989,6 +2050,7 @@ def profileDjik(caster = None, target = None):
 def detailedProfilerWrapperDjik(caster = None, target = None):
     calcDjikPlayer(profile = True)
 
+demonForm = Spell(ressourceCost=10, cooldown = 150, useFunction=lambda caster, monsterTarget: castDemonForm(caster, monsterTarget, spellHiddenName = 'demonForm'), name = 'Shift to Demon form', ressource = 'MP', type = 'Occult', hiddenName='demonForm')
 expandRootsDmg = Spell(ressourceCost=6, cooldown = 100, useFunction= castExpandRoots, name = 'Expand roots (damage)', ressource = 'Stamina', type = 'racial')
 expandRootsRegen = Spell(ressourceCost=6, cooldown = 100, useFunction= lambda caster, monsterTarget: castExpandRoots(caster, monsterTarget, mode = 'regen'), name = 'Expand roots (regeneration)', ressource = 'Stamina', type = 'racial')
 expandRootsDummy = Spell(ressourceCost=0, cooldown=100, useFunction = None, name = 'Expand roots', onRecoverLearn=[expandRootsDmg, expandRootsRegen], hiddenName= 'expandRootsDummy')
@@ -2015,7 +2077,7 @@ dispDjik = Spell(ressourceCost= 0, cooldown = 1, useFunction=toggleDrawDjik, nam
 detDjik = Spell(ressourceCost= 0, cooldown = 1, useFunction=detailedProfilerWrapperDjik, name = 'DEBUG : Calculate Djikstra Map (with detailed Profiler)', ressource='MP', type = 'Occult')
 yellowify = Spell(ressourceCost= 0, cooldown = 1, useFunction=castMakeTileYellow, name = 'DEBUG : Make tile look yellow', ressource='MP', type = 'Occult')
 
-spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport, djik, dispDjik, djikProf, detDjik, yellowify, ram, leap, expandRootsDmg, expandRootsDummy, expandRootsRegen])
+spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport, djik, dispDjik, djikProf, detDjik, yellowify, ram, leap, expandRootsDmg, expandRootsDummy, expandRootsRegen, insectFly, demonForm])
 #_____________SPELLS_____________
 
 #______________CHARACTER GENERATION____________
@@ -2364,7 +2426,7 @@ def initializeTraits():
     insect = Trait('Insectoid', 'Insectoids are a rare race of bipedal insects which are stronger than human but, more importantly, very good at arcane arts. They come in all kinds of forms, from the slender mantis to the bulky beetle.', type = 'race', stren=(1, 0), dex=(-1, 0), vit=(-2, 0), will=(2, 0), spells = [insectFly]) #, allowsSelection=[carapace])
     cat = Trait('Felis', 'Felis, kinds of humanoid cats, are sneaky thieves and assassins. They usually move silently and can see in the dark.', type ='race', stren = (2, 0), vit = (-2, 0), spells = [leap], dex = (1, 0), stealth = 20) #, allowsSelection=[silence]
     rept = Trait('Reptilian', 'Reptilians are very agile but absurdly weak. Their scaled skin, however, sometimes provides them with natural camouflage, and they might use their natural venom on their daggers or arrows to make them even more deadly.', type = 'race', ev=(20, 0), stren=(-4, 0), dex=(2, 0), spells = [envenom]) #, allowsSelection=[venom, mimesis])
-    demon = Trait('Demon Spawn', 'Demon spawns, a very uncommon breed of a human and a demon, are cursed with the heritage of  their demonic parents, which will make them grow disturbing mutations as they grow older and stronger.', type = 'race')
+    demon = Trait('Demon Spawn', 'Demon spawns, a very uncommon breed of a human and a demon, are cursed with the heritage of  their demonic parents, which will make them grow disturbing mutations as they grow older and stronger.', type = 'race', spells = [demonForm])
     tree = Trait('Rootling', 'Rootlings, also called treants, are rare, sentient plants. They begin their life as a simple twig, but, with time, might become gigantic oaks.', type = 'race', stren=(-3, 0), dex=(-2, 0), vit=(-4, 0), will=(-3, 0), spells = [expandRootsDmg, expandRootsRegen])
     wolf = Trait('Werewolf', 'Werewolves are a martyred and despised race. Very tough to kill, they are naturally stronger than basic humans and unconogreably shapeshift more or less regularly. However, older werewolves are used to these transformations and can even use them to their interests.', type = 'race', stren=(2, 0), dex=(1, 0), vit=(-2, 0), will=(-4, 0)) #, allowsSelection=[wild]
     devourer = Trait('Devourer', 'Devourers are strange, dreaded creatures from another dimension. Few have arrived in ours and even fewer have been described. These animals, half mantis, half lizard, are only born to kill and consume. Some of their breeds can even, after consuming anything - even a weapon - grow an organic replica of it.', type = 'race', vit = (-2, 0), will = (-10, 0))
@@ -3334,6 +3396,7 @@ class Fighter: #All NPCs, enemies and the player
             self.knownSpells = []
             self.allSpells = []
         
+        self.hiddenSpells = []
         self.spellsOnCooldown = []
         
         self.transferDamage = transferDamage
@@ -11962,7 +12025,7 @@ def reloadEntrance():
     return myMap[bossEntrance.x][bossEntrance.y]
 
 def newGame():
-    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, gameMsgs, identifiedItems, equipmentList, currentBranch, bossDungeonsAppeared, DEBUG, REVEL, logMsgs, tilesInRange, showTilesInRange, tilesinPath, tilesInRect, menuWindows, explodingTiles, hiroshimanNumber, FOV_recompute, bossTiles, bossEntrance
+    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, gameMsgs, identifiedItems, equipmentList, currentBranch, bossDungeonsAppeared, DEBUG, REVEL, logMsgs, tilesInRange, showTilesInRange, tilesinPath, tilesInRect, menuWindows, explodingTiles, hiroshimanNumber, FOV_recompute, bossTiles, bossEntrance, currentSidepanelMode
     
     DEBUG = False
     REVEL = False
@@ -11982,6 +12045,7 @@ def newGame():
     FOV_recompute = True
     bossTiles = None
     bossEntrance = None
+    currentSidepanelMode = 0
     
     currentBranch = dBr.mainDungeon
     dungeonLevel = 1 
