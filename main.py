@@ -5800,7 +5800,8 @@ def getInput():
             quitGame('Whatever you did, it went horribly wrong (DEBUG took an unexpected value)')    
         FOV_recompute= True
     elif userInput.keychar.upper() == 'F4' and DEBUG and not tdl.event.isWindowClosed(): #For some reason, Bad Things (tm) happen if you don't perform a tdl.event.isWindowClosed() check here. Yeah, don't ask why.
-        castCreateDarksoul()
+        global dispClearance
+        dispClearance = not dispClearance
         FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'F5' and DEBUG and not tdl.event.isWindowClosed(): #Don't know if tdl.event.isWindowClosed() is necessary here but added it just to be sure
@@ -6975,6 +6976,7 @@ reachableRooms = []
 unreachableRooms = []
 dispEmpty = False
 dispDebug = True
+dispClearance = False
 unchasmable = []
 noCheckTiles = []
 
@@ -7037,6 +7039,7 @@ class Tile:
         self.doNotPropagateDjik = False
         self.onTriggerFunction = printTileWhenWalked
         self.leaves = leaves
+        self.clearance = 0
         
     def neighbors(self, mapToUse = None):
         '''
@@ -7256,6 +7259,20 @@ class Rectangle:
         print("LIST IS TWO MESSAGES HIGHER")
         return tileList
     
+class Square:
+    def __init__(self, x, y, s):
+        self.x1 = x
+        self.y1 = y
+        self.x2 = x + s
+        self.y2 = y + s
+        self.s = s
+    
+    def tiles(self, mapToUse):
+        if self.s == 0:
+            tileList = [mapToUse[self.x1][self.y1]]
+        else:
+            tileList = [mapToUse[x][y] for x in range(self.x1, self.x2 + 1) for y in range(self.y1, self.y2 + 1)]
+        return tileList
 
 class CaveRoom:
     def __init__(self, tiles, borders = []):
@@ -7916,6 +7933,7 @@ def generateCave(fall = False):
                     player.x, player.y = x, y
                     fallen = True
         updateTileCoords()
+        myMap = clearanceMap(myMap)
         print("DONE")
 
         #gameState = 'dead' #What the hell ?
@@ -8212,6 +8230,23 @@ def removeAllChasms():
         for y in range(MAP_HEIGHT):
             myMap[x][y].chasm = False
 
+def clearanceMap(mapToUse):
+    for x in range(MAP_WIDTH):
+        for y in range(MAP_HEIGHT):
+            foundBlocked = False
+            clearance = -1
+            while not foundBlocked:
+                clearance += 1
+                square = Square(x, y, clearance)
+                if x + clearance < MAP_WIDTH and y + clearance < MAP_HEIGHT:
+                    for tile in square.tiles(mapToUse = mapToUse):
+                        if tile.blocked or tile.chasm:
+                            foundBlocked = True
+                            break
+                else:
+                    foundBlocked = True
+            mapToUse[x][y].clearance = clearance
+    return mapToUse
 
 def makeMap(generateChasm = True, generateHole = False, fall = False, temple = False, genPlayer = True):
     global myMap, noCheckTiles, stairs, objects, upStairs, bossDungeonsAppeared, color_dark_wall, color_light_wall, color_dark_ground, color_light_ground, color_dark_gravel, color_light_gravel, townStairs, gluttonyStairs, stairs, upStairs, nemesisList, roomTiles, tunnelTiles, unchasmable, rooms, wrathStairs, maxRooms, roomMaxSize, roomMinSize, bossTiles
@@ -8586,6 +8621,7 @@ def makeMap(generateChasm = True, generateHole = False, fall = False, temple = F
                         player.x, player.y = x, y
                         fallen = True
             updateTileCoords()
+            myMap = clearanceMap(myMap)
         else:
             print("Regenerating map...")
 
@@ -8712,6 +8748,7 @@ def makeBossLevel(fall = False, generateHole=False, temple = False):
     if generateHole:
         myMap = holeGen.createHoles(myMap)
     checkMap()
+    myMap = clearanceMap(myMap)
         
     '''
     for tile in bossTiles: #Makes the boss room look FABULOUS for testing purposes
@@ -9020,6 +9057,7 @@ def makeHiddenTown(fall = False):
     for x in range(MAP_WIDTH):
         for y in range(MAP_HEIGHT):
             myMap[x][y].unbreakable = True
+    myMap = clearanceMap(myMap)
 
     
 #_____________ MAP CREATION __________________
@@ -11058,11 +11096,17 @@ def Update():
             for x in range(MAP_WIDTH):
                 visible = (x, y) in visibleTiles
                 tile = myMap[x][y]
+                char = tile.character
+                if dispClearance:
+                    if tile.clearance < 10:
+                        char = str(tile.clearance)
+                    else:
+                        char = '+'
                 if not visible:
                     if tile.explored:
-                        con.draw_char(x, y, tile.character, tile.dark_fg, tile.dark_bg)
+                        con.draw_char(x, y, char, tile.dark_fg, tile.dark_bg)
                 else:
-                    con.draw_char(x, y, tile.character, tile.fg, tile.bg)
+                    con.draw_char(x, y, char, tile.fg, tile.bg)
                     tile.explored = True
                 if gameState == 'targeting':
                     inRange = (x, y) in tilesInRange
