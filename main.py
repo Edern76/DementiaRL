@@ -2089,7 +2089,7 @@ class Trait():
     '''
     Actually used for everything in the character creation, from race to skills etc
     '''
-    def __init__(self, name, description, type, x = 0, y = 0, underCursor = False, selectable = True, selected = False, allowsSelection = [], amount = 0, maxAmount = 1, tier = 1, power = (0, 0), acc = (0, 0), ev = (0, 0), arm = (0, 0), hp = (0, 0), mp = (0, 0), crit = (0, 0), stren = (0, 0), dex = (0, 0), vit = (0, 0), will = (0, 0), spells = None, load = 0, ap = (0, 0), stealth = 0, stam = (0, 0)):
+    def __init__(self, name, description, type, x = 0, y = 0, underCursor = False, selectable = True, selected = False, allowsSelection = [], amount = 0, maxAmount = 1, tier = 1, power = (0, 0), acc = (0, 0), ev = (0, 0), arm = (0, 0), hp = (0, 0), mp = (0, 0), crit = (0, 0), stren = (0, 0), dex = (0, 0), vit = (0, 0), will = (0, 0), spells = None, load = 0, ap = (0, 0), stealth = 0, stam = (0, 0), bonusSkill = []):
         self.name = name
         self.desc = description
         self.type = type
@@ -2121,6 +2121,8 @@ class Trait():
         self.owner = None
         for skill in self.allowsSelection:
             skill.owner = self
+        self.bonusSkill = bonusSkill
+        self.isBonus = False
         
     def description(self):
         wrappedText = textwrap.wrap(self.desc, 25)
@@ -2129,7 +2131,7 @@ class Trait():
             line += 1
             drawCentered(cons = root, y = 11 + line, text = lines, fg = colors.white, bg = None)
     
-    def applyBonus(self, charCreation = True):
+    def applyBonus(self, charCreation = True, unlockSelection = True):
         if charCreation:
             global createdCharacter
             if self.amount < self.maxAmount:
@@ -2165,8 +2167,13 @@ class Trait():
                 createdCharacter['stamLvl'] += self.stamPerLvl
                 self.amount += 1
                 self.selected = True
-                for trait in self.allowsSelection:
-                    trait.selectable = True
+                if unlockSelection:
+                    for trait in self.allowsSelection:
+                        trait.selectable = True
+                for skill in self.bonusSkill:
+                    skill.isBonus = True
+                    skill.maxAmount += 1
+                    skill.applyBonus(unlockSelection=False)
         else:
             player.Fighter.noStrengthPower += self.power
             player.Fighter.BASE_POWER += self.power
@@ -2266,6 +2273,10 @@ class Trait():
                             if trait.selected: 
                                 trait.amount = 0
                                 trait.selected = False
+                    for skill in self.bonusSkill:
+                        skill.isBonus = False
+                        skill.maxAmount -= 1
+                        skill.removeBonus()
         else:
             player.Fighter.noStrengthPower -= self.power
             player.Fighter.BASE_POWER -= self.power
@@ -2338,6 +2349,8 @@ class Trait():
                 drawCenteredOnX(cons, self.x, self.y, self.name, fg = colors.yellow, bg = None)
             elif not self.selectable:
                 drawCenteredOnX(cons, self.x, self.y, self.name, fg = colors.grey, bg = None)
+            elif self.isBonus:
+                drawCenteredOnX(cons, self.x, self.y, self.name, fg = colors.dark_red, bg = None)
             else:
                 drawCenteredOnX(cons, self.x, self.y, self.name, fg = colors.white, bg = None)
         else:
@@ -2432,7 +2445,7 @@ def initializeTraits():
     devourer = Trait('Devourer', 'Devourers are strange, dreaded creatures from another dimension. Few have arrived in ours and even fewer have been described. These animals, half mantis, half lizard, are only born to kill and consume. Some of their breeds can even, after consuming anything - even a weapon - grow an organic replica of it.', type = 'race', vit = (-2, 0), will = (-10, 0))
     virus = Trait('Virus ', 'Viruses are the physically weakest race, but do not base their success on their own bodies. Indeed, they are able to infect another race, making it their host and fully controllable by the virus. What is more, the virus own physical attributes, instead of applying to it directly, rather modifies the host metabolism, potentially making it stronger or tougher. However, this take-over is very harmful for the host, who will eventually die. The virus must then find a new host to continue living.', type = 'race', ev = (999, 0))
     races = [human, mino, insect, cat, rept, demon, tree, wolf, devourer, virus]
-    allTraits.extend(races)
+    allTraits.extend(races) 
     leftTraits.extend(races)
     
     counter = 0
@@ -2457,36 +2470,36 @@ def initializeTraits():
         counter += 1
     
     ## skills ##
-    fireSkill = Trait('Fire', 'Launch a blazing fireball at the chosen location.', type = 'skill', selectable=False, tier = 4, spells = [fireball])
-    iceSkill = Trait('Water', 'Launch an ice bolt at your target in order to freeze it.', type = 'skill', selectable=False, tier = 4, spells = [ice])
+    fireSkill = Trait('Fire', 'Launch a blazing fireball at the chosen location.', type = 'skill', selectable=False, tier = 4, spells = [fireball], maxAmount=10)
+    iceSkill = Trait('Water', 'Launch an ice bolt at your target in order to freeze it.', type = 'skill', selectable=False, tier = 4, spells = [ice], maxAmount=10)
     fourthTierSkills = [fireSkill, iceSkill]
     
-    light = Trait('Light weapons', '+20% damage per skillpoints with light weapons', type = 'skill', selectable = False, tier = 3)
-    heavy = Trait('Heavy weapons', '+20% damage per skillpoints with heavy weapons', type = 'skill', selectable = False, tier = 3)
-    missile = Trait('Missile weapons', '+20% damage per skillpoints with missile weapons', type = 'skill', selectable = False, tier = 3)
-    shield = Trait('Shield mastery', 'You trained to master shield wielding.', type = 'skill', selectable = False, tier = 3)
-    armorEff = Trait('Armor efficiency', 'You know very well how to maximize the protection brought by your armor', type = 'skill', selectable = False, tier = 3)
-    dexterity = Trait('Dexterity', 'You are Dexter.', type = 'skill', selectable = False, dex=(1, 0), tier = 3)
-    critical = Trait('Critical', 'You know every weaknesses of your enemies.', type = 'skill', selectable = False, crit=(3, 0), tier = 3)
-    constitution = Trait('Constitution', 'You are a sturdy person', type = 'skill', hp = (5, 0), vit = (1, 0), selectable = False, tier = 3)
-    hunger = Trait('Hunger management', 'You are used to starve and are now resilient to hunger.', type = 'skill', selectable=False, tier = 3)
-    occult = Trait('Occult magic', 'The black magic cannot hide any of its dark secrets to you.', type = 'skill', selectable=False, tier = 3)
-    elemental = Trait('Elemental magic', 'You master the power of the four elements.', type = 'skill', selectable=False, tier = 3, allowsSelection=[fireSkill, iceSkill])
+    light = Trait('Light weapons', '+20% damage per skillpoints with light weapons', type = 'skill', selectable = False, tier = 3, maxAmount=10)
+    heavy = Trait('Heavy weapons', '+20% damage per skillpoints with heavy weapons', type = 'skill', selectable = False, tier = 3, maxAmount=10)
+    missile = Trait('Missile weapons', '+20% damage per skillpoints with missile weapons', type = 'skill', selectable = False, tier = 3, maxAmount=10)
+    shield = Trait('Shield mastery', 'You trained to master shield wielding.', type = 'skill', selectable = False, tier = 3, maxAmount=10)
+    armorEff = Trait('Armor efficiency', 'You know very well how to maximize the protection brought by your armor', type = 'skill', selectable = False, tier = 3, maxAmount=10)
+    dexterity = Trait('Dexterity', 'You are Dexter.', type = 'skill', selectable = False, dex=(1, 0), tier = 3, maxAmount=10)
+    critical = Trait('Critical', 'You know every weaknesses of your enemies.', type = 'skill', selectable = False, crit=(3, 0), tier = 3, maxAmount=10)
+    constitution = Trait('Constitution', 'You are a sturdy person', type = 'skill', hp = (5, 0), vit = (1, 0), selectable = False, tier = 3, maxAmount=10)
+    hunger = Trait('Hunger management', 'You are used to starve and are now resilient to hunger.', type = 'skill', selectable=False, tier = 3, maxAmount=10)
+    occult = Trait('Occult magic', 'The black magic cannot hide any of its dark secrets to you.', type = 'skill', selectable=False, tier = 3, maxAmount=10)
+    elemental = Trait('Elemental magic', 'You master the power of the four elements.', type = 'skill', selectable=False, tier = 3, allowsSelection=[fireSkill, iceSkill], maxAmount=10)
     thirdTierSkills = [light, heavy, missile, armorEff, shield, hunger, constitution, occult, elemental, dexterity, critical]
 
-    melee = Trait('Melee weaponry', 'You are trained to wreck your enemies at close range.', type = 'skill', selectable = False, tier = 2, allowsSelection=[light, heavy])
-    ranged = Trait('Ranged weaponry', 'You shoot people in the knees.', type = 'skill', selectable = False, tier = 2, allowsSelection=[missile])
-    armorW = Trait('Armor wearing', 'You are trained to wear several types of armor.', type = 'skill', selectable = False, tier = 2, allowsSelection=[armorEff, shield])
-    endurance = Trait('Endurance', 'You are used to live in harsh conditions', type = 'skill', selectable = False, tier = 2, allowsSelection=[hunger, constitution])
-    strength = Trait('Strength', 'You are as strong as a bear', type = 'skill', stren=(1, 0), selectable = False, tier = 2)
-    willpower = Trait('Power of will', 'Your will is very strong', type = 'skill', mp=(5, 0), will = (1, 0), selectable = False, tier = 2)
-    cunning = Trait('Cunning', 'You are cunning, and can use this to hide in the shadows in order to deliver sly but deadly attacks.', type = 'skill', selectable = False, tier = 2, allowsSelection=[dexterity, critical])
-    magic = Trait('Magic ', 'You can use the power of your mind to bind reality to your will', type = 'skill', selectable = False, tier = 2, allowsSelection=[occult, elemental])
+    melee = Trait('Melee weaponry', 'You are trained to wreck your enemies at close range.', type = 'skill', selectable = False, tier = 2, allowsSelection=[light, heavy], maxAmount=10)
+    ranged = Trait('Ranged weaponry', 'You shoot people in the knees.', type = 'skill', selectable = False, tier = 2, allowsSelection=[missile], maxAmount=10)
+    armorW = Trait('Armor wearing', 'You are trained to wear several types of armor.', type = 'skill', selectable = False, tier = 2, allowsSelection=[armorEff, shield], maxAmount=10)
+    endurance = Trait('Endurance', 'You are used to live in harsh conditions', type = 'skill', selectable = False, tier = 2, allowsSelection=[hunger, constitution], maxAmount=10)
+    strength = Trait('Strength', 'You are as strong as a bear', type = 'skill', stren=(1, 0), selectable = False, tier = 2, maxAmount=10)
+    willpower = Trait('Power of will', 'Your will is very strong', type = 'skill', mp=(5, 0), will = (1, 0), selectable = False, tier = 2, maxAmount=10)
+    cunning = Trait('Cunning', 'You are cunning, and can use this to hide in the shadows in order to deliver sly but deadly attacks.', type = 'skill', selectable = False, tier = 2, allowsSelection=[dexterity, critical], maxAmount=10)
+    magic = Trait('Magic ', 'You can use the power of your mind to bind reality to your will', type = 'skill', selectable = False, tier = 2, allowsSelection=[occult, elemental], maxAmount=10)
     secondTierSkills = [melee, ranged, armorW, strength, endurance, magic, willpower, cunning]
 
-    martial = Trait('Martial training', 'You are trained to use a wide variety of weapons', type = 'skill', acc=(10, 0), allowsSelection=[melee, ranged, armorW])
-    physical = Trait('Physical training', 'You are muscular and are used to physical efforts', type = 'skill', allowsSelection=[strength, endurance])
-    mental = Trait('Mental training', 'Your mind is as fast as an arrow and as sharp as a scalpel', type = 'skill', allowsSelection=[magic, willpower, cunning])
+    martial = Trait('Martial training', 'You are trained to use a wide variety of weapons', type = 'skill', acc=(10, 0), allowsSelection=[melee, ranged, armorW], maxAmount=10)
+    physical = Trait('Physical training', 'You are muscular and are used to physical efforts', type = 'skill', allowsSelection=[strength, endurance], maxAmount=10)
+    mental = Trait('Mental training', 'Your mind is as fast as an arrow and as sharp as a scalpel', type = 'skill', allowsSelection=[magic, willpower, cunning], maxAmount=10)
     basicSkills = [martial, physical, mental]
     
     skills = basicSkills
@@ -2503,9 +2516,7 @@ def initializeTraits():
         for skill in skillList:
             skill.x = skill.tier * quarterX
             skill.y = mid + counter * newHeight + heightCounter * maxHeight + originY
-            print(skill.name, skill.tier, len(skill.allowsSelection), skill.x, skill.y)
             if skill.allowsSelection and len(skill.allowsSelection) > 0:
-                print('initiating selectable skills of ' + skill.name)
                 initiateSkill(skill.allowsSelection, newHeight, counter, maxHeight * heightCounter + originY)
             counter += 1
     
@@ -2517,18 +2528,16 @@ def initializeTraits():
         if skill.tier == 1:
             skill.x = quarterX
             skill.y = mid + newHeight * counter
-            print(skill.name, skill.tier, len(skill.allowsSelection), skill.x, skill.y)
             if skill.allowsSelection and len(skill.allowsSelection) > 0:
-                print('initiating selectable skills of ' + skill.name)
                 initiateSkill(skill.allowsSelection, newHeight, counter)
             counter += 1
 
     ## classes ##
-    knight = Trait('Knight', 'A warrior who wears armor and wields shields', type ='class', arm=(1, 1), hp=(120, 14), mp=(30, 3), stam = (60, 6))
-    barb = Trait('Barbarian', 'A brutal fighter who is mighty strong', type = 'class', hp=(160, 20), mp=(30, 3), stren=(1, 1), spells=[enrage], stam = (70, 10))
-    rogue = Trait('Rogue', 'A rogue who is stealthy and backstabby (probably has a french accent)', type = 'class', acc=(8, 4), ev=(10, 2), hp=(90, 10), mp=(40, 5), crit=(3, 0), stam = (50, 3))
-    mage = Trait('Mage ', 'A wizard who zaps everything', type ='class', hp=(70, 6), mp=(50, 7), will=(2, 0), spells=[fireball], stam=(20, 1))
-    necro = Trait('Necromancer', 'A master of the occult arts who has the ability to raise and control the dead.', type = 'class', hp=(100, 4), mp=(15, 1), spells=[darkPact, ressurect], stam=(50, 3))
+    knight = Trait('Knight', 'A warrior who wears armor and wields shields', type ='class', arm=(1, 1), hp=(120, 14), mp=(30, 3), stam = (60, 6), bonusSkill = [armorW])
+    barb = Trait('Barbarian', 'A brutal fighter who is mighty strong', type = 'class', hp=(160, 20), mp=(30, 3), stren=(1, 1), spells=[enrage], stam = (70, 10), bonusSkill = [strength])
+    rogue = Trait('Rogue', 'A rogue who is stealthy and backstabby (probably has a french accent)', type = 'class', acc=(8, 4), ev=(10, 2), hp=(90, 10), mp=(40, 5), crit=(3, 0), stam = (50, 3), bonusSkill = [cunning])
+    mage = Trait('Mage ', 'A wizard who zaps everything', type ='class', hp=(70, 6), mp=(50, 7), will=(2, 0), spells=[fireball], stam=(20, 1), bonusSkill = [magic])
+    necro = Trait('Necromancer', 'A master of the occult arts who has the ability to raise and control the dead.', type = 'class', hp=(100, 4), mp=(15, 1), spells=[darkPact, ressurect], stam=(50, 3), bonusSkill = [occult])
     classes = [knight, barb, rogue, mage, necro]
     allTraits.extend(classes)
     rightTraits.extend(classes)
@@ -2638,7 +2647,10 @@ def characterCreation():
         if human.selected:
             maxSkill=3
         for skill in skills:
-            skillsPoints += skill.amount
+            amount = skill.amount
+            if skill.isBonus:
+                amount -= 1
+            skillsPoints += amount
         print(skillsPoints)
         
         drawCentered(cons = root, y = 6, text = '--- CHARACTER CREATION ---', fg = colors.darker_red, bg = None)
@@ -4584,7 +4596,6 @@ class Player:
         for skill in self.allTraits:
             if skill.type == 'skill':
                 self.skills.append(skill)
-                skill.maxAmount = 10
         self.traits = []
         for trait in self.allTraits:
             if trait.type == 'trait':
@@ -6637,12 +6648,14 @@ def levelUpScreen(newSkillpoints = True, skillpoint = 3, fromCreation = False, s
             if skill != selectedSkill:
                 skill.underCursor = False
 
-            toAdd = ' ' + str(skill.amount) + '/10'
-            if skill.selectable and not skill.selected:
+            toAdd = ' ' + str(skill.amount) + '/' + str(skill.maxAmount)
+            if  fromCreation and skill.isBonus:
+                color = colors.dark_red
+            elif skill.selectable and not skill.selected:
                 color = colors.white
             elif skill.selectable and skill.selected and (skill in notConfirmed or fromCreation):
                 color = colors.yellow
-            elif skill.selectable and skill.selected and not skill in notConfirmed and not fromCreation:
+            elif (skill.selectable and skill.selected and not skill in notConfirmed and not fromCreation):
                 color = colors.dark_red
             else:
                 color = colors.grey
