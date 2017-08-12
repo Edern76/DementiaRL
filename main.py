@@ -2867,6 +2867,22 @@ def enterName(race):
             mainMenu()
 #______________CHARACTER GENERATION____________
 
+def wouldBigTouchTarget(mapToUse, bigMonster, potentialX, potentialY, targetX, targetY):
+    if not bigMonster:
+        return False
+    if bigMonster.size < 2:
+        return False
+    if mapToUse[potentialX][potentialY].clearance < bigMonster.size:
+        return False
+    dx = potentialX - bigMonster.x
+    dy = potentialY - bigMonster.y
+    for monsterPart in bigMonster.sizeComponents:
+        newX = monsterPart.x + dx
+        newY = monsterPart.y + dy
+        if math.sqrt((targetX - newX) ** 2 + (targetY - newY) ** 2) < 2 and not isBlocked(newX, newY, True, bigMonster):
+            return True
+    return False
+
 def heuristic(sourceX, sourceY, targetX, targetY):
     return abs(sourceX - targetX) + abs(sourceY - targetY)
 
@@ -2887,17 +2903,18 @@ def astarPath(startX, startY, goalX, goalY, flying = False, silent = False, mapT
     costSoFar = {}
     cameFrom[start] = None
     costSoFar[start] = 0
+    '''
     allowGoalNeighbours = False
     if size > 2:
         if not silent:
             print('goal neighbors are allowed')
         allowGoalNeighbours = True
-    goalNeighbors = goal.neighbors(mapToUse)
-    
+    goalNeighbors = [tile for tile in goal.neighbors(mapToUse) if not tile.blocked and (flying or not myMap[tile.x][tile.y].chasm)]
+    '''
     print('frontier:', frontier)
     while len(frontier) != 0:
         prioTile = None
-        lastPrio = 9999
+        lastPrio = 99999
         for tile, prio in frontier:
             if prio < lastPrio:
                 lastPrio = prio
@@ -2911,32 +2928,36 @@ def astarPath(startX, startY, goalX, goalY, flying = False, silent = False, mapT
             if not silent:
                 print('arrived to goal')
             break
-        elif current in goalNeighbors and allowGoalNeighbours:
+        elif wouldBigTouchTarget(mapToUse, bigMonster, current.x, current.y, goalX, goalY):
             if not silent:
-                print('arrived to goal neighbor: ', current.x, current.y)
-                print('goal: ', goal.x, goal.y)
+                print('arrived somewhere adjacent to goal')
             break
-        for next in current.neighbors(mapToUse):
+        #elif current in goalNeighbors and allowGoalNeighbours:
+        #    if not silent:
+        #        print('arrived to goal neighbor: ', current.x, current.y)
+        #        print('goal: ', goal.x, goal.y)
+        #    break
+        for nextTile in current.neighbors(mapToUse):
             if not silent:
-                print('neighbor:', next.x, next.y)
-            if flying or not mapToUse[next.x][next.y].chasm:
-                if not (isBlocked(next.x, next.y, ignoreSelfSize=True, bigMonster=bigMonster) or mapToUse[next.x][next.y].clearance < size) or (next == goal or (next in goalNeighbors and allowGoalNeighbours)):
-                    newCost = costSoFar[current] + mapToUse[next.x][next.y].moveCost
-                    if next not in costSoFar or newCost < costSoFar[next]:
-                        costSoFar[next] = newCost
-                        heurCost = heuristic(next.x, next.y, goal.x, goal.y)
+                print('neighbor:', nextTile.x, nextTile.y)
+            if flying or not mapToUse[nextTile.x][nextTile.y].chasm:
+                if not (isBlocked(nextTile.x, nextTile.y, ignoreSelfSize=True, bigMonster=bigMonster) or mapToUse[nextTile.x][nextTile.y].clearance < size) or ((nextTile == goal)): # or wouldBigTouchTarget(mapToUse, bigMonster, nextTile.x, nextTile.y, goalX, goalY)): # or (nextTile in goalNeighbors and allowGoalNeighbours)):
+                    newCost = costSoFar[current] + mapToUse[nextTile.x][nextTile.y].moveCost
+                    if nextTile not in costSoFar or newCost < costSoFar[nextTile]:
+                        costSoFar[nextTile] = newCost
+                        heurCost = heuristic(nextTile.x, nextTile.y, goal.x, goal.y)
                         priority = newCost + heurCost
                         if not silent:
-                            print('next:', next.x, next.y, '  prio = G + H', '  G=', newCost, '  H=', heurCost)
-                        frontier.append((next, priority))
-                        cameFrom[next] = current
-                    elif next in costSoFar:
+                            print('next:', nextTile.x, nextTile.y, '  prio = G + H', '  G=', newCost, '  H=', heurCost)
+                        frontier.append((nextTile, priority))
+                        cameFrom[nextTile] = current
+                    elif nextTile in costSoFar:
                         if not silent:
                             print('next was already explored')
                 else:
                     if not silent:
                         print('next is blocked')
-                        print('size:', size, ' tile clearance:', mapToUse[next.x][next.y].clearance)
+                        print('size:', size, ' tile clearance:', mapToUse[nextTile.x][nextTile.y].clearance)
             else:
                 if not silent:
                     print("next is chasm")
@@ -2956,11 +2977,11 @@ def astarPath(startX, startY, goalX, goalY, flying = False, silent = False, mapT
         path.append(current)
     if not silent:
         print('not reversed path:')
-        print([(tile.x, tile.x) for tile in path])
+        print([(tile.x, tile.y) for tile in path])
     path.reverse()
     if not silent:
         print('reversed path:')
-        print([(tile.x, tile.x) for tile in path])
+        print([(tile.x, tile.y) for tile in path])
     return path
 
 def closestMonster(max_range):
@@ -6649,7 +6670,7 @@ def levelUpScreen(newSkillpoints = True, skillpoint = 3, fromCreation = False, s
                 skill.underCursor = False
 
             toAdd = ' ' + str(skill.amount) + '/' + str(skill.maxAmount)
-            if  fromCreation and skill.isBonus:
+            if skill.isBonus:
                 color = colors.dark_red
             elif skill.selectable and not skill.selected:
                 color = colors.white
@@ -6867,10 +6888,7 @@ def checkLevelUp():
                     player.Fighter.noWillMP += mpBonus
                     player.Fighter.MP += mpBonus
             message('You feel your wooden corpse thickening!', colors.celadon)
-        
-        levelUpScreen()
-        for trait in player.Player.unlockableTraits:
-            trait.checkForRequirements()
+
         tdl.flush()
         FOV_recompute = True
         Update()
@@ -11084,7 +11102,7 @@ def testArena():
     player.Fighter.stamina = player.Fighter.maxStamina
     currentBranch = dBr.mainDungeon
     FOV_recompute = True
-    myMap, objectsToCreate = layoutReader.readMap("testarenabigmons")
+    myMap, objectsToCreate = layoutReader.readMap("testarenabigmons1")
     color_dark_wall = colors.light_grey
     color_light_wall = colors.white
     color_dark_ground = currentBranch.color_dark_ground
@@ -11369,6 +11387,8 @@ def Update():
     #panel.draw_str(1, 3, 'Dungeon level: ' + str(dungeonLevel), colors.white)
     panel.draw_str(1, 7, 'Player level:', colors.amber)
     panel.draw_str(15, 7, str(player.level), colors.white)
+    if player.Player.skillpoints > 0:
+        panel.draw_str(16 + len(str(player.level)), 7, '!', colors.red, colors.yellow)
     panel.draw_str(1, 9, 'Dungeon:', colors.amber)
     panel.draw_str(10, 9, currentBranch.name, colors.white)
     panel.draw_str(1, 11, 'Floor:', colors.amber)
@@ -12821,8 +12841,11 @@ def playGame(noSave = False):
     actions = 1
     while not tdl.event.isWindowClosed():
         global FOV_recompute, DEBUG, actions
-        Update()
         checkLevelUp()
+        for trait in player.Player.unlockableTraits:
+            trait.checkForRequirements()
+        Update()
+
         if SIDE_PANEL_MODES[currentSidepanelMode] == 'stealth':
             drawDetectionStatus()
         tdl.flush()
