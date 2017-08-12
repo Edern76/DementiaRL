@@ -28,8 +28,6 @@ import code.holeGen as holeGen
 
 from tkinter import *
 from tkinter.messagebox import * #For making obvious freaking error boxes when the console gets too bloated to read anything useful.
-from builtins import property
-
 
 
 if (__name__ == '__main__' or __name__ == 'main__main__'):
@@ -1579,6 +1577,18 @@ def castMakeTileYellow(caster = None, monsterTarget = None):
             message("Invalid tile !", colors.red)
             return 'cancelled'
 
+def castSpawnProjectile(caster = None, monsterTarget = None):
+    if caster is None:
+        caster = player
+    if caster == player:
+        targX, targY = targetTile(SIGHT_RADIUS, True)
+    else:
+        targX, targY = monsterTarget.x, monsterTarget.y
+    spawnedProj = Projectile(3, caster.x, caster.y, targX, targY, continues = True)
+    x, y = spawnedProj.path[0]
+    projObject = GameObject(x, y, spawnedProj.defineStraightChar(), name = 'projectile', color = colors.red, ProjectileComp = spawnedProj)
+    objects.append(projObject)
+
 def castKnockback(caster = None, monsterTarget = None, abilityRange = 1, KBrange = 1, damage = randint(2, 7)):
     if caster is None or caster == player:
         caster = player
@@ -2050,6 +2060,8 @@ def profileDjik(caster = None, target = None):
 def detailedProfilerWrapperDjik(caster = None, target = None):
     calcDjikPlayer(profile = True)
 
+
+spawnProj = Spell(ressourceCost=0, cooldown=0, useFunction=castSpawnProjectile, name = 'Spawn projectile')
 demonForm = Spell(ressourceCost=10, cooldown = 150, useFunction=lambda caster, monsterTarget: castDemonForm(caster, monsterTarget, spellHiddenName = 'demonForm'), name = 'Shift to Demon form', ressource = 'MP', type = 'Occult', hiddenName='demonForm')
 expandRootsDmg = Spell(ressourceCost=6, cooldown = 100, useFunction= castExpandRoots, name = 'Expand roots (damage)', ressource = 'Stamina', type = 'racial')
 expandRootsRegen = Spell(ressourceCost=6, cooldown = 100, useFunction= lambda caster, monsterTarget: castExpandRoots(caster, monsterTarget, mode = 'regen'), name = 'Expand roots (regeneration)', ressource = 'Stamina', type = 'racial')
@@ -2077,7 +2089,7 @@ dispDjik = Spell(ressourceCost= 0, cooldown = 1, useFunction=toggleDrawDjik, nam
 detDjik = Spell(ressourceCost= 0, cooldown = 1, useFunction=detailedProfilerWrapperDjik, name = 'DEBUG : Calculate Djikstra Map (with detailed Profiler)', ressource='MP', type = 'Occult')
 yellowify = Spell(ressourceCost= 0, cooldown = 1, useFunction=castMakeTileYellow, name = 'DEBUG : Make tile look yellow', ressource='MP', type = 'Occult')
 
-spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport, djik, dispDjik, djikProf, detDjik, yellowify, ram, leap, expandRootsDmg, expandRootsDummy, expandRootsRegen, insectFly, demonForm])
+spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport, djik, dispDjik, djikProf, detDjik, yellowify, ram, leap, expandRootsDmg, expandRootsDummy, expandRootsRegen, insectFly, demonForm, spawnProj])
 #_____________SPELLS_____________
 
 #______________CHARACTER GENERATION____________
@@ -3058,7 +3070,7 @@ class Stairs:
 
 class GameObject:
     "A generic object, represented by a character"
-    def __init__(self, x, y, char, name, color = colors.white, blocks = False, Fighter = None, AI = None, Player = None, Ghost = False, flying = False, Item = None, alwaysVisible = False, darkColor = None, Equipment = None, pName = None, Essence = None, socialComp = None, shopComp = None, questList = [], Stairs = None, alwaysAlwaysVisible = False, size = 1, sizeChar = [], sizeColor = [], sizeDarkColor = [], smallChar = None):
+    def __init__(self, x, y, char, name, color = colors.white, blocks = False, Fighter = None, AI = None, Player = None, Ghost = False, flying = False, Item = None, alwaysVisible = False, darkColor = None, Equipment = None, pName = None, Essence = None, socialComp = None, shopComp = None, questList = [], Stairs = None, alwaysAlwaysVisible = False, size = 1, sizeChar = [], sizeColor = [], sizeDarkColor = [], smallChar = None, ProjectileComp = None):
         self.x = x
         self.y = y
         self.char = char
@@ -3094,6 +3106,9 @@ class GameObject:
         self.Stairs = Stairs
         if self.Stairs:
             self.Stairs.owner = self
+        self.Projectile = ProjectileComp
+        if self.Projectile:
+            self.Projectile.owner = self
         self.astarPath = []
         self.lastTargetX = None
         self.lastTargetY = None
@@ -3353,6 +3368,79 @@ class GameObject:
         else:
             self.moveTowards(goal.x, goal.y)
 
+class Projectile:
+    def __init__(self, speed, sourceX, sourceY, destX, destY, explode = False, explodeRange = 0, continues = False, passesThrough = False, ghost = False):
+        self.speed = speed
+        self.explode = explode
+        self.explodeRange = explodeRange
+        self.passesThrough = passesThrough
+        self.ghost = ghost
+        self.dx = destX - sourceX
+        self.dy = destY - sourceY
+        self.continues = continues
+        self.path = []
+        
+        i = 0
+        while len(self.path) < 25:
+            self.path = tdl.map.bresenham(sourceX, sourceY, destX + i * self.dx, destY + i * self.dy)
+            i += 1
+        
+        self.origX, self.origY = self.path.pop(0) #remove the projectile coordinates
+        self.PATH = self.path
+        self.relativeTravelledX = 0
+        self.relativeTravelledY = 0
+    
+    def defineStraightChar(self):
+        (firstX, firstY)= self.path[0]
+        inclX = firstX - self.origX
+        inclY = firstY - self.origY
+        incl = (inclX, inclY)
+        if incl == (1, 0) or incl == (-1, 0):
+            return '-'
+        elif incl == (1, -1) or incl == (-1, 1):
+            return '/'
+        elif incl == (0, 1) or incl == (0, -1):
+            return '|'
+        elif incl == (1, 1) or incl == (-1, -1):
+            return chr(92)
+    
+    def generateNewPath(self):
+        newPath = []
+        for (x, y) in self.PATH:
+            newPath.append((x + self.relativeTravelledX, y + self.relativeTravelledY))
+        self.path = newPath
+            
+    def moveOnPath(self):
+        global objects, FOV_recompute
+        proj = self.owner
+        formerX = self.origX
+        formerY = self.origY
+        x = self.owner.x
+        y = self.owner.y
+        i = 0
+        for i in range(self.speed):
+            if self.path:
+                (x, y) = self.path.pop(0)
+                proj.x, proj.y = x, y
+                animStep(.025)
+                if isBlocked(x, y) and (not self.passesThrough or myMap[x][y].blocked) and not self.ghost:
+                    objects.remove(proj)
+                    del proj
+                    FOV_recompute = True
+                    return (x, y)
+                self.relativeTravelledX += x - formerX
+                self.relativeTravelledY += y - formerY
+                formerX = x
+                formerY = y
+            elif not self.continues:
+                objects.remove(proj)
+                del proj
+                FOV_recompute = True
+                return (x,y)
+            else:
+                self.generateNewPath()
+        FOV_recompute = True
+    
 def createNPCFromMapReader(attributeList):
     if attributeList[6] in ("None", "", " "):
         shop = None
@@ -12907,6 +12995,9 @@ def playGame(noSave = False):
                     object.Fighter.curShootCooldown -= 1
                 if object.Fighter and object.Fighter.baseLandCooldown > 0 and object.Fighter is not None:
                     object.Fighter.curLandCooldown -= 1
+                
+                if object.Projectile:
+                    object.Projectile.moveOnPath()
     
                 if object.Fighter and object.Fighter.spellsOnCooldown and object.Fighter is not None:
                     try:
