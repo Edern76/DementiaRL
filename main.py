@@ -3386,9 +3386,12 @@ class Projectile:
             i += 1
         
         self.origX, self.origY = self.path.pop(0) #remove the projectile coordinates
-        self.PATH = self.path
+        print(self.path)
+        self.PATH = list(deepcopy(self.path))
         self.relativeTravelledX = 0
         self.relativeTravelledY = 0
+        self.formerX = self.origX
+        self.formerY = self.origY
     
     def defineStraightChar(self):
         (firstX, firstY)= self.path[0]
@@ -3405,20 +3408,28 @@ class Projectile:
             return chr(92)
     
     def generateNewPath(self):
+        print('generating new path')
         newPath = []
+        print(self.PATH)
         for (x, y) in self.PATH:
+            newX = x + self.relativeTravelledX
+            newY = y + self.relativeTravelledY
+            print(newX, newY)
             newPath.append((x + self.relativeTravelledX, y + self.relativeTravelledY))
         self.path = newPath
+        print(self.path)
             
-    def moveOnPath(self):
+    def moveOnPath(self, speed = None):
         global objects, FOV_recompute
+        if speed is None:
+            speed = self.speed
         proj = self.owner
-        formerX = self.origX
-        formerY = self.origY
         x = self.owner.x
         y = self.owner.y
         i = 0
-        for i in range(self.speed):
+        print('before loop: ', self.path)
+        for i in range(speed):
+            print('travelled coords:', self.relativeTravelledX, self.relativeTravelledY)
             if self.path:
                 (x, y) = self.path.pop(0)
                 proj.x, proj.y = x, y
@@ -3428,17 +3439,30 @@ class Projectile:
                     del proj
                     FOV_recompute = True
                     return (x, y)
-                self.relativeTravelledX += x - formerX
-                self.relativeTravelledY += y - formerY
-                formerX = x
-                formerY = y
+                self.relativeTravelledX += x - self.formerX
+                self.relativeTravelledY += y - self.formerY
+                self.formerX = x
+                self.formerY = y
             elif not self.continues:
                 objects.remove(proj)
                 del proj
                 FOV_recompute = True
                 return (x,y)
             else:
+                print('no path')
                 self.generateNewPath()
+                (x, y) = self.path.pop(0)
+                proj.x, proj.y = x, y
+                animStep(.025)
+                if isBlocked(x, y) and (not self.passesThrough or myMap[x][y].blocked) and not self.ghost:
+                    objects.remove(proj)
+                    del proj
+                    FOV_recompute = True
+                    return (x, y)
+                self.relativeTravelledX += x - self.formerX
+                self.relativeTravelledY += y - self.formerY
+                self.formerX = x
+                self.formerY = y
         FOV_recompute = True
     
 def createNPCFromMapReader(attributeList):
