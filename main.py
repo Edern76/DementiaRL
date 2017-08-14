@@ -6198,6 +6198,8 @@ def getInput():
         return 'didnt-take-turn'
     elif userInput.keychar == 'L':
         displayLog(50)
+    elif userInput.keychar == 'M':
+        displayMap()
     elif userInput.keychar == 'C':
         displayCharacter()
     elif userInput.keychar == 's':
@@ -10830,6 +10832,96 @@ def displayLog(height):
         elif key.keychar.upper() in exitKeys:
             quitted = True
 
+def displayMap():
+    global menuWindows, FOV_recompute
+    quitted = False
+    if menuWindows:
+        for mWindow in menuWindows:
+            mWindow.clear()
+        FOV_recompute = True
+        Update()
+        tdl.flush()
+    width = MAP_WIDTH + 4
+    height = MAP_HEIGHT + 5
+    window = NamedConsole('displayMap', width, height)
+    menuWindows.append(window)
+    
+    borderHoles = []
+    displayedLevel = dungeonLevel
+    displayedBranch = currentBranch
+    
+    for k in range(width):
+        hole = randint(0, 4)
+        if hole == 0:
+            borderHoles.append((k, 0))
+        hole = randint(0, 4)
+        if hole == 0:
+            borderHoles.append((k, height-1))
+    for l in range(height):
+        hole = randint(0, 4)
+        if hole == 0:
+            borderHoles.append((0, l))
+        hole = randint(0, 4)
+        if hole == 0:
+            borderHoles.append((width - 1, l))
+    
+    while not quitted:
+        window.clear()
+        window.draw_rect(0, 0, width, height, None, fg=colors.sepia, bg=colors.light_sepia)
+        
+        for k in range(width):
+            if (k, 0) in borderHoles:
+                window.draw_char(k, 0, None, bg = Ellipsis)
+            if (k, height - 1) in borderHoles:
+                window.draw_char(k, height-1, None, bg = Ellipsis)
+        for l in range(height):
+            if (0, l) in borderHoles:
+                window.draw_char(0, l, None, bg = Ellipsis)
+            if (width-1, l) in borderHoles:
+                window.draw_char(width-1, l, None, bg = Ellipsis)
+        
+        window.draw_str(3, 2, displayedBranch.name + ': ' + str(displayedLevel), fg = colors.darker_sepia, bg = colors.light_sepia)
+        
+        if displayedLevel == dungeonLevel and displayedBranch == currentBranch:
+            mapToDisplay = myMap
+        else:
+            mapToDisplay = loadMap(displayedLevel, displayedBranch)
+        for x in range(MAP_WIDTH):
+            for y in range(MAP_HEIGHT):
+                if mapToDisplay[x][y].explored:
+                    char = None
+                    fg = colors.sepia
+                    bg = colors.light_sepia
+                    if mapToDisplay[x][y].blocked or mapToDisplay[x][y].character == '#':
+                        char = mapToDisplay[x][y].character
+                    elif mapToDisplay[x][y].chasm:
+                        bg = colors.dark_sepia
+                    else:
+                        bg = colors.lighter_sepia
+                    window.draw_char(x + 2, y + 3, char, fg, bg)
+        
+        windowX = MID_WIDTH - int(width/2)
+        windowY = MID_HEIGHT - int(height/2)
+        root.blit(window, windowX, windowY, width, height, 0, 0)
+    
+        tdl.flush()
+        key = tdl.event.key_wait()
+        print(displayedLevel)
+        print(key.keychar.upper())
+        if key.keychar.upper() == 'UP' and displayedLevel > 1:
+            print('loading above level')
+            displayedLevel -= 1
+        elif key.keychar.upper() == 'DOWN':
+            print('loading below level')
+            displayedLevel += 1
+            if not (displayedLevel == dungeonLevel and displayedBranch == currentBranch):
+                try:
+                    mapToDisplay = loadMap(displayedLevel, displayedBranch)
+                except:
+                    displayedLevel -= 1
+        elif key.keychar.upper() == 'ESCAPE':
+            quitted = True
+
 def inventoryMenu(header, invList = None, noItemMessage = 'Inventory is empty'):
     #show a menu with each item of the inventory as an option
     global inventory
@@ -11575,14 +11667,14 @@ def Update():
     panel.draw_str(1, 9, 'Dungeon:', colors.amber)
     panel.draw_str(10, 9, currentBranch.name, colors.white)
     panel.draw_str(1, 11, 'Floor:', colors.amber)
-    panel.draw_str(9, 11, str(dungeonLevel), colors.white)
+    panel.draw_str(8, 11, str(dungeonLevel), colors.white)
     panel.draw_str(1, 13, 'Money: ', colors.amber)
     panel.draw_str(8, 13, str(player.Player.money), colors.white)
     renderBar(panel, 1, 1, BAR_WIDTH, 'HP', player.Fighter.hp, player.Fighter.maxHP, player.color, colors.dark_gray, textColor = player.Player.hpTextColor)
     renderBar(panel, 1, 3, BAR_WIDTH, 'MP', player.Fighter.MP, player.Fighter.maxMP, colors.blue, colors.dark_gray, colors.darkest_blue)
     renderBar(panel, 1, 5, BAR_WIDTH, 'Stamina', player.Fighter.stamina, player.Fighter.maxStamina, colors.lighter_yellow, colors.dark_grey, colors.darker_yellow)
 
-    sidePanel.draw_str(2, 1, '?: Help', colors.green)
+    sidePanel.draw_str(3, 1, '?: Help', colors.green)
     for y in range(HEIGHT):
         #if y == 0:
         #    sidePanel.draw_char(0, y, chr(186))
@@ -12541,6 +12633,12 @@ def loadLevel(level, save = True, branch = currentBranch, fall = False, fromStai
     currentBranch = branch
     objects = newObjects
     initializeFOV()
+
+def loadMap(level, branch):
+    mapFilePath = accessMapFile(level, branch.shortName)
+    xfile = shelve.open(mapFilePath, "r")
+    print(xfile["yunowork"])
+    return xfile["myMap"]
 
 def nextLevel(boss = False, changeBranch = None, fall = False, fromStairs = None):
     global dungeonLevel, currentBranch, currentMusic, bossTiles
