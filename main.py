@@ -764,6 +764,32 @@ class Buff: #also (and mainly) used for debuffs
         else: #If buff has not yet reached its time limit, we call the continuousFunction if it exists
             if self.continuousFunction is not None:
                 self.continuousFunction(self.owner.Fighter)
+
+class TileBuff:
+    def __init__(self, name, fg = None, bg = None, char = None, owner = None, cooldown = 20, blocksTile = False, buffsWhenWalked=[]):
+        self.name = name
+        self.fg = fg
+        self.bg = bg
+        self.char = char
+        self.owner = owner
+        self.baseCooldown = cooldown
+        self.curCooldown = cooldown
+        self.blocksTile = blocksTile
+        self.buffsWhenWalked = buffsWhenWalked
+    
+    def applyTileBuff(self, x, y):
+        global myMap
+        if myMap[x][y].buffList:
+            myMap[x][y].buffList.append(self)
+        else:
+            myMap[x][y].buffList = [self]
+        self.owner = myMap[x][y]
+    
+    def passTurn(self):
+        self.curCooldown -= 1
+        if self.curCooldown <= 0:
+            self.owner.buffList.remove(self)
+        
 #_________ BUFFS ___________
 
 #_____________SPELLS_____________
@@ -1567,9 +1593,9 @@ def castMakeTileYellow(caster = None, monsterTarget = None):
                 assert isinstance(tile, Tile)
             except AssertionError:
                 pass #Because saving/loading breaks assertion of tiles
-            tile.bg = colors.yellow
+            tile.baseBg = colors.yellow
             tile.BG = colors.yellow
-            tile.dark_bg = colors.dark_yellow
+            tile.baseDark_bg = colors.dark_yellow
             tile.DARK_BG = colors.dark_yellow
             message("Made tile look yellow !")
             return
@@ -1588,6 +1614,14 @@ def castSpawnProjectile(caster = None, monsterTarget = None):
     x, y = spawnedProj.path[0]
     projObject = GameObject(x, y, spawnedProj.defineStraightChar(), name = 'projectile', color = colors.red, ProjectileComp = spawnedProj)
     objects.append(projObject)
+
+def castPlaceIceWall(caster = None, monsterTarget = None):
+    if caster is None or caster == player:
+        caster = player
+        goalX, goalY = targetTile(10)
+        if (goalX, goalY) != 'cancelled':
+            iceWall = TileBuff('ice wall', fg = colors.lighter_azure, bg = colors.lighter_sky, char = '#', cooldown = 10, blocksTile = True)
+            iceWall.applyTileBuff(goalX, goalY)
 
 def castKnockback(caster = None, monsterTarget = None, abilityRange = 1, KBrange = 1, damage = randint(2, 7)):
     if caster is None or caster == player:
@@ -1697,12 +1731,12 @@ def castExpandRoots(caster = None, monsterTarget = None, mode = 'AOE', AOERange 
                     if 0 < caster.distanceToCoords(tx, ty) <= AOERange and not myMap[tx][ty].blocked and not myMap[tx][ty].chasm:
                         rootedTiles.append((tx, ty))
                         rootedTilesChar.append(myMap[tx][ty].character)
-                        myMap[tx][ty].character = "'"
+                        myMap[tx][ty].baseCharacter = "'"
             FOV_recompute = True
             Update()
             i = 0
             for (x, y) in rootedTiles:
-                myMap[x][y].character = rootedTilesChar[i]
+                myMap[x][y].baseCharacter = rootedTilesChar[i]
                 i += 1
             time.sleep(0.150)
             FOV_recompute = True
@@ -2060,7 +2094,7 @@ def profileDjik(caster = None, target = None):
 def detailedProfilerWrapperDjik(caster = None, target = None):
     calcDjikPlayer(profile = True)
 
-
+placeIceWall = Spell(ressourceCost=0, cooldown=0, useFunction=castPlaceIceWall, name = 'Place ice wall')
 spawnProj = Spell(ressourceCost=0, cooldown=0, useFunction=castSpawnProjectile, name = 'Spawn projectile')
 demonForm = Spell(ressourceCost=10, cooldown = 150, useFunction=lambda caster, monsterTarget: castDemonForm(caster, monsterTarget, spellHiddenName = 'demonForm'), name = 'Shift to Demon form', ressource = 'MP', type = 'Occult', hiddenName='demonForm')
 expandRootsDmg = Spell(ressourceCost=6, cooldown = 100, useFunction= castExpandRoots, name = 'Expand roots (damage)', ressource = 'Stamina', type = 'racial')
@@ -2089,7 +2123,7 @@ dispDjik = Spell(ressourceCost= 0, cooldown = 1, useFunction=toggleDrawDjik, nam
 detDjik = Spell(ressourceCost= 0, cooldown = 1, useFunction=detailedProfilerWrapperDjik, name = 'DEBUG : Calculate Djikstra Map (with detailed Profiler)', ressource='MP', type = 'Occult')
 yellowify = Spell(ressourceCost= 0, cooldown = 1, useFunction=castMakeTileYellow, name = 'DEBUG : Make tile look yellow', ressource='MP', type = 'Occult')
 
-spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport, djik, dispDjik, djikProf, detDjik, yellowify, ram, leap, expandRootsDmg, expandRootsDummy, expandRootsRegen, insectFly, demonForm, spawnProj])
+spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport, djik, dispDjik, djikProf, detDjik, yellowify, ram, leap, expandRootsDmg, expandRootsDummy, expandRootsRegen, insectFly, demonForm, spawnProj, placeIceWall])
 #_____________SPELLS_____________
 
 #______________CHARACTER GENERATION____________
@@ -4412,9 +4446,9 @@ class Charger:
                             object.x = otherX
                             object.y = otherY
                         else:
-                            myMap[newX][newY].blocked = False
+                            myMap[newX][newY].baseBlocked = False
                             myMap[newX][newY].block_sight = False
-                            myMap[newX][newY].character = None
+                            myMap[newX][newY].baseCharacter = None
                             myMap[newX][newY].wall = False
                             for cx in range(newX - 1, newX + 1):
                                 for cy in range(newY -1, newY + 1):
@@ -4432,9 +4466,9 @@ class Charger:
             else:
                 if dragging:
                     print(x, y)
-                    myMap[x][y].blocked = False
+                    myMap[x][y].baseBlocked = False
                     myMap[x][y].block_sight = False
-                    myMap[x][y].character = None
+                    myMap[x][y].baseCharacter = None
                     myMap[x][y].wall = False
                     dragged.x = x
                     dragged.y = y
@@ -7089,7 +7123,7 @@ def castCreateWall():
         (x,y) = target
         if not isBlocked(x, y):
             global myMap
-            myMap[x][y].blocked = True
+            myMap[x][y].baseBlocked = True
             myMap[x][y].block_sight = True
 
 def castCreateChasm():
@@ -7100,7 +7134,7 @@ def castCreateChasm():
         (x,y) = target
         if not isBlocked(x, y):
             global myMap
-            myMap[x][y].blocked = True
+            myMap[x][y].baseBlocked = True
             myMap[x][y].block_sight = False
 
 def castPlaceBoss():
@@ -7138,7 +7172,7 @@ def monsterArmageddon(monsterName, monsterX, monsterY, radius = 4, damage = 40, 
         for y in range(monsterY - radmax, monsterY + radmax):
             try: #Execute code below try if no error is encountered
                 if tileDistance(monsterX, monsterY, x, y) <= radius and not myMap[x][y].unbreakable:
-                    myMap[x][y].blocked = False
+                    myMap[x][y].baseBlocked = False
                     myMap[x][y].block_sight = False
                     myMap[x][y].wall = False
                     myMap[x][y].applyGroundProperties(explode=True)
@@ -7248,18 +7282,18 @@ def printTileWhenWalked(tile):
     print("Player walked on tile at {};{}".format(tile.x, tile.y))
 
 class Tile:
-    def __init__(self, blocked, x, y, block_sight = None, acid = False, acidCooldown = 5, character = None, fg = None, bg = None, dark_fg = None, dark_bg = None, chasm = False, wall = False, hole = False, leaves = False, moveCost = 1):
-        self.blocked = blocked
+    def __init__(self, blocked, x, y, block_sight = None, character = None, fg = None, bg = None, dark_fg = None, dark_bg = None, chasm = False, wall = False, hole = False, moveCost = 1):
+        self.baseBlocked = blocked
         self.explored = False
         self.unbreakable = False
-        self.character = character
-        self.fg = fg
+        self.baseCharacter = character
+        self.baseFg = fg
         self.FG = fg
-        self.bg = bg
+        self.baseBg = bg
         self.BG = bg
-        self.dark_fg = dark_fg
+        self.baseDark_fg = dark_fg
         self.DARK_FG = dark_fg
-        self.dark_bg = dark_bg
+        self.baseDark_bg = dark_bg
         self.DARK_BG = dark_bg
         self.wall = wall
         self.chasm = chasm
@@ -7273,37 +7307,74 @@ class Tile:
             self.block_sight = block_sight
         else:
             self.block_sight = block_sight
-        self.acid = acid
-        self.baseAcidCooldown = acidCooldown
-        self.curAcidCooldown = 0
         self.belongsTo = []
         self.usedForPassage = False
         if self.wall:
-            self.character = '#'
+            self.baseCharacter = '#'
             self.FG = color_light_wall
-            self.fg = color_light_wall
+            self.baseFg = color_light_wall
             self.BG = color_light_ground
-            self.bg = color_light_ground
+            self.baseBg = color_light_ground
             self.DARK_FG = color_dark_wall
-            self.dark_fg = color_dark_wall
+            self.baseDark_fg = color_dark_wall
             self.DARK_BG = color_dark_ground
-            self.dark_bg = color_dark_ground
+            self.baseDark_bg = color_dark_ground
         if self.chasm:
-            self.character = None
+            self.baseCharacter = None
             self.FG = colors.black
-            self.fg = colors.black
+            self.baseFg = colors.black
             self.BG = (0, 0, 16)
-            self.bg = (0, 0, 16)
+            self.baseBg = (0, 0, 16)
             self.DARK_FG = colors.black
-            self.dark_fg = colors.black
+            self.baseDark_fg = colors.black
             self.DARK_BG = (0, 0, 16)
-            self.dark_bg = (0, 0, 16)
+            self.baseDark_bg = (0, 0, 16)
         self.moveCost = moveCost
         self.djikValue = None
         self.doNotPropagateDjik = False
         self.onTriggerFunction = printTileWhenWalked
-        self.leaves = leaves
         self.clearance = 1
+        self.buffList = []
+    
+    @property
+    def blocked(self):
+        if self.buffList:
+            for tileBuff in self.buffList:
+                if tileBuff.blocksTile:
+                    return True
+        return self.baseBlocked
+    
+    @property
+    def character(self):
+        if self.buffList:
+            for tileBuff in self.buffList:
+                if tileBuff.char:
+                    return tileBuff.char
+        return self.baseCharacter
+    
+    @property
+    def fg(self):
+        if self.buffList:
+            for tileBuff in self.buffList:
+                if tileBuff.fg:
+                    return tileBuff.fg
+        return self.baseFg
+    
+    @property
+    def bg(self):
+        if self.buffList:
+            for tileBuff in self.buffList:
+                if tileBuff.bg:
+                    return tileBuff.bg
+        return self.baseBg
+    
+    @property
+    def dark_fg(self):
+        return self.baseDark_fg
+    
+    @property
+    def dark_bg(self):
+        return self.baseDark_bg
         
     def neighbors(self, mapToUse = None):
         '''
@@ -7391,28 +7462,28 @@ class Tile:
     def applyWallProperties(self):
         if not self.secretWall:
             self.wall = True
-            self.character = '#'
+            self.baseCharacter = '#'
             self.FG = color_light_wall
-            self.fg = color_light_wall
+            self.baseFg = color_light_wall
             self.BG = color_light_ground
-            self.bg = color_light_ground
+            self.baseBg = color_light_ground
             self.DARK_FG = color_dark_wall
-            self.dark_fg = color_dark_wall
+            self.baseDark_fg = color_dark_wall
             self.DARK_BG = color_dark_ground
-            self.dark_bg = color_dark_ground
+            self.baseDark_bg = color_dark_ground
     
     def applyChasmProperties(self):
         if not self.secretWall:
             self.chasm = True
-            self.character = None
+            self.baseCharacter = None
             self.FG = colors.black
-            self.fg = colors.black
+            self.baseFg = colors.black
             self.BG = (0, 0, 16)
-            self.bg = (0, 0, 16)
+            self.baseBg = (0, 0, 16)
             self.DARK_FG = colors.black
-            self.dark_fg = colors.black
+            self.baseDark_fg = colors.black
             self.DARK_BG = (0, 0, 16)
-            self.dark_bg = (0, 0, 16)
+            self.baseDark_bg = (0, 0, 16)
     
     def applyGroundProperties(self, explode = False, temple = False):
         if temple:
@@ -7424,45 +7495,45 @@ class Tile:
         if explode:
             if not self.chasm or self.wall:
                 gravelChoice = randint(0, 5)
-                self.blocked = False
+                self.baseBlocked = False
                 self.block_sight = False
                 if gravelChoice == 0:
-                    self.character = gravelChar1
+                    self.baseCharacter = gravelChar1
                 elif gravelChoice == 1:
-                    self.character = gravelChar2
+                    self.baseCharacter = gravelChar2
                 else:
-                    self.character = None
-                self.fg = color_light_gravel
-                self.bg = color_light_ground
-                self.dark_fg = color_dark_gravel
-                self.dark_bg = color_dark_ground
+                    self.baseCharacter = None
+                self.baseFg = color_light_gravel
+                self.baseBg = color_light_ground
+                self.baseDark_fg = color_dark_gravel
+                self.baseDark_bg = color_dark_ground
                 self.wall = False
                 self.chasm = False
         else:
             if not self.secretWall or self.pillar:
                 gravelChoice = randint(0, 5)
-                self.blocked = False
+                self.baseBlocked = False
                 self.block_sight = False
                 if gravelChoice == 0:
-                    self.character = gravelChar1
+                    self.baseCharacter = gravelChar1
                 elif gravelChoice == 1:
-                    self.character = gravelChar2
+                    self.baseCharacter = gravelChar2
                 else:
-                    self.character = None
-                self.fg = color_light_gravel
-                self.bg = color_light_ground
-                self.dark_fg = color_dark_gravel
-                self.dark_bg = color_dark_ground
+                    self.baseCharacter = None
+                self.baseFg = color_light_gravel
+                self.baseBg = color_light_ground
+                self.baseDark_fg = color_dark_gravel
+                self.baseDark_bg = color_dark_ground
                 self.wall = False
     
     def setUnbreakable(self):
-        self.blocked = True
+        self.baseBlocked = True
         self.unbreakable = True
         self.wall = True
         
     def open(self):
         if not self.unbreakable:
-            self.blocked = False
+            self.baseBlocked = False
             self.block_sight = False
             self.wall = False
             return True
@@ -7471,7 +7542,7 @@ class Tile:
     
     def close(self, makeIndestructible = False):
         if not self.blocked:
-            self.blocked = True
+            self.baseBlocked = True
             self.block_sight = True
             self.wall = True
         if makeIndestructible:
@@ -8212,22 +8283,22 @@ def createRoom(room, pillar=False):
         centerPillar = randint(0, 2)
         if centerPillar != 0:
             myMap[room.x1 + 2][room.y1 + 2].pillar = True
-            myMap[room.x1 + 2][room.y1 + 2].blocked = True
-            myMap[room.x1 + 2][room.y1 + 2].character = 'o'
+            myMap[room.x1 + 2][room.y1 + 2].baseBlocked = True
+            myMap[room.x1 + 2][room.y1 + 2].baseCharacter = 'o'
             myMap[room.x1 + 2][room.y2 - 2].pillar = True
-            myMap[room.x1 + 2][room.y2 - 2].blocked = True
-            myMap[room.x1 + 2][room.y2 - 2].character = 'o'
+            myMap[room.x1 + 2][room.y2 - 2].baseBlocked = True
+            myMap[room.x1 + 2][room.y2 - 2].baseCharacter = 'o'
             myMap[room.x2 - 2][room.y1 + 2].pillar = True
-            myMap[room.x2 - 2][room.y1 + 2].blocked = True
-            myMap[room.x2 - 2][room.y1 + 2].character = 'o'
+            myMap[room.x2 - 2][room.y1 + 2].baseBlocked = True
+            myMap[room.x2 - 2][room.y1 + 2].baseCharacter = 'o'
             myMap[room.x2 - 2][room.y2 - 2].pillar = True
-            myMap[room.x2 - 2][room.y2 - 2].blocked = True
-            myMap[room.x2 - 2][room.y2 - 2].character = 'o'
+            myMap[room.x2 - 2][room.y2 - 2].baseBlocked = True
+            myMap[room.x2 - 2][room.y2 - 2].baseCharacter = 'o'
         else:
             x, y = room.center()
-            myMap[x][y].blocked = True
+            myMap[x][y].baseBlocked = True
             myMap[x][y].pillar = True
-            myMap[x][y].character = 'o'
+            myMap[x][y].baseCharacter = 'o'
             
 def checkMap(temple = False):
     for x in range(MAP_WIDTH):
@@ -8246,10 +8317,10 @@ def checkMap(temple = False):
                     myMap[x][y].applyChasmProperties()
                     myMap[x][y].wall = False
                 elif myMap[x][y].pillar:
-                    myMap[x][y].blocked = True
-                    myMap[x][y].character = 'o'
-                    myMap[x][y].fg = color_light_wall
-                    myMap[x][y].dark_fg = color_dark_wall
+                    myMap[x][y].baseBlocked = True
+                    myMap[x][y].baseCharacter = 'o'
+                    myMap[x][y].baseFg = color_light_wall
+                    myMap[x][y].baseDark_fg = color_dark_wall
                 elif not myMap[x][y].secretWall:
                     myMap[x][y].applyGroundProperties(temple=temple)
                     myMap[x][y].wall = False
@@ -8377,52 +8448,52 @@ def secretRoom(temple):
             for Y in range(secretRoom.y1, secretRoom.y2):
                 unchasmable.append((X, Y))
                 noCheckTiles.append((X, Y))
-        myMap[entryX][entryY].blocked = False
+        myMap[entryX][entryY].baseBlocked = False
         myMap[entryX][entryY].block_sight = True
-        myMap[entryX][entryY].character = '#'
-        myMap[entryX][entryY].fg = color_light_wall
-        myMap[entryX][entryY].bg = color_light_ground
-        myMap[entryX][entryY].dark_fg = color_dark_wall
-        myMap[entryX][entryY].dark_bg = color_dark_ground
+        myMap[entryX][entryY].baseCharacter = '#'
+        myMap[entryX][entryY].baseFg = color_light_wall
+        myMap[entryX][entryY].baseBg = color_light_ground
+        myMap[entryX][entryY].baseDark_fg = color_dark_wall
+        myMap[entryX][entryY].baseDark_bg = color_dark_ground
         myMap[entryX][entryY].secretWall = True
         myMap[entryX][entryY].wall = False
         if temple:
             for X in range(7):
                 for Y in range(7):
                     if not myMap[x + 1 + X][y + 1 + Y].pillar:
-                        myMap[x + 1 + X][y + 1 + Y].character = '-'
-                        myMap[x + 1 + X][y + 1 + Y].fg = colors.sepia
-                        myMap[x + 1 + X][y + 1 + Y].dark_fg = colors.darker_sepia
+                        myMap[x + 1 + X][y + 1 + Y].baseCharacter = '-'
+                        myMap[x + 1 + X][y + 1 + Y].baseFg = colors.sepia
+                        myMap[x + 1 + X][y + 1 + Y].baseDark_fg = colors.darker_sepia
                     else:
-                        myMap[x + 1 + X][y + 1 + Y].fg = colors.darker_sepia
-                        myMap[x + 1 + X][y + 1 + Y].dark_fg = colors.darkest_sepia
-                    myMap[x + 1 + X][y + 1 + Y].bg = colors.light_sepia
-                    myMap[x + 1 + X][y + 1 + Y].dark_bg = colors.dark_sepia
+                        myMap[x + 1 + X][y + 1 + Y].baseFg = colors.darker_sepia
+                        myMap[x + 1 + X][y + 1 + Y].baseDark_fg = colors.darkest_sepia
+                    myMap[x + 1 + X][y + 1 + Y].baseBg = colors.light_sepia
+                    myMap[x + 1 + X][y + 1 + Y].baseDark_bg = colors.dark_sepia
             
             if countNeighbours(myMap, x, y) == 7:
-                myMap[x][y].character = 'O'
-                myMap[x][y].fg = colors.darker_sepia
-                myMap[x][y].bg = colors.dark_sepia
-                myMap[x][y].dark_fg = colors.darkest_sepia
-                myMap[x][y].dark_bg = colors.darker_sepia
+                myMap[x][y].baseCharacter = 'O'
+                myMap[x][y].baseFg = colors.darker_sepia
+                myMap[x][y].baseBg = colors.dark_sepia
+                myMap[x][y].baseDark_fg = colors.darkest_sepia
+                myMap[x][y].baseDark_bg = colors.darker_sepia
             if countNeighbours(myMap, x + 8, y) == 7:
-                myMap[x + 8][y].character = 'O'
-                myMap[x + 8][y].fg = colors.darker_sepia
-                myMap[x + 8][y].bg = colors.dark_sepia
-                myMap[x + 8][y].dark_fg = colors.darkest_sepia
-                myMap[x + 8][y].dark_bg = colors.darker_sepia
+                myMap[x + 8][y].baseCharacter = 'O'
+                myMap[x + 8][y].baseFg = colors.darker_sepia
+                myMap[x + 8][y].baseBg = colors.dark_sepia
+                myMap[x + 8][y].baseDark_fg = colors.darkest_sepia
+                myMap[x + 8][y].baseDark_bg = colors.darker_sepia
             if countNeighbours(myMap, x, y + 8) == 7:
-                myMap[x][y + 8].character = 'O'
-                myMap[x][y + 8].fg = colors.darker_sepia
-                myMap[x][y + 8].bg = colors.dark_sepia
-                myMap[x][y + 8].dark_fg = colors.darkest_sepia
-                myMap[x][y + 8].dark_bg = colors.darker_sepia
+                myMap[x][y + 8].baseCharacter = 'O'
+                myMap[x][y + 8].baseFg = colors.darker_sepia
+                myMap[x][y + 8].baseBg = colors.dark_sepia
+                myMap[x][y + 8].baseDark_fg = colors.darkest_sepia
+                myMap[x][y + 8].baseDark_bg = colors.darker_sepia
             if countNeighbours(myMap, x + 8, y + 8) == 7:
-                myMap[x + 8][y + 8].character = 'O'
-                myMap[x + 8][y + 8].fg = colors.darker_sepia
-                myMap[x + 8][y + 8].bg = colors.dark_sepia
-                myMap[x + 8][y + 8].dark_fg = colors.darkest_sepia
-                myMap[x + 8][y + 8].dark_bg = colors.darker_sepia
+                myMap[x + 8][y + 8].baseCharacter = 'O'
+                myMap[x + 8][y + 8].baseFg = colors.darker_sepia
+                myMap[x + 8][y + 8].baseBg = colors.dark_sepia
+                myMap[x + 8][y + 8].baseDark_fg = colors.darkest_sepia
+                myMap[x + 8][y + 8].baseDark_bg = colors.darker_sepia
             
             if side != 'left':
                 sideFalse = False
@@ -8431,11 +8502,11 @@ def secretRoom(temple):
                         sideFalse = True
                 if not sideFalse:
                     for k in range(7):
-                        myMap[x + 8][y + 1 + k].character = '='
-                        myMap[x + 8][y + 1 + k].fg = colors.dark_sepia
-                        myMap[x + 8][y + 1 + k].bg = colors.sepia
-                        myMap[x + 8][y + 1 + k].dark_fg = colors.darkest_sepia
-                        myMap[x + 8][y + 1 + k].dark_bg = colors.darker_sepia
+                        myMap[x + 8][y + 1 + k].baseCharacter = '='
+                        myMap[x + 8][y + 1 + k].baseFg = colors.dark_sepia
+                        myMap[x + 8][y + 1 + k].baseBg = colors.sepia
+                        myMap[x + 8][y + 1 + k].baseDark_fg = colors.darkest_sepia
+                        myMap[x + 8][y + 1 + k].baseDark_bg = colors.darker_sepia
             if side != 'right':
                 sideFalse = False
                 for k in range(7):
@@ -8443,11 +8514,11 @@ def secretRoom(temple):
                         sideFalse = True
                 if not sideFalse:
                     for k in range(7):
-                        myMap[x][y + 1 + k].character = '='
-                        myMap[x][y + 1 + k].fg = colors.dark_sepia
-                        myMap[x][y + 1 + k].bg = colors.sepia
-                        myMap[x][y + 1 + k].dark_fg = colors.darkest_sepia
-                        myMap[x][y + 1 + k].dark_bg = colors.darker_sepia
+                        myMap[x][y + 1 + k].baseCharacter = '='
+                        myMap[x][y + 1 + k].baseFg = colors.dark_sepia
+                        myMap[x][y + 1 + k].baseBg = colors.sepia
+                        myMap[x][y + 1 + k].baseDark_fg = colors.darkest_sepia
+                        myMap[x][y + 1 + k].baseDark_bg = colors.darker_sepia
             if side != 'under':
                 sideFalse = False
                 for k in range(7):
@@ -8455,11 +8526,11 @@ def secretRoom(temple):
                         sideFalse = True
                 if not sideFalse:
                     for k in range(7):
-                        myMap[x + 1 + k][y].character = '='
-                        myMap[x + 1 + k][y].fg = colors.dark_sepia
-                        myMap[x + 1 + k][y].bg = colors.sepia
-                        myMap[x + 1 + k][y].dark_fg = colors.darkest_sepia
-                        myMap[x + 1 + k][y].dark_bg = colors.darker_sepia
+                        myMap[x + 1 + k][y].baseCharacter = '='
+                        myMap[x + 1 + k][y].baseFg = colors.dark_sepia
+                        myMap[x + 1 + k][y].baseBg = colors.sepia
+                        myMap[x + 1 + k][y].baseDark_fg = colors.darkest_sepia
+                        myMap[x + 1 + k][y].baseDark_bg = colors.darker_sepia
             if side != 'above':
                 sideFalse = False
                 for k in range(7):
@@ -8467,11 +8538,11 @@ def secretRoom(temple):
                         sideFalse = True
                 if not sideFalse:
                     for k in range(7):
-                        myMap[x + 1 + k][y + 8].character = '='
-                        myMap[x + 1 + k][y + 8].fg = colors.dark_sepia
-                        myMap[x + 1 + k][y + 8].bg = colors.sepia
-                        myMap[x + 1 + k][y + 8].dark_fg = colors.darkest_sepia
-                        myMap[x + 1 + k][y + 8].dark_bg = colors.darker_sepia
+                        myMap[x + 1 + k][y + 8].baseCharacter = '='
+                        myMap[x + 1 + k][y + 8].baseFg = colors.dark_sepia
+                        myMap[x + 1 + k][y + 8].baseBg = colors.sepia
+                        myMap[x + 1 + k][y + 8].baseDark_fg = colors.darkest_sepia
+                        myMap[x + 1 + k][y + 8].baseDark_bg = colors.darker_sepia
         print("created secret room at x ", entryX, " y ", entryY, " in quarter ", quarter)
 
 def checkFile(file, folder):
@@ -8633,19 +8704,19 @@ def makeMap(generateChasm = True, generateHole = False, fall = False, temple = F
                     '''
                     if countNeighbours(myMap, x, y) == 7:
                         myMap[x][y].pillar = True
-                        myMap[x][y].character = 'O'
+                        myMap[x][y].baseCharacter = 'O'
                     '''
                     if 0 <= countNeighbours(myMap, x, y) <= 2 and not myMap[x][y].pillar and not (x == 0 or x == MAP_WIDTH - 1 or y == 0 or y == MAP_HEIGHT - 1):
                         if myMap[x][y].blocked:
-                            #baseMap[x][y].bg = colors.red
+                            #baseMap[x][y].baseBg = colors.red
                             baseMap[x][y].wall = False
-                            baseMap[x][y].blocked = False
-                            baseMap[x][y].character = None
+                            baseMap[x][y].baseBlocked = False
+                            baseMap[x][y].baseCharacter = None
                     if countNeighbours(myMap, x, y) == 3 and not myMap[x][y].pillar and not (x == 0 or x == MAP_WIDTH - 1 or y == 0 or y == MAP_HEIGHT - 1):
                         if myMap[x][y].blocked:
                             baseMap[x][y].pillar = True
-                            baseMap[x][y].blocked = True
-                            baseMap[x][y].character = 'o'
+                            baseMap[x][y].baseBlocked = True
+                            baseMap[x][y].baseCharacter = 'o'
             myMap = baseMap
         
         secretRoom(temple)
@@ -8998,19 +9069,19 @@ def makeBossLevel(fall = False, generateHole=False, temple = False):
                 '''
                 if countNeighbours(myMap, x, y) == 7:
                     myMap[x][y].pillar = True
-                    myMap[x][y].character = 'O'
+                    myMap[x][y].baseCharacter = 'O'
                 '''
                 if 0 <= countNeighbours(myMap, x, y) <= 2 and not myMap[x][y].pillar and not (x == 0 or x == MAP_WIDTH - 1 or y == 0 or y == MAP_HEIGHT - 1):
                     if myMap[x][y].blocked:
-                        #baseMap[x][y].bg = colors.red
+                        #baseMap[x][y].baseBg = colors.red
                         baseMap[x][y].wall = False
-                        baseMap[x][y].blocked = False
-                        baseMap[x][y].character = None
+                        baseMap[x][y].baseBlocked = False
+                        baseMap[x][y].baseCharacter = None
                 if countNeighbours(myMap, x, y) == 3 and not myMap[x][y].pillar and not (x == 0 or x == MAP_WIDTH - 1 or y == 0 or y == MAP_HEIGHT - 1):
                     if myMap[x][y].blocked:
                         baseMap[x][y].pillar = True
-                        baseMap[x][y].blocked = True
-                        baseMap[x][y].character = 'o'
+                        baseMap[x][y].baseBlocked = True
+                        baseMap[x][y].baseCharacter = 'o'
         myMap = baseMap
     if generateHole:
         myMap = holeGen.createHoles(myMap)
@@ -9020,9 +9091,9 @@ def makeBossLevel(fall = False, generateHole=False, temple = False):
     '''
     for tile in bossTiles: #Makes the boss room look FABULOUS for testing purposes
         assert isinstance(tile, Tile)
-        tile.bg = colors.pink
+        tile.baseBg = colors.pink
         tile.BG = colors.pink
-        tile.dark_bg = colors.fuchsia
+        tile.baseDark_bg = colors.fuchsia
         tile.DARK_BG = colors.fuchsia
     '''
     
@@ -9046,12 +9117,12 @@ def makeBossLevel(fall = False, generateHole=False, temple = False):
         bossEntrance = entrance[0]
         #for bossEntrance in entrance:
         '''
-        bossEntrance.character = 'X'
-        bossEntrance.fg = colors.blue
+        bossEntrance.baseCharacter = 'X'
+        bossEntrance.baseFg = colors.blue
         bossEntrance.FG = colors.blue
-        bossEntrance.bg = colors.light_pink
+        bossEntrance.baseBg = colors.light_pink
         bossEntrance.BG = colors.light_pink
-        bossEntrance.dark_bg = colors.light_pink
+        bossEntrance.baseDark_bg = colors.light_pink
         bossEntrance.DARK_BG = colors.light_pink
         '''
         
@@ -9062,18 +9133,18 @@ def makeBossLevel(fall = False, generateHole=False, temple = False):
                 except:
                     pass #Cause loading shenanigans. 
                 '''
-                otherTile.character = 1
-                otherTile.bg = colors.amber
-                otherTile.fg = colors.green
+                otherTile.baseCharacter = 1
+                otherTile.baseBg = colors.amber
+                otherTile.baseFg = colors.green
                 '''
                 otherTile.onTriggerFunction = lambda tile : closeAndMakeWall(bossEntrance.x, bossEntrance.y, myMap, True)
     
     
     '''        
     for stuff in visuBoss:
-        stuff.bg = colors.light_yellow
+        stuff.baseBg = colors.light_yellow
         stuff.BG = colors.light_yellow
-        stuff.dark_bg = colors.light_yellow
+        stuff.baseDark_bg = colors.light_yellow
         stuff.DARK_BG = colors.light_yellow
     '''
     
@@ -9099,8 +9170,8 @@ def makeTutorialMap(level = 1):
             message(text)
             for x in range(startX, endX):
                 for y in range(startY, endY):
-                    myMap[x][y].character = char
-                    myMap[x][y].blocked = False
+                    myMap[x][y].baseCharacter = char
+                    myMap[x][y].baseBlocked = False
                     myMap[x][y].block_sight = False
         print('gate open:', tutoGateOpen)
 
@@ -9113,8 +9184,8 @@ def makeTutorialMap(level = 1):
             message(text)
             for x in range(startX, endX):
                 for y in range(startY, endY):
-                    myMap[x][y].character = char
-                    myMap[x][y].blocked = True
+                    myMap[x][y].baseCharacter = char
+                    myMap[x][y].baseBlocked = True
                     myMap[x][y].block_sight = blockLOS
         print('gate open:', tutoGateOpen)
     
@@ -9149,7 +9220,7 @@ def makeTutorialMap(level = 1):
             myMap[11][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 12, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
             myMap[13][y].onTriggerFunction = lambda tile: openTutorialGate(tile, 12, MID_MAP_HEIGHT - 3, MID_MAP_HEIGHT + 4)
         for y in range(MID_MAP_HEIGHT - 2, MID_MAP_HEIGHT + 3):
-            myMap[0][y].blocked = False
+            myMap[0][y].baseBlocked = False
             myMap[0][y].onTriggerFunction = lambda tile: loadTutoLevel(tile, 2)
         for y in range(26, 34):
             myMap[58][y].onTriggerFunction = lambda tile: closeTutorialGate(tile, 59, 27, 33, chr(207), False, 'The magic barrier closes back behind you!', 61)
@@ -11228,15 +11299,15 @@ def testArena():
             curTile = myMap[x][y]
             #assert isinstance(curTile, Tile)
             if curTile.blocked or curTile.character == "#":
-                curTile.dark_fg = color_dark_wall
+                curTile.baseDark_fg = color_dark_wall
                 curTile.DARK_FG = color_dark_wall
-                curTile.fg = color_light_wall
+                curTile.baseFg = color_light_wall
                 curTile.FG = color_light_wall
-                curTile.blocked = True
+                curTile.baseBlocked = True
             else:
-                curTile.dark_bg = color_dark_ground
+                curTile.baseDark_bg = color_dark_ground
                 curTile.DARK_BG = color_dark_ground
-                curTile.bg = color_light_ground
+                curTile.baseBg = color_light_ground
                 curTile.BG = color_light_ground
     myMap = clearanceMap(myMap)
     gameState = "playing"
@@ -13142,18 +13213,6 @@ def playGame(noSave = False):
                         if object.Player.timeOutsideLeft <= 0:
                             object.Fighter.takeDamage(999, 'the lack of host')
                 
-                x = object.x
-                y = object.y
-                if myMap[x][y].acid and object.Fighter and object.Fighter is not None and not object.flying:
-                    object.Fighter.takeDamage(1, 'acid')
-                    object.Fighter.acidify()
-                
-                if object.Fighter and object.Fighter.acidified and object.Fighter is not None:
-                    object.Fighter.acidifiedCooldown -= 1
-                    if object.Fighter.acidifiedCooldown <= 0:
-                        object.Fighter.acidified = False
-                        object.Fighter.baseArmor = object.Fighter.BASE_ARMOR
-                
                 if object.Fighter and player.Player.race == 'Reptilian' and not (object.x, object.y) in visibleTiles:
                     print(object.name, 'is eligible for rept detection. dist = ', object.distanceTo(player))
                     dice = randint(1, 100)
@@ -13166,8 +13225,16 @@ def playGame(noSave = False):
                 if object.Fighter and object.Fighter is not None: #If object is a creature
                     for buff in object.Fighter.buffList:
                         buff.passTurn() #Call passTurn method of each of his buffs
-    
                 
+                    for tileBuff in myMap[object.x][object.y].buffList:
+                        for buff in tileBuff.buffsWhenWalked:
+                            buff.applyBuff(object)
+    
+            for x in range(MAP_WIDTH):
+                for y in range(MAP_HEIGHT):
+                    if myMap[x][y].buffList:
+                        for tileBuff in myMap[x][y].buffList:
+                            tileBuff.passTurn()
             while mustCalculate:
                 print("Calculating")
                 pathfinders = []
@@ -13185,15 +13252,6 @@ def playGame(noSave = False):
                 for mob in mobsToCalculate:
                     mob.AI.tryMove()
                 
-                
-            for x in range(MAP_WIDTH):
-                for y in range(MAP_HEIGHT):
-                    if myMap[x][y].acid:
-                        myMap[x][y].bg = colors.desaturated_lime
-                        myMap[x][y].curAcidCooldown -= 1
-                        if myMap[x][y].curAcidCooldown <= 0:
-                            myMap[x][y].acid = False
-                            myMap[x][y].bg =  myMap[x][y].BG
             global stairCooldown
             if stairCooldown > 0:
                 stairCooldown -= 1

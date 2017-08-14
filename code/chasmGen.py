@@ -33,29 +33,29 @@ if __name__ == '__main__':
     
 class Tile:
     def __init__(self, blocked, x, y):
-        self.blocked = blocked
+        self.baseBlocked = blocked
         self.x = x
         self.y = y
         self.indestructible = False
         self.belongsTo = []
-        self.fg = colors.dark_grey
-        self.bg = colors.black
+        self.baseFg = colors.dark_grey
+        self.baseBg = colors.black
         self.chasm = True
         
     def setIndestructible(self):
-        self.blocked = True
+        self.baseBlocked = True
         self.indestructible = True
         
     def open(self):
         if not self.indestructible:
-            self.blocked = False
+            self.baseBlocked = False
             return True
         else:
             return False
     
     def close(self):
         if not self.blocked:
-            self.blocked = True
+            self.baseBlocked = True
     
     def addOwner(self, toAdd):
         if not toAdd in self.belongsTo:
@@ -94,19 +94,19 @@ def createRoom(room):
     global myMap, roomTiles
     for x in range(room.x1 + 1, room.x2):
         for y in range(room.y1 + 1, room.y2):
-            myMap[x][y].blocked = False
+            myMap[x][y].baseBlocked = False
             roomTiles.append((x, y))
             
 def createHorizontalTunnel(x1, x2, y):
     global myMap, tunnelTiles
     for x in range(min(x1, x2), max(x1, x2) + 1):
-        myMap[x][y].blocked = False
+        myMap[x][y].baseBlocked = False
         tunnelTiles.append((x, y))
             
 def createVerticalTunnel(y1, y2, x):
     global myMap, tunnelTiles
     for y in range(min(y1, y2), max(y1, y2) + 1):
-        myMap[x][y].blocked = False
+        myMap[x][y].baseBlocked = False
         tunnelTiles.append((x, y))
 
 def unblockTunnels(mapToUse, roomTiles, tunnelTiles, unchasmable):
@@ -114,26 +114,26 @@ def unblockTunnels(mapToUse, roomTiles, tunnelTiles, unchasmable):
         for y in range(MAP_HEIGHT):
             if mapToUse[x][y].chasm and ((x, y) in unchasmable or ((x,y) in tunnelTiles and not (x, y) in roomTiles)):
                 mapToUse[x][y].chasm = False
-                mapToUse[x][y].fg = colors.lighter_grey
-                mapToUse[x][y].bg = colors.darker_sepia
+                mapToUse[x][y].baseFg = colors.lighter_grey
+                mapToUse[x][y].baseBg = colors.darker_sepia
     return mapToUse
 
 def checkMap():
     for x in range(MAP_WIDTH):
         for y in range(MAP_HEIGHT):
             if myMap[x][y].chasm:
-                myMap[x][y].fg = colors.dark_grey
-                myMap[x][y].bg = colors.black
+                myMap[x][y].baseFg = colors.dark_grey
+                myMap[x][y].baseBg = colors.black
             else:
-                myMap[x][y].fg = colors.lighter_grey
-                myMap[x][y].bg = colors.dark_sepia
+                myMap[x][y].baseFg = colors.lighter_grey
+                myMap[x][y].baseBg = colors.dark_sepia
 
 def createChasms(mapToUse, roomTiles, tunnelTiles, unchasmable):
     for x in range(1, MAP_WIDTH - 1):
         for y in range(1, MAP_HEIGHT - 1):
             if randint(0, 100) < CHANCE_TO_START_ALIVE:
-                #mapToUse[x][y].fg = colors.lighter_grey
-                #mapToUse[x][y].bg = colors.dark_sepia
+                #mapToUse[x][y].baseFg = colors.lighter_grey
+                #mapToUse[x][y].baseBg = colors.dark_sepia
                 mapToUse[x][y].chasm = False
     for loop in range(STEPS_NUMBER):
         mapToUse = doStep(mapToUse)
@@ -199,8 +199,8 @@ def makeMap():
     for x in range(1, MAP_WIDTH - 1):
         for y in range(1, MAP_HEIGHT - 1):
             if randint(0, 100) < CHANCE_TO_START_ALIVE:
-                myMap[x][y].fg = colors.lighter_grey
-                myMap[x][y].bg = colors.dark_sepia
+                myMap[x][y].baseFg = colors.lighter_grey
+                myMap[x][y].baseBg = colors.dark_sepia
                 myMap[x][y].chasm = False
     for loop in range(STEPS_NUMBER):
         myMap = doStep(myMap)
@@ -235,21 +235,21 @@ def doStep(oldMap):
             neighbours = countNeighbours(oldMap, x, y)
             if not oldMap[x][y].chasm:
                 if neighbours < DEATH_LIMIT:
-                    #newMap[x][y].fg = colors.dark_grey
-                    #newMap[x][y].bg = colors.black
+                    #newMap[x][y].baseFg = colors.dark_grey
+                    #newMap[x][y].baseBg = colors.black
                     newMap[x][y].chasm = True
                 else:
-                    #newMap[x][y].fg = colors.lighter_grey
-                    #newMap[x][y].bg = colors.dark_sepia
+                    #newMap[x][y].baseFg = colors.lighter_grey
+                    #newMap[x][y].baseBg = colors.dark_sepia
                     newMap[x][y].chasm = False
             else:
                 if neighbours > BIRTH_LIMIT:
-                    #newMap[x][y].fg = colors.lighter_grey
-                    #newMap[x][y].bg = colors.dark_sepia
+                    #newMap[x][y].baseFg = colors.lighter_grey
+                    #newMap[x][y].baseBg = colors.dark_sepia
                     newMap[x][y].chasm = False
                 else:
-                    #newMap[x][y].fg = colors.dark_grey
-                    #newMap[x][y].bg = colors.black
+                    #newMap[x][y].baseFg = colors.dark_grey
+                    #newMap[x][y].baseBg = colors.black
                     newMap[x][y].chasm = True
     return newMap
 
