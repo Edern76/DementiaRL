@@ -7267,6 +7267,17 @@ BIRTH_LIMIT = 4 #Default : 4
 STEPS_NUMBER = 2 #Default : 2
 MIN_ROOM_SIZE = 6 #Default : 6
 
+caveList = []
+MAX_ITER = 30000
+WALL_LIMIT = 4 # number of neighboring walls for this cell to become a wall
+WALL_PROB = 50
+
+CAVE_MIN_SIZE = 16
+CAVE_MAX_SIZE = 500
+
+SMOOTH_EDGES = True
+SMOOTHING = 1
+
 emptyTiles = [] #List of tuples of the coordinates of emptytiles not yet processed by the floodfill algorithm
 rooms = []
 roomTiles = []
@@ -7614,6 +7625,7 @@ class Square:
             tileList = [mapToUse[x][y] for x in range(self.x1, self.x2 + 1) for y in range(self.y1, self.y2 + 1)]
         return tileList
 
+### FORMER CAVE GEN ###
 class CaveRoom:
     def __init__(self, tiles, borders = []):
         self.tiles = tiles
@@ -7684,7 +7696,8 @@ class CaveRoom:
             for room in self.connectedRooms:
                 room.setReachable()
 
-def floodFill(x, y, listToAppend, edgeList):
+#def floodFill(x, y, listToAppend, edgeList):
+def formerFloodFill(x, y, listToAppend, edgeList):
     print("{},{}".format(x, y))
     if not myMap[x][y].blocked:
         if (x,y) in emptyTiles:
@@ -7843,6 +7856,31 @@ def countNeighbours(mapToUse, startX, startY, stopAtFirst = False, searchBlock =
             if x == 0 and y == 0:
                 continue
             else:
+                otherX = startX + x
+                otherY = startY + y
+                if 0 <= otherX < MAP_WIDTH and 0 <= otherY < MAP_HEIGHT:
+                    if mapToUse[otherX][otherY].blocked or mapToUse[otherX][otherY].pillar and searchBlock:
+                        count += 1
+                        found = True
+                        if stopAtFirst:
+                            break
+                    if mapToUse[otherX][otherY].chasm and searchChasm:
+                        count += 1
+                        found = True
+                        if stopAtFirst:
+                            break
+        if stopAtFirst and found:
+            break
+    return count
+
+def countCardinalNeighbours(mapToUse, startX, startY, stopAtFirst = False, searchBlock = True, searchChasm = False):
+    count = 0
+    found = False
+    for x in range(-1, 2):
+        for y in range(-1, 2):
+            if x == 0 and y == 0:
+                continue
+            elif x == 0 or y == 0:
                 otherX = startX + x
                 otherY = startY + y
                 if 0 <= otherX < MAP_WIDTH and 0 <= otherY < MAP_HEIGHT:
@@ -8277,6 +8315,290 @@ def generateCave(fall = False):
         print("DONE")
 
         #gameState = 'dead' #What the hell ?
+### END FORMER CAVE GEN ###
+### NEW CAVE GEN ###
+def randomFillMap():
+    global caveList, myMap
+    for x in range(1, MAP_WIDTH-1):
+        for y in range(1, MAP_HEIGHT-1):
+            if randint(1, 100) >= WALL_PROB:
+                myMap[x][y].baseBlocked = False
+
+
+def cleanUpMap():
+    global caveList, myMap
+    if (SMOOTH_EDGES):
+        for i in range(0, 5):
+            # Look at each cell individually and check for smoothness
+            for x in range(1, MAP_WIDTH-1):
+                for y in range (1, MAP_HEIGHT-1):
+                    if myMap[x][y].blocked and countCardinalNeighbours(myMap, x, y) <= SMOOTHING:
+                        myMap[x][y].baseBlocked = False
+
+def createCaves():
+    global caveList, myMap
+    # ==== Create distinct caves ====
+    for i in range(0, MAX_ITER):
+        # Pick a random point with a buffer around the edges of the map
+        tileX = randint(1, MAP_WIDTH-2) #(2,mapWidth-3)
+        tileY = randint(1, MAP_HEIGHT-2) #(2,mapHeight-3)
+
+        # if the cell's neighboring walls > self.neighbors, set it to 1
+        if countNeighbours(myMap, tileX, tileY) > WALL_LIMIT:
+            myMap[tileX][tileY].baseBlocked = True
+        # or set it to 0
+        elif countNeighbours(myMap, tileX, tileY) < WALL_LIMIT:
+            myMap[tileX][tileY].baseBlocked = False
+     
+
+    # ==== Clean Up Map ====
+    cleanUpMap()
+
+def createTunnel(point1, point2, currentCave):
+    global caveList, myMap
+    # run a heavily weighted random Walk 
+    # from point1 to point1
+    drunkardX, drunkardY = point2
+    goalX, goalY = point1
+    while (drunkardX,drunkardY) not in currentCave:
+        # ==== Choose Direction ====
+        north = 1.0
+        south = 1.0
+        east = 1.0
+        west = 1.0
+
+        weight = 1
+
+        # weight the random walk against edges
+        if drunkardX < goalX: # drunkard is left of point1
+            east += weight
+        elif drunkardX > goalX: # drunkard is right of point1
+            west += weight
+        if drunkardY < goalY: # drunkard is above point1
+            south += weight
+        elif drunkardY > goalY: # drunkard is below point1
+            north += weight
+
+        # normalize probabilities so they form a range from 0 to 1
+        total = north+south+east+west
+        north /= total
+        south /= total
+        east /= total
+        west /= total
+        north*= 100
+        south*= 100
+        east*= 100
+        west*= 100
+
+        # choose the direction
+        choice = randint(1, 100)
+        if 0 <= choice < north:
+            dx = 0
+            dy = -1
+        elif north <= choice < (north+south):
+            dx = 0
+            dy = 1
+        elif (north+south) <= choice < (north+south+east):
+            dx = 1
+            dy = 0
+        else:
+            dx = -1
+            dy = 0
+
+        # ==== Walk ====
+        # check colision at edges
+        if (0 < drunkardX+dx < MAP_WIDTH-1) and (0 < drunkardY+dy < MAP_HEIGHT-1):
+            drunkardX += dx
+            drunkardY += dy
+            if myMap[drunkardX][drunkardY].baseBlocked:
+                myMap[drunkardX][drunkardY].wall = False
+                myMap[drunkardX][drunkardY].baseBlocked = False
+
+def floodFill(x,y):
+    global caveList, myMap
+    '''
+    flood fill the separate regions of the level, discard
+    the regions that are smaller than a minimum size, and 
+    create a reference for the rest.
+    '''
+    cave = []
+    tile = (x,y)
+    toBeFilled = [tile]
+    while toBeFilled:
+        tile = toBeFilled.pop()
+        x, y = tile
+        if tile not in cave:
+            cave.append(tile)
+            
+            myMap[x][y].baseBlocked = True
+            north = (x,y-1)
+            south = (x,y+1)
+            east = (x+1,y)
+            west = (x-1,y)
+            
+            for direction in [north,south,east,west]:
+                newX, newY = direction
+                try:
+                    if not myMap[newX][newY].blocked:
+                        if direction not in toBeFilled and direction not in cave:
+                            toBeFilled.append(direction)
+                except IndexError:
+                    print(newX, newY)
+
+    if len(cave) >= CAVE_MIN_SIZE:
+        caveList.append(cave)
+
+def getCaves():
+    global caveList, myMap
+    # locate all the caves within myMap and stores them in caveList
+    for x in range (MAP_WIDTH):
+        for y in range (MAP_HEIGHT):
+            if not myMap[x][y].blocked:
+                floodFill(x,y)
+
+    for cave in caveList:
+        for tile in cave:
+            x, y = tile
+            myMap[x][y].baseBlocked = False
+            myMap[x][y].wall = False
+
+def checkConnectivity(cave1, cave2):
+    global caveList, myMap
+    # floods cave1, then checks a point in cave2 for the flood
+
+    connectedRegion = []
+    start = cave1[randint(0, len(cave1) - 1)] # get an element from cave1
+    
+    toBeFilled = [start]
+    while toBeFilled:
+        tile = toBeFilled.pop()
+
+        if tile not in connectedRegion:
+            connectedRegion.append(tile)
+
+            #check adjacent cells
+            x, y = tile
+            north = (x,y-1)
+            south = (x,y+1)
+            east = (x+1,y)
+            west = (x-1,y)
+
+            for direction in [north,south,east,west]:
+                newX, newY = direction
+                if not myMap[newX][newY].blocked:
+                    if direction not in toBeFilled and direction not in connectedRegion:
+                        toBeFilled.append(direction)
+
+    end = cave2[randint(0, len(cave2) - 1)]
+
+    if end in connectedRegion: return True
+
+    else: return False
+
+def distanceFormula(point1,point2):
+    x1, y1 = point1
+    x2, y2 = point2
+    d = math.sqrt( (x2-x1)**2 + (y2 - y1)**2)
+    return d
+
+def connectCaves():
+    global caveList, myMap
+    # Find the closest cave to the current cave
+    for currentCave in caveList:
+        point1 = currentCave[randint(0, len(currentCave) - 1)]
+        point2 = None
+        distance = 999999999
+        for nextCave in caveList:
+            if nextCave != currentCave and not checkConnectivity(currentCave,nextCave):
+                # choose a random point from nextCave
+                nextPoint = nextCave[randint(0, len(nextCave) - 1)]
+                # compare distance of point1 to old and new point2
+                newDistance = distanceFormula(point1,nextPoint)
+                if (newDistance < distance) or distance == None:
+                    point2 = nextPoint
+                    distance = newDistance
+
+        if point2: # if all tunnels are connected, point2 == None
+            createTunnel(point1, point2,currentCave)
+
+def generateCaveLevel(fall = False):
+    global caveList, myMap
+    global myMap, bossTiles, baseMap, mapToDisp, maps, visuTiles, state, visuEdges, confTiles, rooms, curRoomIndex, stairs, objects, upStairs, bossDungeonsAppeared, color_dark_wall, color_light_wall, color_dark_ground, color_light_ground, color_dark_gravel, color_light_gravel, townStairs, gluttonyStairs, stairs, upStairs, nemesisList, wrathStairs
+    # Creates an empty 2D array or clears existing array
+    caveList = []
+    
+    stairs = None
+    upStairs = None
+    gluttonyStairs = None
+    townStairs = None
+    wrathStairs = None
+    bossTiles = None
+        
+    color_dark_wall = currentBranch.color_dark_wall
+    color_light_wall = currentBranch.color_light_wall
+    color_dark_ground = currentBranch.color_dark_ground
+    color_dark_gravel = currentBranch.color_dark_gravel
+    color_light_ground = currentBranch.color_light_ground
+    color_light_gravel = currentBranch.color_light_gravel
+
+    print('creating cave map')
+    myMap = [[Tile(True, x, y, wall = True) for y in range(MAP_HEIGHT)] for x in range(MAP_WIDTH)]
+    print('filling map')
+    randomFillMap()
+    print('creating caves')
+    createCaves()
+    print('getting caves')
+    getCaves()
+    print('connecting caves')
+    connectCaves()
+    print('cleaning up map')
+    cleanUpMap()
+    
+    checkMap(False)
+
+    objects = [player]
+
+    stairsX, stairsY = 0, 0
+    while myMap[stairsX][stairsY].blocked and countNeighbours(myMap, stairsX, stairsY, True) > 0:
+        stairsX = randint(1, MAP_WIDTH - 2)
+        stairsY = randint(1, MAP_HEIGHT - 2)
+    
+    if not fall:
+        player.x = stairsX
+        player.y = stairsY
+
+    if dungeonLevel > 1:
+        formerBranch = currentBranch
+    elif currentBranch.name != 'Main':
+        formerBranch = currentBranch.origBranch
+    else:
+        formerBranch = None
+    upStairs = GameObject(stairsX, stairsY, '<', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor, Stairs = Stairs(climb='up', branchesFrom=formerBranch, branchesTo=currentBranch))
+    objects.append(upStairs)
+    upStairs.sendToBack()
+    
+    sX, sY = 0, 0
+    while myMap[sX][sY].blocked and countNeighbours(myMap, sX, sY, True) > 0:
+        sX = randint(1, MAP_WIDTH - 2)
+        sY = randint(1, MAP_HEIGHT - 2)
+    stairs = GameObject(sX, sY, '>', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor, Stairs = Stairs(climb='down', branchesFrom=currentBranch, branchesTo=currentBranch))
+    objects.append(stairs)
+    stairs.sendToBack()
+    applyIdentification()
+    for room in caveList:
+        placeObjects(room, False)
+
+    if fall:
+        fallen = False
+        while not fallen:
+            x, y = randint(1, MAP_WIDTH - 1), randint(1, MAP_HEIGHT - 1)
+            if not myMap[x][y].chasm and not isBlocked(x, y):
+                player.x, player.y = x, y
+                fallen = True
+    updateTileCoords()
+    myMap = clearanceMap(myMap)
+    print("DONE")
+### END NEW CAVE GEN ###
         
 def createRoom(room, pillar=False):
     global myMap, roomTiles
@@ -8329,6 +8651,13 @@ def checkMap(temple = False):
                 elif not myMap[x][y].secretWall:
                     myMap[x][y].applyGroundProperties(temple=temple)
                     myMap[x][y].wall = False
+    
+    for x in range(MAP_WIDTH):
+        myMap[x][0].setUnbreakable()
+        myMap[x][MAP_HEIGHT - 1].setUnbreakable()
+    for y in range(MAP_HEIGHT):
+        myMap[0][y].setUnbreakable()
+        myMap[MAP_WIDTH - 1][y].setUnbreakable()
             
             
 def createHorizontalTunnel(x1, x2, y, big = False):
@@ -10160,8 +10489,8 @@ def placeObjects(room, first = False):
             print("THIS IS A RECTANGE")
             x = randint(room.x1+1, room.x2-1)
             y = randint(room.y1+1, room.y2-1)
-        elif type(room) is CaveRoom:
-            (x,y) = room.tiles[randint(0, len(room.tiles) - 1)]
+        else:
+            (x,y) = room[randint(0, len(room) - 1)]
             print("THIS IS A CAVE")
         print("X : {} | Y : {}".format(x,y))
         
@@ -10250,8 +10579,8 @@ def placeObjects(room, first = False):
             x = randint(room.x1+1, room.x2-1)
             y = randint(room.y1+1, room.y2-1)
             print("ITEM ROOM IS RECTANGLE")
-        elif type(room) is CaveRoom:
-            (x,y) = room.tiles[randint(0, len(room.tiles) - 1)]
+        else:
+            (x,y) = room[randint(0, len(room) - 1)]
             print("ITEM ROOM IS CAVE")
         item = None
         if not isBlocked(x, y) and not myMap[x][y].chasm:
@@ -12771,7 +13100,7 @@ def nextLevel(boss = False, changeBranch = None, fall = False, fromStairs = None
                 if currentBranch.genType == 'dungeon':
                     makeMap(generateChasm=chasmGeneration, generateHole=holeGeneration, fall = fall, temple=temple)
                 elif currentBranch.genType == 'cave':
-                    generateCave(fall = fall)
+                    generateCaveLevel(fall = fall)
             elif currentBranch.fixedMap == 'town':
                 makeHiddenTown(fall = fall)
             else:

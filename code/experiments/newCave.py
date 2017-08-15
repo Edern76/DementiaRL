@@ -15,8 +15,8 @@ MAX_ITER = 30000
 WALL_LIMIT = 4 # number of neighboring walls for this cell to become a wall
 WALL_PROB = 50
 
-ROOM_MIN_SIZE = 16
-ROOM_MAX_SIZE = 500
+CAVE_MIN_SIZE = 16
+CAVE_MAX_SIZE = 500
 
 SMOOTH_EDGES = True
 SMOOTHING = 1
@@ -229,7 +229,7 @@ def floodFill(x,y):
                 except IndexError:
                     print(newX, newY)
 
-    if len(cave) >= ROOM_MIN_SIZE:
+    if len(cave) >= CAVE_MIN_SIZE:
         caveList.append(cave)
     update()
 
@@ -307,7 +307,7 @@ def connectCaves():
             createTunnel(point1, point2,currentCave)
     update()
 
-def generateLevel():
+def generateCaveLevel():
     global caveList, myMap
     # Creates an empty 2D array or clears existing array
     caveList = []
@@ -336,7 +336,7 @@ def update():
     tdl.flush()
 
 if __name__ == '__main__':
-    generateLevel()
+    generateCaveLevel()
     while not tdl.event.is_window_closed():
         update()
 
