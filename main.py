@@ -226,6 +226,8 @@ currentMusic = 'No_Music.wav'
 detectedPlayerThisTurn = []
 monstersDetected = [[],[],[],[],[]]
 
+exploredMaps = {} #template: exploredMaps = {'main1': [(x, y, character, blocked, chasm),...], 'main1stairs': [(x, y, char, color)]}
+
 tutorial = False
 hasSpokenToGeneral = False
 
@@ -10832,6 +10834,16 @@ def displayLog(height):
         elif key.keychar.upper() in exitKeys:
             quitted = True
 
+def loadMap(level, branch):
+    branchKey = branch.shortName + str(level)
+    stairKey = branchKey + 'stairs'
+    print(branchKey, stairKey)
+    try:
+        return exploredMaps[branchKey], exploredMaps[stairKey]
+    except:
+        print('branch isnt explored')
+        return 'branch not explored'
+
 def displayMap():
     global menuWindows, FOV_recompute
     quitted = False
@@ -10866,6 +10878,14 @@ def displayMap():
             borderHoles.append((width - 1, l))
     
     while not quitted:
+        possibleBranches = []
+        if displayedBranch.origBranch and displayedBranch.origDepth:
+            possibleBranches.append((displayedBranch.origBranch, displayedBranch.origDepth))
+        for branch, lvl in displayedBranch.branchesTo:
+            if lvl == displayedLevel:
+                print(branch.name, 'is possible')
+                possibleBranches.append((branch, 1))
+                    
         window.clear()
         window.draw_rect(0, 0, width, height, None, fg=colors.sepia, bg=colors.light_sepia)
         
@@ -10882,10 +10902,12 @@ def displayMap():
         
         window.draw_str(3, 2, displayedBranch.name + ': ' + str(displayedLevel), fg = colors.darker_sepia, bg = colors.light_sepia)
         
+        '''
         if displayedLevel == dungeonLevel and displayedBranch == currentBranch:
             mapToDisplay = myMap
+            stairList = curStairList
         else:
-            mapToDisplay = loadMap(displayedLevel, displayedBranch)
+            mapToDisplay, stairList = loadMap(displayedLevel, displayedBranch)
         for x in range(MAP_WIDTH):
             for y in range(MAP_HEIGHT):
                 if mapToDisplay[x][y].explored:
@@ -10899,6 +10921,29 @@ def displayMap():
                     else:
                         bg = colors.lighter_sepia
                     window.draw_char(x + 2, y + 3, char, fg, bg)
+        for stair in stairList:
+            if mapToDisplay[stair.x][stair.y].explored:
+                window.draw_char(stair.x + 2, stair.y + 3, stair.char, fg = stair.color, bg = colors.lighter_sepia)
+        '''
+        
+        mapToDisplay, stairList = loadMap(displayedLevel, displayedBranch)
+        for x, y, character, blocked, chasm in mapToDisplay:
+            char = None
+            fg = colors.sepia
+            bg = colors.light_sepia
+            if blocked or character == '#':
+                char = character
+            elif chasm:
+                bg = colors.dark_sepia
+            else:
+                bg = colors.lighter_sepia
+            window.draw_char(x + 2, y + 3, char, fg, bg)
+        
+        if stairList:
+            for x, y, char, color in stairList:
+                print(x, y, char, color)
+                window.draw_char(x + 2, y + 3, char, fg = color, bg = colors.lighter_sepia)
+            
         
         windowX = MID_WIDTH - int(width/2)
         windowY = MID_HEIGHT - int(height/2)
@@ -10908,17 +10953,28 @@ def displayMap():
         key = tdl.event.key_wait()
         print(displayedLevel)
         print(key.keychar.upper())
-        if key.keychar.upper() == 'UP' and displayedLevel > 1:
+        if key.keychar.upper() == 'UP':
             print('loading above level')
             displayedLevel -= 1
+            if loadMap(displayedLevel, displayedBranch) == 'branch not explored':
+                displayedLevel += 1
         elif key.keychar.upper() == 'DOWN':
             print('loading below level')
             displayedLevel += 1
-            if not (displayedLevel == dungeonLevel and displayedBranch == currentBranch):
-                try:
-                    mapToDisplay = loadMap(displayedLevel, displayedBranch)
-                except:
-                    displayedLevel -= 1
+            if loadMap(displayedLevel, displayedBranch) == 'branch not explored':
+                displayedLevel -= 1
+        elif key.keychar.upper() == 'LEFT':
+            tryBranch, tryLvl = possibleBranches[0]
+            print('loading left level:', tryBranch.name)
+            if loadMap(tryLvl, tryBranch) != 'branch not explored':
+                displayedLevel = tryLvl
+                displayedBranch = tryBranch
+        elif key.keychar.upper() == 'RIGHT' and len(possibleBranches) > 1:
+            tryBranch, tryLvl = possibleBranches[1]
+            print('loading right level:', tryBranch.name)
+            if loadMap(tryLvl, tryBranch) != 'branch not explored':
+                displayedLevel = tryLvl
+                displayedBranch = tryBranch
         elif key.keychar.upper() == 'ESCAPE':
             quitted = True
 
@@ -11476,6 +11532,11 @@ def Update():
     global visibleTiles
     global tilesinPath
     global tilesInRange
+    global exploredMaps
+    branchKey = currentBranch.shortName + str(dungeonLevel)
+    stairKey = branchKey + 'stairs'
+    exploredMaps[branchKey] = []
+    exploredMaps[stairKey] = []
     con.clear()
     tdl.flush()
     player.Player.changeColor()
@@ -11498,8 +11559,12 @@ def Update():
                 if not visible:
                     if tile.explored:
                         con.draw_char(x, y, char, tile.dark_fg, tile.dark_bg)
+                        tileTuple = (x, y, tile.character,tile.blocked, tile.chasm)
+                        exploredMaps[branchKey].append(tileTuple)
                 else:
                     con.draw_char(x, y, char, tile.fg, tile.bg)
+                    tileTuple = (x, y, tile.character,tile.blocked, tile.chasm)
+                    exploredMaps[branchKey].append(tileTuple)
                     tile.explored = True
                 if gameState == 'targeting':
                     inRange = (x, y) in tilesInRange
@@ -11596,6 +11661,8 @@ def Update():
                             sidePanel.draw_str(4, panelY, line, fg = colors.white)
                             panelY += 1
                         panelY += 1
+                if object.Stairs and myMap[object.x][object.y].explored:
+                    exploredMaps[stairKey].append((object.x, object.y, object.char, object.color))
                 #if object.AI and object.AI.__class__.__name__ == 'Charger' or object.AI.__class__.__name__ == 'Wrath':
                 #    for sign in object.AI.chargePathSigns:
                 #        sign.draw()
@@ -12250,6 +12317,7 @@ def saveGame():
     file['colorDict'] = colorDict
     file['nameDict'] = nameDict
     file['currentMusic'] = currentMusic
+    file['exploredMaps'] = exploredMaps
     if bossTiles is not None:
         file['bossTiles'] = bossTiles
     else:
@@ -12333,7 +12401,7 @@ def reloadEntrance():
     return myMap[bossEntrance.x][bossEntrance.y]
 
 def newGame():
-    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, gameMsgs, identifiedItems, equipmentList, currentBranch, bossDungeonsAppeared, DEBUG, REVEL, logMsgs, tilesInRange, showTilesInRange, tilesinPath, tilesInRect, menuWindows, explodingTiles, hiroshimanNumber, FOV_recompute, bossTiles, bossEntrance, currentSidepanelMode
+    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, gameMsgs, identifiedItems, equipmentList, currentBranch, bossDungeonsAppeared, DEBUG, REVEL, logMsgs, tilesInRange, showTilesInRange, tilesinPath, tilesInRect, menuWindows, explodingTiles, hiroshimanNumber, FOV_recompute, bossTiles, bossEntrance, currentSidepanelMode, exploredMaps
     
     DEBUG = False
     REVEL = False
@@ -12354,6 +12422,7 @@ def newGame():
     bossTiles = None
     bossEntrance = None
     currentSidepanelMode = 0
+    exploredMaps = {}
     
     currentBranch = dBr.mainDungeon
     dungeonLevel = 1 
@@ -12395,7 +12464,7 @@ def loadGame():
     For example, this caused spells to be able to be learned multiple time after saving/loading, because we checked if the Spell object was in the spells list, though the memory adresses of the loaded Spell objects in the spell list had changed, hence why Python thought the original spells were no longer in the spells list and allowed them to be relearned.
     loadLevel() very probably has the same behaviour, though it causes less problems because we load a lesser amount of less critcal data.
     '''
-    global FOV_recompute, objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipmentList, stairs, upStairs, hiroshimanNumber, currentBranch, gluttonyStairs, logMsgs, townStairs, greedStairs, wrathStairs, potionIdentify, scrollIdentify, nameDict, colorDict, bossTiles, currentMusic, bossEntrance
+    global FOV_recompute, objects, inventory, gameMsgs, gameState, player, dungeonLevel, myMap, equipmentList, stairs, upStairs, hiroshimanNumber, currentBranch, gluttonyStairs, logMsgs, townStairs, greedStairs, wrathStairs, potionIdentify, scrollIdentify, nameDict, colorDict, bossTiles, currentMusic, bossEntrance, exploredMaps
     
     FOV_recompute = True
     #myMap = [[Tile(True) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)]
@@ -12419,6 +12488,7 @@ def loadGame():
     colorDict = file['colorDict']
     nameDict = file['nameDict']
     currentMusic = file['currentMusic']
+    exploredMaps = file['exploredMaps']
     try:
         bossTiles = file['bossTiles']
         bufferTiles = reloadBossTiles() #Because of the behavior described in the docstring, we need to refresh the tiles 
@@ -12633,12 +12703,6 @@ def loadLevel(level, save = True, branch = currentBranch, fall = False, fromStai
     currentBranch = branch
     objects = newObjects
     initializeFOV()
-
-def loadMap(level, branch):
-    mapFilePath = accessMapFile(level, branch.shortName)
-    xfile = shelve.open(mapFilePath, "r")
-    print(xfile["yunowork"])
-    return xfile["myMap"]
 
 def nextLevel(boss = False, changeBranch = None, fall = False, fromStairs = None):
     global dungeonLevel, currentBranch, currentMusic, bossTiles
