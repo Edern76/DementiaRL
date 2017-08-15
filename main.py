@@ -7434,6 +7434,7 @@ class Tile:
         '''
         
         return neighborsOutOfClass(int(self.x), int(self.y), mapToUse)
+
     def neighbours(self, mapToUse = None):
         result = self.neighbors(mapToUse = None)
         return result
