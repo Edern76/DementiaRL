@@ -1840,6 +1840,12 @@ def castDemonForm(caster=None, monsterTarget=None, ressources = {'stamina': 2, '
     demon.applyBuff(caster)
     return
 
+def castConeAOE(caster = None, monsterTarget = None):
+    if caster is None:
+        caster = player
+    
+    x, y = targetTile(SIGHT_RADIUS, AOE = True, rangeAOE = 3, styleAOE = 'cone')
+
 def resetDjik():
     global djikVisitedTiles
     djikVisitedTiles = []
@@ -2124,8 +2130,9 @@ djikProf = Spell(ressourceCost= 0, cooldown = 1, useFunction=profileDjik, name =
 dispDjik = Spell(ressourceCost= 0, cooldown = 1, useFunction=toggleDrawDjik, name = 'DEBUG : Draw Djikstra Map', ressource='MP', type = 'Occult')
 detDjik = Spell(ressourceCost= 0, cooldown = 1, useFunction=detailedProfilerWrapperDjik, name = 'DEBUG : Calculate Djikstra Map (with detailed Profiler)', ressource='MP', type = 'Occult')
 yellowify = Spell(ressourceCost= 0, cooldown = 1, useFunction=castMakeTileYellow, name = 'DEBUG : Make tile look yellow', ressource='MP', type = 'Occult')
+testCone = Spell(ressourceCost= 0, cooldown = 1, useFunction=castConeAOE, name = 'DEBUG : Test cone targeting', ressource='MP', type = 'Occult')
 
-spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport, djik, dispDjik, djikProf, detDjik, yellowify, ram, leap, expandRootsDmg, expandRootsDummy, expandRootsRegen, insectFly, demonForm, spawnProj, placeIceWall])
+spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport, djik, dispDjik, djikProf, detDjik, yellowify, ram, leap, expandRootsDmg, expandRootsDummy, expandRootsRegen, insectFly, demonForm, spawnProj, placeIceWall, testCone])
 #_____________SPELLS_____________
 
 #______________CHARACTER GENERATION____________
@@ -12465,7 +12472,9 @@ def targetTile(maxRange = None, showBresenham = False, unlimited = False, AOE = 
                 if not myMap[rx][ry].blocked:
                     tilesInRange.append((rx, ry))
     
-        
+    if styleAOE == 'cone':
+        showBresenham = True
+    
     FOV_recompute= True
     Update()
     tdl.flush()
@@ -12520,6 +12529,29 @@ def targetTile(maxRange = None, showBresenham = False, unlimited = False, AOE = 
                                 objects.append(dot)
                                 dotsAOE.append(dot)
                                 dot.sendToBack()
+                    elif styleAOE == 'cone':
+                        lines = []
+                        dx = cursor.x - player.x
+                        dy = cursor.y - player.y
+                        leftDX = int((dy/len(brLine)) * rangeAOE)
+                        leftDY = int((dx/len(brLine)) * rangeAOE) * -1
+                        rightDX = int((dy/len(brLine)) * rangeAOE) * -1
+                        rightDY = int((dx/len(brLine)) * rangeAOE)
+                        leftPerp = tdl.map.bresenham(cursor.x, cursor.y, cursor.x + leftDX, cursor.y + leftDY)
+                        rightPerp = tdl.map.bresenham(cursor.x, cursor.y, cursor.x + rightDX, cursor.y + rightDY)
+                        lines.extend(leftPerp)
+                        lines.extend(rightPerp)
+                        for x, y in leftPerp:
+                            lines.extend(tdl.map.bresenham(x, y, player.x, player.y))
+                        for x, y in rightPerp:
+                            lines.extend(tdl.map.bresenham(x, y, player.x, player.y))
+                        for x, y in lines:
+                            if not myMap[x][y].blocked:
+                                dot = GameObject(x = x, y = y, char = '.', name = 'AOE dot', color = colors.yellow, Ghost = True)
+                                objects.append(dot)
+                                dotsAOE.append(dot)
+                                dot.sendToBack()
+                            
                 Update()
                 tdl.flush()
                 for object in objects:
