@@ -27,17 +27,17 @@ def printTileWhenWalked(tile):
 '''
 class Tile:
     def __init__(self, blocked, x, y, block_sight = None, acid = False, acidCooldown = 5, character = None, fg = None, bg = None, dark_fg = None, dark_bg = None, chasm = False, wall = False, hole = False, leaves = False, moveCost = 1):
-        self.blocked = blocked
+        self.baseBlocked = blocked
         self.explored = False
         self.unbreakable = False
-        self.character = character
-        self.fg = fg
+        self.baseCharacter = character
+        self.baseFg = fg
         self.FG = fg
-        self.bg = bg
+        self.baseBg = bg
         self.BG = bg
-        self.dark_fg = dark_fg
+        self.baseDark_fg = dark_fg
         self.DARK_FG = dark_fg
-        self.dark_bg = dark_bg
+        self.baseDark_bg = dark_bg
         self.DARK_BG = dark_bg
         self.wall = wall
         self.chasm = chasm
@@ -57,25 +57,25 @@ class Tile:
         self.belongsTo = []
         self.usedForPassage = False
         if self.wall:
-            self.character = '#'
+            self.baseCharacter = '#'
             self.FG = color_light_wall
-            self.fg = color_light_wall
+            self.baseFg = color_light_wall
             self.BG = color_light_ground
-            self.bg = color_light_ground
+            self.baseBg = color_light_ground
             self.DARK_FG = color_dark_wall
-            self.dark_fg = color_dark_wall
+            self.baseDark_fg = color_dark_wall
             self.DARK_BG = color_dark_ground
-            self.dark_bg = color_dark_ground
+            self.baseDark_bg = color_dark_ground
         if self.chasm:
-            self.character = None
+            self.baseCharacter = None
             self.FG = colors.black
-            self.fg = colors.black
+            self.baseFg = colors.black
             self.BG = (0, 0, 16)
-            self.bg = (0, 0, 16)
+            self.baseBg = (0, 0, 16)
             self.DARK_FG = colors.black
-            self.dark_fg = colors.black
+            self.baseDark_fg = colors.black
             self.DARK_BG = (0, 0, 16)
-            self.dark_bg = (0, 0, 16)
+            self.baseDark_bg = (0, 0, 16)
         self.moveCost = moveCost
         self.djikValue = None
         self.doNotPropagateDjik = False
@@ -159,28 +159,28 @@ class Tile:
     def applyWallProperties(self):
         if not self.secretWall:
             self.wall = True
-            self.character = '#'
+            self.baseCharacter = '#'
             self.FG = color_light_wall
-            self.fg = color_light_wall
+            self.baseFg = color_light_wall
             self.BG = color_light_ground
-            self.bg = color_light_ground
+            self.baseBg = color_light_ground
             self.DARK_FG = color_dark_wall
-            self.dark_fg = color_dark_wall
+            self.baseDark_fg = color_dark_wall
             self.DARK_BG = color_dark_ground
-            self.dark_bg = color_dark_ground
+            self.baseDark_bg = color_dark_ground
     
     def applyChasmProperties(self):
         if not self.secretWall:
             self.chasm = True
-            self.character = None
+            self.baseCharacter = None
             self.FG = colors.black
-            self.fg = colors.black
+            self.baseFg = colors.black
             self.BG = (0, 0, 16)
-            self.bg = (0, 0, 16)
+            self.baseBg = (0, 0, 16)
             self.DARK_FG = colors.black
-            self.dark_fg = colors.black
+            self.baseDark_fg = colors.black
             self.DARK_BG = (0, 0, 16)
-            self.dark_bg = (0, 0, 16)
+            self.baseDark_bg = (0, 0, 16)
     
     def applyGroundProperties(self, explode = False, temple = False):
         if temple:
@@ -192,45 +192,45 @@ class Tile:
         if explode:
             if not self.chasm or self.wall:
                 gravelChoice = randint(0, 5)
-                self.blocked = False
+                self.baseBlocked = False
                 self.block_sight = False
                 if gravelChoice == 0:
-                    self.character = gravelChar1
+                    self.baseCharacter = gravelChar1
                 elif gravelChoice == 1:
-                    self.character = gravelChar2
+                    self.baseCharacter = gravelChar2
                 else:
-                    self.character = None
-                self.fg = color_light_gravel
-                self.bg = color_light_ground
-                self.dark_fg = color_dark_gravel
-                self.dark_bg = color_dark_ground
+                    self.baseCharacter = None
+                self.baseFg = color_light_gravel
+                self.baseBg = color_light_ground
+                self.baseDark_fg = color_dark_gravel
+                self.baseDark_bg = color_dark_ground
                 self.wall = False
                 self.chasm = False
         else:
             if not self.secretWall or self.pillar:
                 gravelChoice = randint(0, 5)
-                self.blocked = False
+                self.baseBlocked = False
                 self.block_sight = False
                 if gravelChoice == 0:
-                    self.character = gravelChar1
+                    self.baseCharacter = gravelChar1
                 elif gravelChoice == 1:
-                    self.character = gravelChar2
+                    self.baseCharacter = gravelChar2
                 else:
-                    self.character = None
-                self.fg = color_light_gravel
-                self.bg = color_light_ground
-                self.dark_fg = color_dark_gravel
-                self.dark_bg = color_dark_ground
+                    self.baseCharacter = None
+                self.baseFg = color_light_gravel
+                self.baseBg = color_light_ground
+                self.baseDark_fg = color_dark_gravel
+                self.baseDark_bg = color_dark_ground
                 self.wall = False
     
     def setUnbreakable(self):
-        self.blocked = True
+        self.baseBlocked = True
         self.unbreakable = True
         self.wall = True
         
     def open(self):
         if not self.unbreakable:
-            self.blocked = False
+            self.baseBlocked = False
             self.block_sight = False
             self.wall = False
             return True
@@ -239,7 +239,7 @@ class Tile:
     
     def close(self, makeIndestructible = False):
         if not self.blocked:
-            self.blocked = True
+            self.baseBlocked = True
             self.block_sight = True
             self.wall = True
         if makeIndestructible:
@@ -309,9 +309,9 @@ def readMap(mapDir, voidChar = None):
         for char in line:
             if not (char == chr(92) and x >= MAP_WIDTH):
                 if char == '.':
-                    createdMap[x][y].character = voidChar
+                    createdMap[x][y].baseCharacter = voidChar
                 else:
-                    createdMap[x][y].character = char
+                    createdMap[x][y].baseCharacter = char
                 x += 1
             else:
                 x = 0
@@ -326,16 +326,16 @@ def readMap(mapDir, voidChar = None):
         for char in line:
             if char != chr(92):
                 if char == '.':
-                    createdMap[x][y].blocked = False
+                    createdMap[x][y].baseBlocked = False
                     createdMap[x][y].block_sight = False
                 elif char == '#':
-                    createdMap[x][y].blocked = True
+                    createdMap[x][y].baseBlocked = True
                     createdMap[x][y].block_sight = True
                 elif char == '=':
-                    createdMap[x][y].blocked = True
+                    createdMap[x][y].baseBlocked = True
                     createdMap[x][y].block_sight = False
                 else:
-                    createdMap[x][y].blocked = False
+                    createdMap[x][y].baseBlocked = False
                     createdMap[x][y].block_sight = True
                 x += 1
             else:
@@ -378,7 +378,7 @@ def readMap(mapDir, voidChar = None):
                         currentColor = 'b'
                 elif char == ')':
                     currentColor = 'r'
-                    createdMap[x][y].fg = (int(color['r']), int(color['g']), int(color['b']))
+                    createdMap[x][y].baseFg = (int(color['r']), int(color['g']), int(color['b']))
                     color = {'r': '', 'g': '', 'b': ''}
                     x += 1
             else:
@@ -404,7 +404,7 @@ def readMap(mapDir, voidChar = None):
                         currentColor = 'b'
                 elif char == ')':
                     currentColor = 'r'
-                    createdMap[x][y].dark_fg = (int(color['r']), int(color['g']), int(color['b']))
+                    createdMap[x][y].baseDark_fg = (int(color['r']), int(color['g']), int(color['b']))
                     color = {'r': '', 'g': '', 'b': ''}
                     x += 1
             else:
@@ -430,7 +430,7 @@ def readMap(mapDir, voidChar = None):
                         currentColor = 'b'
                 elif char == ')':
                     currentColor = 'r'
-                    createdMap[x][y].bg = (int(color['r']), int(color['g']), int(color['b']))
+                    createdMap[x][y].baseBg = (int(color['r']), int(color['g']), int(color['b']))
                     color = {'r': '', 'g': '', 'b': ''}
                     x += 1
             else:
@@ -456,7 +456,7 @@ def readMap(mapDir, voidChar = None):
                         currentColor = 'b'
                 elif char == ')':
                     currentColor = 'r'
-                    createdMap[x][y].dark_bg = (int(color['r']), int(color['g']), int(color['b']))
+                    createdMap[x][y].baseDark_bg = (int(color['r']), int(color['g']), int(color['b']))
                     color = {'r': '', 'g': '', 'b': ''}
                     x += 1
             else:

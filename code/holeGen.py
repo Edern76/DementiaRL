@@ -1,6 +1,7 @@
-import tdlib, colors, copy, pdb, traceback, os, sys, time
+import colors, copy, pdb, traceback, os, sys, time
 from random import *
 from code.custom_except import *
+import tdlib as tdl
 
 
 WIDTH, HEIGHT, LIMIT = 150, 80, 20
@@ -29,30 +30,30 @@ if __name__ == '__main__':
     
 class Tile:
     def __init__(self, blocked, x, y):
-        self.blocked = blocked
+        self.baseBlocked = blocked
         self.x = x
         self.y = y
         self.indestructible = False
         self.belongsTo = []
-        self.fg = colors.lighter_grey
-        self.bg = colors.dark_sepia
+        self.baseFg = colors.lighter_grey
+        self.baseBg = colors.dark_sepia
         self.hole = True
         
     def setIndestructible(self):
-        self.blocked = True
+        self.baseBlocked = True
         self.indestructible = True
         self.hole = False
         
     def open(self):
         if not self.indestructible:
-            self.blocked = False
+            self.baseBlocked = False
             return True
         else:
             return False
     
     def close(self):
         if not self.blocked:
-            self.blocked = True
+            self.baseBlocked = True
     
     def addOwner(self, toAdd):
         if not toAdd in self.belongsTo:
@@ -91,24 +92,24 @@ def createRoom(room):
     global myMap, roomTiles
     for x in range(room.x1 + 1, room.x2):
         for y in range(room.y1 + 1, room.y2):
-            myMap[x][y].blocked = False
+            myMap[x][y].baseBlocked = False
             
 def createHorizontalTunnel(x1, x2, y):
     global myMap, tunnelTiles
     for x in range(min(x1, x2), max(x1, x2) + 1):
-        myMap[x][y].blocked = False
+        myMap[x][y].baseBlocked = False
             
 def createVerticalTunnel(y1, y2, x):
     global myMap, tunnelTiles
     for y in range(min(y1, y2), max(y1, y2) + 1):
-        myMap[x][y].blocked = False
+        myMap[x][y].baseBlocked = False
 
 def checkMap():
     global myMap
     for x in range(MAP_WIDTH):
         for y in range(MAP_HEIGHT):
             if myMap[x][y].hole and not myMap[x][y].indestructible:
-                myMap[x][y].blocked = False
+                myMap[x][y].baseBlocked = False
 
 def createHoles(mapToUse):
     for x in range(1, MAP_WIDTH - 1):
