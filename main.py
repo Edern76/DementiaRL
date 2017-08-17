@@ -1430,6 +1430,7 @@ def castEnrage(enrageTurns, caster = None, monsterTarget = None):
     enraged.applyBuff(caster)
 
 def castRessurect(shotRange = 4, caster = None, monsterTarget = None):
+    global objects
     if caster is None or caster == player:
         caster = player
     target = targetTile(shotRange)
@@ -1453,7 +1454,6 @@ def castRessurect(shotRange = 4, caster = None, monsterTarget = None):
             message("There are no valid corpses on this tile")
             return "cancelled"
         else:
-            global objects
             monster = None
             objects.remove(ressurectable)
             if corpseType == "darksoul":
@@ -3026,9 +3026,9 @@ class Stairs:
             self.changeBranch = None
     
     def climbStairs(self):
+        global stairCooldown, currentBranch, dungeonLevel
         if stairCooldown == 0:
             if self.climb == 'down':
-                global stairCooldown, currentBranch
                 temporaryBox('Loading...')
                 stairCooldown = 2
                 boss = False
@@ -3041,7 +3041,6 @@ class Stairs:
                 if dungeonLevel > 1 or currentBranch.name != 'Main':
                     print(currentBranch.name)
                     if stairCooldown == 0:
-                        global stairCooldown, dungeonLevel
                         temporaryBox('Loading...')
                         saveLevel(dungeonLevel)
                         chosen = False
@@ -6014,7 +6013,7 @@ def stopProcess():
         process.terminate()
 
 def getInput():
-    global FOV_recompute
+    global FOV_recompute, gameState, lookCursor, REVEL, DEBUG, currentSidepanelMode
     userInput = tdl.event.key_wait()
     if userInput.keychar.upper() ==  'ESCAPE' and gameState != 'looking':
         return 'exit'
@@ -6047,7 +6046,6 @@ def getInput():
         FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'F1':
-        global DEBUG
         if not DEBUG:
             print('Monster turn debug is now on')
             message("This is a very long message just to test Python 3 built-in textwrap function, which allows us to do great things such as splitting very long texts into multiple lines, so as it don't overflow outside of the console. Oh and, debug mode has been activated", colors.purple)
@@ -6106,7 +6104,6 @@ def getInput():
         FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'F12' and DEBUG and not tdl.event.isWindowClosed():
-        global REVEL
         REVEL = True
         for x in range(MAP_WIDTH):
             for y in range(MAP_HEIGHT):
@@ -6125,7 +6122,6 @@ def getInput():
         message("Force-saved level {}", colors.purple)
         saveLevel(dungeonLevel)
     elif userInput.keychar == 'Q' and DEBUG and not tdl.event.isWindowClosed():
-        global FOV_recompute
         FOV_recompute = True
         message("You're about to crash the game, press Y to continue.", colors.purple)
         Update()
@@ -6153,8 +6149,6 @@ def getInput():
     elif userInput.keychar == 'A' and gameState == 'playing' and DEBUG and not tdl.event.isWindowClosed():
         castArmageddon()         
     elif userInput.keychar == 'l' and gameState == 'playing':
-        global gameState
-        global lookCursor
         gameState = 'looking'
         if DEBUG == True:
             message('Look mode', colors.purple)
@@ -6210,15 +6204,12 @@ def getInput():
             return
     
     elif userInput.keychar.upper() == 'TAB':
-        global currentSidepanelMode
         currentSidepanelMode += 1
         if currentSidepanelMode >= len(SIDE_PANEL_MODES):
             currentSidepanelMode = 0
 
     if gameState == 'looking':
-        global lookCursor
         if userInput.keychar.upper() == 'ESCAPE':
-            global gameState
             gameState = 'playing'
             objects.remove(lookCursor)
             del lookCursor
@@ -7698,6 +7689,7 @@ def neighborsOutOfClass(x,y, mapToUse = None):
         
 
 def bossFloodfill(x,y, listToAppend, dependsOnList):
+    global stopBossFF
     if not myMap[x][y].blocked:
         if (x,y) in dependsOnList:
             dependsOnList.remove((x,y))
@@ -7705,14 +7697,12 @@ def bossFloodfill(x,y, listToAppend, dependsOnList):
             
             for tile in myMap[x][y].neighbors(): #I don't know why it doesn't work with just the vanilla floodfill, but this is necessary so as to find the entrance
                 if not (tile.blocked or tile in bossTiles):
-                    global stopBossFF
                     listToAppend.append(tile)
                     stopBossFF = True
                     print("FF STOP BECAUSE {};{} NOT IN BOSS TILES".format(tile.x, tile.y))
                     return
             
             if not myMap[x][y] in bossTiles: #As said above, I don't know why but this alone doesn't work
-                global stopBossFF
                 listToAppend.append(myMap[x][y])
                 stopBossFF = True
                 print("FF STOP BECAUSE {};{} NOT IN BOSS TILES".format(x,y))
@@ -8868,15 +8858,12 @@ def makeMap(generateChasm = True, generateHole = False, fall = False, temple = F
             '''
         if not regen:
             if not dBr.hiddenTown in branches:
-                global townStairs
                 print('Wrong branch for town stairs')
                 townStairs = None
             if not dBr.gluttonyDungeon in branches:
-                global gluttonyStairs
                 print('Wrong branch for gluttony stairs')
                 gluttonyStairs = None
             if not dBr.wrathDungeon in branches:
-                global wrathStairs
                 print('Wrong branch for wrath stairs')
                 wrathStairs = None
             
@@ -10055,6 +10042,7 @@ def randomChoice(chancesDictionnary):
     return strings[randomChoiceIndex(chances)]
 
 def placeObjects(room, first = False):
+    global highCultistHasAppeared, hiroshimanNumber, monsterChances
     monsterChances = currentBranch.monsterChances
     itemChances = currentBranch.itemChances
     potionChances = currentBranch.potionChances
@@ -10095,8 +10083,6 @@ def placeObjects(room, first = False):
                 monster = createDarksoul(x, y)
 
             elif monsterChoice == 'hiroshiman' and hiroshimanNumber == 0 and dungeonLevel > 2 and not first:
-                global hiroshimanNumber
-                global monsterChances
                 monster = createHiroshiman(x, y)
                 hiroshimanNumber = 1
                 del monsterChances['hiroshiman']
@@ -10111,7 +10097,6 @@ def placeObjects(room, first = False):
             elif monsterChoice == 'cultist':
                 monster = createCultist(x, y)
             elif monsterChoice == 'highCultist' and not first:
-                global highCultistHasAppeared
                 monster = createHighCultist(x, y)
                 diagonals = [(x+1, y+1), (x-1, y-1), (x-1, y+1), (x+1, y-1)]
                 minionNumber = 0
@@ -11313,6 +11298,7 @@ def Update():
     global visibleTiles
     global tilesinPath
     global tilesInRange
+    global lookCursor
     con.clear()
     tdl.flush()
     player.Player.changeColor()
@@ -11528,7 +11514,6 @@ def Update():
     lookPanel.draw_char(LOOK_WIDTH - 1, LOOK_HEIGHT - 1, chr(254), fg = colors.amber)
     
     if gameState == 'looking' and lookCursor != None:
-        global lookCursor
         lookCursor.draw()
         text = GetNamesUnderLookCursor()
         print(text)
@@ -11737,7 +11722,7 @@ def findHiddenOptionsPath():
         raise OSError("OS NOT RECOGNIZED ({})".format(sys.platform))
 
 def showPrologue(escapable = True):
-    global currentMusic
+    global currentMusic, heroName
     currentMusic = str('Sweltering_Battle.wav')
     stopProcess()
     print('CREATING MUSIC PROCESS')
@@ -11778,7 +11763,6 @@ def showPrologue(escapable = True):
     midScreen = (HEIGHT - 18) // 2
     
     if heroName is None:
-        global heroName
         name = ''
         letters = []
         hasConfirmed = False
@@ -12170,7 +12154,7 @@ def reloadEntrance():
     return myMap[bossEntrance.x][bossEntrance.y]
 
 def newGame():
-    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, gameMsgs, identifiedItems, equipmentList, currentBranch, bossDungeonsAppeared, DEBUG, REVEL, logMsgs, tilesInRange, showTilesInRange, tilesinPath, tilesInRect, menuWindows, explodingTiles, hiroshimanNumber, FOV_recompute, bossTiles, bossEntrance, currentSidepanelMode
+    global objects, inventory, gameMsgs, gameState, player, dungeonLevel, gameMsgs, identifiedItems, equipmentList, currentBranch, bossDungeonsAppeared, DEBUG, REVEL, logMsgs, tilesInRange, showTilesInRange, tilesinPath, tilesInRect, menuWindows, explodingTiles, hiroshimanNumber, FOV_recompute, bossTiles, bossEntrance, currentSidepanelMode, highCultistHasAppeared
     
     DEBUG = False
     REVEL = False
@@ -12221,7 +12205,6 @@ def newGame():
         inventory.append(object)
     
     if highCultistHasAppeared: #It's the exact contrary of the last statement yet it does the exact same thing (aside from the fact that we can have several high cultists)
-        global highCultistHasAppeared
         message('You feel like somebody really wants you dead...', colors.dark_red)
         highCultistHasAppeared = False #Make so more high cultists can spawn at lower levels (still only one by floor though)
 
@@ -12472,7 +12455,7 @@ def loadLevel(level, save = True, branch = currentBranch, fall = False, fromStai
     initializeFOV()
 
 def nextLevel(boss = False, changeBranch = None, fall = False, fromStairs = None):
-    global dungeonLevel, currentBranch, currentMusic, bossTiles
+    global dungeonLevel, currentBranch, currentMusic, bossTiles, myMap, objects, stairs, player, highCultistHasAppeared, hiroshimanHasAppeared
     if boss:
         currentMusic = 'Hoxton_Princess.wav'
         stopProcess()
@@ -12511,7 +12494,6 @@ def nextLevel(boss = False, changeBranch = None, fall = False, fromStairs = None
         loadLevel(dungeonLevel, save = False, branch = changeBranch, fall = fall, fromStairs=fromStairs)
         print("Loaded existing level {}".format(dungeonLevel))
     except Exception as error:
-        global myMap, objects, player, stairs
         if DEBUG:
             print("===========NO NEXT LEVEL============")
             print("Loading error : {}".format(type(error)))
@@ -12547,11 +12529,9 @@ def nextLevel(boss = False, changeBranch = None, fall = False, fromStairs = None
         print("Created a new level")
     print("After try except block")
     if hiroshimanNumber == 1 and not hiroshimanHasAppeared:
-        global hiroshimanHasAppeared
         message('You suddenly feel uneasy.', colors.dark_red)
         hiroshimanHasAppeared = True
     if highCultistHasAppeared: #It's the exact contrary of the last statement yet it does the exact same thing (aside from the fact that we can have several high cultists)
-        global highCultistHasAppeared
         message('You feel like somebody really wants you dead...', colors.dark_red)
         highCultistHasAppeared = False #Make so more high cultists can spawn at lower levels (still only one by floor though)
     initializeFOV()
@@ -12943,7 +12923,7 @@ def drawDetectionStatus():
     
 #ISN project
 def playGame(noSave = False):
-    global currentMusic, monstersDetected
+    global currentMusic, monstersDetected, FOV_recompute, DEBUG, actions
     if currentMusic is None or currentMusic in ('No_Music.wav', 'Dusty_Feelings.wav'):
         currentMusic = 'Bumpy_Roots.wav'
     stopProcess()
@@ -12952,7 +12932,6 @@ def playGame(noSave = False):
     activeProcess.append(music)
     actions = 1
     while not tdl.event.isWindowClosed():
-        global FOV_recompute, DEBUG, actions
         checkLevelUp()
         for trait in player.Player.unlockableTraits:
             trait.checkForRequirements()
