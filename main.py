@@ -5,7 +5,7 @@ import code.dialog as dial
 import music as mus
 import simpleaudio as sa
 import threading, multiprocessing
-import dill #THIS IS NOT AN UNUSED IMPORT. Importing this changes the behavior of the pickle module (and the shelve module too), so as we can actually save lambda expressions. EDIT : It might actually be useless to import it here, since we import it in the dilledShelve module, but it freaking finally works perfectly fine so we're not touching this.
+import dill   #THIS IS NOT AN UNUSED IMPORT. Importing this changes the behavior of the pickle module (and the shelve module too), so as we can actually save lambda expressions. EDIT : It might actually be useless to import it here, since we import it in the dilledShelve module, but it freaking finally works perfectly fine so we're not touching this.
 from tdlib import *
 from random import randint, choice
 from math import *
@@ -1281,6 +1281,7 @@ def unlearnSpell(spell, silent = False):
         message('You did not know this spell.', colors.white)
     return 'cancelled'
                 
+### GENERIC SPELLS ###
 
 def castRegenMana(regenAmount, caster = None, target = None):
     if caster is None or caster == player:
@@ -1450,6 +1451,43 @@ def castArmageddon(radius = 4, damage = 80, caster = None, monsterTarget = None)
             except IndexError:
                 pass
     explode()
+            
+def stealMoneyAndDamage(initiator, target, amount):
+    # To call, add to attackFunctions : "lambda ini, target : stealMoneyAndDamage(ini, target, [ENTER_DESIRED_AMOUNT_HERE])"
+    def actuallySteal(initiator, amountStolen):
+        target.Player.money -= amountStolen
+        addCoef = round(random.uniform(0, 0.8), 3)
+        toAdd = int(amountStolen * addCoef)
+        print("To add = {} (coef = {})".format(toAdd, addCoef))
+        initiator.lootFunction[0].Item.amount += toAdd
+        message("{} has stolen {} of your gold pieces !".format(initiator.owner.name.capitalize(), amountStolen), colors.red)
+    leftToSteal = int(amount)
+    if target.Player.money >= leftToSteal:
+        actuallySteal(initiator, amount)
+    else:
+        leftToSteal -= target.Player.money
+        actuallySteal(initiator, target.Player.money)
+        target.Fighter.takeDamage(leftToSteal // 10, damageSource = 'greedy fiend')
+        message("You take {} damage from {} !".format(leftToSteal // 10, initiator.owner.name), colors.red)
+
+def castPlaceIceWall(caster = None, monsterTarget = None):
+    if caster is None or caster == player:
+        caster = player
+        goalX, goalY = targetTile(10)
+        if (goalX, goalY) != 'cancelled':
+            iceWall = TileBuff('ice wall', fg = colors.lighter_azure, bg = colors.lighter_sky, char = '#', cooldown = 10, blocksTile = True)
+            iceWall.applyTileBuff(goalX, goalY)
+
+placeIceWall = Spell(ressourceCost=0, cooldown=0, useFunction=castPlaceIceWall, name = 'Place ice wall') 
+fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 1, arg2 = 12, arg3 = 4)
+heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 20)
+darkPact = Spell(ressourceCost = DARK_PACT_DAMAGE, cooldown = 8, useFunction = castDarkRitual, name = "Dark ritual", ressource = 'HP', type = "Occult", magicLevel = 2, arg1 = 5, arg2 = DARK_PACT_DAMAGE)
+lightning = Spell(ressourceCost = 10, cooldown = 7, useFunction = castLightning, name = 'Lightning bolt', ressource = 'MP', type = 'Magic', magicLevel = 3)
+confuse = Spell(ressourceCost = 5, cooldown = 4, useFunction = castConfuse, name = 'Confusion', ressource = 'MP', type = 'Magic', magicLevel = 1)
+ice = Spell(ressourceCost = 9, cooldown = 5, useFunction = castFreeze, name = 'Ice bolt', ressource = 'MP', type = 'Magic', magicLevel = 2)
+
+### GENERIC SPELLS ###
+### CLASS SPECIFIC SPELLS ###
 
 def castEnrage(enrageTurns, caster = None, monsterTarget = None):
     if caster is None or caster == player:
@@ -1491,139 +1529,17 @@ def castRessurect(shotRange = 4, caster = None, monsterTarget = None):
             if monster is not None:
                 objects.append(monster)
 
-def castPlaceTag(caster = None, monsterTarget = None):
-    targetedTile = targetAnyTile()
-    if targetedTile != 'cancelled':
-        (x, y) = targetedTile
-        rawPath = os.path.join(curDir, 'tags.txt')
-        filePath = pathlib.Path(os.path.join(rawPath))
-        if filePath.is_file():
-            textFile = open(rawPath, 'a')
-        else:
-            textFile = open(rawPath, 'w')
-        toWrite = '(' + str(x) + ';' + str(y) + ')\n'
-        textFile.write(toWrite)
-        textFile.close()
-    else:
-        return 'cancelled'
+ressurect = Spell(ressourceCost = 10, cooldown = 15, useFunction=castRessurect, name = "Dark ressurection", ressource = 'MP', type = "Occult", arg1 = 4)
+enrage = Spell(ressourceCost = 5, cooldown = 30, useFunction = castEnrage, name = 'Enrage', ressource = 'MP', type = 'Class', magicLevel = 0, arg1 = 10)
 
-def castDrawRectangle(caster = None, monsterTarget = None):
-    startingTile = targetAnyTile()
-    if startingTile != 'cancelled' :
-        (startingX, startingY) = startingTile
-        endTile = targetAnyTile(startingX, startingY, True)
-        if endTile != 'cancelled':
-            (endX, endY) = endTile
-            rWidth = endY - startingY
-            rHeight = endX - startingX
-            rawPath = os.path.join(curDir, 'rectangles.txt')
-            filePath = pathlib.Path(os.path.join(rawPath))
-            if filePath.is_file():
-                textFile = open(rawPath, 'a')
-            else:
-                textFile = open(rawPath, 'w')
-            toWrite = '( Start X = ' + str(startingX) + '/ Start Y = ' + str(startingY) + '/ Width = ' + str(rWidth) + '/ Height = '+ str(rHeight) +')\n'
-            textFile.write(toWrite)
-            textFile.close()
-        else:
-            return 'cancelled'
-    else:
-        return 'cancelled'
+### CLASS SPECIFIC SPELLS ###
+### RACE SPECIFIC SPELLS ###
 
 def castEnvenom(caster = None, monsterTarget = None):
     poisoned = Buff('poisoned', colors.purple, owner = None, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10))
     for equipment in equipmentList:
         if equipment.Equipment.meleeWeapon or equipment.Equipment.ranged:
             equipment.Equipment.enchant = Enchantment('envenomed', buffOnTarget=[poisoned])
-            
-def stealMoneyAndDamage(initiator, target, amount):
-    # To call, add to attackFunctions : "lambda ini, target : stealMoneyAndDamage(ini, target, [ENTER_DESIRED_AMOUNT_HERE])"
-    def actuallySteal(initiator, amountStolen):
-        target.Player.money -= amountStolen
-        addCoef = round(random.uniform(0, 0.8), 3)
-        toAdd = int(amountStolen * addCoef)
-        print("To add = {} (coef = {})".format(toAdd, addCoef))
-        initiator.lootFunction[0].Item.amount += toAdd
-        message("{} has stolen {} of your gold pieces !".format(initiator.owner.name.capitalize(), amountStolen), colors.red)
-    leftToSteal = int(amount)
-    if target.Player.money >= leftToSteal:
-        actuallySteal(initiator, amount)
-    else:
-        leftToSteal -= target.Player.money
-        actuallySteal(initiator, target.Player.money)
-        target.Fighter.takeDamage(leftToSteal // 10, damageSource = 'greedy fiend')
-        message("You take {} damage from {} !".format(leftToSteal // 10, initiator.owner.name), colors.red)
-        
-def castAstarPath(caster = None, monsterTarget = None):
-    global FOV_recompute
-    (goalX, goalY) = targetAnyTile(startX = player.x, startY = player.y)
-    if targetTile == 'cancelled':
-        return 'cancelled'
-    else:
-        path = astarPath(player.x, player.y, goalX, goalY)
-        print('astar path from spell:', path)
-        for tile in path:
-            sign = GameObject(tile.x, tile.y, '.', 'astarsign', colors.green, blocks = False, Ghost=True)
-            objects.append(sign)
-        FOV_recompute = True
-        Update()
-        return
-
-def castTeleportTo(caster = None, monsterTarget = None):
-    global FOV_recompute
-    (goalX, goalY) = targetAnyTile(startX = player.x, startY = player.y)
-    if targetTile == 'cancelled':
-        return 'cancelled'
-    else:
-        if not myMap[goalX][goalY].blocked and not myMap[goalX][goalY].chasm:
-            player.x = goalX
-            player.y = goalY
-            return
-        else:
-            message("Cannot teleport there !", colors.red)
-            return 'cancelled'
-        
-def castMakeTileYellow(caster = None, monsterTarget = None):
-    global FOV_recompute
-    (goalX, goalY) = targetAnyTile(startX = player.x, startY = player.y)
-    if targetTile == 'cancelled':
-        return 'cancelled'
-    else:
-        if not myMap[goalX][goalY].blocked and not myMap[goalX][goalY].chasm:
-            tile = myMap[goalX][goalY]
-            try:
-                assert isinstance(tile, Tile)
-            except AssertionError:
-                pass #Because saving/loading breaks assertion of tiles
-            tile.baseBg = colors.yellow
-            tile.BG = colors.yellow
-            tile.baseDark_bg = colors.dark_yellow
-            tile.DARK_BG = colors.dark_yellow
-            message("Made tile look yellow !")
-            return
-        else:
-            message("Invalid tile !", colors.red)
-            return 'cancelled'
-
-def castSpawnProjectile(caster = None, monsterTarget = None):
-    if caster is None:
-        caster = player
-    if caster == player:
-        targX, targY = targetTile(SIGHT_RADIUS, True)
-    else:
-        targX, targY = monsterTarget.x, monsterTarget.y
-    spawnedProj = Projectile(3, caster.x, caster.y, targX, targY, continues = True)
-    x, y = spawnedProj.path[0]
-    projObject = GameObject(x, y, spawnedProj.defineStraightChar(), name = 'projectile', color = colors.red, ProjectileComp = spawnedProj)
-    objects.append(projObject)
-
-def castPlaceIceWall(caster = None, monsterTarget = None):
-    if caster is None or caster == player:
-        caster = player
-        goalX, goalY = targetTile(10)
-        if (goalX, goalY) != 'cancelled':
-            iceWall = TileBuff('ice wall', fg = colors.lighter_azure, bg = colors.lighter_sky, char = '#', cooldown = 10, blocksTile = True)
-            iceWall.applyTileBuff(goalX, goalY)
 
 def castKnockback(caster = None, monsterTarget = None, abilityRange = 1, KBrange = 1, damage = randint(2, 7)):
     if caster is None or caster == player:
@@ -1699,7 +1615,6 @@ def castStopFly(caster=None, monsterTarget=None):
         if buff.name == 'flying':
             buff.removeBuff()
             return
-            
 
 def castFly(caster=None, monsterTarget=None, ressources = {'stamina': 1}, cooldown = 99999, evasionBonus = 10, spellHiddenName = None):
     stopFlight = Spell(ressourceCost=0, cooldown=0, useFunction=castStopFly, name='Stop Flying', type='None')
@@ -1839,6 +1754,140 @@ def castDemonForm(caster=None, monsterTarget=None, ressources = {'stamina': 2, '
     demon.continuousFunction = lambda fighter: consumeRessource(fighter, buff = demon, ressources = ressources)
     demon.applyBuff(caster)
     return
+
+envenom = Spell(ressourceCost= 10, cooldown = 20, useFunction=castEnvenom, name = 'Envenom weapons', ressource='Stamina', type = 'Racial')
+demonForm = Spell(ressourceCost=10, cooldown = 150, useFunction=lambda caster, monsterTarget: castDemonForm(caster, monsterTarget, spellHiddenName = 'demonForm'), name = 'Shift to Demon form', ressource = 'MP', type = 'Occult', hiddenName='demonForm')
+expandRootsDmg = Spell(ressourceCost=6, cooldown = 100, useFunction= castExpandRoots, name = 'Expand roots (damage)', ressource = 'Stamina', type = 'Racial')
+expandRootsRegen = Spell(ressourceCost=6, cooldown = 100, useFunction= lambda caster, monsterTarget: castExpandRoots(caster, monsterTarget, mode = 'regen'), name = 'Expand roots (regeneration)', ressource = 'Stamina', type = 'Racial')
+expandRootsDummy = Spell(ressourceCost=0, cooldown=100, useFunction = None, name = 'Expand roots', onRecoverLearn=[expandRootsDmg, expandRootsRegen], hiddenName= 'expandRootsDummy')
+insectFly = Spell(ressourceCost=4, cooldown= 50, useFunction = lambda caster, monsterTarget: castFly(caster, monsterTarget, spellHiddenName = 'insectFly'), name = 'Fly', ressource='Stamina', type = 'Racial', hiddenName='insectFly')
+leap = Spell(ressourceCost=5, cooldown = 30, useFunction=castMovement, name = 'Leap', ressource='Stamina', type = 'Racial')
+ram = Spell(ressourceCost=15, cooldown = 20, useFunction=castKnockback, name = 'Ram', ressource = 'Stamina', type = 'Racial')
+
+### RACE SPECIFIC SPELLS ###
+### TRAITS UNLOCKABLE SPELLS ###
+
+def castMultipleAttacks(caster = None, monsterTarget = None, attacksNum = 3):
+    if caster is None or caster == player:
+        caster = player
+        targetCoords = targetTile(1, melee = True)
+        if targetCoords != 'cancelled':
+            for object in objects:
+                if (object.x, object.y) == targetCoords and object.Fighter:
+                    target = object
+        else: return 'didnt-take-turn'
+    else:
+        target = monsterTarget
+    for attack in range(attacksNum):
+        caster.Fighter.attack(target)
+    return
+
+flurry = Spell(ressourceCost=15, cooldown=50, useFunction=castMultipleAttacks, name = 'Flurry', ressource = 'Stamina', type = 'Class')
+
+### TRAITS UNLOCKABLE SPELLS ###
+### DEBUG SPELLS ###
+
+def castPlaceTag(caster = None, monsterTarget = None):
+    targetedTile = targetAnyTile()
+    if targetedTile != 'cancelled':
+        (x, y) = targetedTile
+        rawPath = os.path.join(curDir, 'tags.txt')
+        filePath = pathlib.Path(os.path.join(rawPath))
+        if filePath.is_file():
+            textFile = open(rawPath, 'a')
+        else:
+            textFile = open(rawPath, 'w')
+        toWrite = '(' + str(x) + ';' + str(y) + ')\n'
+        textFile.write(toWrite)
+        textFile.close()
+    else:
+        return 'cancelled'
+
+def castDrawRectangle(caster = None, monsterTarget = None):
+    startingTile = targetAnyTile()
+    if startingTile != 'cancelled' :
+        (startingX, startingY) = startingTile
+        endTile = targetAnyTile(startingX, startingY, True)
+        if endTile != 'cancelled':
+            (endX, endY) = endTile
+            rWidth = endY - startingY
+            rHeight = endX - startingX
+            rawPath = os.path.join(curDir, 'rectangles.txt')
+            filePath = pathlib.Path(os.path.join(rawPath))
+            if filePath.is_file():
+                textFile = open(rawPath, 'a')
+            else:
+                textFile = open(rawPath, 'w')
+            toWrite = '( Start X = ' + str(startingX) + '/ Start Y = ' + str(startingY) + '/ Width = ' + str(rWidth) + '/ Height = '+ str(rHeight) +')\n'
+            textFile.write(toWrite)
+            textFile.close()
+        else:
+            return 'cancelled'
+    else:
+        return 'cancelled'
+        
+def castAstarPath(caster = None, monsterTarget = None):
+    global FOV_recompute
+    (goalX, goalY) = targetAnyTile(startX = player.x, startY = player.y)
+    if targetTile == 'cancelled':
+        return 'cancelled'
+    else:
+        path = astarPath(player.x, player.y, goalX, goalY)
+        print('astar path from spell:', path)
+        for tile in path:
+            sign = GameObject(tile.x, tile.y, '.', 'astarsign', colors.green, blocks = False, Ghost=True)
+            objects.append(sign)
+        FOV_recompute = True
+        Update()
+        return
+
+def castTeleportTo(caster = None, monsterTarget = None):
+    global FOV_recompute
+    (goalX, goalY) = targetAnyTile(startX = player.x, startY = player.y)
+    if targetTile == 'cancelled':
+        return 'cancelled'
+    else:
+        if not myMap[goalX][goalY].blocked and not myMap[goalX][goalY].chasm:
+            player.x = goalX
+            player.y = goalY
+            return
+        else:
+            message("Cannot teleport there !", colors.red)
+            return 'cancelled'
+        
+def castMakeTileYellow(caster = None, monsterTarget = None):
+    global FOV_recompute
+    (goalX, goalY) = targetAnyTile(startX = player.x, startY = player.y)
+    if targetTile == 'cancelled':
+        return 'cancelled'
+    else:
+        if not myMap[goalX][goalY].blocked and not myMap[goalX][goalY].chasm:
+            tile = myMap[goalX][goalY]
+            try:
+                assert isinstance(tile, Tile)
+            except AssertionError:
+                pass #Because saving/loading breaks assertion of tiles
+            tile.baseBg = colors.yellow
+            tile.BG = colors.yellow
+            tile.baseDark_bg = colors.dark_yellow
+            tile.DARK_BG = colors.dark_yellow
+            message("Made tile look yellow !")
+            return
+        else:
+            message("Invalid tile !", colors.red)
+            return 'cancelled'
+
+def castSpawnProjectile(caster = None, monsterTarget = None):
+    if caster is None:
+        caster = player
+    if caster == player:
+        targX, targY = targetTile(SIGHT_RADIUS, True)
+    else:
+        targX, targY = monsterTarget.x, monsterTarget.y
+    spawnedProj = Projectile(3, caster.x, caster.y, targX, targY, continues = True)
+    x, y = spawnedProj.path[0]
+    projObject = GameObject(x, y, spawnedProj.defineStraightChar(), name = 'projectile', color = colors.red, ProjectileComp = spawnedProj)
+    objects.append(projObject)
 
 def castConeAOE(caster = None, monsterTarget = None):
     if caster is None:
@@ -2102,27 +2151,6 @@ def profileDjik(caster = None, target = None):
 def detailedProfilerWrapperDjik(caster = None, target = None):
     calcDjikPlayer(profile = True)
 
-placeIceWall = Spell(ressourceCost=0, cooldown=0, useFunction=castPlaceIceWall, name = 'Place ice wall')
-spawnProj = Spell(ressourceCost=0, cooldown=0, useFunction=castSpawnProjectile, name = 'Spawn projectile')
-demonForm = Spell(ressourceCost=10, cooldown = 150, useFunction=lambda caster, monsterTarget: castDemonForm(caster, monsterTarget, spellHiddenName = 'demonForm'), name = 'Shift to Demon form', ressource = 'MP', type = 'Occult', hiddenName='demonForm')
-expandRootsDmg = Spell(ressourceCost=6, cooldown = 100, useFunction= castExpandRoots, name = 'Expand roots (damage)', ressource = 'Stamina', type = 'racial')
-expandRootsRegen = Spell(ressourceCost=6, cooldown = 100, useFunction= lambda caster, monsterTarget: castExpandRoots(caster, monsterTarget, mode = 'regen'), name = 'Expand roots (regeneration)', ressource = 'Stamina', type = 'racial')
-expandRootsDummy = Spell(ressourceCost=0, cooldown=100, useFunction = None, name = 'Expand roots', onRecoverLearn=[expandRootsDmg, expandRootsRegen], hiddenName= 'expandRootsDummy')
-insectFly = Spell(ressourceCost=4, cooldown= 50, useFunction = lambda caster, monsterTarget: castFly(caster, monsterTarget, spellHiddenName = 'insectFly'),
-                  name = 'Fly', ressource='Stamina', type = 'racial', hiddenName='insectFly')
-leap = Spell(ressourceCost=5, cooldown = 30, useFunction=castMovement, name = 'Leap', ressource='Stamina', type = 'racial')
-ram = Spell(ressourceCost=15, cooldown = 20, useFunction=castKnockback, name = 'Ram', ressource = 'Stamina', type = 'Racial')    
-fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 1, arg2 = 12, arg3 = 4)
-heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 20)
-darkPact = Spell(ressourceCost = DARK_PACT_DAMAGE, cooldown = 8, useFunction = castDarkRitual, name = "Dark ritual", ressource = 'HP', type = "Occult", magicLevel = 2, arg1 = 5, arg2 = DARK_PACT_DAMAGE)
-enrage = Spell(ressourceCost = 5, cooldown = 30, useFunction = castEnrage, name = 'Enrage', ressource = 'MP', type = 'Class', magicLevel = 0, arg1 = 10)
-lightning = Spell(ressourceCost = 10, cooldown = 7, useFunction = castLightning, name = 'Lightning bolt', ressource = 'MP', type = 'Magic', magicLevel = 3)
-confuse = Spell(ressourceCost = 5, cooldown = 4, useFunction = castConfuse, name = 'Confusion', ressource = 'MP', type = 'Magic', magicLevel = 1)
-ice = Spell(ressourceCost = 9, cooldown = 5, useFunction = castFreeze, name = 'Ice bolt', ressource = 'MP', type = 'Magic', magicLevel = 2)
-ressurect = Spell(ressourceCost = 10, cooldown = 15, useFunction=castRessurect, name = "Dark ressurection", ressource = 'MP', type = "Occult", arg1 = 4)
-placeTag = Spell(ressourceCost = 0, cooldown = 1, useFunction=castPlaceTag, name = 'DEBUG : Place tag', ressource = 'MP', type = 'Occult')
-drawRect = Spell(ressourceCost = 0, cooldown = 1, useFunction=castDrawRectangle, name = 'DEBUG : Draw Rectangle', ressource = 'MP', type = 'Occult')
-envenom = Spell(ressourceCost= 10, cooldown = 20, useFunction=castEnvenom, name = 'Envenom weapons', ressource='Stamina', type = 'Racial')
 drawAstarPath = Spell(ressourceCost = 0, cooldown = 1, useFunction=castAstarPath, name = 'DEBUG : Draw A* path', ressource = 'MP', type = 'Occult')
 teleport = Spell(ressourceCost = 0, cooldown = 1, useFunction=castTeleportTo, name = 'DEBUG : Teleport', ressource = 'HP', type = 'Occult')
 djik = Spell(ressourceCost= 0, cooldown = 1, useFunction=calcDjikPlayer, name = 'DEBUG : Calculate Djikstra Map', ressource='MP', type = 'Occult')
@@ -2131,8 +2159,13 @@ dispDjik = Spell(ressourceCost= 0, cooldown = 1, useFunction=toggleDrawDjik, nam
 detDjik = Spell(ressourceCost= 0, cooldown = 1, useFunction=detailedProfilerWrapperDjik, name = 'DEBUG : Calculate Djikstra Map (with detailed Profiler)', ressource='MP', type = 'Occult')
 yellowify = Spell(ressourceCost= 0, cooldown = 1, useFunction=castMakeTileYellow, name = 'DEBUG : Make tile look yellow', ressource='MP', type = 'Occult')
 testCone = Spell(ressourceCost= 0, cooldown = 1, useFunction=castConeAOE, name = 'DEBUG : Test cone targeting', ressource='MP', type = 'Occult')
+spawnProj = Spell(ressourceCost=0, cooldown=0, useFunction=castSpawnProjectile, name = 'Spawn projectile')
+placeTag = Spell(ressourceCost = 0, cooldown = 1, useFunction=castPlaceTag, name = 'DEBUG : Place tag', ressource = 'MP', type = 'Occult')
+drawRect = Spell(ressourceCost = 0, cooldown = 1, useFunction=castDrawRectangle, name = 'DEBUG : Draw Rectangle', ressource = 'MP', type = 'Occult')
 
-spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport, djik, dispDjik, djikProf, detDjik, yellowify, ram, leap, expandRootsDmg, expandRootsDummy, expandRootsRegen, insectFly, demonForm, spawnProj, placeIceWall, testCone])
+### DEBUG SPELLS ###
+
+spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport, djik, dispDjik, djikProf, detDjik, yellowify, ram, leap, expandRootsDmg, expandRootsDummy, expandRootsRegen, insectFly, demonForm, spawnProj, placeIceWall, testCone, flurry])
 #_____________SPELLS_____________
 
 #______________CHARACTER GENERATION____________
@@ -2641,10 +2674,11 @@ def initializeTraits():
         
     shapeshift = Spell(ressourceCost=10, cooldown = 100, useFunction=castShapeshift, name = 'Shapeshift', ressource='MP', type = 'racial')
     controllableWerewolf = UnlockableTrait('Shape control', 'You are able to shapeshift at will.', type = 'trait', spells = [shapeshift], requiredTraits={'player level': 5})
+    flurryTrait = UnlockableTrait('Flurry', 'You unleash three deadly attacks on the target.', 'trait', requiredTraits={'Light weapons': 7}, spells = [flurry])
     dual = UnlockableTrait('Dual wield', 'Allows to wield two lights weapons at the same time.', 'trait', requiredTraits={'Light weapons': 4})
     aware = UnlockableTrait('Self aware', 'Allows to see the buffs and debuffs cooldowns.', 'trait', requiredTraits={'Power of will': 4})
             
-    unlockableTraits.extend([controllableWerewolf, dual, aware])
+    unlockableTraits.extend([controllableWerewolf, dual, aware, flurryTrait])
     
     return allTraits, leftTraits, rightTraits, races, attributes, skills, classes, traits, human, unlockableTraits #skilled, human, unlockableTraits
 
