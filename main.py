@@ -1893,7 +1893,7 @@ def castConeAOE(caster = None, monsterTarget = None):
     if caster is None:
         caster = player
     
-    x, y = targetTile(SIGHT_RADIUS, AOE = True, rangeAOE = 3, styleAOE = 'cone')
+    x, y = targetTile(SIGHT_RADIUS, AOE = True, rangeAOE = 6, styleAOE = 'cone')
 
 def resetDjik():
     global djikVisitedTiles
@@ -12450,6 +12450,19 @@ def GetNamesUnderLookCursor():
     names = ', '.join(names)
     return names
 
+def arcCoordinates(r, dx, dy, pointX, arcWidth = 90):
+    radArcWidth = radians(arcWidth)
+    teta = atan2(dy, dx)
+    x, y = pointX
+    xA = round(r * cos(teta + radArcWidth/2))
+    yA = round(r * sin(teta + radArcWidth/2))
+    pointA = (xA + x, yA + y)
+    xB = round(r * cos(teta - radArcWidth/2))
+    yB = round(r * sin(teta - radArcWidth/2))
+    pointB = (xB + x, yB + y)
+    print(r, dy, arcWidth, pointX, xA, yA, pointA, xB, yB, pointB)
+    return pointA, pointB
+
 def targetTile(maxRange = None, showBresenham = False, unlimited = False, AOE = False, rangeAOE = 0, styleAOE = 'circle', melee = False, returnBresenham = False):
     global gameState
     global cursor
@@ -12490,14 +12503,12 @@ def targetTile(maxRange = None, showBresenham = False, unlimited = False, AOE = 
                 if not myMap[rx][ry].blocked:
                     tilesInRange.append((rx, ry))
     
-    if styleAOE == 'cone':
-        showBresenham = True
-    
     FOV_recompute= True
     Update()
     tdl.flush()
 
     while gameState == 'targeting':
+        brLine = tdl.map.bresenham(player.x, player.y, cursor.x, cursor.y)
         FOV_recompute = True
         key = tdl.event.key_wait()
         if key.keychar.upper() == 'ESCAPE':
@@ -12518,7 +12529,6 @@ def targetTile(maxRange = None, showBresenham = False, unlimited = False, AOE = 
                 pathToTargetTile = []
                 cursor.move(dx, dy)
                 if showBresenham:
-                    brLine = tdl.map.bresenham(player.x, player.y, cursor.x, cursor.y)
                     for i in range(len(brLine)):
                         pathToTargetTile.append(brLine[i])
                     #print(pathToTargetTile)
@@ -12548,27 +12558,47 @@ def targetTile(maxRange = None, showBresenham = False, unlimited = False, AOE = 
                                 dotsAOE.append(dot)
                                 dot.sendToBack()
                     elif styleAOE == 'cone':
+                        pointA, pointB = arcCoordinates(player.distanceTo(cursor), cursor.x - player.x, cursor.y - player.y, (cursor.x, cursor.y))
+                        xA, yA = pointA
+                        xB, yB = pointB
                         lines = []
-                        dx = cursor.x - player.x
-                        dy = cursor.y - player.y
-                        leftDX = int((dy/len(brLine)) * rangeAOE)
-                        leftDY = int((dx/len(brLine)) * rangeAOE) * -1
-                        rightDX = int((dy/len(brLine)) * rangeAOE) * -1
-                        rightDY = int((dx/len(brLine)) * rangeAOE)
-                        leftPerp = tdl.map.bresenham(cursor.x, cursor.y, cursor.x + leftDX, cursor.y + leftDY)
-                        rightPerp = tdl.map.bresenham(cursor.x, cursor.y, cursor.x + rightDX, cursor.y + rightDY)
-                        lines.extend(leftPerp)
-                        lines.extend(rightPerp)
-                        for x, y in leftPerp:
-                            lines.extend(tdl.map.bresenham(x, y, player.x, player.y))
-                        for x, y in rightPerp:
-                            lines.extend(tdl.map.bresenham(x, y, player.x, player.y))
+                        lineA = tdl.map.bresenham(player.x, player.y, xA, yA)
+                        while player.distanceToCoords(xA, yA) > rangeAOE:
+                            lineA.pop()
+                            pointA = lineA[len(lineA) - 1]
+                            xA, yA = pointA
+                        lineB = tdl.map.bresenham(player.x, player.y, xB, yB)
+                        while player.distanceToCoords(xB, yB) > rangeAOE:
+                            lineB.pop()
+                            pointB = lineB[len(lineB) - 1]
+                            xB, yB = pointB
+                        lines.extend(lineA)
+                        lines.extend(lineB)
+                        
+                        '''
+                        middleLine = list(deepcopy(brLine))
+                        xM, yM = middleLine[len(middleLine) - 1]
+                        while player.distanceToCoords(xM, yM) > rangeAOE:
+                            middleLine.pop()
+                            xM, yM = middleLine[len(middleLine) - 1]
+                        
+                        newLine = tdl.map.bresenham(xA, yA, xM, yM)
+                        lines.extend(newLine)
+                        newLine = tdl.map.bresenham(xB, yB, xM, yM)
+                        lines.extend(newLine)
+                        '''
+                        
                         for x, y in lines:
                             if not myMap[x][y].blocked:
-                                dot = GameObject(x = x, y = y, char = '.', name = 'AOE dot', color = colors.yellow, Ghost = True)
-                                objects.append(dot)
-                                dotsAOE.append(dot)
-                                dot.sendToBack()
+                                found = False
+                                for obj in dotsAOE:
+                                    if obj.x == x and obj.y == y:
+                                        found = True
+                                if not found:
+                                    dot = GameObject(x = x, y = y, char = '.', name = 'AOE dot', color = colors.yellow, Ghost = True)
+                                    objects.append(dot)
+                                    dotsAOE.append(dot)
+                                    dot.sendToBack()
                             
                 Update()
                 tdl.flush()
