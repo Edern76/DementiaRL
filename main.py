@@ -1782,7 +1782,24 @@ def castMultipleAttacks(caster = None, monsterTarget = None, attacksNum = 3):
         caster.Fighter.attack(target)
     return
 
-flurry = Spell(ressourceCost=15, cooldown=50, useFunction=castMultipleAttacks, name = 'Flurry', ressource = 'Stamina', type = 'Class')
+def castSeismicSlam(caster, monsterTarget, AOErange = 6, damage = 10, stunCooldown = 4):
+    if caster is None or caster == player:
+        caster = player
+        targetZone = targetTile(SIGHT_RADIUS, AOE = True, rangeAOE = AOErange, styleAOE = 'cone', returnAOE = True)
+        if targetZone != 'cancelled':
+            affectedMonsters = []
+            for object in objects:
+                if (object.x, object.y) in targetZone and object.Fighter and object != caster:
+                    affectedMonsters.append(object)
+            for monster in affectedMonsters:
+                stunned = Buff('stunned', colors.yellow, cooldown = stunCooldown)
+                stunned.applyBuff(monster)
+                monster.Fighter.takeDamage(damage, 'player')
+        else:
+            return 'didnt-take-turn'
+
+flurry = Spell(ressourceCost=15, cooldown=50, useFunction=castMultipleAttacks, name = 'Flurry', ressource = 'Stamina', type = 'Skill')
+seismic = Spell(ressourceCost=20, cooldown=60, useFunction=castSeismicSlam, name='Seismic slam', ressource='Stamina', type='Skill')
 
 ### TRAITS UNLOCKABLE SPELLS ###
 ### DEBUG SPELLS ###
@@ -2165,7 +2182,7 @@ drawRect = Spell(ressourceCost = 0, cooldown = 1, useFunction=castDrawRectangle,
 
 ### DEBUG SPELLS ###
 
-spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport, djik, dispDjik, djikProf, detDjik, yellowify, ram, leap, expandRootsDmg, expandRootsDummy, expandRootsRegen, insectFly, demonForm, spawnProj, placeIceWall, testCone, flurry])
+spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport, djik, dispDjik, djikProf, detDjik, yellowify, ram, leap, expandRootsDmg, expandRootsDummy, expandRootsRegen, insectFly, demonForm, spawnProj, placeIceWall, testCone, flurry, seismic])
 #_____________SPELLS_____________
 
 #______________CHARACTER GENERATION____________
@@ -2677,8 +2694,9 @@ def initializeTraits():
     flurryTrait = UnlockableTrait('Flurry', 'You unleash three deadly attacks on the target.', 'trait', requiredTraits={'Light weapons': 7}, spells = [flurry])
     dual = UnlockableTrait('Dual wield', 'Allows to wield two lights weapons at the same time.', 'trait', requiredTraits={'Light weapons': 4})
     aware = UnlockableTrait('Self aware', 'Allows to see the buffs and debuffs cooldowns.', 'trait', requiredTraits={'Power of will': 4})
-            
-    unlockableTraits.extend([controllableWerewolf, dual, aware, flurryTrait])
+    seismicTrait = UnlockableTrait('Seismic slam', 'You hit the floor in front of you, creating a shockwave in a cone.', 'trait', requiredTraits={'Heavy weapons': 7}, spells = [seismic])
+    
+    unlockableTraits.extend([controllableWerewolf, dual, aware, flurryTrait, seismicTrait])
     
     return allTraits, leftTraits, rightTraits, races, attributes, skills, classes, traits, human, unlockableTraits #skilled, human, unlockableTraits
 
@@ -12615,17 +12633,12 @@ def targetTile(maxRange = None, showBresenham = False, unlimited = False, AOE = 
                             
                             for x in range(player.x - rangeAOE - 1, player.x + rangeAOE + 2):
                                 for y in range(player.y - rangeAOE - 1, player.y + rangeAOE + 2):
-                                    if isInTriangle((x, y), (player.x, player.y), pointA, pointB):
+                                    if (isInTriangle((x, y), (player.x, player.y), pointA, pointB)or (x, y) in lineA or (x, y) in lineB or (x, y) in lineAB) and not myMap[x][y].blocked:
                                         dot = GameObject(x = x, y = y, char = '.', name = 'AOE dot', color = colors.yellow, Ghost = True)
                                         objects.append(dot)
                                         dotsAOE.append(dot)
                                         dot.sendToBack()
-                                    elif (x, y) in lineA or (x, y) in lineB or (x, y) in lineAB:
-                                        dot = GameObject(x = x, y = y, char = '.', name = 'AOE dot', color = colors.red, Ghost = True)
-                                        objects.append(dot)
-                                        dotsAOE.append(dot)
-                                        dot.sendToBack()
-                                            
+
                 Update()
                 tdl.flush()
                 for object in objects:
