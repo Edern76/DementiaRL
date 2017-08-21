@@ -31,7 +31,7 @@
     fireSkill = Trait('Fire', 'Launch a blazing fireball at the chosen location.', type = 'skill', selectable=False, tier = 4, spells = [fireball]) STATUS: kinda implemented EFFECT: +fireball, ++fire resist, ++other spells
     iceSkill = Trait('Water', 'Launch an ice bolt at your target in order to freeze it.', type = 'skill', selectable=False, tier = 4, spells = [ice]) STATUS: kinda implemented EFFECT: +icebolt, ++ice resist, ++other spells
     
-    XX?light = Trait('Light weapons', '+20% damage per skillpoints with light weapons', type = 'skill', selectable = False, tier = 3) STATUS: kinda EFFECT: +20% dmg, +dual wield, +ability (flurry?)
+    light = Trait('Light weapons', '+20% damage per skillpoints with light weapons', type = 'skill', selectable = False, tier = 3) STATUS: kinda EFFECT: +20% dmg, +dual wield, +ability (flurry?) ++level 10
     heavy = Trait('Heavy weapons', '+20% damage per skillpoints with heavy weapons', type = 'skill', selectable = False, tier = 3) STATUS: kinda EFFECT: +20% dmg, ++ignores slow, ++one hand w/enough strength, ++ability (seismic slam?)
     missile = Trait('Missile weapons', '+20% damage per skillpoints with missile weapons', type = 'skill', selectable = False, tier = 3) STATUS: kinda implemented EFFECT: +20% dmg, ++fetch ammo, ++ability (headshot?)
     shield = Trait('Shield mastery', 'You trained to master shield wielding.', type = 'skill', selectable = False, tier = 3) STATUS: unimplemented EFFECT: ++10% armor, ++ability (parry?, stun?), ++auto parry

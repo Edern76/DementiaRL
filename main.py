@@ -12463,7 +12463,20 @@ def arcCoordinates(r, dx, dy, pointX, arcWidth = 90):
     print(r, dy, arcWidth, pointX, xA, yA, pointA, xB, yB, pointB)
     return pointA, pointB
 
-def targetTile(maxRange = None, showBresenham = False, unlimited = False, AOE = False, rangeAOE = 0, styleAOE = 'circle', melee = False, returnBresenham = False):
+def sign(point1, point2, point3):
+    x1, y1 = point1
+    x2, y2 = point2
+    x3, y3 = point3
+    return (x1 - x3) * (y2 - y3) - (x2 - x3) * (y1 - y3)
+
+def isInTriangle(pointX, point1, point2, point3):
+    test1 = sign(pointX, point1, point2) < 0
+    test2 = sign(pointX, point2, point3) < 0
+    test3 = sign(pointX, point3, point1) < 0
+    
+    return test1 == test2 and test2 == test3
+
+def targetTile(maxRange = None, showBresenham = False, unlimited = False, AOE = False, rangeAOE = 0, styleAOE = 'circle', melee = False, returnBresenham = False, returnAOE = False):
     global gameState
     global cursor
     global tilesInRange, showTilesInRange
@@ -12558,48 +12571,61 @@ def targetTile(maxRange = None, showBresenham = False, unlimited = False, AOE = 
                                 dotsAOE.append(dot)
                                 dot.sendToBack()
                     elif styleAOE == 'cone':
-                        pointA, pointB = arcCoordinates(player.distanceTo(cursor), cursor.x - player.x, cursor.y - player.y, (cursor.x, cursor.y))
-                        xA, yA = pointA
-                        xB, yB = pointB
-                        lines = []
-                        lineA = tdl.map.bresenham(player.x, player.y, xA, yA)
-                        while player.distanceToCoords(xA, yA) > rangeAOE:
-                            lineA.pop()
-                            pointA = lineA[len(lineA) - 1]
+                        if not (cursor.x == player.x and cursor.y == player.y):
+                            pointA, pointB = arcCoordinates(player.distanceTo(cursor), cursor.x - player.x, cursor.y - player.y, (cursor.x, cursor.y))
                             xA, yA = pointA
-                        lineB = tdl.map.bresenham(player.x, player.y, xB, yB)
-                        while player.distanceToCoords(xB, yB) > rangeAOE:
-                            lineB.pop()
-                            pointB = lineB[len(lineB) - 1]
                             xB, yB = pointB
-                        lines.extend(lineA)
-                        lines.extend(lineB)
-                        
-                        '''
-                        middleLine = list(deepcopy(brLine))
-                        xM, yM = middleLine[len(middleLine) - 1]
-                        while player.distanceToCoords(xM, yM) > rangeAOE:
-                            middleLine.pop()
-                            xM, yM = middleLine[len(middleLine) - 1]
-                        
-                        newLine = tdl.map.bresenham(xA, yA, xM, yM)
-                        lines.extend(newLine)
-                        newLine = tdl.map.bresenham(xB, yB, xM, yM)
-                        lines.extend(newLine)
-                        '''
-                        
-                        for x, y in lines:
-                            if not myMap[x][y].blocked:
-                                found = False
-                                for obj in dotsAOE:
-                                    if obj.x == x and obj.y == y:
-                                        found = True
-                                if not found:
-                                    dot = GameObject(x = x, y = y, char = '.', name = 'AOE dot', color = colors.yellow, Ghost = True)
-                                    objects.append(dot)
-                                    dotsAOE.append(dot)
-                                    dot.sendToBack()
+                            lineA = tdl.map.bresenham(player.x, player.y, xA, yA)
+                            while player.distanceToCoords(xA, yA) > rangeAOE:
+                                lineA.pop()
+                                pointA = lineA[len(lineA) - 1]
+                                xA, yA = pointA
+                            lineB = tdl.map.bresenham(player.x, player.y, xB, yB)
+                            while player.distanceToCoords(xB, yB) > rangeAOE:
+                                lineB.pop()
+                                pointB = lineB[len(lineB) - 1]
+                                xB, yB = pointB
                             
+                            lineAB = tdl.map.bresenham(xA, yA, xB, yB)
+                                
+                            '''
+                            middleLine = list(deepcopy(brLine))
+                            xM, yM = middleLine[len(middleLine) - 1]
+                            while player.distanceToCoords(xM, yM) > rangeAOE:
+                                middleLine.pop()
+                                xM, yM = middleLine[len(middleLine) - 1]
+                            
+                            newLine = tdl.map.bresenham(xA, yA, xM, yM)
+                            lines.extend(newLine)
+                            newLine = tdl.map.bresenham(xB, yB, xM, yM)
+                            lines.extend(newLine)
+                            
+                            for x, y in lines:
+                                if not myMap[x][y].blocked:
+                                    found = False
+                                    for obj in dotsAOE:
+                                        if obj.x == x and obj.y == y:
+                                            found = True
+                                    if not found:
+                                        dot = GameObject(x = x, y = y, char = '.', name = 'AOE dot', color = colors.yellow, Ghost = True)
+                                        objects.append(dot)
+                                        dotsAOE.append(dot)
+                                        dot.sendToBack()
+                            '''
+                            
+                            for x in range(player.x - rangeAOE - 1, player.x + rangeAOE + 2):
+                                for y in range(player.y - rangeAOE - 1, player.y + rangeAOE + 2):
+                                    if isInTriangle((x, y), (player.x, player.y), pointA, pointB):
+                                        dot = GameObject(x = x, y = y, char = '.', name = 'AOE dot', color = colors.yellow, Ghost = True)
+                                        objects.append(dot)
+                                        dotsAOE.append(dot)
+                                        dot.sendToBack()
+                                    elif (x, y) in lineA or (x, y) in lineB or (x, y) in lineAB:
+                                        dot = GameObject(x = x, y = y, char = '.', name = 'AOE dot', color = colors.red, Ghost = True)
+                                        objects.append(dot)
+                                        dotsAOE.append(dot)
+                                        dot.sendToBack()
+                                            
                 Update()
                 tdl.flush()
                 for object in objects:
@@ -12615,14 +12641,19 @@ def targetTile(maxRange = None, showBresenham = False, unlimited = False, AOE = 
             del cursor
             if pathToTargetTile:
                 pathToTargetTile = []
+            coordsAOE = []
             for dot in dotsAOE:
                 objects.remove(dot)
+                if returnAOE:
+                    coordsAOE.append((dot.x, dot.y))
             con.clear()
             Update()
-            if not returnBresenham:
-                return (x, y)
-            else:
+            if returnBresenham:
                 return tdl.map.bresenham(player.x, player.y, x, y)
+            elif returnAOE:
+                return coordsAOE
+            else:
+                return (x, y)
 
 def targetAnyTile(startX = None, startY = None, drawRectangle = False):
     global gameState, FOV_recompute, tilesInRect
