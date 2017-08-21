@@ -166,6 +166,8 @@ consolesDisplayed = False
 heroName = None
 FORBIDDEN_NAMES = ["Ayeth", "Pukil", "Zarg", "Guillem"]
 
+SURPRISE_ATTACK_CRIT = 30
+
 def getHeroName():
     hiddenPath = findHiddenOptionsPath()
     if not os.path.exists(hiddenPath):
@@ -1802,11 +1804,7 @@ def castSeismicSlam(caster, monsterTarget, AOErange = 6, damage = 10, stunCooldo
 def castShadowStep(caster, monsterTarget, rangeTP = 10):
     if caster is None:
         caster = player
-    detected = False
-    for object in objects:
-        if object.AI:
-            if object.AI.detectedPlayer:
-                detected = True
+    detected = checkPlayerDetected()
     if not detected:
         goalTile = targetTile(rangeTP)
         if goalTile == 'cancelled':
@@ -2726,8 +2724,9 @@ def initializeTraits():
     seismicTrait = UnlockableTrait('Seismic slam', 'You hit the floor in front of you, creating a shockwave in a cone.', 'trait', requiredTraits={'Heavy weapons': 7}, spells = [seismic])
     ignoreSlow = UnlockableTrait('Easy blows', 'You are used to the weight of heavy weapons and thus can strike with them at a fast speed.', 'trait', requiredTraits={'Heavy weapons': 10})
     shadowstepTrait = UnlockableTrait('Shadow step', 'When concealed, you can move through the shadows at incredible speed.', 'trait', requiredTraits={'Cunning': 7}, spells = shadowStep)
+    shadowCrit = UnlockableTrait('Surprise attack', 'When concealed, you have a greater chance to inflinct critical damage.', 'trait', requiredTraits = {'Cunning': 4})
     
-    unlockableTraits.extend([controllableWerewolf, dual, aware, flurryTrait, seismicTrait, ignoreSlow])
+    unlockableTraits.extend([controllableWerewolf, dual, aware, flurryTrait, seismicTrait, ignoreSlow, shadowstepTrait, shadowCrit])
     
     return allTraits, leftTraits, rightTraits, races, attributes, skills, classes, traits, human, unlockableTraits #skilled, human, unlockableTraits
 
@@ -3766,6 +3765,8 @@ class Fighter: #All NPCs, enemies and the player
     @property
     def critical(self):
         bonus = sum(equipment.criticalBonus for equipment in getAllEquipped(self.owner))
+        if self.owner == player and player.Player.getTrait('Surprise attack') != 'not found' and not checkPlayerDetected():
+            bonus += SURPRISE_ATTACK_CRIT
         return self.baseCritical + bonus
 
     @property
@@ -11930,6 +11931,21 @@ def leaderboard():
 
 #_____________ GUI _______________
 
+def checkPlayerDetected(countEnemies = False):
+    detected = False
+    numberEnemies = 0
+    for object in objects:
+        if object.AI:
+            if object.AI.detectedPlayer:
+                detected = True
+                numberEnemies += 1
+                if not countEnemies:
+                    return detected
+    if not countEnemies:
+        return detected
+    else:
+        return detected, numberEnemies
+
 def initializeFOV():
     global FOV_recompute, visibleTiles, pathfinder, menuWindows
     FOV_recompute = True
@@ -12141,10 +12157,17 @@ def Update():
         msgY += 1
     # Draw GUI
     #panel.draw_str(1, 3, 'Dungeon level: ' + str(dungeonLevel), colors.white)
-    panel.draw_str(1, 7, 'Player level:', colors.amber)
-    panel.draw_str(15, 7, str(player.level), colors.white)
+    lvlHeaderColor = colors.amber
+    lvlValueColor = colors.white
+    lvlBackground = None
     if player.Player.skillpoints > 0:
-        panel.draw_str(16 + len(str(player.level)), 7, '!', colors.red, colors.yellow)
+        lvlHeaderColor = colors.azure
+        lvlValueColor = colors.azure
+        lvlBackground = colors.light_cyan
+    panel.draw_str(1, 7, 'Player level:', lvlHeaderColor, lvlBackground)
+    panel.draw_str(14, 7, ' ', None, lvlBackground)
+    panel.draw_str(15, 7, str(player.level), lvlValueColor, lvlBackground)
+    
     panel.draw_str(1, 9, 'Dungeon:', colors.amber)
     panel.draw_str(10, 9, currentBranch.name, colors.white)
     panel.draw_str(1, 11, 'Floor:', colors.amber)
@@ -12233,13 +12256,7 @@ def Update():
                 panelY += 1
     if mode == 'stealth':
         panelY = 6
-        detected = False
-        numberEnemies = 0
-        for object in objects:
-            if object.AI:
-                if object.AI.detectedPlayer:
-                    detected = True
-                    numberEnemies += 1
+        detected, numberEnemies = checkPlayerDetected(True)
         if not detected:
             sidePanel.draw_str(2, panelY, 'Concealed', fg = colors.white)
         else:
