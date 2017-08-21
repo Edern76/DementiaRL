@@ -211,6 +211,7 @@ MAX_ROOM_ITEMS = 3 #Default : 3
 GRAPHICS = 'modern'
 LEVEL_UP_BASE = 200 # Set to 200 once testing complete
 LEVEL_UP_FACTOR = 150 #Default : 150
+SKILLPOINTS_PER_LEVEL = 10 #Default: 2
 NATURAL_REGEN = True
 BASE_HIT_CHANCE = 50 #Default : 50
 
@@ -1457,11 +1458,11 @@ def stealMoneyAndDamage(initiator, target, amount):
     def actuallySteal(initiator, amountStolen):
         target.Player.money -= amountStolen
         addCoef = round(random.uniform(0, 0.8), 3)
-        toAdd = int(amountStolen * addCoef)
+        toAdd = round(amountStolen * addCoef)
         print("To add = {} (coef = {})".format(toAdd, addCoef))
         initiator.lootFunction[0].Item.amount += toAdd
         message("{} has stolen {} of your gold pieces !".format(initiator.owner.name.capitalize(), amountStolen), colors.red)
-    leftToSteal = int(amount)
+    leftToSteal = round(amount)
     if target.Player.money >= leftToSteal:
         actuallySteal(initiator, amount)
     else:
@@ -1663,21 +1664,21 @@ def castExpandRoots(caster = None, monsterTarget = None, mode = 'AOE', AOERange 
                     rooted = Buff('rooted', colors.dark_sepia, cooldown = cooldown, continuousFunction=lambda fighter: randomDamage(caster.name + "'s roots", fighter, 100, damage - 1, damage + 2, dmgMessage = '{} suffers {} damage from your roots!'.format(object.name.capitalize(), '{}'), dmgColor = colors.dark_sepia, msgPlayerOnly = False))
                     rooted.applyBuff(object)
         elif mode == 'regen':
-            hpRecover = int(regenRatio * caster.Fighter.maxHP/100)
+            hpRecover = round(regenRatio * caster.Fighter.maxHP/100)
             formerHP = caster.Fighter.hp
             caster.Fighter.hp += hpRecover
             if caster.Fighter.hp > caster.Fighter.maxHP:
                 hpRecover = caster.Fighter.maxHP - formerHP
                 caster.Fighter.hp = caster.Fighter.maxHP
             
-            mpRecover = int(regenRatio * caster.Fighter.maxMP/100)
+            mpRecover = round(regenRatio * caster.Fighter.maxMP/100)
             formerMP = caster.Fighter.MP
             caster.Fighter.MP += mpRecover
             if caster.Fighter.MP > caster.Fighter.maxMP:
                 mpRecover = caster.Fighter.maxMP - formerMP
                 caster.Fighter.MP = caster.Fighter.maxMP
             
-            stamRecover = int(regenRatio * caster.Fighter.maxStamina/100)
+            stamRecover = round(regenRatio * caster.Fighter.maxStamina/100)
             formerStam = caster.Fighter.stamina
             caster.Fighter.stamina += stamRecover
             if caster.Fighter.stamina > caster.Fighter.maxStamina:
@@ -1798,8 +1799,35 @@ def castSeismicSlam(caster, monsterTarget, AOErange = 6, damage = 10, stunCooldo
         else:
             return 'didnt-take-turn'
 
+def castShadowStep(caster, monsterTarget, rangeTP = 10):
+    if caster is None:
+        caster = player
+    detected = False
+    for object in objects:
+        if object.AI:
+            if object.AI.detectedPlayer:
+                detected = True
+    if not detected:
+        goalTile = targetTile(rangeTP)
+        if goalTile == 'cancelled':
+            return 'didnt-take-turn'
+        else:
+            (goalX, goalY) = goalTile
+            if not myMap[goalX][goalY].blocked and not myMap[goalX][goalY].chasm:
+                player.x = goalX
+                player.y = goalY
+                return
+            else:
+                message("Cannot teleport there !", colors.red)
+                return 'didnt-take-turn'
+    else:
+        message("You can't use Shadow step when detected!", colors.red)
+        return 'didnt-take-turn'
+        
+
 flurry = Spell(ressourceCost=15, cooldown=50, useFunction=castMultipleAttacks, name = 'Flurry', ressource = 'Stamina', type = 'Skill')
 seismic = Spell(ressourceCost=20, cooldown=60, useFunction=castSeismicSlam, name='Seismic slam', ressource='Stamina', type='Skill')
+shadowStep = Spell(ressourceCost = 12, cooldown = 70, useFunction = castShadowStep, name = 'Shadow step', ressource = 'MP', type = 'Skill')
 
 ### TRAITS UNLOCKABLE SPELLS ###
 ### DEBUG SPELLS ###
@@ -1860,10 +1888,11 @@ def castAstarPath(caster = None, monsterTarget = None):
 
 def castTeleportTo(caster = None, monsterTarget = None):
     global FOV_recompute
-    (goalX, goalY) = targetAnyTile(startX = player.x, startY = player.y)
-    if targetTile == 'cancelled':
+    goalTile = targetAnyTile(startX = player.x, startY = player.y)
+    if goalTile == 'cancelled':
         return 'cancelled'
     else:
+        (goalX, goalY) = goalTile
         if not myMap[goalX][goalY].blocked and not myMap[goalX][goalY].chasm:
             player.x = goalX
             player.y = goalY
@@ -2182,7 +2211,7 @@ drawRect = Spell(ressourceCost = 0, cooldown = 1, useFunction=castDrawRectangle,
 
 ### DEBUG SPELLS ###
 
-spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport, djik, dispDjik, djikProf, detDjik, yellowify, ram, leap, expandRootsDmg, expandRootsDummy, expandRootsRegen, insectFly, demonForm, spawnProj, placeIceWall, testCone, flurry, seismic])
+spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport, djik, dispDjik, djikProf, detDjik, yellowify, ram, leap, expandRootsDmg, expandRootsDummy, expandRootsRegen, insectFly, demonForm, spawnProj, placeIceWall, testCone, flurry, seismic, shadowStep])
 #_____________SPELLS_____________
 
 #______________CHARACTER GENERATION____________
@@ -2598,7 +2627,7 @@ def initializeTraits():
     endurance = Trait('Endurance', 'You are used to live in harsh conditions', type = 'skill', selectable = False, tier = 2, allowsSelection=[hunger, constitution], maxAmount=10)
     strength = Trait('Strength', 'You are as strong as a bear', type = 'skill', stren=(1, 0), selectable = False, tier = 2, maxAmount=10)
     willpower = Trait('Power of will', 'Your will is very strong', type = 'skill', mp=(5, 0), will = (1, 0), selectable = False, tier = 2, maxAmount=10)
-    cunning = Trait('Cunning', 'You are cunning, and can use this to hide in the shadows in order to deliver sly but deadly attacks.', type = 'skill', selectable = False, tier = 2, allowsSelection=[dexterity, critical], maxAmount=10)
+    cunning = Trait('Cunning', 'You are cunning, and can use this to hide in the shadows in order to deliver sly but deadly attacks.', type = 'skill', selectable = False, tier = 2, allowsSelection=[dexterity, critical], maxAmount=10, stealth = 5)
     magic = Trait('Magic ', 'You can use the power of your mind to bind reality to your will', type = 'skill', selectable = False, tier = 2, allowsSelection=[occult, elemental], maxAmount=10)
     secondTierSkills = [melee, ranged, armorW, strength, endurance, magic, willpower, cunning]
 
@@ -2695,8 +2724,10 @@ def initializeTraits():
     dual = UnlockableTrait('Dual wield', 'Allows to wield two lights weapons at the same time.', 'trait', requiredTraits={'Light weapons': 4})
     aware = UnlockableTrait('Self aware', 'Allows to see the buffs and debuffs cooldowns.', 'trait', requiredTraits={'Power of will': 4})
     seismicTrait = UnlockableTrait('Seismic slam', 'You hit the floor in front of you, creating a shockwave in a cone.', 'trait', requiredTraits={'Heavy weapons': 7}, spells = [seismic])
+    ignoreSlow = UnlockableTrait('Easy blows', 'You are used to the weight of heavy weapons and thus can strike with them at a fast speed.', 'trait', requiredTraits={'Heavy weapons': 10})
+    shadowstepTrait = UnlockableTrait('Shadow step', 'When concealed, you can move through the shadows at incredible speed.', 'trait', requiredTraits={'Cunning': 7}, spells = shadowStep)
     
-    unlockableTraits.extend([controllableWerewolf, dual, aware, flurryTrait, seismicTrait])
+    unlockableTraits.extend([controllableWerewolf, dual, aware, flurryTrait, seismicTrait, ignoreSlow])
     
     return allTraits, leftTraits, rightTraits, races, attributes, skills, classes, traits, human, unlockableTraits #skilled, human, unlockableTraits
 
@@ -3785,7 +3816,7 @@ class Fighter: #All NPCs, enemies and the player
                 death(self.owner)
             if self.owner != player and (not self.owner.AI or self.owner.AI.__class__.__name__ != "FriendlyMonster"):
                 if player.Player.race == 'Human':
-                    xp = int((self.xp * 10) / 100) + self.xp
+                    xp = round((self.xp * 10) / 100) + self.xp
                 else:
                     xp = self.xp
                 player.Fighter.xp += xp
@@ -3937,12 +3968,13 @@ class Fighter: #All NPCs, enemies and the player
             #if getEquippedInHands() is not None:
                 #print('found weapons')
             print('player attacked')
-            for weapon in equipmentList: #getEquippedInHands():
-                print(weapon.name)
-                if weapon.Equipment.slow:
-                    print('found slow weapon')
-                    player.Player.attackedSlowly = True
-                    player.Player.slowAttackCooldown = 1
+            if player.Player.getTrait('trait', 'Easy blows') == 'not found':
+                for weapon in equipmentList: #getEquippedInHands():
+                    print(weapon.name)
+                    if weapon.Equipment.slow:
+                        print('found slow weapon')
+                        player.Player.attackedSlowly = True
+                        player.Player.slowAttackCooldown = 1
         
     def heal(self, amount):
         self.hp += amount
@@ -4898,7 +4930,7 @@ class Player:
         dex = self.dexterity
         if dex < 0:
             dex = 0
-        return int(5*sqrt(dex) * math.log(player.distanceTo(monster)) + self.baseStealth)
+        return round(5*sqrt(dex) * math.log(player.distanceTo(monster) + 1) + self.baseStealth)
     
     def changeColor(self):
         self.hpRatio = ((self.owner.Fighter.hp / self.owner.Fighter.maxHP) * 100)
@@ -5569,33 +5601,33 @@ class Equipment:
 
     @property
     def powerBonus(self):
-        if self.type == 'light weapon':
-            bonus = (20 * player.Player.getTrait('skill', 'Light weapons').amount) / 100
-        elif self.type == 'heavy weapon':
-            bonus = (20 * player.Player.getTrait('skill', 'Heavy weapons').amount) / 100
-        elif self.type == 'throwing weapon':
-            bonus = (20 * player.Player.getTrait('skill', 'Throwing weapons').amount) / 100
+        if self.type == 'light weapon' and self.owner in equipmentList:
+            bonus = (10 * player.Player.getTrait('skill', 'Light weapons').amount) / 100
+        elif self.type == 'heavy weapon' and self.owner in equipmentList:
+            bonus = (10 * player.Player.getTrait('skill', 'Heavy weapons').amount) / 100
+        elif self.type == 'throwing weapon' and self.owner in equipmentList:
+            bonus = (10 * player.Player.getTrait('skill', 'Throwing weapons').amount) / 100
         else:
             bonus = 0
         if self.enchant:
-            return int(self.basePowerBonus * bonus + self.basePowerBonus + self.enchant.power)
+            return round(self.basePowerBonus * bonus + self.basePowerBonus + self.enchant.power)
         else:
-            return int(self.basePowerBonus * bonus + self.basePowerBonus)
+            return round(self.basePowerBonus * bonus + self.basePowerBonus)
     
     @property
     def rangedPower(self):
-        if self.type == 'missile weapon':
-            bonus = (20 * player.Player.getTrait('skill', 'Missile weapons').amount) / 100
+        if self.type == 'missile weapon' and self.owner in equipmentList:
+            bonus = (10 * player.Player.getTrait('skill', 'Missile weapons').amount) / 100
             if self.enchant:
-                return int(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.dexterity + self.enchant.power)
+                return round(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.dexterity + self.enchant.power)
             else:
-                return int(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.dexterity)
-        elif self.type == 'throwing weapon':
-            bonus = (20 * player.Player.getTrait('skill', 'Throwing weapons').amount) / 100
+                return round(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.dexterity)
+        elif self.type == 'throwing weapon' and self.owner in equipmentList:
+            bonus = (10 * player.Player.getTrait('skill', 'Throwing weapons').amount) / 100
             if self.enchant:
-                return int(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.strength + self.enchant.power)
+                return round(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.strength + self.enchant.power)
             else:
-                int(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.strength)
+                return round(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.strength)
         else:
             if self.enchant:
                 return self.baseRangedPower + self.enchant.power
@@ -5618,10 +5650,15 @@ class Equipment:
     
     @property
     def armorBonus(self):
+        bonus = 0
+        if self.type == 'shield' and self.owner in equipmentList:
+            bonus = (10 * player.Player.getTrait('skill', 'Shield mastery').amount) / 100
+        elif (self.type == 'light armor' or self.type == 'heavy armor' or self.type == 'armor') and self.owner in equipmentList:
+            bonus = (5 * player.Player.getTrait('skill', 'Armor efficiency').amount) / 100
         if self.enchant:
-            return self.baseArmorBonus + self.enchant.arm
+            return round(self.baseArmorBonus * bonus + self.baseArmorBonus + self.enchant.arm)
         else:
-            return self.baseArmorBonus
+            return round(self.baseArmorBonus * bonus + self.baseArmorBonus)
     
     @property
     def maxHP_Bonus(self):
@@ -7001,6 +7038,7 @@ def checkLevelUp():
     if player.Fighter.xp >= levelUp_xp:
         print('levelling up from {} to {}'.format(str(player.level), str(player.level + 1)))
         player.level += 1
+        player.Player.skillpoints += SKILLPOINTS_PER_LEVEL
         player.Fighter.xp -= levelUp_xp
         message('Your battle skills grow stronger! You reached level ' + str(player.level) + '!', colors.yellow)
         
@@ -7092,6 +7130,7 @@ def checkLevelUp():
         tdl.flush()
         FOV_recompute = True
         Update()
+        FOV_recompute = True
         
         '''
         choice = None
@@ -8064,7 +8103,7 @@ def connectRooms(roomList, forceAccess = False):
                         distance = (xA - xB)**2 + (yA - yB)**2
                         
                         if distance < bestDistance or not possibleConnectionFound:
-                            bestDistance = int(distance)
+                            bestDistance = round(distance)
                             possibleConnectionFound = True
                             bestTileA = (int(xA), int(yA))
                             bestTileB = (int(xB), int(yB))
@@ -8098,7 +8137,7 @@ def connectRooms(roomList, forceAccess = False):
                         distance = (xA - xB)**2 + (yA - yB)**2
                         
                         if distance < bestDistance or not possibleConnectionFound:
-                            bestDistance = int(distance)
+                            bestDistance = round(distance)
                             possibleConnectionFound = True
                             bestTileA = (int(xA), int(yA))
                             bestTileB = (int(xB), int(yB))
@@ -8135,7 +8174,7 @@ def connectRooms(roomList, forceAccess = False):
                         distance = (xA - xB)**2 + (yA - yB)**2
                         
                         if distance < bestDistance or not possibleConnectionFound:
-                            bestDistance = int(distance)
+                            bestDistance = round(distance)
                             possibleConnectionFound = True
                             bestTileA = (int(xA), int(yA))
                             bestTileB = (int(xB), int(yB))
@@ -8992,7 +9031,7 @@ def makeMap(generateChasm = True, generateHole = False, fall = False, temple = F
                     if nemesis.branch == currentBranch.shortName and nemesis.level == dungeonLevel:
                         dice = randint(1, 100)
                         TARGET_CONSTANT = 5
-                        target = int(TARGET_CONSTANT + (dungeonLevel * dungeonLevel) / 10)
+                        target = round(TARGET_CONSTANT + (dungeonLevel * dungeonLevel) / 10)
                         print(dice, target)
                         if dice <= target:
                             break
@@ -11104,7 +11143,7 @@ def renderBar(cons, x, y, totalWidth, name, value, maximum, barColor, backColor,
     else:
         trueMax = maximum
         alwaysFull = False
-    barWidth = int(float(value) / trueMax * totalWidth) #Width of the bar is proportional to the ratio of the current value over the maximum value
+    barWidth = round(float(value) / trueMax * totalWidth) #Width of the bar is proportional to the ratio of the current value over the maximum value
     cons.draw_rect(x + 1, y, totalWidth, 1, None, bg = backColor)#Background of the bar
     
     if barWidth > 0 and not alwaysFull:
@@ -13900,7 +13939,7 @@ def playGame(noSave = False):
                 if prevStatus != "full":
                     message("You feel way less hungry")        
         
-        ratioHP = int((player.Fighter.hp / player.Fighter.maxHP) * 100)
+        ratioHP = round((player.Fighter.hp / player.Fighter.maxHP) * 100)
         for trait in player.Player.allTraits:
             if trait.name == 'Rage' and trait.selected:
                 if ratioHP <= 25 and not 'enraged' in convertBuffsToNames(player.Fighter):
