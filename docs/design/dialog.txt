@@ -69,40 +69,50 @@ Dialog choices :
 	- ID : ready
 	- Answer : Very well. You shall cross the barrier, get to the tower and climb until you find the Cube. Zarg will probably be there too, but your main objective is to destroy the Cube, since Zarg won't be able to carry on with his plan if he is deprived from his divine abilities.
 	- Choices :
-		1) Haven't you tried destroying the barrier to get the army through
-			- ID : 
-			- Answer : 
-			- Choices :	
-
-
-  2) What happened to the ones who snuck into Zarg's tower to unveil his plans ? Did they fought him ?
+		1) Haven't you tried destroying the barrier to get the army through ?
+			- ID : destroy
+			- Answer : Of course we did so multiple times, but even with the help of the finest siege weapons of Ashotara we couldn't even make a dent in it.
+			- Choices : BACK
+		2) What if I can't manage to destroy the Cube and have to fight Zarg while he still has his godly powers ?
+			- ID : fight
+			- Answer : Sadly, this is the most probable scenario, as Zarg will do everything to prevent you from reach the Cube. If that happens, I don't know if even you can be a match for him in a direct fight, so stay on the defensive, and look for an opportunity to get to the cube.
+			- Choices : BACK
+		3) Once the cube is destroyed, what should I do with Zarg ?
+			- ID : zarg
+			- Answer : Keeping him alive would prove too much of a risk. There's little to no chance that he would turn back to his normal self anyway. I guess I don't need to explain further.
+			- Choices : BACK
+		4) Understood. Then I'll go to the armory to grab a weapon and then I'll be off.
+			- ID : understood
+			- Answer : A regular weapon is unlikely to do anything to a god. Here, let me give you Equinox, my trusty sword, it is the pride of the Guillem familly. Having been passed from generation to generation, it has defeated many terrible foes and absorbed their energy. Being the ruin of the God of Madness would make a perfect addition to its legned.
+			- Choices : 
+			1) Very well. I shall proudly wear your sword, and when I'll return it to you it will be known as "Equinox, the Scourge of the Gods"
+			- ID : exit
+  2) What happened to the ones who snuck into Zarg's tower to unveil his plans ? Did they directly fought him ?
 	- ID : happened
 	- Answer : After discovering his weakness, they were spotted by the God of Madness and indeed had to confront him head on. Of course they were no match for him, and soon realized that they had to retreat. Some were killed during the fight with Zarg, others died on the way back home due to their wounds, or because of unexpected ordeals, so well that though they were 8 when they set out on their journey, only 2 came back alive.
 	- Choices :
-		1) 
-			- ID : 
-			- Answer : 
-			- Choices :
-				1) 
-					- ID : 
-		2) 
-			- ID : 
-			- Answer : 
-				1) 
-					- ID : 
-		3) 
-			- ID : 
-			- Answer : 
-		4) (Back)
-			- ID
+		1) While fighting him, did they discover anything else that could be useful to me in the upcoming battle ?
+			- ID : uncover
+			- Answer : Unfornately no, since it was more of a one-sided slaughter than a fight. 
+			- Choices : 
+				1) Sounds like they weren't up to the task. Why were they chosen instead of more competent warriors ? 
+					- ID : chosen
+					- Answer : Back then, our goal wasn't to defeat him outright, but to gather as much information on him, so as to establish a plan that would then allow us to vanquish him. Therefore, instead of picking people fit for fighting him head on - since attacking him directly without knowing anything about his powers would have been suicide - we picked people fit for surviving the long expedition through harsh environments towards the Spire and for gathering intelligence inside the Spire without getting detected. Unfortunately, even though they each were among the best in their respective specialities, this wasn't enough to decieve a god, and you already know the rest.
+				2) Were you involved in this ?
+					- ID : involved
+					- Answer : No, all of this was thightly kept secret from me until the survivors of the Spire infiltration came back. In fact, even the King's counselors and most of the lords didn't knew about this, and I guess it was the same situation for the other members of the Alliance.
+				3) (Back)
+		2) (Back)
    3) You fought a few times by the side of Zarg, before all of this started. What do you know about him ?
 	-ID : fought
 	-Answer : Yes, I did accompany him on a few adventures way back in the day, before I enlisted in the army, but he was a completly different man back then. The only thing he had in common with the God of Madness he is now was his incredible power : even when he was still only an human, little to no opponent stood a chance against him. I don't even want to imagine how stronger he has grown now that he has become a deity, so be careful when you face him and stick to the plan. 
   	-Choices :
-		1)
-			- ID :
-			- Answer :
+		1) Was he your friend ?
+			- ID : friend
+			- Answer : The Zarg I used to know has died long ago, so such concerns are irrelevant to the current situation. But if you really want to know, I considered him both as a friend and as a mentor.
+		 	- Choices :
+				1) INTRO
+		2) (Back)
 
-
-   4) Farewell.
+   4) I am not ready yet. I'll make my last preparations and come find you again once I'm done.
 	-ID : End
