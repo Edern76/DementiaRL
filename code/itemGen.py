@@ -65,17 +65,33 @@ weaponTypes = ['dagger', 'sword', 'axe', 'flail', 'mace', 'hammer', 'gloves', 's
 
 weaponSize = {'dagger': {'dagger': 70, 'stiletto': 15, 'misericorde': 15},
               'sword': {'shortsword': 35, 'longsword': 40, 'katana': 15, 'great sword': 10},
-              'axe': {'axe': 85, 'great axe': 15},
-              'flail': {'flail': 85, 'great flail': 15},
+              'axe': {'axe': 85, 'greataxe': 15},
+              'flail': {'flail': 85, 'peasant flail': 15},
               'mace': {'mace': 85, 'great mace': 5, 'morning star': 10},
               'hammer': {'warhammer': 85, 'maul': 15},
               'gloves': {'cestus': 85, 'knuckles': 10, 'fighting claws': 5},
               'spear': {'spear': 85, 'halberd': 15}}
 
 weaponDictTemplate = ['pow', 'arm', 'HP', 'acc', 'ev', 'crit', 'MP', 'strength', 'dex', 'vit', 'will', 'ap', 'slow', 'stam']
-weaponAttributes = {'dagger': {'type': 'light', 'slot': 'one handed', 'pic': 'dagger.xp', 'pow': 6, 'acc': 10, 'ev': 5, 'weight': 0.5},
-                    'stiletto': {'type': 'light', 'slot': 'one handed', 'pic': 'stiletto.xp', 'pow': 5, 'acc': 15, 'ev': 5, 'crit': 5, 'weight': 0.5},
-                    'misericorde': {'type': 'light', 'slot': 'one handed', 'pic': 'dagger.xp', 'pow': 6, 'acc': 5, 'ev': 5, 'ap': 1, 'weight': 0.5}
+
+weaponAttributes = {'dagger': {'type': 'light', 'slot': 'one handed', 'pic': 'dagger.xp', 'pow': 6, 'acc': 15, 'ev': 5, 'weight': 0.5},
+                    'stiletto': {'type': 'light', 'slot': 'one handed', 'pic': 'stiletto.xp', 'pow': 5, 'acc': 20, 'ev': 5, 'crit': 5, 'weight': 0.5},
+                    'misericorde': {'type': 'light', 'slot': 'one handed', 'pic': 'dagger.xp', 'pow': 6, 'acc': 10, 'ev': 5, 'ap': 1, 'weight': 0.5},
+                    
+                    'shortsword': {'type': 'light', 'slot': 'one handed', 'pic': 'shortSword.xp', 'pow': 8, 'acc': 5, 'weight': 1.1},
+                    'longsword': {'type': 'light', 'slot': 'one handed', 'pic': 'longSword.xp', 'pow': 12, 'weight': 1.9},
+                    'katana': {'type': 'light', 'slot': 'one handed', 'pic': 'katana.xp', 'pow': 11, 'ap': 3, 'weight': 1.5},
+                    'great sword': {'type': 'heavy', 'slot': 'two handed', 'pic': 'greatSword.xp', 'pow': 18, 'acc': -10, 'weight': 3.5, 'slow': True},
+                    
+                    'axe': {'type': 'light', 'slot': 'one handed', 'pic': 'axe.xp', 'pow': 9, 'acc': 10, 'weight': 1.3},
+                    'greataxe': {'type': 'heavy', 'slot': 'two handed', 'pic': 'greatAxe.xp', 'pow': 20, 'acc': -15, 'weight': 3.3, 'slow': True},
+                    
+                    'flail': {'type': 'heavy', 'slot': 'one handed', 'pic': 'flail.xp', 'pow': 9, 'ap': 6, 'acc': -5, 'crit': -3, 'weight': 2.4},
+                    'peasant flail': {'type': 'heavy', 'slot': 'two handed', 'pic': 'greatFlail.xp', 'pow': 15, 'acc': -25, 'ap': 12, 'weight': 4.2, 'slow': True},
+                    
+                    'mace': {'type': 'light', 'slot': 'one handed', 'pic': 'mace.xp', 'pow': 8, 'acc': 10, 'ap': 2, 'weight': 1.7},
+                    'morning star': {'type': 'light', 'slot': 'one handed', 'pic': 'moringStar.xp', 'pow': 10, 'acc': 5, 'ap': 4, 'weight': 1.8},
+                    'great mace': {'type': 'heavy', 'slot': 'two handed', 'pic': 'greatMace.xp', 'pow': 13, 'acc': -10, 'ap': 8, 'weight': 5.0, 'slow': True}
                     }
 
 rarityCombo = {'epic': {'2 passive': 25, '1 active': 10, 'none': 65}, 'legendary': {'2 passive': 20, '3 passive': 40, '2 passive + 1 active': 40, '1 active': 20}}
@@ -369,7 +385,7 @@ def generateMeleeWeapon(weaponType = None):
             if moddedStat == 'HP' or moddedStat == 'MP' or moddedStat == 'stam':
                 dictToUse = rarityBigAdd
             stat.value = weaponDict[equipmentStatsStrings[i]] + randint(-2 + dictToUse[stringRarity], 2 + dictToUse[stringRarity])
-            if stat < 0:
+            if stat < 0 and weaponDict[equipmentStatsStrings[i]] > 0: #if a postive value becomes negative
                 stat.value = 0
         except:
             pass
