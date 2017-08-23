@@ -2162,7 +2162,7 @@ def toggleDrawDjik(caster = None, target = None):
 def findNeighbouringDjikAndSetValue(x,y):
     found = False
     curLow = 0
-    for tile in myMap[x][y].neighbors():
+    for tile in myMap[x][y].neighbors(myMap):
         if tile.djikValue is not None and (not found or tile.djikValue < curLow):
             found = True
             curLow = tile.djikValue
@@ -7884,7 +7884,7 @@ def bossFloodfill(x,y, listToAppend, dependsOnList):
             dependsOnList.remove((x,y))
             visuBoss.append(myMap[x][y])
             
-            for tile in myMap[x][y].neighbors(): #I don't know why it doesn't work with just the vanilla floodfill, but this is necessary so as to find the entrance
+            for tile in myMap[x][y].neighbors(myMap): #I don't know why it doesn't work with just the vanilla floodfill, but this is necessary so as to find the entrance
                 if not (tile.blocked or tile in bossTiles):
                     listToAppend.append(tile)
                     stopBossFF = True
@@ -9547,7 +9547,7 @@ def makeBossLevel(fall = False, generateHole=False, temple = False):
         bossEntrance.DARK_BG = colors.light_pink
         '''
         
-        for otherTile in bossEntrance.neighbors():
+        for otherTile in bossEntrance.neighbors(myMap):
             if otherTile in bossTiles and not otherTile.blocked:
                 try:
                     assert isinstance(otherTile, Tile)
@@ -10367,11 +10367,20 @@ def createPotion(x, y):
     if unIdentifiedName in identifiedItems:
         identified = True
     if potionChoice == 'heal':
-        potion = GameObject(x, y, chr(173), 'healing potion', color, Item = Item(useFunction = castHeal, weight = 0.4, stackable=True, amount = randint(1, 2), pic = pic, description = "A potion that stimulates cell growth when ingested, which allows for wounds to heal signifcantly faster. However, it also notably increases risk of cancer, but if you're in a situation where you have to drink such a potion, this is probably one of the least of your worries.", unIDName=unIdentifiedName, identified=identified, unIDpName=pName, unIDdesc = desc), blocks = False)
+        potion = GameObject(x, y, chr(173), 'healing potion', color, Item = Item(useFunction = lambda : castSpellAndID(potion, castHeal), weight = 0.4, stackable=True, amount = randint(1, 2), pic = pic, description = "A potion that stimulates cell growth when ingested, which allows for wounds to heal signifcantly faster. However, it also notably increases risk of cancer, but if you're in a situation where you have to drink such a potion, this is probably one of the least of your worries.", unIDName=unIdentifiedName, identified=identified, unIDpName=pName, unIDdesc = desc), blocks = False)
     if potionChoice == 'mana':
-        potion = GameObject(x, y, chr(173), 'mana regeneration potion', color, Item = Item(useFunction = castRegenMana, arg1 = 10, weight = 0.4, stackable = True, pic = pic, description = "The awkward look of this potion scared more than one novice mage, but it actually tastes quite good and has no other short-term effect other than replenishing your life-force. However, the [PLACEHOLDER  WORLD (the 'normal' one, not Realm of Madness) NAME]'s Guild of Alchemists is still debating about whether or not it causes detrimental long-term effects.", unIDName=unIdentifiedName, identified=identified, unIDpName=pName, unIDdesc = desc), blocks = False)
+        potion = GameObject(x, y, chr(173), 'mana regeneration potion', color, Item = Item(useFunction = lambda : castSpellAndID(potion, castRegenMana, 10)  ,weight = 0.4, stackable = True, pic = pic, description = "The awkward look of this potion scared more than one novice mage, but it actually tastes quite good and has no other short-term effect other than replenishing your life-force. However, the [PLACEHOLDER  WORLD (the 'normal' one, not Realm of Madness) NAME]'s Guild of Alchemists is still debating about whether or not it causes detrimental long-term effects.", unIDName=unIdentifiedName, identified=identified, unIDpName=pName, unIDdesc = desc), blocks = False)
     potion.Item.useText = 'Drink'
     return potion
+
+def castSpellAndID(object, spell, *args):
+    spell(*args)
+    identifiedItems.append(object.Item.unIDName)
+    object.Item.identified = True
+    for other in objects:
+        if other.Item and other.Item.unIDName == object.Item.unIDName:
+            other.Item.identified = True
+        
 
 def createSpellbook(x, y):
     spellbookChances = currentBranch.spellbookChances
