@@ -105,6 +105,7 @@ weaponAttributes = {'dagger': {'type': 'light', 'slot': 'one handed', 'pic': 'da
                     }
 
 rarityCombo = {'epic': {'2 passive': 25, '1 active': 10, 'none': 65}, 'legendary': {'3 passive + 1 active': 25, '2 passive + 1 active': 70, '1 active': 5}}
+
 weaponAdj = {'dagger': {'junk': {'regular': 50, 'rusty': 50},
                         'common': {'regular': 80, 'rusty': 10, 'fast': 5, 'sharp': 5},
                         'uncommon': {'regular': 71, 'rusty': 5, 'fast': 12, 'sharp': 12},
@@ -160,6 +161,28 @@ weaponAdj = {'dagger': {'junk': {'regular': 50, 'rusty': 50},
                         'rare': {'regular': 50, 'rusty': 2, 'precise': 12, 'fast': 12, 'sharp': 12, 'mighty': 12}, 
                         'epic': {'precise': 13, 'fast': 13, 'sharp': 13, 'poisoned': 12, 'burning': 12, 'frost': 12, 'electric': 12, 'mighty': 13},
                         'legendary': {'deadly': 10, 'precise': 10, 'fast': 10, 'sharp': 10, 'poisoned': 10, 'leech': 10, 'burning': 10, 'frost': 10, 'electric': 10, 'mighty': 10}}}
+
+
+adjEffects = {'regular': {},
+              'rusty': {'pow': -2, 'ap': -2, 'crit': -2},
+              'fast': {'acc': 5},
+              'sharp': {'pow': 2},
+              'discrete': {'stealth': 5},
+              'precise': {'crit': 3},
+              'frost': {}, #add freeze chance
+              'poisoned': {}, #add poison chance
+              'burning': {}, #add burn chance
+              'electric': {}, #add electric arc chance
+              'deadly': {'crit': 8}, #add +1 crit multiplier
+              'leech': {}, #add life steal effect
+              'mighty': {'strength': 1},
+              'splash': {}, #add AOE dmg
+              'weighed': {'weight': 1.0, 'pow': 2},
+              'two-headed': {'weight': 1.5, 'pow': 3, 'acc': -3}, #multiply weight by 2 if peasant flail
+              'three-headed': {'weight': 3.0, 'pow': 6, 'acc': -6}, #same
+              'stunning': {}, #add stun chance
+              'spiked': {'ap': 2}
+              }
 
 
 rangedWeaponTypes = ['bow', 'crossbow', 'throwing axe', 'throwing knife', 'pistol', 'rifle', 'javelin']
@@ -409,7 +432,7 @@ def generateMeleeWeapon(weaponType = None):
     adjDict = weaponAdj[weaponType][stringRarity]
     for i in range(passiveNumber):
         bonus = randomChoice(adjDict)
-        while bonus in adj or (bonus == 'fast' and weaponEquipment.slow):
+        while bonus in adj or (bonus == 'fast' and weaponEquipment.slow) or (bonus == 'frost' and 'burning' in adj) or (bonus == 'burning' and 'frost' in adj):
             bonus = randomChoice(adjDict)
         adj.append(bonus)
     
@@ -439,12 +462,31 @@ def generateMeleeWeapon(weaponType = None):
             pass
         i += 1
     
-    if 'light' in weaponEquipment.type:
-        char = '-'
-    else:
-        char = '/'
-        
-    weaponItem = ItemTemplate('Equip', weight = weaponDict['weight'], itemtype = 'weapon', useText = 'Equip')
+    tempWeight = weaponDict['weight']
+    
+    i = 0
+    for stat in weaponEquipment.stats:
+        for adjective in adj:
+            dictToUse = raritySmallAdd
+            if moddedStat == 'HP' or moddedStat == 'MP' or moddedStat == 'stam':
+                dictToUse = rarityBigAdd
+            moddedStat = equipmentStatsStrings[i]
+            try:
+                stat += adjEffects[adjective][equipmentStatsStrings[i]] + randint(0, dictToUse[stringRarity]//2)
+            except:
+                pass
+        i += 1
+    
+    for adjective in adj:
+        try:
+            tempWeight += adjEffects[adjective]['weight']
+            if 'headed' in adjective and 'heavy' in weaponEquipment.type:
+                tempWeight += adjEffects[adjective]['weight']
+        except:
+            pass
+    
+    weaponItem = ItemTemplate('Equip', weight = tempWeight, itemtype = 'weapon', useText = 'Equip')
+
     try:
         weaponItem.description = weaponDict['desc']
     except:
@@ -453,6 +495,10 @@ def generateMeleeWeapon(weaponType = None):
         weaponItem.pic = weaponDict['pic']
     except:
         pass
+    if 'light' in weaponEquipment.type:
+        char = '-'
+    else:
+        char = '/'
     
     weaponObject = GameObjectTemplate(char, addToName + weapon + endName, colors.silver, Item = weaponItem, Equipment = weaponEquipment)
     return weaponObject
