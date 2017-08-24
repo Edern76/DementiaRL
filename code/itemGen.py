@@ -70,7 +70,7 @@ weaponSize = {'dagger': {'dagger': 70, 'stiletto': 15, 'misericorde': 15},
               'mace': {'mace': 85, 'great mace': 5, 'morning star': 10},
               'hammer': {'warhammer': 85, 'maul': 15},
               'gloves': {'cestus': 85, 'knuckles': 10, 'fighting claws': 5},
-              'spear': {'spear': 85, 'halberd': 15}}
+              'spear': {'pike': 85, 'halberd': 15}}
 
 weaponDictTemplate = ['pow', 'arm', 'HP', 'acc', 'ev', 'crit', 'MP', 'strength', 'dex', 'vit', 'will', 'ap', 'slow', 'stam']
 
@@ -91,30 +91,75 @@ weaponAttributes = {'dagger': {'type': 'light', 'slot': 'one handed', 'pic': 'da
                     
                     'mace': {'type': 'light', 'slot': 'one handed', 'pic': 'mace.xp', 'pow': 8, 'acc': 10, 'ap': 2, 'weight': 1.7},
                     'morning star': {'type': 'light', 'slot': 'one handed', 'pic': 'moringStar.xp', 'pow': 10, 'acc': 5, 'ap': 4, 'weight': 1.8},
-                    'great mace': {'type': 'heavy', 'slot': 'two handed', 'pic': 'greatMace.xp', 'pow': 13, 'acc': -10, 'ap': 8, 'weight': 5.0, 'slow': True}
+                    'great mace': {'type': 'heavy', 'slot': 'two handed', 'pic': 'greatMace.xp', 'pow': 13, 'acc': -10, 'ap': 8, 'weight': 5.0, 'slow': True},
+                    
+                    'warhammer': {'type': 'heavy', 'slot': 'one handed', 'pic': 'hammer.xp', 'pow': 13, 'crit': 3, 'weight': 1.5},
+                    'maul': {'type': 'heavy', 'slot': 'two handed', 'pic': 'greatHammer.xp', 'pow': 19, 'crit': 6, 'weight': 5.7, 'slow': True},
+                    
+                    'cestus': {'type': 'light', 'slot': 'two handed', 'pic': 'mace.xp', 'pow': 7, 'acc': 15, 'ev': 20, 'crit': -5, 'arm': 2, 'weight': 0.3},
+                    'knuckles': {'type': 'light', 'slot': 'two handed', 'pic': 'mace.xp', 'pow': 13, 'acc': 10, 'ev': 15, 'crit': 2, 'weight': 0.7},
+                    'fighting claws': {'type': 'light', 'slot': 'two handed', 'pic': 'mace.xp', 'pow': 16, 'acc': 10, 'ev': 25, 'crit': 5, 'weight': 0.6},
+                    
+                    'pike': {'type': 'light', 'slot': 'one handed', 'pic': 'spear.xp', 'pow': 8, 'acc': 10, 'ev': 10, 'weight': 3.1},
+                    'halberd': {'type': 'heavy', 'slot': 'two handed', 'pic': 'halberd.xp', 'pow': 14, 'ap': 2, 'acc': 5, 'weight': 3.9, 'slow': True}
                     }
 
-rarityCombo = {'epic': {'2 passive': 25, '1 active': 10, 'none': 65}, 'legendary': {'2 passive': 20, '3 passive': 40, '2 passive + 1 active': 40, '1 active': 20}}
+rarityCombo = {'epic': {'2 passive': 25, '1 active': 10, 'none': 65}, 'legendary': {'3 passive + 1 active': 25, '2 passive + 1 active': 70, '1 active': 5}}
 weaponAdj = {'dagger': {'junk': {'regular': 50, 'rusty': 50},
                         'common': {'regular': 80, 'rusty': 10, 'fast': 5, 'sharp': 5},
-                        'uncommon': {'regular': 71, 'rusty': 5, 'fast': 17, 'sharp': 17},
+                        'uncommon': {'regular': 71, 'rusty': 5, 'fast': 12, 'sharp': 12},
                         'rare': {'regular': 50, 'rusty': 2, 'precise': 12, 'fast': 12, 'sharp': 12, 'discrete': 12}, 
-                        'epic': {'regular': 30, 'precise': 9, 'fast': 9, 'sharp': 9, 'poisoned': 9, 'burning': 9, 'frost': 8, 'electric': 8, 'discrete': 9},
+                        'epic': {'precise': 13, 'fast': 13, 'sharp': 13, 'poisoned': 12, 'burning': 12, 'frost': 12, 'electric': 12, 'discrete': 13},
                         'legendary': {'deadly': 10, 'precise': 10, 'fast': 10, 'sharp': 10, 'poisoned': 10, 'leech': 10, 'burning': 10, 'frost': 10, 'electric': 10, 'discrete': 10}},
              
-             'sword': {'regular': 70, 'sharp': 15, 'rusty': 15},
+             'sword': {'junk': {'regular': 50, 'rusty': 50},
+                        'common': {'regular': 80, 'rusty': 10, 'fast': 5, 'sharp': 5},
+                        'uncommon': {'regular': 71, 'rusty': 5, 'fast': 12, 'sharp': 12},
+                        'rare': {'regular': 50, 'rusty': 2, 'precise': 12, 'fast': 12, 'sharp': 12, 'mighty': 12}, 
+                        'epic': {'precise': 13, 'fast': 13, 'sharp': 13, 'poisoned': 12, 'burning': 12, 'frost': 12, 'electric': 12, 'mighty': 13},
+                        'legendary': {'splash': 10, 'precise': 10, 'fast': 10, 'sharp': 10, 'poisoned': 10, 'leech': 10, 'burning': 10, 'frost': 10, 'electric': 10, 'mighty': 10}},
              
-             'axe': {'regular': 70, 'sharp': 15, 'rusty': 15},
+             'axe': {'junk': {'regular': 50, 'rusty': 50},
+                        'common': {'regular': 80, 'rusty': 10, 'fast': 5, 'sharp': 5},
+                        'uncommon': {'regular': 71, 'rusty': 5, 'fast': 12, 'sharp': 12},
+                        'rare': {'regular': 50, 'rusty': 2, 'precise': 12, 'fast': 12, 'sharp': 12, 'mighty': 12}, 
+                        'epic': {'precise': 13, 'fast': 13, 'sharp': 13, 'poisoned': 12, 'burning': 12, 'frost': 12, 'electric': 12, 'mighty': 13},
+                        'legendary': {'splash': 10, 'precise': 10, 'fast': 10, 'sharp': 10, 'poisoned': 10, 'leech': 10, 'burning': 10, 'frost': 10, 'electric': 10, 'mighty': 10}},
              
-             'flail': {'regular': 70, 'rusty': 15, 'two-headed': 10, 'three-headed': 5},
+             'flail': {'junk': {'regular': 50, 'rusty': 50},
+                        'common': {'regular': 80, 'rusty': 10, 'fast': 5, 'weighed': 5},
+                        'uncommon': {'regular': 71, 'rusty': 5, 'fast': 12, 'weighed': 12},
+                        'rare': {'regular': 50, 'rusty': 2, 'two-headed': 12, 'fast': 12, 'weighed': 12, 'mighty': 12}, 
+                        'epic': {'two-headed': 13, 'fast': 13, 'weighed': 13, 'poisoned': 12, 'burning': 12, 'frost': 12, 'electric': 12, 'mighty': 13},
+                        'legendary': {'splash': 9, 'two-headed': 9, 'fast': 9, 'weighed': 9, 'poisoned': 9, 'stunning': 9, 'burning': 9, 'frost': 9, 'electric': 9, 'mighty': 9, 'three-headed': 9}},
              
-             'mace': {'regular': 70, 'weighed': 15, 'rusty': 15},
+             'mace': {'junk': {'regular': 50, 'rusty': 50},
+                        'common': {'regular': 80, 'rusty': 10, 'fast': 5, 'weighed': 5},
+                        'uncommon': {'regular': 71, 'rusty': 5, 'fast': 12, 'weighed': 12},
+                        'rare': {'regular': 50, 'rusty': 2, 'precise': 12, 'fast': 12, 'weighed': 12, 'mighty': 12}, 
+                        'epic': {'precise': 13, 'fast': 13, 'weighed': 13, 'poisoned': 12, 'burning': 12, 'frost': 12, 'electric': 12, 'mighty': 13},
+                        'legendary': {'splash': 10, 'precise': 10, 'fast': 10, 'weighed': 10, 'poisoned': 10, 'stunning': 10, 'burning': 10, 'frost': 10, 'electric': 10, 'mighty': 10}},
              
-             'hammer': {'regular': 70, 'spiked': 15, 'rusty': 15},
+             'hammer': {'junk': {'regular': 50, 'rusty': 50},
+                        'common': {'regular': 80, 'rusty': 10, 'fast': 5, 'weighed': 5},
+                        'uncommon': {'regular': 71, 'rusty': 5, 'fast': 12, 'weighed': 12},
+                        'rare': {'regular': 50, 'rusty': 2, 'spiked': 12, 'fast': 12, 'weighed': 12, 'mighty': 12}, 
+                        'epic': {'spiked': 13, 'fast': 13, 'weighed': 13, 'poisoned': 12, 'burning': 12, 'frost': 12, 'electric': 12, 'mighty': 13},
+                        'legendary': {'splash': 10, 'spiked': 10, 'fast': 10, 'weighed': 10, 'poisoned': 10, 'stunning': 10, 'burning': 10, 'frost': 10, 'electric': 10, 'mighty': 10}},
              
-             'gloves': {'regular': 70, 'weighed': 15, 'rusty': 15},
+             'gloves': {'junk': {'regular': 50, 'rusty': 50},
+                        'common': {'regular': 80, 'rusty': 10, 'fast': 5, 'weighed': 5},
+                        'uncommon': {'regular': 71, 'rusty': 5, 'fast': 12, 'weighed': 12},
+                        'rare': {'regular': 50, 'rusty': 2, 'precise': 12, 'fast': 12, 'weighed': 12, 'mighty': 12}, 
+                        'epic': {'precise': 13, 'fast': 13, 'weighed': 13, 'poisoned': 12, 'burning': 12, 'frost': 12, 'electric': 12, 'mighty': 13},
+                        'legendary': {'splash': 10, 'precise': 10, 'fast': 10, 'weighed': 10, 'poisoned': 10, 'leech': 10, 'burning': 10, 'frost': 10, 'electric': 10, 'mighty': 10}},
              
-             'spear': {'regular': 70, 'sharp': 15, 'rusty': 15}}
+             'spear': {'junk': {'regular': 50, 'rusty': 50},
+                        'common': {'regular': 80, 'rusty': 10, 'fast': 5, 'sharp': 5},
+                        'uncommon': {'regular': 71, 'rusty': 5, 'fast': 12, 'sharp': 12},
+                        'rare': {'regular': 50, 'rusty': 2, 'precise': 12, 'fast': 12, 'sharp': 12, 'mighty': 12}, 
+                        'epic': {'precise': 13, 'fast': 13, 'sharp': 13, 'poisoned': 12, 'burning': 12, 'frost': 12, 'electric': 12, 'mighty': 13},
+                        'legendary': {'deadly': 10, 'precise': 10, 'fast': 10, 'sharp': 10, 'poisoned': 10, 'leech': 10, 'burning': 10, 'frost': 10, 'electric': 10, 'mighty': 10}}}
 
 
 rangedWeaponTypes = ['bow', 'crossbow', 'throwing axe', 'throwing knife', 'pistol', 'rifle', 'javelin']
@@ -332,16 +377,19 @@ def randomChoice(chancesDictionnary):
 def generateMeleeWeapon(weaponType = None):
     if weaponType is None:
         weaponType = randItemFrom(weaponTypes)
-        print(weaponType)
     
     weapon = randomChoice(weaponSize[weaponType])
     
-    weaponDict = weaponAttributes[weapon]
-    weaponEquipment = EquipmentTemplate(weaponDict['slot'], weaponDict['type'] + ' ' + weaponType, meleeWeapon = True)
-    
     weaponRarity = randomChoice(rarity)
     stringRarity = str(weaponRarity)
-    print(weaponRarity)
+    
+    weaponDict = weaponAttributes[weapon]
+    weaponEquipment = EquipmentTemplate(weaponDict['slot'], stringRarity + ' ' + weaponDict['type'] + ' ' + weaponType, meleeWeapon = True)
+    
+    try:
+        weaponEquipment.slow = weaponDict['slow']
+    except:
+        pass
     
     adj = []
     passiveNumber = 1
@@ -361,7 +409,7 @@ def generateMeleeWeapon(weaponType = None):
     adjDict = weaponAdj[weaponType][stringRarity]
     for i in range(passiveNumber):
         bonus = randomChoice(adjDict)
-        while bonus in adj:
+        while bonus in adj or (bonus == 'fast' and weaponEquipment.slow):
             bonus = randomChoice(adjDict)
         adj.append(bonus)
     
@@ -391,11 +439,6 @@ def generateMeleeWeapon(weaponType = None):
             pass
         i += 1
     
-    try:
-        weaponEquipment.slow = weaponDict['slow']
-    except:
-        pass
-    
     if 'light' in weaponEquipment.type:
         char = '-'
     else:
@@ -416,7 +459,7 @@ def generateMeleeWeapon(weaponType = None):
 
 if __name__ == '__main__':
     for loop in range(10):
-        print(generateMeleeWeapon('dagger'))
+        print(generateMeleeWeapon())
         print()
 
 
