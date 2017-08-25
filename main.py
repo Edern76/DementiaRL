@@ -9111,8 +9111,8 @@ def makeMap(generateChasm = True, generateHole = False, fall = False, temple = F
                         upStairs.sendToBack()
                 else:
                     (previous_x, previous_y) = rooms[numberRooms-1].center()
-                    bigTunnel = randint(0, 4)
-                    big = bigTunnel == 0 and temple
+                    bigTunnel = randint(0, 5)
+                    big = bigTunnel == 0 or (bigTunnel <= 1 and temple)
                     if randint(0, 1):
                         createHorizontalTunnel(previous_x, new_x, previous_y, big)
                         createVerticalTunnel(previous_y, new_y, new_x, big)

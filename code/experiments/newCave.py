@@ -15,8 +15,18 @@ MAX_ITER = 30000
 WALL_LIMIT = 4 # number of neighboring walls for this cell to become a wall
 WALL_PROB = 50
 
-CAVE_MIN_SIZE = 16
-CAVE_MAX_SIZE = 500
+CAVE_MIN_SIZE = 16 #Def: 16
+MINE_MIN_SIZE = 50 #Def: 100
+CAVE_MAX_SIZE = 10000 #Def: 500
+MINE_MAX_SIZE = 1000 #Def: 300
+TOTAL_CAVE_MIN = 4000 #Def: 3000
+TOTAL_MINE_MIN = 950 #Def: 2000
+
+ROOM_MIN_SIZE = 5
+ROOM_MAX_SIZE = 14
+MAX_ROOMS = 12
+MAX_CONFLICT_RATIO = 33 #%
+
 
 SMOOTH_EDGES = True
 SMOOTHING = 1
@@ -97,6 +107,53 @@ class Tile:
                     c += 1
             return c
 
+class Rectangle:
+    def __init__(self, x, y, w, h):
+        self.x1 = x
+        self.y1 = y
+        self.x2 = x + w
+        self.y2 = y + h
+        self.tiles = []
+        for x in range(self.x1 + 1, self.x2):
+            for y in range(self.y1 + 1, self.y2):
+                self.tiles.append((x, y))
+        
+    def center(self):
+        center_x = (self.x1 + self.x2) // 2
+        center_y = (self.y1 + self.y2) // 2
+        return (center_x, center_y)
+ 
+    def intersect(self, other):
+        return (self.x1 <= other.x2 and self.x2 >= other.x1 and
+                self.y1 <= other.y2 and self.y2 >= other.y1)
+    
+    def checkForCaveIntersection(self):
+        print('checking caves')
+        caveTiles = []
+        for cave in caveList:
+            caveTiles.extend(cave)
+        for tile in self.tiles:
+            if tile in caveTiles:
+                print('room tile is in caves')
+                return False
+        return True
+
+def createRoom(room):
+    global myMap
+    for x in range(room.x1 + 1, room.x2):
+        for y in range(room.y1 + 1, room.y2):
+            myMap[x][y].blocked = False
+            
+def createHorizontalTunnel(x1, x2, y):
+    global myMap
+    for x in range(min(x1, x2), max(x1, x2) + 1):
+        myMap[x][y].blocked = False
+            
+def createVerticalTunnel(y1, y2, x):
+    global myMap
+    for y in range(min(y1, y2), max(y1, y2) + 1):
+        myMap[x][y].blocked = False
+
 def randomFillMap():
     global caveList, myMap
     for x in range (1, MAP_WIDTH-1):
@@ -104,7 +161,6 @@ def randomFillMap():
             if randint(1, 100) >= WALL_PROB:
                 myMap[x][y].blocked = False
     update()
-
 
 def cleanUpMap():
     global caveList, myMap
@@ -198,13 +254,20 @@ def createTunnel(point1,point2,currentCave):
                 myMap[drunkardX][drunkardY].blocked = False
     update()
 
-def floodFill(x,y):
+def floodFill(x,y, mine = False):
     global caveList, myMap
     '''
     flood fill the separate regions of the level, discard
     the regions that are smaller than a minimum size, and 
     create a reference for the rest.
     '''
+    if not mine:
+        minSize = CAVE_MIN_SIZE
+        maxSize = CAVE_MAX_SIZE
+    else:
+        minSize = MINE_MIN_SIZE
+        maxSize = MINE_MAX_SIZE
+        
     cave = []
     tile = (x,y)
     toBeFilled = [tile]
@@ -229,17 +292,17 @@ def floodFill(x,y):
                 except IndexError:
                     print(newX, newY)
 
-    if len(cave) >= CAVE_MIN_SIZE:
+    if maxSize >= len(cave) >= minSize:
         caveList.append(cave)
     update()
 
-def getCaves():
+def getCaves(mine=False):
     global caveList, myMap
     # locate all the caves within myMap and stores them in caveList
     for x in range (MAP_WIDTH):
         for y in range (MAP_HEIGHT):
             if not myMap[x][y].blocked:
-                floodFill(x,y)
+                floodFill(x,y, mine)
 
     for cave in caveList:
         for tile in cave:
@@ -250,7 +313,6 @@ def getCaves():
 def checkConnectivity(cave1, cave2):
     global caveList, myMap
     # floods cave1, then checks a point in cave2 for the flood
-
     connectedRegion = []
     start = cave1[randint(0, len(cave1) - 1)] # get an element from cave1
     
@@ -280,6 +342,7 @@ def checkConnectivity(cave1, cave2):
 
     else: return False
 
+
 def distanceFormula(point1,point2):
     x1, y1 = point1
     x2, y2 = point2
@@ -304,12 +367,80 @@ def connectCaves():
                     distance = newDistance
 
         if point2: # if all tunnels are connected, point2 == None
-            createTunnel(point1, point2,currentCave)
+            createTunnel(point1, point2, currentCave)
     update()
 
-def generateCaveLevel():
+def makeMineLayout():
+    global caveList, myMap
+    
+    roomList = []
+    
+    while len(roomList) < MAX_ROOMS:
+        print('beginning')
+        x = randint(1, MAP_WIDTH - 1)
+        y = randint(1, MAP_HEIGHT - 1)
+        
+        w = randint(ROOM_MIN_SIZE, ROOM_MAX_SIZE)
+        h = randint(ROOM_MIN_SIZE, ROOM_MAX_SIZE)
+        if x + w >= MAP_WIDTH or y + h >= MAP_HEIGHT:
+            print('room is out of map')
+            continue
+        newRoom = Rectangle(x, y, w, h)
+        intersect = False
+        print('checking intersection')
+        for room in roomList:
+            print('in check')
+            if newRoom.intersect(room) or not newRoom.checkForCaveIntersection():
+                print('room intersects')
+                intersect = True
+                break
+        if intersect:
+            continue
+        createRoom(newRoom)
+        
+        (new_x, new_y) = newRoom.center()
+        if len(roomList) == 0:
+            print('room is the first')
+            cave = caveList[randint(0, len(caveList) - 1)]
+            point = cave[randint(0, len(cave) - 1)]
+            createTunnel((new_x, new_y), point, newRoom.tiles)
+            (previous_x, previous_y) = newRoom.center()
+        else:
+            print('creating tunnels')
+            tunnel = randint(0, 2)
+            if tunnel == 0:
+                createHorizontalTunnel(previous_x, new_x, previous_y)
+                createVerticalTunnel(previous_y, new_y, new_x)
+            elif tunnel == 1:
+                createVerticalTunnel(previous_y, new_y, previous_x)
+                createHorizontalTunnel(previous_x, new_x, new_y)
+            else:
+                createTunnel((new_x, new_y), (previous_x, previous_y), newRoom.tiles)
+        (previous_x, previous_y) = (new_x, new_y)
+        roomList.append(newRoom)
+        
+        root.clear()
+        for x in range(MAP_WIDTH):
+            for y in range(MAP_HEIGHT):
+                if myMap[x][y].blocked:
+                    root.draw_char(x, y, '#', colors.grey, colors.darker_grey)
+                elif (x, y) in newRoom.tiles:
+                    root.draw_char(x, y, None, bg = colors.red)
+                else:
+                    root.draw_char(x, y, None, bg = colors.sepia)
+        tdl.flush()
+        time.sleep(1)
+        update()
+
+def generateCaveLevel(mine=False):
     global caveList, myMap
     # Creates an empty 2D array or clears existing array
+    
+    if mine:
+        minSize = TOTAL_MINE_MIN
+    else:
+        minSize = TOTAL_CAVE_MIN
+    
     caveList = []
 
     
@@ -319,11 +450,23 @@ def generateCaveLevel():
     
     createCaves()
 
-    getCaves()
-
-    connectCaves()
-
-    cleanUpMap()
+    getCaves(mine)
+    
+    freeTiles = 0
+    for cave in caveList:
+        freeTiles += len(cave)
+    print('free tiles:', freeTiles)
+    
+    if freeTiles >= minSize:
+        connectCaves()
+    
+        cleanUpMap()
+        
+        if mine:
+            makeMineLayout()
+    else:
+        time.sleep(2)
+        generateCaveLevel(mine)
 
 def update():
     root.clear()
@@ -336,7 +479,7 @@ def update():
     tdl.flush()
 
 if __name__ == '__main__':
-    generateCaveLevel()
+    generateCaveLevel(True)
     while not tdl.event.is_window_closed():
         update()
 

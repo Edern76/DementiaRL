@@ -53,7 +53,7 @@ rare = Rarity('rare')
 epic = Rarity('epic')
 legendary = Rarity('legendary')
 
-rarity = {junk: 15, common: 50, uncommon: 15, rare: 10, epic: 7, legendary: 3}
+rarity = {junk: 15, common: 50, uncommon: 15, rare: 10, epic: 7, legendary: 1003}
 raritySmallAdd = {'junk': -2, 'common': 0, 'uncommon': 2, 'rare': 3, 'epic': 5, 'legendary': 8}
 rarityBigAdd = {'junk': -10, 'common': 0, 'uncommon': 10, 'rare': 15, 'epic': 20, 'legendary': 30}
 
@@ -181,9 +181,27 @@ adjEffects = {'regular': {},
               'two-headed': {'weight': 1.5, 'pow': 3, 'acc': -3}, #multiply weight by 2 if peasant flail
               'three-headed': {'weight': 3.0, 'pow': 6, 'acc': -6}, #same
               'stunning': {}, #add stun chance
-              'spiked': {'ap': 2}
-              }
+              'spiked': {'ap': 2}}
 
+adjActive = {'regular': {'name': 'none'},
+              'rusty': {'name': 'none'},
+              'fast': {'name': ' of swiftness'},
+              'sharp': {'name': ' of bite'},
+              'discrete': {'name': ' of shadows'},
+              'precise': {'name': ' of accuracy'},
+              'frost': {'name': ' of ice'},
+              'poisoned': {'name': ' of poison'},
+              'burning': {'name': ' of fire'},
+              'electric': {'name': ' of lightning'},
+              'deadly': {'name': ' of lethality'},
+              'leech': {'name': ' of haemorrhage'},
+              'mighty': {'name': ' of devastation'},
+              'splash': {'name': ' of blast'},
+              'weighed': {'name': ' of mass'},
+              'two-headed': {'name': 'none'},
+              'three-headed': {'name': 'none'},
+              'stunning': {'name': ' of dazing'},
+              'spiked': {'name': ' of pain'}}
 
 rangedWeaponTypes = ['bow', 'crossbow', 'throwing axe', 'throwing knife', 'pistol', 'rifle', 'javelin']
 
@@ -432,12 +450,17 @@ def generateMeleeWeapon(weaponType = None):
     adjDict = weaponAdj[weaponType][stringRarity]
     for i in range(passiveNumber):
         bonus = randomChoice(adjDict)
-        while bonus in adj or (bonus == 'fast' and weaponEquipment.slow) or (bonus == 'frost' and 'burning' in adj) or (bonus == 'burning' and 'frost' in adj):
+        while bonus in adj or (bonus == 'fast' and weaponEquipment.slow) or (bonus == 'frost' and 'burning' in adj) or (bonus == 'burning' and 'frost' in adj) or ('headed' in bonus and 'headed' in adj):
             bonus = randomChoice(adjDict)
         adj.append(bonus)
     
     if active:
-        weaponAbility = randItemFrom(adj)
+        activeAdj = randItemFrom(adj)
+        i = 0
+        weaponAbility = adjActive[activeAdj]['name']
+        while 'headed' in activeAdj and i <= 10:
+            weaponAbility = adjActive[activeAdj]['name']
+            i += 1
     
     addToName = ''
     for adjective in adj:
@@ -446,7 +469,8 @@ def generateMeleeWeapon(weaponType = None):
     
     endName = ''
     if active:
-        endName = ' of ' + weaponAbility
+        if weaponAbility != 'none':
+            endName = weaponAbility
     
     i = 0
     for stat in weaponEquipment.stats:

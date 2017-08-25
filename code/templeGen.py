@@ -40,7 +40,23 @@ class Tile:
         self.baseFg = colors.lighter_grey
         self.baseBg = colors.grey
         self.pillar = False
-        
+    
+    @property
+    def blocked(self):
+        return self.baseBlocked
+    
+    @property
+    def character(self):
+        return self.baseCharacter
+    
+    @property
+    def fg(self):
+        return self.baseFg
+    
+    @property
+    def bg(self):
+        return self.baseBg
+    
     def setIndestructible(self):
         self.baseBlocked = True
         self.indestructible = True
@@ -314,8 +330,8 @@ def makeMap():
         myMap[MAP_WIDTH - 1][y].setIndestructible()
  
     for r in range(30):
-        w = randint(10, 16)
-        h = randint(10, 16)
+        w = randint(10, 20)
+        h = randint(10, 20)
         x = randint(0, MAP_WIDTH-w-1)
         y = randint(0, MAP_HEIGHT-h-1)
         newRoom = Rectangle(x, y, w, h)

@@ -1,6 +1,7 @@
-import tdlib, colors, copy, pdb, traceback, os, sys, time
+import colors, copy, pdb, traceback, os, sys, time
 from random import *
 from code.custom_except import *
+import tdlib as tdl
 
 
 WIDTH, HEIGHT, LIMIT = 150, 80, 20
@@ -41,6 +42,22 @@ class Tile:
         self.baseFg = colors.dark_grey
         self.baseBg = colors.black
         self.chasm = True
+    
+    @property
+    def blocked(self):
+        return self.baseBlocked
+    
+    @property
+    def character(self):
+        return self.baseCharacter
+    
+    @property
+    def fg(self):
+        return self.baseFg
+    
+    @property
+    def bg(self):
+        return self.baseBg
         
     def setIndestructible(self):
         self.baseBlocked = True
@@ -160,8 +177,8 @@ def makeMap():
         myMap[MAP_WIDTH - 1][y].setIndestructible()
  
     for r in range(30):
-        w = randint(6, 10)
-        h = randint(6, 10)
+        w = randint(6, 20)
+        h = randint(6, 20)
         x = randint(0, MAP_WIDTH-w-1)
         y = randint(0, MAP_HEIGHT-h-1)
         newRoom = Rectangle(x, y, w, h)
