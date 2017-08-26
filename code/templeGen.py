@@ -3,6 +3,7 @@ from random import *
 from copy import deepcopy
 from code.custom_except import *
 import tdlib as tdl
+from code.classes import Tile
 
 
 WIDTH, HEIGHT, LIMIT = 150, 80, 20
@@ -28,38 +29,7 @@ sys.setrecursionlimit(3000)
 
 if __name__ == '__main__':
     root = tdl.init(WIDTH, HEIGHT, 'Dementia')
-    
-class Tile:
-    def __init__(self, blocked, x, y, char = '#'):
-        self.baseBlocked = blocked
-        self.x = x
-        self.y = y
-        self.baseCharacter = char
-        self.indestructible = False
-        self.belongsTo = []
-        self.baseFg = colors.lighter_grey
-        self.baseBg = colors.grey
-        self.pillar = False
-    
-    @property
-    def blocked(self):
-        return self.baseBlocked
-    
-    @property
-    def character(self):
-        return self.baseCharacter
-    
-    @property
-    def fg(self):
-        return self.baseFg
-    
-    @property
-    def bg(self):
-        return self.baseBg
-    
-    def setIndestructible(self):
-        self.baseBlocked = True
-        self.indestructible = True
+
 
 class Rectangle:
     def __init__(self, x, y, w, h):
@@ -318,16 +288,16 @@ def secretRoom():
 def makeMap():
     global myMap, rooms, firstX, firstY, lastX, lastY
 
-    myMap = [[Tile(blocked = True, x = x, y = y) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
+    myMap = [[Tile(blocked = True, x = x, y = y, character = '#', fg = colors.lightest_grey, bg = colors.light_grey) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
     rooms = []
     numberRooms = 0
     
     for x in range(MAP_WIDTH):
-        myMap[x][0].setIndestructible()
-        myMap[x][MAP_HEIGHT - 1].setIndestructible()
+        myMap[x][0].setUnbreakable()
+        myMap[x][MAP_HEIGHT - 1].setUnbreakable()
     for y in range(MAP_HEIGHT):
-        myMap[0][y].setIndestructible()
-        myMap[MAP_WIDTH - 1][y].setIndestructible()
+        myMap[0][y].setUnbreakable()
+        myMap[MAP_WIDTH - 1][y].setUnbreakable()
  
     for r in range(30):
         w = randint(10, 20)

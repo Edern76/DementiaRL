@@ -2,6 +2,7 @@ import colors, copy, pdb, traceback, os, sys, time
 from random import *
 from code.custom_except import *
 import tdlib as tdl
+from code.classes import Tile
 
 
 WIDTH, HEIGHT, LIMIT = 150, 80, 20
@@ -31,63 +32,6 @@ sys.setrecursionlimit(3000)
 
 if __name__ == '__main__':
     root = tdl.init(WIDTH, HEIGHT, 'Dementia')
-    
-class Tile:
-    def __init__(self, blocked, x, y):
-        self.baseBlocked = blocked
-        self.x = x
-        self.y = y
-        self.indestructible = False
-        self.belongsTo = []
-        self.baseFg = colors.dark_grey
-        self.baseBg = colors.black
-        self.chasm = True
-    
-    @property
-    def blocked(self):
-        return self.baseBlocked
-    
-    @property
-    def character(self):
-        return self.baseCharacter
-    
-    @property
-    def fg(self):
-        return self.baseFg
-    
-    @property
-    def bg(self):
-        return self.baseBg
-        
-    def setIndestructible(self):
-        self.baseBlocked = True
-        self.indestructible = True
-        
-    def open(self):
-        if not self.indestructible:
-            self.baseBlocked = False
-            return True
-        else:
-            return False
-    
-    def close(self):
-        if not self.blocked:
-            self.baseBlocked = True
-    
-    def addOwner(self, toAdd):
-        if not toAdd in self.belongsTo:
-            if self.belongsTo:
-                otherOwners = list(self.belongsTo)
-            else:
-                otherOwners = []
-            self.belongsTo.append(toAdd)
-            print(otherOwners)
-            return otherOwners
-    
-    def returnOtherOwners(self, base):
-        newList = list(self.belongsTo)
-        newList.remove(base)
-        return newList
 
 
 class Rectangle:
@@ -167,14 +111,14 @@ def makeMap():
     numberRooms = 0
     
     for x in range(MAP_WIDTH):
-        myMap[x][0].setIndestructible()
-        myMap[x][MAP_HEIGHT - 1].setIndestructible()
+        myMap[x][0].setUnbreakable()
+        myMap[x][MAP_HEIGHT - 1].setUnbreakable()
         for y in range(MAP_HEIGHT):
             if not myMap[x][y].blocked and not (x,y) in emptyTiles:
                 emptyTiles.append((x,y))
     for y in range(MAP_HEIGHT):
-        myMap[0][y].setIndestructible()
-        myMap[MAP_WIDTH - 1][y].setIndestructible()
+        myMap[0][y].setUnbreakable()
+        myMap[MAP_WIDTH - 1][y].setUnbreakable()
  
     for r in range(30):
         w = randint(6, 20)

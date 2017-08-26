@@ -25,6 +25,7 @@ from music import playWavSound
 from multiprocessing import freeze_support, current_process
 import code.chasmGen as chasmGen
 import code.holeGen as holeGen
+from code.classes import Tile
 
 from tkinter import *
 from tkinter.messagebox import * #For making obvious freaking error boxes when the console gets too bloated to read anything useful.
@@ -7384,6 +7385,7 @@ dispClearance = False
 unchasmable = []
 noCheckTiles = []
 
+'''
 def printTileWhenWalked(tile):
     print("Player walked on tile at {};{}".format(tile.x, tile.y))
 
@@ -7483,7 +7485,7 @@ class Tile:
         return self.baseDark_bg
         
     def neighbors(self, mapToUse = None):
-        '''
+
         global myMap
         x = self.x
         y = self.y
@@ -7533,7 +7535,7 @@ class Tile:
             lowerRight = None
         
         return [i for i in [upperLeft, up, upperRight, left, right, lowerLeft, low, lowerRight] if i is not None]
-        '''
+
         
         return neighborsOutOfClass(int(self.x), int(self.y), mapToUse)
 
@@ -7672,6 +7674,7 @@ class Tile:
     
     def triggerFunc(self):
         self.onTriggerFunction(self)
+'''
 
 class Rectangle:
     def __init__(self, x, y, w, h):
