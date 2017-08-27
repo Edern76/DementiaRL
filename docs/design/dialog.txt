@@ -83,13 +83,13 @@ Dialog choices :
 			- Choices : BACK
 		4) Understood. Then I'll go to the armory to grab a weapon and then I'll be off.
 			- ID : understood
-			- Answer : A regular weapon is unlikely to do anything to a god. Here, let me give you Equinox, my trusty sword, it is the pride of the Guillem familly. Having been passed from generation to generation, it has defeated many terrible foes and absorbed their energy. Being the ruin of the God of Madness would make a perfect addition to its legned.
+			- Answer : A regular weapon is unlikely to do anything to a god. Here, let me give you Equinox, my trusty sword, it is the pride of the Guillem familly. Having been passed from generation to generation, it has defeated many terrible foes and absorbed their energy. Being the ruin of the God of Madness would make a perfect addition to its legend.
 			- Choices : 
 			1) Very well. I shall proudly wear your sword, and when I'll return it to you it will be known as "Equinox, the Scourge of the Gods"
 			- ID : exit
   2) What happened to the ones who snuck into Zarg's tower to unveil his plans ? Did they directly fought him ?
 	- ID : happened
-	- Answer : After discovering his weakness, they were spotted by the God of Madness and indeed had to confront him head on. Of course they were no match for him, and soon realized that they had to retreat. Some were killed during the fight with Zarg, others died on the way back home due to their wounds, or because of unexpected ordeals, so well that though they were 8 when they set out on their journey, only 2 came back alive.
+	- Answer : After discovering his weakness, they were spotted by the God of Madness and indeed had to confront him head on. Of course they were no match for him, and soon realized that they had to retreat. Some were killed during the fight with Zarg, others died on the way back home due to their wounds, or because of unexpected ordeals, so well that though they were eight when they set out on their journey, only two came back alive.
 	- Choices :
 		1) While fighting him, did they discover anything else that could be useful to me in the upcoming battle ?
 			- ID : uncover

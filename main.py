@@ -1002,7 +1002,7 @@ def targetMonsterWrapper(caster = None):
     target = targetMonster()
     return target
 
-def Erwan(caster = None, target = None):
+def Erwan(*args, **kwargs):
     pass
 
 def createObjectFromCoords(x, y):
@@ -3195,7 +3195,7 @@ class Stairs:
 
 class GameObject:
     "A generic object, represented by a character"
-    def __init__(self, x, y, char, name, color = colors.white, blocks = False, Fighter = None, AI = None, Player = None, Ghost = False, flying = False, Item = None, alwaysVisible = False, darkColor = None, Equipment = None, pName = None, Essence = None, socialComp = None, shopComp = None, questList = [], Stairs = None, alwaysAlwaysVisible = False, size = 1, sizeChar = [], sizeColor = [], sizeDarkColor = [], smallChar = None, ProjectileComp = None):
+    def __init__(self, x, y, char, name, color = colors.white, blocks = False, Fighter = None, AI = None, Player = None, Ghost = False, flying = False, Item = None, alwaysVisible = False, darkColor = None, Equipment = None, pName = None, Essence = None, socialComp = None, shopComp = None, questList = [], Stairs = None, alwaysAlwaysVisible = False, size = 1, sizeChar = [], sizeColor = [], sizeDarkColor = [], smallChar = None, ProjectileComp = None, noPronoun = False):
         self.x = x
         self.y = y
         self.char = char
@@ -3291,6 +3291,7 @@ class GameObject:
         if self.Item:
             if self.Item.useText == 'Use' and self.Equipment:
                 self.Item.useText = 'Equip'
+        self.noPronoun = noPronoun
     
     @property
     def name(self):
@@ -5213,7 +5214,10 @@ class Item:
             if inObjects:
                 objects.remove(self.owner)
             if not silent:
-                message('You picked up a ' + self.owner.name + '!', colors.green)
+                if not self.owner.noPronoun:
+                    message('You picked up a ' + self.owner.name + '!', colors.green)
+                else:
+                    message('You picked up ' + self.owner.name + '!', colors.green)
             equipment = self.owner.Equipment
             if equipment:
                 handed = equipment.slot == 'one handed' or equipment.slot == 'two handed'
@@ -5225,7 +5229,10 @@ class Item:
                 if item.name == self.owner.name:
                     if not silent:
                         if self.amount == 1:
-                            message('You picked up a' + ' ' + self.owner.name + ' !', colors.green)
+                            if not self.owner.noPronoun:
+                                message('You picked up a' + ' ' + self.owner.name + ' !', colors.green)
+                            else:
+                                message('You picked up ' + self.owner.name + '!', colors.green)
                         elif self.owner.pluralName is None:
                             message('You picked up ' + str(self.amount) + ' ' + self.owner.name + 's !', colors.green)
                         else:
@@ -5246,7 +5253,10 @@ class Item:
                     objects.remove(self.owner)
                 if not silent:
                     if self.amount == 1:
-                        message('You picked up a' + ' ' + self.owner.name + ' !', colors.green)
+                        if not self.owner.noPronoun:
+                            message('You picked up a' + ' ' + self.owner.name + ' !', colors.green)
+                        else:
+                            message('You picked up ' + self.owner.name + '!', colors.green)
                     elif self.owner.pluralName is None:
                         message('You picked up ' + str(self.amount) + ' ' + self.owner.name + 's !', colors.green)
                     else:
@@ -5328,7 +5338,10 @@ class Item:
             except TypeError: #Bug Theo
                 message('Amount is None', colors.red)
         else:
-            message('You dropped a ' + self.owner.name + '.', colors.yellow)
+            if not self.owner.noPronoun:
+                message('You dropped a ' + self.owner.name + '.', colors.yellow)
+            else:
+                message('You dropped ' + self.owner.name + '.', colors.yellow)
         if self.owner.Equipment and self.owner.Equipment.isEquipped:
             self.owner.Equipment.unequip()
     
@@ -12324,10 +12337,11 @@ def chat():
             tree.currentScreen = copy(tree.origScreen)
             #assert isinstance(tree.currentScreen, dial.DialogScreen)
             state = 'starting'
-            if tutorial and NPC.name == 'General Guillem':
-                global hasSpokenToGeneral
-                hasSpokenToGeneral = True
+
             while state != 'END':
+                mainModule = sys.modules[__name__] #Because "main" is not defined inside itself.
+                func = getattr(mainModule, tree.currentScreen.onEnterFunctionName)
+                func()
                 if state == 'SHOP':
                     state = 'END'
                     NPC.shopComp.browse()
@@ -13371,6 +13385,10 @@ def zargSpeech():
     waitForWait()
     newGame()
 
+def markForEquinoxDrop(*args, **kwargs):
+    global hasSpokenToGeneral
+    hasSpokenToGeneral = True
+
 def playTutorial():
     global currentMusic, FOV_recompute, DEBUG, tutorial, hasSpokenToGeneral
     if currentMusic is None or currentMusic in ('No_Music.wav', 'Dusty_Feelings.wav', 'Sweltering_Battle.wav'):
@@ -13495,7 +13513,7 @@ def playTutorial():
                     displayTip('Beware! This guard looks pretty aggressive! You can fight him by simply walking onto him.', object.x - 1, object.y, True)
                 if object.Item and object.distanceTo(player) <= 8 and not displayedPickUp:
                     displayedPickUp = True
-                    displayTip("This is a {}. Pick it up by pressing 'SPACEBAR' while on the same tile.".format(object.name), object.x - 1, object.y)
+                    displayTip("This is a sword. Pick it up by pressing 'SPACEBAR' while on the same tile.".format(object.name), object.x - 1, object.y)
                     FOV_recompute = True
                 if object.name == 'General Guillem' and (object.x, object.y) in visibleTiles and object.distanceTo(player) <= 7 and not displayedGeneral:
                     message("General Guillem shouts: 'Greetings {}! Come to me to summarize our plan!'".format(heroName), colors.gold)
@@ -13584,8 +13602,8 @@ def playTutorial():
                 swordX, swordY = player.x - 1, player.y
                 while (swordX, swordY) == (generalObject.x, generalObject.y):
                     swordY += 1
-                swordComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus = 10, meleeWeapon=True)
-                sword = GameObject(swordX, swordY, '-', 'longsword', colors.silver, Equipment = swordComponent, Item = Item(weight=3.5, pic = 'longSword.xp', useText='Equip'))
+                swordComponent = Equipment(slot='one handed', type = 'light weapon', powerBonus = 18, meleeWeapon=True)
+                sword = GameObject(swordX, swordY, '-', 'Equinox', colors.silver, Equipment = swordComponent, Item = Item(weight=3.5, pic = 'longSword.xp', useText='Equip'), noPronoun = True) #TO-DO : Make this a true legendary unique
                 objects.append(sword)
                 message("General Guillem says: 'Here, take my sword. It shall help you defeat the greatest foes.'", colors.gold)
                 givenSword = True  
