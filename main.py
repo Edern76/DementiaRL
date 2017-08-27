@@ -12458,7 +12458,7 @@ def showPrologue(escapable = True):
     lData = attributes["layer_data"]
     con = NamedConsole('con', 104, HEIGHT - 18)
     layerInd = int(0)
-    xpL.load_layer_to_console(root, lData[0], noBG = True)
+    xpL.load_layer_to_console(root, lData[0], offsetX=5, noBG = True)
     for scr in dial.prologueScreens:
         showScreen(scr, con, HEIGHT - 18)
     con.clear()
