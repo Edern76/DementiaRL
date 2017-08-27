@@ -6,7 +6,7 @@ from code.classes import Tile
 
 myMap = []
 WIDTH, HEIGHT, LIMIT = 150, 80, 20
-MAP_WIDTH, MAP_HEIGHT = 140, 60
+MAP_WIDTH, MAP_HEIGHT = 280, 120
 if __name__ == '__main__':
     root = tdl.init(WIDTH, HEIGHT, 'Dementia')
 

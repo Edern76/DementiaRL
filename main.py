@@ -121,15 +121,16 @@ MOVEMENT_KEYS = {
                  }
 
 WIDTH, HEIGHT, LIMIT = 159, 80, 20 #Defaults : 150, 80, 20
-MAP_WIDTH, MAP_HEIGHT = 140, 60 #Defaults : 140, 60
+MAP_WIDTH, MAP_HEIGHT = 280, 120 #Defaults : 140, 60
 MID_MAP_WIDTH, MID_MAP_HEIGHT = MAP_WIDTH//2, MAP_HEIGHT//2
+MID_MAP_SCREEN_WIDTH, MID_MAP_SCREEN_HEIGHT = 70, 30 #Default: 70, 30
 MID_WIDTH, MID_HEIGHT = int(WIDTH/2), int(HEIGHT/2)
 
 # - GUI Constants -
 BAR_WIDTH = 20 #Default : 20
 
 PANEL_HEIGHT = 19 #Default : 10
-PANEL_WIDTH = MAP_WIDTH #default: WIDTH
+PANEL_WIDTH = 140 #default: WIDTH
 CON_HEIGHT = HEIGHT - PANEL_HEIGHT
 MID_CON_HEIGHT = int(CON_HEIGHT // 2)
 PANEL_Y = HEIGHT - PANEL_HEIGHT
@@ -137,10 +138,10 @@ PANEL_Y = HEIGHT - PANEL_HEIGHT
 LOOK_HEIGHT = PANEL_HEIGHT
 LOOK_Y = PANEL_Y
 LOOK_WIDTH = 21 #Default: 15
-LOOK_X = MAP_WIDTH - LOOK_WIDTH + 1
+LOOK_X = 140 - LOOK_WIDTH + 1 #Default: MAP_WIDTH - LOOK_WIDTH + 1
 
-SIDE_PANEL_WIDTH = WIDTH - MAP_WIDTH #Default: WIDTH - PANEL_WIDTH
-SIDE_PANEL_X = MAP_WIDTH
+SIDE_PANEL_WIDTH = WIDTH - 140 #Default: WIDTH - PANEL_WIDTH
+SIDE_PANEL_X = 140 #Default : MAP_WIDTH
 SIDE_PANEL_Y = 0
 SIDE_PANEL_MODES = ['enemies', 'items', 'inventory', 'equipment', 'spells', 'buffs', 'stealth']
 currentSidepanelMode = 0
@@ -3391,19 +3392,30 @@ class GameObject:
                     monsterPart.y += dy
     
     def basicDraw(self):
+        onScreen = (player.x - MID_MAP_SCREEN_WIDTH <= self.x < player.x + MID_MAP_SCREEN_WIDTH
+                    and player.y - MID_MAP_SCREEN_HEIGHT <= self.y < player.y + MID_MAP_SCREEN_HEIGHT)
+        
+        if self == player:
+            consX, consY = MID_MAP_SCREEN_WIDTH, MID_MAP_SCREEN_HEIGHT
+        else:
+            dx = self.x - player.x
+            dy = self.y - player.y
+            consX = MID_MAP_SCREEN_WIDTH + dx
+            consY = MID_MAP_SCREEN_HEIGHT + dy
+        
         allMonstersDetected = []
         for monsters in monstersDetected:
             allMonstersDetected.extend(monsters)
-        if (self.x, self.y) in visibleTiles or REVEL or self in allMonstersDetected:
+        if ((self.x, self.y) in visibleTiles or REVEL or self in allMonstersDetected) and onScreen:
             bg = None
             if self.Fighter:
                 if 'frozen' in convertBuffsToNames(self.Fighter):
                     bg = colors.light_violet
-            con.draw_char(self.x, self.y, self.char, self.color, bg=bg)
+            con.draw_char(consX, consY, self.char, self.color, bg=bg)
         elif self.alwaysAlwaysVisible:
-            con.draw_char(self.x, self.y, self.char, self.darkColor, bg=None)
+            con.draw_char(consX, consY, self.char, self.darkColor, bg=None)
         elif self.alwaysVisible and myMap[self.x][self.y].explored:
-            con.draw_char(self.x, self.y, self.char, self.darkColor, bg=None)
+            con.draw_char(consX, consY, self.char, self.darkColor, bg=None)
 
     def draw(self):
         self.basicDraw()
@@ -9208,40 +9220,40 @@ def makeMap(generateChasm = True, generateHole = False, fall = False, temple = F
             if dungeonLevel == level and not branch.appeared:
                 createdStairs = False
                 stairsCounter = 0
-                while not createdStairs:
-                    stairsCounter += 1
-                    if stairsCounter > REGEN_THRESHOLD:
-                        regen = True
-                        print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
-                        print("SET REGEN TO TRUE !!!!!!!!!!!!")
-                        print("SEE MESSAGE ABOVE")
-                        print("IMPORTANT NOTICE ABOVE")
-                        print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
-                        break
-                    randRoom = randint(0, len(rooms) - 1)
-                    room = rooms[randRoom]
-                    chasmedRoom = False
-                    for x in range(room.x1 + 1, room.x2):
-                        for y in range(room.y1 + 1, room.y2):
-                            if myMap[x][y].chasm:
-                                chasmedRoom = True
-                                break
-                        if chasmedRoom:
+                #while not createdStairs:
+                stairsCounter += 1
+                if stairsCounter > REGEN_THRESHOLD:
+                    regen = True
+                    print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
+                    print("SET REGEN TO TRUE !!!!!!!!!!!!")
+                    print("SEE MESSAGE ABOVE")
+                    print("IMPORTANT NOTICE ABOVE")
+                    print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
+                    break
+                randRoom = randint(0, len(rooms) - 1)
+                room = rooms[randRoom]
+                chasmedRoom = False
+                for x in range(room.x1 + 1, room.x2):
+                    for y in range(room.y1 + 1, room.y2):
+                        if myMap[x][y].chasm:
+                            chasmedRoom = True
                             break
-                    (x, y) = room.center()
-                    wrongCentre = False
-                    if genPlayer:
-                        for object in objects:
-                            if object.x == x and object.y == y:
-                                wrongCentre = True
-                                break
-                    if not wrongCentre and not chasmedRoom:
-                        newStairs = GameObject(x, y, '>', 'stairs to ' + branch.name, branch.lightStairsColor, alwaysVisible = True, darkColor = branch.darkStairsColor, Stairs=Stairs('down', currentBranch, branch))
-                        objects.append(newStairs)
-                        newStairs.sendToBack()
-                        branch.appeared = True
-                        createdStairs = True
-                        print('created {} stairs at {}, {}'.format(branch.shortName, str(x), str(y)))
+                    if chasmedRoom:
+                        break
+                (x, y) = room.center()
+                wrongCentre = False
+                if genPlayer:
+                    for object in objects:
+                        if object.x == x and object.y == y:
+                            wrongCentre = True
+                            break
+                if not wrongCentre and not chasmedRoom:
+                    newStairs = GameObject(x, y, '>', 'stairs to ' + branch.name, branch.lightStairsColor, alwaysVisible = True, darkColor = branch.darkStairsColor, Stairs=Stairs('down', currentBranch, branch))
+                    objects.append(newStairs)
+                    newStairs.sendToBack()
+                    branch.appeared = True
+                    createdStairs = True
+                    print('created {} stairs at {}, {}'.format(branch.shortName, str(x), str(y)))
                 
             '''
             if branch == dBr.gluttonyDungeon:
@@ -11989,50 +12001,56 @@ def Update():
         global pathfinder
         visibleTiles = tdl.map.quickFOV(player.x, player.y, isVisibleTile, fov = FOV_ALGO, radius = player.Player.sightRadius, lightWalls = FOV_LIGHT_WALLS)
         pathfinder = tdl.map.AStar(MAP_WIDTH, MAP_HEIGHT, callback = getMoveCost, diagnalCost=1, advanced=False)
-        for y in range(MAP_HEIGHT):
-            for x in range(MAP_WIDTH):
-                visible = (x, y) in visibleTiles
-                tile = myMap[x][y]
-                char = tile.character
-                if dispClearance:
-                    if tile.clearance < 10:
-                        char = str(tile.clearance)
+        for x in range(player.x - MID_MAP_SCREEN_WIDTH, player.x + MID_MAP_SCREEN_WIDTH):
+            for y in range(player.y - MID_MAP_SCREEN_HEIGHT, player.y + MID_MAP_SCREEN_HEIGHT):
+                if 0 <= x < MAP_WIDTH and 0 <= y < MAP_HEIGHT:
+                    dx = x - player.x
+                    dy = y - player.y
+                    consX = MID_MAP_SCREEN_WIDTH + dx
+                    consY = MID_MAP_SCREEN_HEIGHT + dy
+                    visible = (x, y) in visibleTiles
+                    tile = myMap[x][y]
+                    char = tile.character
+                    if dispClearance:
+                        if tile.clearance < 10:
+                            char = str(tile.clearance)
+                        else:
+                            char = '+'
+                    if not visible:
+                        if tile.explored:
+                            con.draw_char(consX, consY, char, tile.dark_fg, tile.dark_bg)
+                            tileTuple = (x, y, tile.character,tile.blocked, tile.chasm)
+                            exploredMaps[branchKey].append(tileTuple)
                     else:
-                        char = '+'
-                if not visible:
-                    if tile.explored:
-                        con.draw_char(x, y, char, tile.dark_fg, tile.dark_bg)
+                        con.draw_char(consX, consY, char, tile.fg, tile.bg)
                         tileTuple = (x, y, tile.character,tile.blocked, tile.chasm)
                         exploredMaps[branchKey].append(tileTuple)
-                else:
-                    con.draw_char(x, y, char, tile.fg, tile.bg)
-                    tileTuple = (x, y, tile.character,tile.blocked, tile.chasm)
-                    exploredMaps[branchKey].append(tileTuple)
-                    tile.explored = True
-                if gameState == 'targeting':
-                    inRange = (x, y) in tilesInRange
-                    inPath = pathToTargetTile and (x,y) in pathToTargetTile
-                    inRect = tilesInRect and (x, y) in tilesInRect
-                    if inRange and not tile.wall and showTilesInRange:
-                        con.draw_char(x, y, None, fg=None, bg=colors.darker_yellow)
-                    if inPath:
-                        if (x,y) != (player.x, player.y):
-                            if not tile.wall:
-                                con.draw_char(x, y, '.', fg = colors.dark_green, bg = None)
-                            else:
-                                con.draw_char(x, y, 'X', fg = colors.red, bg = None)
-                    if inRect:
-                        con.draw_char(x, y, 'X', fg = colors.yellow, bg = None)
-                        
-                elif gameState == 'exploding':
-                    exploded = (x,y) in explodingTiles
-                    if exploded:
-                        con.draw_char(x, y, '*', fg=colors.red, bg = None)
-                if DEBUG:
-                    inPath = (x,y) in tilesinPath
-                    if inPath:
-                        con.draw_char(x, y, 'X', fg = colors.green, bg = None)
-                        tilesinPath = []
+                        tile.explored = True
+                    if gameState == 'targeting':
+                        inRange = (x, y) in tilesInRange
+                        inPath = pathToTargetTile and (x,y) in pathToTargetTile
+                        inRect = tilesInRect and (x, y) in tilesInRect
+                        if inRange and not tile.wall and showTilesInRange:
+                            con.draw_char(consX, consY, None, fg=None, bg=colors.darker_yellow)
+                        if inPath:
+                            if (x,y) != (player.x, player.y):
+                                if not tile.wall:
+                                    con.draw_char(consX, consY, '.', fg = colors.dark_green, bg = None)
+                                else:
+                                    con.draw_char(consX, consY, 'X', fg = colors.red, bg = None)
+                        if inRect:
+                            con.draw_char(consX, consY, 'X', fg = colors.yellow, bg = None)
+                            
+                    elif gameState == 'exploding':
+                        exploded = (x,y) in explodingTiles
+                        if exploded:
+                            con.draw_char(consX, consY, '*', fg=colors.red, bg = None)
+                    if DEBUG:
+                        inPath = (x,y) in tilesinPath
+                        if inPath:
+                            con.draw_char(consX, consY, 'X', fg = colors.green, bg = None)
+                            tilesinPath = []
+    '''
     if drawDjik:
         print("MUST DRAW")
         for x in range(MAP_WIDTH):
@@ -12069,6 +12087,7 @@ def Update():
                         con.draw_char(x,y,'+', fg= colors.white, bg = colors.red)
                 else:
                     print("No Djik Value")
+    '''
 
     panel.clear(fg=colors.white, bg=colors.black)
     sidePanel.clear(fg = colors.white, bg = colors.black)
