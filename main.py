@@ -13513,7 +13513,7 @@ def playTutorial():
                     displayTip('Beware! This guard looks pretty aggressive! You can fight him by simply walking onto him.', object.x - 1, object.y, True)
                 if object.Item and object.distanceTo(player) <= 8 and not displayedPickUp:
                     displayedPickUp = True
-                    displayTip("This is a sword. Pick it up by pressing 'SPACEBAR' while on the same tile.".format(object.name), object.x - 1, object.y)
+                    displayTip("This is a sword. Pick it up by pressing 'SPACEBAR' while on the same tile.", object.x - 1, object.y)
                     FOV_recompute = True
                 if object.name == 'General Guillem' and (object.x, object.y) in visibleTiles and object.distanceTo(player) <= 7 and not displayedGeneral:
                     message("General Guillem shouts: 'Greetings {}! Come to me to summarize our plan!'".format(heroName), colors.gold)

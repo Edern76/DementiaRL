@@ -105,7 +105,7 @@ Dialog choices :
 		2) (Back)
    3) You fought a few times by the side of Zarg, before all of this started. What do you know about him ?
 	-ID : fought
-	-Answer : Yes, I did accompany him on a few adventures way back in the day, before I enlisted in the army, but he was a completly different man back then. The only thing he had in common with the God of Madness he is now was his incredible power : even when he was still only an human, little to no opponent stood a chance against him. I don't even want to imagine how stronger he has grown now that he has become a deity, so be careful when you face him and stick to the plan. 
+	-Answer : I did accompany him on a few adventures way back in the day, before I enlisted in the army, but he was a completly different man back then. The only thing he had in common with the God of Madness he is now was his incredible power : even when he was still only an human, little to no opponent stood a chance against him. I don't even want to imagine how stronger he has grown now that he has become a deity, so be careful when you face him and stick to the plan. 
   	-Choices :
 		1) Was he your friend ?
 			- ID : friend

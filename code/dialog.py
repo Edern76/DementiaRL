@@ -296,7 +296,7 @@ guilZrgScr = DialogScreen(idT = guilZrgId, dialogText = guilZrgText, choicesList
 
 ########
 
-guilUdrText = "A regular weapon is unlikely to do anything to a god. Here, let me give you Equinox, my trusty sword, it is the pride of the Guillem familly. Having been passed from generation to generation, it has defeated many terrible foes and absorbed their energy. Being the ruin of the God of Madness would make a perfect addition to its legned."
+guilUdrText = "A regular weapon is unlikely to do anything to a god. Here, let me give you Equinox, my trusty sword, it is the pride of the Guillem family. Having been passed from generation to generation, it has defeated many terrible foes and absorbed their energy. Being the ruin of the God of Madness would make a perfect addition to its legned."
 guilUdrId = "understood"
 
 guilUdrCh1 = DialogChoice(idT = "END", text = "Very well. I shall proudly wear your sword, and when I'll return it to you it will be known as " + '"Equinox, the Scourge of the Gods" .')
