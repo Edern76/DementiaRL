@@ -2,97 +2,202 @@ import colors, copy, pdb, traceback, os, sys, time, math
 from random import *
 from code.custom_except import *
 import tdlib as tdl
-from code.classes import Tile
+from code.classes import Tile, Rectangle
 
 myMap = []
+roomTiles = []
+tunnelTiles = []
+
+ROOM_RATIO = 0.6
+MIN_ROOM_NUM = 15
+TUNNEL_STEP_HOR = 50
+TUNNEL_STEP_VERT = 25
+
 WIDTH, HEIGHT, LIMIT = 150, 80, 20
 MAP_WIDTH, MAP_HEIGHT = 140, 60
+MID_MAP_WIDTH, MID_MAP_HEIGHT = MAP_WIDTH//2, MAP_HEIGHT//2
 if __name__ == '__main__':
     root = tdl.init(WIDTH, HEIGHT, 'Dementia')
 
-#probabilities that a baby Roomie will be born after i generations (i <=10)
-#must get up to 100
-#i =  0  1   2   3  4  5  6  7  8  9  10
-BR = [0, 0, 50, 50, 0, 0, 0, 0, 0, 0, 0]
+def createRoom(room):
+    global myMap, roomTiles
+    for x in range(room.x1 + 1, room.x2):
+        for y in range(room.y1 + 1, room.y2):
+            myMap[x][y].baseBlocked = False
+            roomTiles.append((x, y))
+            
+def createHorizontalTunnel(x1, x2, y):
+    global myMap, tunnelTiles
+    print('tun len:', max(x1, x2) - min(x1, x2))
+    width = (max(x1, x2) - min(x1, x2))//TUNNEL_STEP_HOR
+    if width > 2:
+        width = 2
+    
+    for x in range(min(x1, x2), max(x1, x2) + 1):
+        for wY in range(-width, width+1):
+            tY = y + wY
+            myMap[x][tY].baseBlocked = False
+            tunnelTiles.append((x, tY))
+            
+def createVerticalTunnel(y1, y2, x):
+    global myMap, tunnelTiles
+    print('tun len:', max(y1, y2) - min(y1, y2))
+    width = (max(y1, y2) - min(y1, y2))//TUNNEL_STEP_VERT
+    if width > 2:
+        width = 2
 
-#probabilities that a baby Tunneler will be born after i generations
-#(applicable only for those Tunnelers who are not larger than their parents -
-# - for those larger than their parents, use sizeUpGenDelay)
-#i =  0  1   2   3  4  5  6  7  8  9  10
-BT = [0, 0, 100, 0, 0, 0, 0, 0, 0, 0, 0]
+    for y in range(min(y1, y2), max(y1, y2) + 1):
+        for wX in range(-width, width+1):
+            tX = x + wX
+            myMap[tX][y].baseBlocked = False
+            tunnelTiles.append((tX, y))
 
-#probabilities that a baby Tunneler of generation gen will have a tunnelWidth 1 size larger than its parent
-#-1 in order to repeat last value
-#i <= 20
-#i =  0  1   2   3  4  5  6  7  8  9  10
-ZU = [0, 0, 0, 0, 0, 100, 100, 30, -1]
-#prob 1 size smaller
-ZD = [0, 0, 50, 100, 100, 0, 0, 70, -1]
-#for every generation, 100 - (sizeUpProb(gen) + sizeDownProb(gen) = probability that size remains the same
+def cleanTunnels():
+    global tunnelTiles, myMap
+    for (x, y) in tunnelTiles:
+        for direction in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
+            dX, dY = direction
+            try:
+                if (x + 2*dX, y + 2*dY) in tunnelTiles and myMap[x+dX][y+dY].blocked and myMap[x-dX][y-dY].blocked and myMap[x+3*dX][y+3*dY].blocked:
+                    myMap[x+dX][y+dY].baseBlocked = False
+                    tunnelTiles.append((x+dX, y+dY))
+            except IndexError:
+                pass
 
-#probability that a Tunneler will make an anteroom when changing direction or spawning, depending on tunnel width
-#100 to end and repeat 0
-#tunWid =  0  1  2  3  4  5  6  7  8  9  10
-F = [20, 30, 0, 0, 100]
+def openRooms(room):
+    global tunnelTiles, myMap
+    cX, cY = room.center()
+    for (x, y) in room.tiles:
+        if x == cX or y == cY:
+            for direction in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
+                dX, dY = direction
+                try:
+                    if (x + 2*dX, y + 2*dY) in tunnelTiles and myMap[x+dX][y+dY].blocked:
+                        myMap[x+dX][y+dY].baseBlocked = False
+                        myMap[x+dX][y+dY].door = True
+                        print('added a door at', x+dX, y+dY)
+                        tunnelTiles.append((x+dX, y+dY))
+                except IndexError:
+                    pass
 
-#probabilities to use a room of a certain size depending on tunnelWidth
-#the first line is for rooms coming out sideways from the tunnel, the second for rooms at branching sites
-#ends when large is 100, and repeats (0, 0, 100)
-#tW = 0 (small, medium, large) etc
-GS = [(100, 0, 0), (50, 50, 0), (0, 100, 0), (0, 0, 100)]
-GB = [(100, 0, 0), (0, 100, 0), (0, 0, 100)]
-
-#maxAge for generations of Tunneler, end with 0 to repeat last value, per generation
-#gen <= 30
-AT = [5, 12, 12, 15, 15, 15, 15, 15, 15, 20, 30, 10, 15, 10, 3, 20, 10, 5, 15, 10, 5, 20, 20, 20, 20, 10, 20, 5, 20, 5, 0]
-
-#roomAspectRatio <= length/width and width/length of rooms must be larger than this
-roomAspectRation = 0.4
-
-#mutator changes Tunneler parameters between generations, less change with smaller mutator
-mutator = 20
-
-class Tunneler:
-    def __init__(self, x, y, direction, intendedDir, maxAge = 12, gen = 0, tunWid = 1, stepLen = 3, straightSpawnProb = 40, turnSpawnProb = 50,
-                 changeDirProb = 40, rightRoomProb = 100, leftRoomProb = 100, joinProb = 100):
-        #joinProbability, high values make this Tunneler prefer to join another tunnel or open space,
-        #with low values it prefers to end its run by building a room
-        self.x = x
-        self.y = y
-        self.direction = direction
-        self.intendedDir = intendedDir
-        self.maxAge = maxAge
-        self.gen = gen
-        self.tunWid = tunWid
-        self.steplen = stepLen
-        self.straightSpawnProb = straightSpawnProb
-        self.turnSpawnProb = turnSpawnProb
-        self.changeDirProb = changeDirProb
-        self.rightRoomProb = rightRoomProb
-        self.leftRoomProb = leftRoomProb
-        self.joinProb = joinProb
-
-    #def run(self):
-        
-
-
-def run():
+def placeDoors(prob = 100):
     global myMap
-    myMap = [[Tile(True, x, y) for y in range(MAP_HEIGHT)] for x in range(MAP_WIDTH)]
-    
-    
+    for x in range(MAP_WIDTH):
+        for y in range(MAP_HEIGHT):
+            neighborInRoom = False
+            for neighbor in myMap[x][y].neighbors(myMap, cardinal = True):
+                if (neighbor.x, neighbor.y) in roomTiles:
+                    neighborInRoom = True
+                    break
+            
+            blockedNeighbors = 0
+            dX, dY = 0, 0
+            for neighbor in myMap[x][y].neighbors(myMap, cardinal = True):
+                ndX, ndY = neighbor.x - x, neighbor.y - y
+                if neighbor.blocked and ((dX, dY) == (0, 0) or (ndX, ndY) == (-dX, -dY)):
+                    blockedNeighbors += 1
+                    dX, dY = ndX, ndY
+            
+            neighborDoor = False
+            for neighbor in myMap[x][y].neighbors(myMap, cardinal = True):
+                if neighbor.door:
+                    neighborDoor = True
+                    break
+            
+            if (x, y) in tunnelTiles and neighborInRoom and (x, y) not in roomTiles and blockedNeighbors == 2 and randint(1, 100) <= prob and not neighborDoor:
+                myMap[x][y].door = True
 
-def update():
+'''
+def encaseRoom(room):
+    global myMap, tunnelTiles
+    #checking right:
+    
+    upR, lowR = upperR, lowerR
+    x, upY = upR
+    x, lowY = lowR
+    if myMap[x][upY].blocked and myMap[x][lowY].blocked:
+        while upR != lowR and upY < lowY:
+            upY += 1
+            lowY -= 1
+            myMap[x][upY].baseBlocked = True
+            myMap[x][lowY].baseBlocked = True
+            upR = (x, upY)
+            lowR = (x, lowY)
+        if myMap[x][upY].blocked and (x, upY) in tunnelTiles:
+            myMap[x][upY].baseBlocked = False
+        if myMap[x][lowY].blocked and (x, lowY) in tunnelTiles:
+            myMap[x][lowY].baseBlocked = False
+'''
+    
+def makeMap():
+    global myMap, rooms, roomTiles, tunnelTiles
+
+    myMap = [[Tile(blocked = True, x = x, y = y) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
+    rooms = []
+    roomTiles = []
+    tunnelTiles = []
+    numberRooms = 0
+    
+    for x in range(MAP_WIDTH):
+        myMap[x][0].setUnbreakable()
+        myMap[x][MAP_HEIGHT - 1].setUnbreakable()
+    for y in range(MAP_HEIGHT):
+        myMap[0][y].setUnbreakable()
+        myMap[MAP_WIDTH - 1][y].setUnbreakable()
+ 
+    while len(rooms) < MIN_ROOM_NUM:
+        w = randint(6, 20)
+        h = randint(6, 20)
+        while w/h < ROOM_RATIO or h/w < ROOM_RATIO:
+            w = randint(6, 20)
+            h = randint(6, 20)
+        
+        x = randint(0, MAP_WIDTH-w-1)
+        y = randint(0, MAP_HEIGHT-h-1)
+        newRoom = Rectangle(x, y, w, h)
+        intersection = False
+        for otherRoom in rooms:
+            if newRoom.intersect(otherRoom):
+                intersection = True
+                break
+        if not intersection:
+            createRoom(newRoom)
+            (new_x, new_y) = newRoom.center()
+            if numberRooms != 0:
+                (previous_x, previous_y) = rooms[numberRooms-1].center()
+                if randint(0, 1):
+                    createHorizontalTunnel(previous_x, new_x, previous_y)
+                    createVerticalTunnel(previous_y, new_y, new_x)
+                else:
+                    createVerticalTunnel(previous_y, new_y, previous_x)
+                    createHorizontalTunnel(previous_x, new_x, new_y)
+            rooms.append(newRoom)
+            numberRooms += 1
+    
+    for room in rooms:
+        openRooms(room)
+        #encaseRoom(room)
+    cleanTunnels()
+    placeDoors()
+
+
+
+def update(mapToUse = myMap):
     root.clear()
     for x in range(MAP_WIDTH):
         for y in range(MAP_HEIGHT):
-            if myMap[x][y].blocked:
-                root.draw_char(x, y, '#', colors.grey, colors.darker_grey)
-            else:
-                root.draw_char(x, y, None, bg = colors.sepia)
+            try:
+                if mapToUse[x][y].blocked:
+                    root.draw_char(x, y, '#', colors.grey, colors.darker_grey)
+                elif mapToUse[x][y].door:
+                    root.draw_char(x, y, '+', colors.darker_orange, colors.sepia)
+                else:
+                    root.draw_char(x, y, None, bg = colors.sepia)
+            except IndexError:
+                print('___PROBLEM___:', x, y)
     tdl.flush()
 
 if __name__ == '__main__':
-    run()
+    makeMap()
     while not tdl.event.is_window_closed():
-        update()
+        update(myMap)

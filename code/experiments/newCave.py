@@ -2,7 +2,7 @@ import colors, copy, pdb, traceback, os, sys, time, math
 from random import *
 from code.custom_except import *
 import tdlib as tdl
-from code.classes import Tile
+from code.classes import Tile, Rectangle
 
 WIDTH, HEIGHT, LIMIT = 150, 80, 20
 MAP_WIDTH, MAP_HEIGHT = 140, 60
@@ -38,32 +38,6 @@ SMOOTHING = 1
 
 if __name__ == '__main__':
     root = tdl.init(WIDTH, HEIGHT, 'Dementia')
-
-class Rectangle:
-    def __init__(self, x, y, w, h):
-        self.x1 = x
-        self.y1 = y
-        self.x2 = x + w
-        self.y2 = y + h
-        self.tiles = []
-        for x in range(self.x1 + 1, self.x2):
-            for y in range(self.y1 + 1, self.y2):
-                self.tiles.append((x, y))
-        
-    def center(self):
-        center_x = (self.x1 + self.x2) // 2
-        center_y = (self.y1 + self.y2) // 2
-        return (center_x, center_y)
- 
-    def intersect(self, other):
-        return (self.x1 <= other.x2 and self.x2 >= other.x1 and
-                self.y1 <= other.y2 and self.y2 >= other.y1)
-    
-    def checkForCaveIntersection(self):
-        for tile in self.tiles:
-            if tile in caveTiles:
-                return False
-        return True
 
 def createRoom(room):
     global myMap, roomEdges
@@ -113,7 +87,7 @@ def randomFillMap():
         for y in range (1, MAP_HEIGHT-1):
             if randint(1, 100) >= WALL_PROB:
                 myMap[x][y].baseBlocked = False
-    update()
+    #update()
 
 def cleanUpMap():
     global caveList, myMap
@@ -124,7 +98,7 @@ def cleanUpMap():
                 for y in range (1, MAP_HEIGHT-1):
                     if myMap[x][y].blocked and myMap[x][y].neighbors(myMap, True, True) <= SMOOTHING and not myMap[x][y] in roomEdges:
                         myMap[x][y].baseBlocked = False
-    update()
+    #update()
 
 def createCaves():
     global caveList, myMap
@@ -140,12 +114,12 @@ def createCaves():
         # or set it to 0
         elif myMap[tileX][tileY].neighbors(myMap, True) < WALL_LIMIT:
             myMap[tileX][tileY].baseBlocked = False
-    update()
+    #update()
      
 
     # ==== Clean Up Map ====
     cleanUpMap()
-    update()
+    #update()
 
 def createTunnel(point1,point2,currentCave):
     global caveList, myMap
@@ -205,7 +179,7 @@ def createTunnel(point1,point2,currentCave):
             drunkardY += dy
             if myMap[drunkardX][drunkardY].blocked:
                 myMap[drunkardX][drunkardY].baseBlocked = False
-    update()
+    #update()
 
 def floodFill(x,y, mine = False):
     global caveList, myMap
@@ -247,7 +221,7 @@ def floodFill(x,y, mine = False):
 
     if maxSize >= len(cave) >= minSize:
         caveList.append(cave)
-    update()
+    #update()
 
 def getCaves(mine=False):
     global caveList, myMap
@@ -261,7 +235,7 @@ def getCaves(mine=False):
         for tile in cave:
             x, y = tile
             myMap[x][y].baseBlocked = False
-    update()
+    #update()
 
 def checkConnectivity(cave1, cave2):
     global caveList, myMap
@@ -361,7 +335,7 @@ def connectCaves():
 
         if point2: # if all tunnels are connected, point2 == None
             createTunnel(point1, point2, currentCave)
-    update()
+    #update()
 
 def makeMineLayout():
     global caveList, myMap, roomList
@@ -379,7 +353,7 @@ def makeMineLayout():
         newRoom = Rectangle(x, y, w, h)
         intersect = False
         for room in roomList:
-            if newRoom.intersect(room) or not newRoom.checkForCaveIntersection():
+            if newRoom.intersect(room) or not newRoom.checkForCaveIntersection(caveTiles):
                 intersect = True
                 break
         if intersect:
@@ -404,7 +378,7 @@ def makeMineLayout():
                 createTunnel((new_x, new_y), (previous_x, previous_y), newRoom.tiles)
         (previous_x, previous_y) = (new_x, new_y)
         roomList.append(newRoom)
-        
+        '''
         root.clear()
         for x in range(MAP_WIDTH):
             for y in range(MAP_HEIGHT):
@@ -417,6 +391,7 @@ def makeMineLayout():
         tdl.flush()
         time.sleep(1)
         update()
+        '''
 
     for room in roomList:
         connected = floodFillRoom(room)
@@ -473,8 +448,10 @@ def generateCaveLevel(mine=False):
     
         cleanUpMap()
     else:
-        time.sleep(2)
+        #time.sleep(2)
         generateCaveLevel(mine)
+    
+    return myMap
 
 def update():
     root.clear()
@@ -491,7 +468,7 @@ def update():
     tdl.flush()
 
 if __name__ == '__main__':
-    generateCaveLevel(True)
+    myMap = generateCaveLevel(True)
     while not tdl.event.is_window_closed():
         update()
 

@@ -12,7 +12,7 @@ from queue import *
 from multiprocessing import freeze_support, current_process
 from dill import objects
 from layoutReader import readMap
-from main import Tile
+from code.classes import Tile
 
 MAP_WIDTH, MAP_HEIGHT = 140, 60
 myMap = [[Tile(blocked=False, x = x, y = y, block_sight=False, fg = colors.white, bg = colors.black, character = '.', dark_fg = colors.grey, dark_bg = colors.black) for y in range(MAP_HEIGHT)] for x in range(MAP_WIDTH)]

@@ -4,6 +4,7 @@ from code.custom_except import *
 import tdlib as tdl
 import code.dunbranches as dBr
 from code.classes import Tile
+import code.experiments.newCave as caveGen
 
 
 '''
@@ -27,6 +28,9 @@ WIDTH, HEIGHT, LIMIT = 150, 80, 20
 MAP_WIDTH, MAP_HEIGHT = 140, 60
 MID_MAP_WIDTH, MID_MAP_HEIGHT = MAP_WIDTH//2, MAP_HEIGHT//2
 MID_WIDTH, MID_HEIGHT = int(WIDTH/2), int(HEIGHT/2)
+
+if __name__ == '__main__':
+    root = tdl.init(WIDTH, HEIGHT, 'Dementia')
 
 myMap = []
 caveList = []
@@ -100,4 +104,52 @@ def initializeMapGen(currentBranch):
     
     return chasms, holes, cave, mine, temple
 
+def generateMap(currentBranch = dBr.mainDungeon):
+    chasms, holes, cave, mine, temple = initializeMapGen(currentBranch)
+    if not cave and not mine:
+        pass
+    else:
+        myMap = caveGen.generateCaveLevel(mine)
+    
+    return myMap
 
+def update():
+    root.clear()
+    for x in range(MAP_WIDTH):
+        for y in range(MAP_HEIGHT):
+            tile = myMap[x][y]
+            root.draw_char(x, y, tile.character, tile.fg, tile.bg)
+    tdl.flush()
+
+if __name__ == '__main__':
+    myMap = generateMap(dBr.greedDungeon)
+    while not tdl.event.is_window_closed():
+        update()
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
