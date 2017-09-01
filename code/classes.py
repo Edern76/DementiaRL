@@ -178,8 +178,8 @@ class Tile:
                     c += 1
             return c
 
-    def neighbours(self, mapToUse = None):
-        result = self.neighbors(mapToUse)
+    def neighbours(self, mapToUse = None, count = False, cardinal = False):
+        result = self.neighbors(mapToUse, count, cardinal)
         return result
     
     def cardinalNeighbors(self, mapToUse):
@@ -203,8 +203,8 @@ class Tile:
             low = None
         return [i for i in [up, left, right, low] if i is not None]
     
-    def cardinalNeighbours(self):
-        result = self.cardinalNeighbors()
+    def cardinalNeighbours(self, mapToUse):
+        result = self.cardinalNeighbors(mapToUse)
         return result
 
     def applyWallProperties(self):

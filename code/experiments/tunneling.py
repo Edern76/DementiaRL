@@ -11,7 +11,7 @@ tunnelTiles = []
 ROOM_RATIO = 0.6
 MIN_ROOM_NUM = 15
 TUNNEL_STEP_HOR = 50
-TUNNEL_STEP_VERT = 25
+TUNNEL_STEP_VERT = 20
 
 WIDTH, HEIGHT, LIMIT = 150, 80, 20
 MAP_WIDTH, MAP_HEIGHT = 140, 60
@@ -107,27 +107,112 @@ def placeDoors(prob = 100):
             if (x, y) in tunnelTiles and neighborInRoom and (x, y) not in roomTiles and blockedNeighbors == 2 and randint(1, 100) <= prob and not neighborDoor:
                 myMap[x][y].door = True
 
-'''
 def encaseRoom(room):
     global myMap, tunnelTiles
-    #checking right:
+    leftOpen = []
+    rightOpen = []
+    upOpen = []
+    lowOpen = []
     
-    upR, lowR = upperR, lowerR
-    x, upY = upR
-    x, lowY = lowR
-    if myMap[x][upY].blocked and myMap[x][lowY].blocked:
-        while upR != lowR and upY < lowY:
-            upY += 1
-            lowY -= 1
-            myMap[x][upY].baseBlocked = True
-            myMap[x][lowY].baseBlocked = True
-            upR = (x, upY)
-            lowR = (x, lowY)
-        if myMap[x][upY].blocked and (x, upY) in tunnelTiles:
-            myMap[x][upY].baseBlocked = False
-        if myMap[x][lowY].blocked and (x, lowY) in tunnelTiles:
-            myMap[x][lowY].baseBlocked = False
-'''
+    for y in range(room.y1, room.y2+1):
+        if not myMap[room.x1][y].blocked and (room.x1, y) in tunnelTiles:
+            leftOpen.append(y)
+        if not myMap[room.x2][y].blocked and (room.x2, y) in tunnelTiles:
+            rightOpen.append(y)
+    
+    leftOpenings = {}
+    if not room.y1 in leftOpen and not room.y2 in leftOpen:
+        prevY = -1
+        firstY = -1
+        for y in leftOpen:
+            if y == prevY + 1:
+                leftOpenings[firstY].append(y)
+            else:
+                leftOpenings[y] = [y]
+                firstY = y
+            prevY = y
+        
+        for y in leftOpenings.keys():
+            openList = leftOpenings[y]
+            firstY = y
+            lastY = openList[len(openList)-1]
+            while lastY - firstY > 1:
+                myMap[room.x1][firstY].baseBlocked = True
+                myMap[room.x1][lastY].baseBlocked = True
+                firstY += 1
+                lastY -= 1
+    
+    rightOpenings = {}
+    if not room.y1 in rightOpen and not room.y2 in rightOpen:
+        prevY = -1
+        firstY = -1
+        for y in rightOpen:
+            if y == prevY + 1:
+                rightOpenings[firstY].append(y)
+            else:
+                rightOpenings[y] = [y]
+                firstY = y
+            prevY = y
+        
+        for y in rightOpenings.keys():
+            openList = rightOpenings[y]
+            firstY = y
+            lastY = openList[len(openList)-1]
+            while lastY - firstY > 1:
+                myMap[room.x2][firstY].baseBlocked = True
+                myMap[room.x2][lastY].baseBlocked = True
+                firstY += 1
+                lastY -= 1
+    
+    for x in range(room.x1, room.x2+1):
+        if not myMap[x][room.y1].blocked and (x, room.y1) in tunnelTiles:
+            upOpen.append(x)
+        if not myMap[x][room.y2].blocked and (x, room.y2) in tunnelTiles:
+            lowOpen.append(x)
+    
+    upOpenings = {}
+    if not room.x1 in upOpen and not room.x2 in upOpen:
+        prevX = -1
+        firstX = -1
+        for x in upOpen:
+            if x == prevX + 1:
+                upOpenings[firstX].append(x)
+            else:
+                upOpenings[x] = [x]
+                firstX = x
+            prevX = x
+        
+        for x in upOpenings.keys():
+            openList = upOpenings[x]
+            firstX = x
+            lastX = openList[len(openList)-1]
+            while lastX - firstX > 1:
+                myMap[firstX][room.y1].baseBlocked = True
+                myMap[lastX][room.y1].baseBlocked = True
+                firstX += 1
+                lastX -= 1
+    
+    lowOpenings = {}
+    if not room.x1 in lowOpen and not room.x2 in lowOpen:
+        prevX = -1
+        firstX = -1
+        for x in lowOpen:
+            if x == prevX + 1:
+                lowOpenings[firstX].append(x)
+            else:
+                lowOpenings[x] = [x]
+                firstX = x
+            prevX = x
+        
+        for x in lowOpenings.keys():
+            openList = lowOpenings[x]
+            firstX = x
+            lastX = openList[len(openList)-1]
+            while lastX - firstX > 1:
+                myMap[firstX][room.y2].baseBlocked = True
+                myMap[lastX][room.y2].baseBlocked = True
+                firstX += 1
+                lastX -= 1
     
 def makeMap():
     global myMap, rooms, roomTiles, tunnelTiles
@@ -173,11 +258,11 @@ def makeMap():
                     createHorizontalTunnel(previous_x, new_x, new_y)
             rooms.append(newRoom)
             numberRooms += 1
-    
+
+    cleanTunnels()
     for room in rooms:
         openRooms(room)
-        #encaseRoom(room)
-    cleanTunnels()
+        encaseRoom(room)
     placeDoors()
 
 
