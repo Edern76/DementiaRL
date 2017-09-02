@@ -57,29 +57,37 @@ def createRoom(room):
 
 def createHorizontalTunnel(x1, x2, y):
     global myMap, tunnelEdges
+    prevWood = False
     for x in range(min(x1, x2), max(x1, x2) + 1):
         if (x, y) in caveTiles:
             break
         myMap[x][y].baseBlocked = False
         wood = randint(0, 4)
-        if wood == 0:
+        if wood == 0 and not prevWood:
+            prevWood = True
             if myMap[x][y-1].blocked:
                 tunnelEdges.append(myMap[x][y-1])
             if myMap[x][y+1].blocked:
                 tunnelEdges.append(myMap[x][y+1])
+        else:
+            prevWood = False
             
 def createVerticalTunnel(y1, y2, x):
     global myMap, tunnelEdges
+    prevWood = False
     for y in range(min(y1, y2), max(y1, y2) + 1):
         if (x, y) in caveTiles:
             break
         myMap[x][y].baseBlocked = False
         wood = randint(0, 4)
-        if wood == 0:
+        if wood == 0 and not prevWood:
+            prevWood = True
             if myMap[x-1][y].blocked:
                 tunnelEdges.append(myMap[x-1][y])
             if myMap[x+1][y].blocked:
                 tunnelEdges.append(myMap[x+1][y])
+        else:
+            prevWood = False
 
 def randomFillMap():
     global caveList, myMap
@@ -121,8 +129,10 @@ def createCaves():
     cleanUpMap()
     #update()
 
-def createTunnel(point1,point2,currentCave):
-    global caveList, myMap
+def createTunnel(point1,point2,currentCave, mapToUse=None):
+    global caveList
+    if not mapToUse:
+        mapToUse = myMap
     # run a heavily weighted random Walk 
     # from point1 to point1
     drunkardX, drunkardY = point2
@@ -177,8 +187,10 @@ def createTunnel(point1,point2,currentCave):
         if (0 < drunkardX+dx < MAP_WIDTH-1) and (0 < drunkardY+dy < MAP_HEIGHT-1):
             drunkardX += dx
             drunkardY += dy
-            if myMap[drunkardX][drunkardY].blocked:
-                myMap[drunkardX][drunkardY].baseBlocked = False
+            if mapToUse[drunkardX][drunkardY].blocked:
+                mapToUse[drunkardX][drunkardY].baseBlocked = False
+    
+    return mapToUse
     #update()
 
 def floodFill(x,y, mine = False):
@@ -334,7 +346,7 @@ def connectCaves():
                     distance = newDistance
 
         if point2: # if all tunnels are connected, point2 == None
-            createTunnel(point1, point2, currentCave)
+            myMap = createTunnel(point1, point2, currentCave)
     #update()
 
 def makeMineLayout():
@@ -375,7 +387,7 @@ def makeMineLayout():
                 createVerticalTunnel(previous_y, new_y, previous_x)
                 createHorizontalTunnel(previous_x, new_x, new_y)
             else:
-                createTunnel((new_x, new_y), (previous_x, previous_y), newRoom.tiles)
+                myMap = createTunnel((new_x, new_y), (previous_x, previous_y), newRoom.tiles)
         (previous_x, previous_y) = (new_x, new_y)
         roomList.append(newRoom)
         '''
@@ -411,7 +423,7 @@ def makeMineLayout():
                     minDist = newDist
                     best = newPoint
                 i += 1
-            createTunnel(center, best, room)
+            myMap = createTunnel(center, best, room.tiles)
 
 def generateCaveLevel(mine=False):
     global caveList, myMap, caveTiles

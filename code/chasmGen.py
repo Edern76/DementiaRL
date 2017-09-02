@@ -3,6 +3,7 @@ from random import *
 from code.custom_except import *
 import tdlib as tdl
 from code.classes import Tile, Rectangle
+import code.experiments.tunneling as tunneling
 
 
 WIDTH, HEIGHT, LIMIT = 150, 80, 20
@@ -33,7 +34,7 @@ sys.setrecursionlimit(3000)
 if __name__ == '__main__':
     root = tdl.init(WIDTH, HEIGHT, 'Dementia')
 
-        
+'''
 def createRoom(room):
     global myMap, roomTiles
     for x in range(room.x1 + 1, room.x2):
@@ -52,6 +53,40 @@ def createVerticalTunnel(y1, y2, x):
     for y in range(min(y1, y2), max(y1, y2) + 1):
         myMap[x][y].baseBlocked = False
         tunnelTiles.append((x, y))
+'''
+
+def floodFill(x,y, mapToUse):
+    '''
+    flood fill the separate regions of the level, discard
+    the regions that are smaller than a minimum size, and 
+    create a reference for the rest.
+    '''
+    print('floodfilling')
+    connected = []
+    tile = (x,y)
+    toBeFilled = [tile]
+    while toBeFilled:
+        tile = toBeFilled.pop()
+        x, y = tile
+        if tile not in connected:
+            connected.append(tile)
+            
+            #myMap[x][y].baseBlocked = True
+            north = (x,y-1)
+            south = (x,y+1)
+            east = (x+1,y)
+            west = (x-1,y)
+            
+            for direction in [north,south,east,west]:
+                newX, newY = direction
+                try:
+                    if not mapToUse[newX][newY].blocked:
+                        if direction not in toBeFilled and direction not in connected:
+                            toBeFilled.append(direction)
+                except IndexError:
+                    print(newX, newY)
+
+    return connected
 
 def unblockTunnels(mapToUse, roomTiles, tunnelTiles, unchasmable):
     for x in range(MAP_WIDTH):
@@ -72,73 +107,59 @@ def checkMap():
                 myMap[x][y].baseFg = colors.lighter_grey
                 myMap[x][y].baseBg = colors.dark_sepia
 
-def createChasms(mapToUse, roomTiles, tunnelTiles, unchasmable):
-    for x in range(1, MAP_WIDTH - 1):
-        for y in range(1, MAP_HEIGHT - 1):
+def createChasms(mapToUse): #, roomTiles, tunnelTiles, unchasmable):
+    newMap = copy.deepcopy(mapToUse)
+    for x in range(MAP_WIDTH):
+        for y in range(MAP_HEIGHT):
             if randint(0, 100) < CHANCE_TO_START_ALIVE:
                 #mapToUse[x][y].baseFg = colors.lighter_grey
                 #mapToUse[x][y].baseBg = colors.dark_sepia
-                mapToUse[x][y].chasm = False
+                newMap[x][y].chasm = False
+            else:
+                newMap[x][y].chasm = True
+    #update(newMap)
     for loop in range(STEPS_NUMBER):
-        mapToUse = doStep(mapToUse)
-    newMap = unblockTunnels(mapToUse, roomTiles, tunnelTiles, unchasmable)
+        newMap = doStep(newMap)
+        #update(newMap)
+    #newMap = unblockTunnels(mapToUse, roomTiles, tunnelTiles, unchasmable)
     return newMap
     
 def makeMap():
     global myMap, rooms, roomTiles, tunnelTiles, unchasmable, firstX, firstY, lastX, lastY
+    
+    myMap = tunneling.makeTunnelMap()
+    myMap = makeChasmMap(myMap)
+    return myMap
 
-    myMap = [[Tile(blocked = True, x = x, y = y) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
-    rooms = []
-    roomTiles = []
-    tunnelTiles = []
-    numberRooms = 0
+def makeChasmMap(mapToUse):
+    state = False
     
-    for x in range(MAP_WIDTH):
-        myMap[x][0].setUnbreakable()
-        myMap[x][MAP_HEIGHT - 1].setUnbreakable()
-        for y in range(MAP_HEIGHT):
-            if not myMap[x][y].blocked and not (x,y) in emptyTiles:
-                emptyTiles.append((x,y))
-    for y in range(MAP_HEIGHT):
-        myMap[0][y].setUnbreakable()
-        myMap[MAP_WIDTH - 1][y].setUnbreakable()
- 
-    for r in range(30):
-        w = randint(6, 20)
-        h = randint(6, 20)
-        x = randint(0, MAP_WIDTH-w-1)
-        y = randint(0, MAP_HEIGHT-h-1)
-        newRoom = Rectangle(x, y, w, h)
-        intersection = False
-        for otherRoom in rooms:
-            if newRoom.intersect(otherRoom):
-                intersection = True
+    while not state:
+        print(state, 'new iter')
+        state = True
+        tempMap = createChasms(mapToUse) #, roomTiles, tunnelTiles, unchasmable)
+        fFX = randint(0, MAP_WIDTH - 1)
+        fFY = randint(0, MAP_HEIGHT-1)
+        print('flood fill coords:', fFX, fFY)
+        while tempMap[fFX][fFY].blocked or tempMap[fFX][fFY].chasm:
+            fFX = randint(0, MAP_WIDTH - 1)
+            fFY = randint(0, MAP_HEIGHT-1)
+            print('blocked, flood fill coords:', fFX, fFY)
+            
+        connected = floodFill(fFX, fFY, tempMap)
+        print(connected)
+        for x in range(MAP_WIDTH):
+            for y in range(MAP_HEIGHT):
+                if not tempMap[x][y].blocked and not tempMap[x][y].chasm:
+                    if not (x, y) in connected:
+                        state = False
+                        print('floodfill is wrong')
+                        break
+            if not state:
                 break
-        if not intersection:
-            createRoom(newRoom)
-            lastCreatedRoom = newRoom
-            (new_x, new_y) = newRoom.center()
-            if numberRooms != 0:
-                (previous_x, previous_y) = rooms[numberRooms-1].center()
-                if randint(0, 1):
-                    createHorizontalTunnel(previous_x, new_x, previous_y)
-                    createVerticalTunnel(previous_y, new_y, new_x)
-                else:
-                    createVerticalTunnel(previous_y, new_y, previous_x)
-                    createHorizontalTunnel(previous_x, new_x, new_y)
-            else:
-                firstX, firstY = new_x, new_y
-                for x in range(newRoom.x1 + 1, newRoom.x2):
-                    for y in range(newRoom.y1 + 1, newRoom.y2):
-                        unchasmable.append((x, y))
-            rooms.append(newRoom)
-            numberRooms += 1
-    lastX, lastY = new_x, new_y
-    for x in range(lastCreatedRoom.x1 + 1, lastCreatedRoom.x2):
-        for y in range(lastCreatedRoom.y1 + 1, lastCreatedRoom.y2):
-            unchasmable.append((x, y))
     
-    myMap = createChasms(myMap, roomTiles, tunnelTiles, unchasmable)
+    return tempMap
+    
     '''
     for x in range(1, MAP_WIDTH - 1):
         for y in range(1, MAP_HEIGHT - 1):
@@ -197,6 +218,7 @@ def doStep(oldMap):
                     newMap[x][y].chasm = True
     return newMap
 
+'''
 def update(mapToUse):
     root.clear()
     try:
@@ -223,7 +245,26 @@ def update(mapToUse):
         os._exit(-1)
         
     tdl.flush()
-    
+'''
+
+def update(mapToUse = myMap):
+    root.clear()
+    for x in range(MAP_WIDTH):
+        for y in range(MAP_HEIGHT):
+            try:
+                if mapToUse[x][y].blocked:
+                    root.draw_char(x, y, '#', colors.grey, colors.darker_grey)
+                elif mapToUse[x][y].chasm:
+                    root.draw_char(x, y, None, bg = (16, 16, 16))
+                elif mapToUse[x][y].door:
+                    root.draw_char(x, y, '+', colors.darker_orange, colors.sepia)
+                else:
+                    root.draw_char(x, y, None, bg = colors.sepia)
+            except IndexError:
+                print('___PROBLEM___:', x, y)
+    tdl.flush()
+
+'''
 def getInput():
     global mapIndex
     key = tdl.event.key_wait()
@@ -253,7 +294,7 @@ def getInput():
             curRoomIndex = int(maxIndex)
         if curRoomIndex > maxIndex:
             curRoomIndex = 0
-
+'''
 
         
     

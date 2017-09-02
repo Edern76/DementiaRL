@@ -53,14 +53,15 @@ rare = Rarity('rare')
 epic = Rarity('epic')
 legendary = Rarity('legendary')
 
-rarity = {junk: 15, common: 50, uncommon: 15, rare: 10, epic: 7, legendary: 1003}
+rarity = {junk: 15, common: 50, uncommon: 15, rare: 10, epic: 7, legendary: 3}
 raritySmallAdd = {'junk': -2, 'common': 0, 'uncommon': 2, 'rare': 3, 'epic': 5, 'legendary': 8}
 rarityBigAdd = {'junk': -10, 'common': 0, 'uncommon': 10, 'rare': 15, 'epic': 20, 'legendary': 30}
 
+rarityCombo = {'rare': {'2 passive': 15}, 'epic': {'2 passive': 35, '1 active': 35, 'none': 30}, 'legendary': {'3 passive + 1 active': 25, '2 passive + 1 active': 70, '1 active': 5}}
 
 itemTypes = ['weapon', 'potion', 'armor', 'shield', 'food', 'scroll', 'spellbook', 'ranged weapon']
 
-
+### weapons ###
 weaponTypes = ['dagger', 'sword', 'axe', 'flail', 'mace', 'hammer', 'gloves', 'spear']
 
 weaponSize = {'dagger': {'dagger': 70, 'stiletto': 15, 'misericorde': 15},
@@ -103,8 +104,6 @@ weaponAttributes = {'dagger': {'type': 'light', 'slot': 'one handed', 'pic': 'da
                     'pike': {'type': 'light', 'slot': 'one handed', 'pic': 'spear.xp', 'pow': 8, 'acc': 10, 'ev': 10, 'weight': 3.1},
                     'halberd': {'type': 'heavy', 'slot': 'two handed', 'pic': 'halberd.xp', 'pow': 14, 'ap': 2, 'acc': 5, 'weight': 3.9, 'slow': True}
                     }
-
-rarityCombo = {'epic': {'2 passive': 25, '1 active': 10, 'none': 65}, 'legendary': {'3 passive + 1 active': 25, '2 passive + 1 active': 70, '1 active': 5}}
 
 weaponAdj = {'dagger': {'junk': {'regular': 50, 'rusty': 50},
                         'common': {'regular': 80, 'rusty': 10, 'fast': 5, 'sharp': 5},
@@ -202,19 +201,32 @@ adjActive = {'regular': {'name': 'none'},
               'three-headed': {'name': 'none'},
               'stunning': {'name': ' of dazing'},
               'spiked': {'name': ' of pain'}}
+### weapons ###
 
 rangedWeaponTypes = ['bow', 'crossbow', 'throwing axe', 'throwing knife', 'pistol', 'rifle', 'javelin']
 
 
-armorTypes = {'cloth': 25, 'leather': 40, 'chainmail': 20, 'scale': 10, 'plate': 5}
-armorSlots = ['head', 'arms', 'legs', 'chest', 'feet', 'hands']
+### armors ###
+armorTypes = ['cloth', 'leather', 'chainmail', 'scale', 'plate']
+armorSlots = ['head', 'arms', 'legs', 'chest', 'feet', 'hands', 'back']
+possibleTypes = {'head': armorTypes, 'arms': armorTypes, 'legs': armorTypes, 'chest': armorTypes, 'feet': armorTypes, 'hands': armorTypes, 'back': ['leather', 'cloth']}
 
+armorTypeProb = {'junk': {'cloth': 80, 'leather': 20},
+                 'common': {'cloth': 70, 'leather': 25, 'chainmail': 5},
+                 'uncommon': {'cloth': 30, 'leather': 55, 'chainmail': 15},
+                 'rare': {'cloth': 30, 'leather': 20, 'chainmail': 30, 'scale': 20},
+                 'epic': {'cloth': 30, 'chainmail': 25, 'scale': 40, 'plate': 5},
+                 'legendary': {'cloth': 30, 'scale': 20, 'plate': 50}
+                 }
+
+armorDictTemplate = ['pow', 'arm', 'HP', 'acc', 'ev', 'crit', 'MP', 'strength', 'dex', 'vit', 'will', 'ap', 'stam']
+### armors ###
 
 potionTypes = ['heal HP', 'heal MP', 'heal stamina', 'cure poison', 'poison', 'cure fire', 'fire', 'frost', 'speed fast', 'speed slow', 'strength', 'constitution', 'dexterity', 'willpower']
 
 
 shieldTypes = ['buckler', 'round', 'heater', 'war-door']
-shieldMaterials = ['leather', 'wooden', 'iron', 'steel']
+shieldMaterials = ['leather', 'wooden', 'copper', 'iron', 'steel', 'crystal']
 
 
 foodTypes = ['bread', 'herbs', 'rMeat', 'pie', 'pasta', 'meat', 'hBaguette']

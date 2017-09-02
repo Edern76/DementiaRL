@@ -3,6 +3,7 @@ from random import *
 from code.custom_except import *
 import tdlib as tdl
 from code.classes import Tile, Rectangle
+import code.experiments.newCave as caveGen
 
 myMap = []
 roomTiles = []
@@ -213,8 +214,16 @@ def encaseRoom(room):
                 myMap[lastX][room.y2].baseBlocked = True
                 firstX += 1
                 lastX -= 1
+
+def checkDoors(mapToUse):
+    for x in range(MAP_WIDTH):
+        for y in range(MAP_HEIGHT):
+            if mapToUse[x][y].door and mapToUse[x][y].neighbors(mapToUse, True, True) != 2:
+                mapToUse[x][y].door = False
     
-def makeMap():
+    return mapToUse
+
+def makeTunnelMap(messyTunnels = False):
     global myMap, rooms, roomTiles, tunnelTiles
 
     myMap = [[Tile(blocked = True, x = x, y = y) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
@@ -231,11 +240,11 @@ def makeMap():
         myMap[MAP_WIDTH - 1][y].setUnbreakable()
  
     while len(rooms) < MIN_ROOM_NUM:
-        w = randint(6, 20)
-        h = randint(6, 20)
+        w = randint(6, 17)
+        h = randint(6, 17)
         while w/h < ROOM_RATIO or h/w < ROOM_RATIO:
-            w = randint(6, 20)
-            h = randint(6, 20)
+            w = randint(6, 17)
+            h = randint(6, 17)
         
         x = randint(0, MAP_WIDTH-w-1)
         y = randint(0, MAP_HEIGHT-h-1)
@@ -250,9 +259,12 @@ def makeMap():
             (new_x, new_y) = newRoom.center()
             if numberRooms != 0:
                 (previous_x, previous_y) = rooms[numberRooms-1].center()
-                if randint(0, 1):
+                tunnel = randint(0, 2)
+                if tunnel == 0:
                     createHorizontalTunnel(previous_x, new_x, previous_y)
                     createVerticalTunnel(previous_y, new_y, new_x)
+                elif tunnel == 1 and messyTunnels:
+                    myMap = caveGen.createTunnel((new_x, new_y), (previous_x, previous_y), newRoom.tiles, myMap)
                 else:
                     createVerticalTunnel(previous_y, new_y, previous_x)
                     createHorizontalTunnel(previous_x, new_x, new_y)
@@ -264,6 +276,9 @@ def makeMap():
         openRooms(room)
         encaseRoom(room)
     placeDoors()
+    myMap = checkDoors(myMap)
+    
+    return myMap
 
 
 
@@ -283,6 +298,6 @@ def update(mapToUse = myMap):
     tdl.flush()
 
 if __name__ == '__main__':
-    makeMap()
+    myMap = makeTunnelMap()
     while not tdl.event.is_window_closed():
         update(myMap)

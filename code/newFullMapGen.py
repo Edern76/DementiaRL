@@ -5,6 +5,9 @@ import tdlib as tdl
 import code.dunbranches as dBr
 from code.classes import Tile
 import code.experiments.newCave as caveGen
+import code.experiments.tunneling as tunneling
+import code.chasmGen as chasmGen
+import code.holeGen as holeGen
 
 
 '''
@@ -107,12 +110,18 @@ def initializeMapGen(currentBranch):
 def generateMap(currentBranch = dBr.mainDungeon):
     chasms, holes, cave, mine, temple = initializeMapGen(currentBranch)
     if not cave and not mine:
-        pass
+        if not temple:
+            myMap = tunneling.makeTunnelMap(holes)
+            if chasms:
+                myMap = chasmGen.makeChasmMap(myMap)
+            if holes:
+                myMap = holeGen.createHoles(myMap)
     else:
         myMap = caveGen.generateCaveLevel(mine)
     
     return myMap
 
+'''
 def update():
     root.clear()
     for x in range(MAP_WIDTH):
@@ -120,11 +129,29 @@ def update():
             tile = myMap[x][y]
             root.draw_char(x, y, tile.character, tile.fg, tile.bg)
     tdl.flush()
+'''
+
+def update(mapToUse = myMap):
+    root.clear()
+    for x in range(MAP_WIDTH):
+        for y in range(MAP_HEIGHT):
+            try:
+                if mapToUse[x][y].blocked:
+                    root.draw_char(x, y, '#', colors.grey, colors.darker_grey)
+                elif mapToUse[x][y].chasm:
+                    root.draw_char(x, y, None, bg = (16, 16, 16))
+                elif mapToUse[x][y].door:
+                    root.draw_char(x, y, '+', colors.darker_orange, colors.sepia)
+                else:
+                    root.draw_char(x, y, None, bg = colors.sepia)
+            except IndexError:
+                print('___PROBLEM___:', x, y)
+    tdl.flush()
 
 if __name__ == '__main__':
-    myMap = generateMap(dBr.greedDungeon)
+    myMap = generateMap(dBr.mainDungeon)
     while not tdl.event.is_window_closed():
-        update()
+        update(myMap)
     
     
     
