@@ -12,7 +12,8 @@ from math import *
 #Item template: useFunction, arg1, arg2, arg3, stackable, amount, weight, description, pic, itemtype, identified, unIDName, unIDpName, unIDdesc, useText
 
 #Equipment template: slot, type, powerBonus, armorBonus, maxHP_Bonus, accuracyBonus, evasionBonus, criticalBonus, maxMP_Bonus, strengthBonus, dexterityBonus,
-#                    vitalityBonus, willpowerBonus, ranged, rangedPower, maxRange, ammo, meleeWeapon, armorPenetrationBonus, slow, enchant, staminaBonus
+#                    vitalityBonus, willpowerBonus, ranged, rangedPower, maxRange, ammo, meleeWeapon, armorPenetrationBonus, slow, enchant, staminaBonus,
+#                    stealthBonus
 
 rarityList = ['junk', 'common', 'uncommon', 'rare', 'epic', 'legendary']
 
@@ -73,11 +74,11 @@ weaponSize = {'dagger': {'dagger': 70, 'stiletto': 15, 'misericorde': 15},
               'gloves': {'cestus': 85, 'knuckles': 10, 'fighting claws': 5},
               'spear': {'pike': 85, 'halberd': 15}}
 
-weaponDictTemplate = ['pow', 'arm', 'HP', 'acc', 'ev', 'crit', 'MP', 'strength', 'dex', 'vit', 'will', 'ap', 'slow', 'stam']
+weaponDictTemplate = ['pow', 'arm', 'HP', 'acc', 'ev', 'crit', 'MP', 'strength', 'dex', 'vit', 'will', 'ap', 'slow', 'stam', 'stealth']
 
-weaponAttributes = {'dagger': {'type': 'light', 'slot': 'one handed', 'pic': 'dagger.xp', 'pow': 6, 'acc': 15, 'ev': 5, 'weight': 0.5},
-                    'stiletto': {'type': 'light', 'slot': 'one handed', 'pic': 'stiletto.xp', 'pow': 5, 'acc': 20, 'ev': 5, 'crit': 5, 'weight': 0.5},
-                    'misericorde': {'type': 'light', 'slot': 'one handed', 'pic': 'dagger.xp', 'pow': 6, 'acc': 10, 'ev': 5, 'ap': 1, 'weight': 0.5},
+weaponAttributes = {'dagger': {'type': 'light', 'slot': 'one handed', 'pic': 'dagger.xp', 'pow': 6, 'acc': 15, 'stealth': 7, 'weight': 0.5},
+                    'stiletto': {'type': 'light', 'slot': 'one handed', 'pic': 'stiletto.xp', 'pow': 5, 'acc': 20, 'stealth': 10, 'crit': 5, 'weight': 0.5},
+                    'misericorde': {'type': 'light', 'slot': 'one handed', 'pic': 'dagger.xp', 'pow': 6, 'acc': 10, 'stealth': 5, 'ap': 1, 'weight': 0.5},
                     
                     'shortsword': {'type': 'light', 'slot': 'one handed', 'pic': 'shortSword.xp', 'pow': 8, 'acc': 5, 'weight': 1.1},
                     'longsword': {'type': 'light', 'slot': 'one handed', 'pic': 'longSword.xp', 'pow': 12, 'weight': 1.9},
@@ -208,8 +209,8 @@ rangedWeaponTypes = ['bow', 'crossbow', 'throwing axe', 'throwing knife', 'pisto
 
 ### armors ###
 armorTypes = ['cloth', 'leather', 'chainmail', 'scale', 'plate']
-armorSlots = ['head', 'arms', 'legs', 'chest', 'feet', 'hands', 'back']
-possibleTypes = {'head': armorTypes, 'arms': armorTypes, 'legs': armorTypes, 'chest': armorTypes, 'feet': armorTypes, 'hands': armorTypes, 'back': ['leather', 'cloth']}
+armorSlots = ['head', 'legs', 'chest', 'feet', 'hands', 'back']
+possibleTypes = {'head': armorTypes, 'legs': armorTypes, 'chest': armorTypes, 'feet': armorTypes, 'hands': armorTypes, 'back': ['leather', 'cloth']}
 
 armorTypeProb = {'junk': {'cloth': 80, 'leather': 20},
                  'common': {'cloth': 70, 'leather': 25, 'chainmail': 5},
@@ -219,7 +220,49 @@ armorTypeProb = {'junk': {'cloth': 80, 'leather': 20},
                  'legendary': {'cloth': 30, 'scale': 20, 'plate': 50}
                  }
 
-armorDictTemplate = ['pow', 'arm', 'HP', 'acc', 'ev', 'crit', 'MP', 'strength', 'dex', 'vit', 'will', 'ap', 'stam']
+armorNames = {'head': {'cloth': 'hood', 'leather': 'hood', 'chainmail': 'coif', 'scale': 'aventail', 'plate': 'great helm'},
+              'legs': {'cloth': 'pants', 'leather': 'pants', 'chainmail': 'leggings', 'scale': 'leggings', 'plate': 'greaves'},
+              'chest': {'cloth': 'shirt', 'leather': 'tunique', 'chainmail': 'hauberk', 'scale': 'hauberk', 'plate': 'breastplate'},
+              'feet': {'cloth': 'shoes', 'leather': 'boots', 'chainmail': 'boots', 'scale': 'sabatons', 'plate': 'sabatons'},
+              'hands': {'cloth': 'gloves', 'leather': 'gloves', 'chainmail': 'gauntlets', 'scale': 'gauntlets', 'plate': 'gauntlets'},
+              'back': {'cloth': 'cloak', 'leather': 'cape'},
+              }
+
+armorAttributes = {'cloth': {'head': {'pic': 'hood.xp', 'ev': 5, 'stealth': 5, 'weight': 0.1}, #TO-DO add pics
+                             'legs': {'ev': 10, 'stealth': 10, 'weight': 0.3}, 
+                             'chest': {'ev': 15, 'stealth': 10, 'weight': 0.5},
+                             'feet': {'stealth': 5, 'weight': 0.2},
+                             'hands': {'stealth': 5, 'dex': 5, 'weight': 0.1},
+                             'back': {'stealth': 20, 'ev': 10, 'weight': 0.6}
+                             },
+                   'leather': {'head': {'pic': 'leatherHood.xp', 'arm': 1, 'stealth': 3, 'weight': 0.5},
+                             'legs': {'arm': 3, 'weight': 1.2},
+                             'chest': {'arm': 5, 'weight': 1.5},
+                             'feet': {'arm': 2, 'weight': 0.9},
+                             'hands': {'dex': 4, 'weight': 0.1},
+                             'back': {'arm': 3, 'stealth': 7, 'weight': 1.0}
+                             },
+                   'chainmail': {'head': {'pic': 'coif.xp', 'arm': 5, 'dex': -2, 'weight': 1.2},
+                                 'legs': {'arm': 7, 'ev': -7, 'weight': 1.9},
+                                 'chest': {'arm': 10, 'ev': -10, 'weight': 2.4},
+                                 'feet': {'arm': 3, 'ev': -5, 'weight': 1.3},
+                                 'hands': {'arm': 3, 'dex': 3, 'weight': 1.0}
+                                 },
+                   'scale': {'head': {'pic': 'aventail.xp', 'arm': 8, 'dex': -4, 'weight': 2.1},
+                             'legs': {'arm': 10, 'ev': -10, 'weight': 2.7},
+                             'chest': {'arm': 13, 'ev': -15, 'weight': 3.4},
+                             'feet': {'arm': 7, 'ev': -7, 'weight': 2.4},
+                             'hands': {'arm': 5, 'dex': 2, 'weight': 1.9}
+                             },
+                   'plate': {'head': {'pic': 'greatHelm.xp', 'arm': 12, 'dex': -6, 'weight': 3.5},
+                             'legs': {'arm': 14, 'ev': -15, 'weight': 4.1},
+                             'chest': {'arm': 17, 'ev': -25, 'weight': 5.4},
+                             'feet': {'arm': 11, 'ev': -10, 'weight': 3.0},
+                             'hands': {'arm': 9, 'dex': 2, 'weight': 2.1}
+                             }
+                   }
+
+armorDictTemplate = ['pow', 'arm', 'HP', 'acc', 'ev', 'crit', 'MP', 'strength', 'dex', 'vit', 'will', 'ap', 'stam', 'stealth']
 ### armors ###
 
 potionTypes = ['heal HP', 'heal MP', 'heal stamina', 'cure poison', 'poison', 'cure fire', 'fire', 'frost', 'speed fast', 'speed slow', 'strength', 'constitution', 'dexterity', 'willpower']
@@ -307,13 +350,13 @@ class ItemTemplate:
     def __str__(self):
         return '{} weighing {}, can be used by {} which does {}, it is described as "{}"'.format(self.itemType, str(self.weight), self.useText, str(self.useFunction), self.description)
 
-equipmentStatsStrings = ['pow', 'arm', 'HP', 'acc', 'ev', 'crit', 'MP', 'strength', 'dex', 'vit', 'will', 'rangedPow', 'maxRange', 'ap', 'stam']
+equipmentStatsStrings = ['pow', 'arm', 'HP', 'acc', 'ev', 'crit', 'MP', 'strength', 'dex', 'vit', 'will', 'rangedPow', 'maxRange', 'ap', 'stam', 'stealth']
 
 
 class EquipmentTemplate:
     def __init__(self, slot, type, powerBonus=0, armorBonus=0, maxHP_Bonus=0, accuracyBonus=0, evasionBonus=0, criticalBonus=0, maxMP_Bonus=0,
                 strengthBonus=0, dexterityBonus=0, vitalityBonus=0, willpowerBonus=0, ranged=False, rangedPower=0, maxRange=0, ammo=None, meleeWeapon=False,
-                armorPenetrationBonus=0, slow=False, enchant=None, staminaBonus=0):
+                armorPenetrationBonus=0, slow=False, enchant=None, staminaBonus=0, stealthBonus = 0):
         self.slot = slot
         self.type = type
         self.powerBonus = BetterInt(powerBonus)
@@ -336,10 +379,11 @@ class EquipmentTemplate:
         self.slow = slow
         self.enchant = enchant
         self.staminaBonus = BetterInt(staminaBonus)
+        self.stealthBonus = BetterInt(stealthBonus)
     
     @property
     def stats(self):
-        return [self.powerBonus, self.armorBonus, self.maxHP_Bonus, self.accuracyBonus, self.evasionBonus, self.criticalBonus, self.maxMP_Bonus, self.strengthBonus, self.dexterityBonus, self.vitalityBonus, self.willpowerBonus, self.rangedPower, self.maxRange, self.armorPenetrationBonus, self.staminaBonus]
+        return [self.powerBonus, self.armorBonus, self.maxHP_Bonus, self.accuracyBonus, self.evasionBonus, self.criticalBonus, self.maxMP_Bonus, self.strengthBonus, self.dexterityBonus, self.vitalityBonus, self.willpowerBonus, self.rangedPower, self.maxRange, self.armorPenetrationBonus, self.staminaBonus, self.stealthBonus]
     
     def __str__(self):
         text =  'A {} equipped on {}, it is {} a melee weapon and {} a ranged weapon. It has some boni:'.format(self.type, self.slot, str(self.meleeWeapon), str(self.ranged))
@@ -374,6 +418,8 @@ class EquipmentTemplate:
             text += '\n' + str('AP:' + str(self.armorPenetrationBonus))
         if self.staminaBonus != 0:
             text += '\n' + str('stamina:' + str(self.staminaBonus))
+        if self.stealthBonus != 0:
+            text += '\n' + str('stealth:' + str(self.stealthBonus))
         if self.slow:
             text += '\n' + str('slow!')
         

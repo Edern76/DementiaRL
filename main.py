@@ -4929,12 +4929,17 @@ class Player:
     @property
     def willpower(self):
         return sum(equipment.willpowerBonus for equipment in getAllEquipped(self.owner)) + self.baseWillpower
+    
+    @property
+    def stealth(self):
+        bonus = sum(equipment.stealthBonus for equipment in getAllEquipped(self.owner))
+        return self.baseStealth + bonus
 
     def stealthValue(self, monster):
         dex = self.dexterity
         if dex < 0:
             dex = 0
-        return round(5*sqrt(dex) * math.log(player.distanceTo(monster) + 1) + self.baseStealth)
+        return round(5*sqrt(dex) * math.log(player.distanceTo(monster) + 1) + self.stealth)
     
     def changeColor(self):
         self.hpRatio = ((self.owner.Fighter.hp / self.owner.Fighter.maxHP) * 100)
@@ -5558,7 +5563,7 @@ class Item:
         return None
 
 class Enchantment:
-    def __init__(self, name, functionOnAttack = None, buffOnOwner = [], buffOnTarget = [], damageOnOwner = 0, damageOnTarget = 0, power = 0, acc = 0, evas = 0, arm = 0, hp = 0, mp = 0, crit = 0, ap = 0, stren = 0, dex = 0, vit = 0, will = 0, stamina = 0):
+    def __init__(self, name, functionOnAttack = None, buffOnOwner = [], buffOnTarget = [], damageOnOwner = 0, damageOnTarget = 0, power = 0, acc = 0, evas = 0, arm = 0, hp = 0, mp = 0, crit = 0, ap = 0, stren = 0, dex = 0, vit = 0, will = 0, stamina = 0, stealth = 0):
         self.name = name
         self.functionOnAttack = functionOnAttack
         self.buffOnOwner = buffOnOwner
@@ -5578,9 +5583,10 @@ class Enchantment:
         self.vit = vit
         self.will = will
         self.stamina = stamina
+        self.stealth = stealth
     
 class Equipment:
-    def __init__(self, slot, type, powerBonus=0, armorBonus=0, maxHP_Bonus=0, accuracyBonus=0, evasionBonus=0, criticalBonus = 0, maxMP_Bonus = 0, strengthBonus = 0, dexterityBonus = 0, vitalityBonus = 0, willpowerBonus = 0, ranged = False, rangedPower = 0, maxRange = 0, ammo = None, meleeWeapon = False, armorPenetrationBonus = 0, slow = False, enchant = None, staminaBonus = 0):
+    def __init__(self, slot, type, powerBonus=0, armorBonus=0, maxHP_Bonus=0, accuracyBonus=0, evasionBonus=0, criticalBonus = 0, maxMP_Bonus = 0, strengthBonus = 0, dexterityBonus = 0, vitalityBonus = 0, willpowerBonus = 0, ranged = False, rangedPower = 0, maxRange = 0, ammo = None, meleeWeapon = False, armorPenetrationBonus = 0, slow = False, enchant = None, staminaBonus = 0, stealthBonus = 0):
         self.slot = slot
         self.type = type
         self.basePowerBonus = powerBonus
@@ -5598,6 +5604,7 @@ class Equipment:
         self.baseVitalityBonus = vitalityBonus
         self.baseWillpowerBonus = willpowerBonus
         self.baseStaminaBonus = staminaBonus
+        self.baseStealthBonus = stealthBonus
         
         self.ranged = ranged
         self.baseRangedPower = rangedPower
@@ -5738,6 +5745,13 @@ class Equipment:
             return self.baseStaminaBonus + self.enchant.stamina
         else:
             return self.baseStaminaBonus
+    
+    @property
+    def stealthBonus(self):
+        if self.enchant:
+            return self.baseStealthBonus + self.enchant.stealth
+        else:
+            return self.baseStealthBonus
 
     def toggleEquip(self):
         self.updateState()
