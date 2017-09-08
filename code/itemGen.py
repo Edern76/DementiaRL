@@ -59,6 +59,7 @@ raritySmallAdd = {'junk': -2, 'common': 0, 'uncommon': 2, 'rare': 3, 'epic': 5, 
 rarityBigAdd = {'junk': -10, 'common': 0, 'uncommon': 10, 'rare': 15, 'epic': 20, 'legendary': 30}
 
 rarityCombo = {'rare': {'2 passive': 15}, 'epic': {'2 passive': 35, '1 active': 35, 'none': 30}, 'legendary': {'3 passive + 1 active': 25, '2 passive + 1 active': 70, '1 active': 5}}
+noActiveRarityCombo = {'rare': {'2 passive': 15}, 'epic': {'2 passive': 70, 'none': 30}, 'legendary': {'3 passive': 70, '2 passive': 30}}
 
 itemTypes = ['weapon', 'potion', 'armor', 'shield', 'food', 'scroll', 'spellbook', 'ranged weapon']
 
@@ -181,7 +182,19 @@ adjEffects = {'regular': {},
               'two-headed': {'weight': 1.5, 'pow': 3, 'acc': -3}, #multiply weight by 2 if peasant flail
               'three-headed': {'weight': 3.0, 'pow': 6, 'acc': -6}, #same
               'stunning': {}, #add stun chance
-              'spiked': {'ap': 2}}
+              'spiked': {'ap': 2},
+              
+              'tattered': {'stealth': -2},
+              'dark': {'stealth': 5},
+              'lightweight': {'ev': 5},
+              'hardened': {'arm': 2, 'weight': 0.2},
+              'ethereal': {'ev': 20}, #add air resist
+              'ignited': {'stealth': -5, 'pow': 2}, #add fire resist
+              'frozen': {'ev': -5, 'arm': 3, 'weight': 0.3}, #add water resist
+              'shadow': {'stealth': 15},
+              'nimble': {'dex': 2},
+              'runic': {'will': 2}
+              }
 
 adjActive = {'regular': {'name': 'none'},
               'rusty': {'name': 'none'},
@@ -261,6 +274,70 @@ armorAttributes = {'cloth': {'head': {'pic': 'hood.xp', 'ev': 5, 'stealth': 5, '
                              'hands': {'arm': 9, 'dex': 2, 'weight': 2.1}
                              }
                    }
+
+armorAdj = {'cloth': {'head': {'junk': {'regular': 50, 'tattered': 50},
+                               'common': {'regular': 80, 'tattered': 10, 'dark': 5, 'lightweight': 5},
+                               'uncommon': {'regular': 71, 'tattered': 5, 'dark': 12, 'lightweight': 12},
+                               'rare': {'regular': 50, 'tattered': 2, 'dark': 16, 'lightweight': 16, 'hardened': 16}, 
+                               'epic': {'dark': 14, 'lightweight': 15, 'hardened': 14, 'ethereal': 14, 'ignited': 14, 'frozen': 14, 'shadow': 15},
+                               'legendary': {'dark': 11, 'lightweight': 11, 'hardened': 11, 'ethereal': 11, 'ignited': 11, 'frozen': 11, 'shadow': 12, 'nimble': 11, 'runic': 11}},
+                        'legs': {'junk': {'regular': 50, 'tattered': 50},
+                               'common': {'regular': 80, 'tattered': 10, 'dark': 5, 'lightweight': 5},
+                               'uncommon': {'regular': 71, 'tattered': 5, 'dark': 12, 'lightweight': 12},
+                               'rare': {'regular': 50, 'tattered': 2, 'dark': 16, 'lightweight': 16, 'hardened': 16}, 
+                               'epic': {'dark': 14, 'lightweight': 15, 'hardened': 14, 'ethereal': 14, 'ignited': 14, 'frozen': 14, 'shadow': 15},
+                               'legendary': {'dark': 11, 'lightweight': 11, 'hardened': 11, 'ethereal': 11, 'ignited': 11, 'frozen': 11, 'shadow': 12, 'nimble': 11, 'runic': 11}},
+                        'chest': {'junk': {'regular': 50, 'tattered': 50},
+                               'common': {'regular': 80, 'tattered': 10, 'dark': 5, 'lightweight': 5},
+                               'uncommon': {'regular': 71, 'tattered': 5, 'dark': 12, 'lightweight': 12},
+                               'rare': {'regular': 50, 'tattered': 2, 'dark': 16, 'lightweight': 16, 'hardened': 16}, 
+                               'epic': {'dark': 14, 'lightweight': 15, 'hardened': 14, 'ethereal': 14, 'ignited': 14, 'frozen': 14, 'shadow': 15},
+                               'legendary': {'dark': 11, 'lightweight': 11, 'hardened': 11, 'ethereal': 11, 'ignited': 11, 'frozen': 11, 'shadow': 12, 'nimble': 11, 'runic': 11}},
+                        'feet': {'junk': {'regular': 50, 'tattered': 50},
+                               'common': {'regular': 80, 'tattered': 10, 'dark': 5, 'lightweight': 5},
+                               'uncommon': {'regular': 71, 'tattered': 5, 'dark': 12, 'lightweight': 12},
+                               'rare': {'regular': 50, 'tattered': 2, 'dark': 16, 'lightweight': 16, 'hardened': 16}, 
+                               'epic': {'dark': 14, 'lightweight': 15, 'hardened': 14, 'ethereal': 14, 'ignited': 14, 'frozen': 14, 'shadow': 15},
+                               'legendary': {'dark': 11, 'lightweight': 11, 'hardened': 11, 'ethereal': 11, 'ignited': 11, 'frozen': 11, 'shadow': 12, 'nimble': 11, 'runic': 11}},
+                        'hands': {'junk': {'regular': 50, 'tattered': 50},
+                               'common': {'regular': 80, 'tattered': 10, 'dark': 5, 'lightweight': 5},
+                               'uncommon': {'regular': 71, 'tattered': 5, 'dark': 12, 'lightweight': 12},
+                               'rare': {'regular': 50, 'tattered': 2, 'dark': 16, 'lightweight': 16, 'hardened': 16}, 
+                               'epic': {'dark': 14, 'lightweight': 15, 'hardened': 14, 'ethereal': 14, 'ignited': 14, 'frozen': 14, 'shadow': 15},
+                               'legendary': {'dark': 11, 'lightweight': 11, 'hardened': 11, 'ethereal': 11, 'ignited': 11, 'frozen': 11, 'shadow': 12, 'nimble': 11, 'runic': 11}},
+                        'back': {'junk': {'regular': 50, 'tattered': 50},
+                               'common': {'regular': 80, 'tattered': 10, 'dark': 5, 'lightweight': 5},
+                               'uncommon': {'regular': 71, 'tattered': 5, 'dark': 12, 'lightweight': 12},
+                               'rare': {'regular': 50, 'tattered': 2, 'dark': 16, 'lightweight': 16, 'hardened': 16}, 
+                               'epic': {'dark': 14, 'lightweight': 15, 'hardened': 14, 'ethereal': 14, 'ignited': 14, 'frozen': 14, 'shadow': 15},
+                               'legendary': {'dark': 11, 'lightweight': 11, 'hardened': 11, 'ethereal': 11, 'ignited': 11, 'frozen': 11, 'shadow': 12, 'nimble': 11, 'runic': 11}}
+                      },
+            'leather': {'head': {'pic': 'leatherHood.xp', 'arm': 1, 'stealth': 3, 'weight': 0.5},
+                        'legs': {'arm': 3, 'weight': 1.2},
+                        'chest': {'arm': 5, 'weight': 1.5},
+                        'feet': {'arm': 2, 'weight': 0.9},
+                        'hands': {'dex': 4, 'weight': 0.1},
+                        'back': {'arm': 3, 'stealth': 7, 'weight': 1.0}
+                        },
+            'chainmail': {'head': {'pic': 'coif.xp', 'arm': 5, 'dex': -2, 'weight': 1.2},
+                          'legs': {'arm': 7, 'ev': -7, 'weight': 1.9},
+                          'chest': {'arm': 10, 'ev': -10, 'weight': 2.4},
+                          'feet': {'arm': 3, 'ev': -5, 'weight': 1.3},
+                          'hands': {'arm': 3, 'dex': 3, 'weight': 1.0}
+                          },
+            'scale': {'head': {'pic': 'aventail.xp', 'arm': 8, 'dex': -4, 'weight': 2.1},
+                      'legs': {'arm': 10, 'ev': -10, 'weight': 2.7},
+                      'chest': {'arm': 13, 'ev': -15, 'weight': 3.4},
+                      'feet': {'arm': 7, 'ev': -7, 'weight': 2.4},
+                      'hands': {'arm': 5, 'dex': 2, 'weight': 1.9}
+                      },
+            'plate': {'head': {'pic': 'greatHelm.xp', 'arm': 12, 'dex': -6, 'weight': 3.5},
+                      'legs': {'arm': 14, 'ev': -15, 'weight': 4.1},
+                      'chest': {'arm': 17, 'ev': -25, 'weight': 5.4},
+                      'feet': {'arm': 11, 'ev': -10, 'weight': 3.0},
+                      'hands': {'arm': 9, 'dex': 2, 'weight': 2.1}
+                      }
+            }
 
 armorDictTemplate = ['pow', 'arm', 'HP', 'acc', 'ev', 'crit', 'MP', 'strength', 'dex', 'vit', 'will', 'ap', 'stam', 'stealth']
 ### armors ###
@@ -585,9 +662,100 @@ def generateMeleeWeapon(weaponType = None):
     weaponObject = GameObjectTemplate(char, addToName + weapon + endName, colors.silver, Item = weaponItem, Equipment = weaponEquipment)
     return weaponObject
 
+def generateArmor(armorType = None, slot = None):
+    if slot is None:
+        slot = randItemFrom(armorSlots)
+    
+    armorRarity = randomChoice(rarity)
+    
+    if armorType is None:
+        armorType = randomChoice(armorTypeProb[armorRarity])
+        while armorType not in possibleTypes[slot]:
+            armorType = randomChoice(armorTypeProb[armorRarity])
+
+    stringRarity = str(armorRarity)
+    
+    armorDict = armorAttributes[armorType][slot]
+    armorEquipment = EquipmentTemplate(slot, stringRarity + ' ' + armorType)
+    
+    adj = []
+    passiveNumber = 1
+    try:
+        rareCombo = randomChoice(rarityCombo[stringRarity])
+    except:
+        rareCombo = 'none'
+    
+    if '2 passive' in rareCombo:
+        passiveNumber = 2
+    if '3 passive' in rareCombo:
+        passiveNumber = 3
+    
+    adjDict = armorAdj[armorType][slot][stringRarity]
+    for i in range(passiveNumber):
+        bonus = randomChoice(adjDict)
+        while bonus in adj or (bonus == 'frozen' and 'ignited' in adj) or (bonus == 'ignited' and 'frozen' in adj):
+            bonus = randomChoice(adjDict)
+        adj.append(bonus)
+    
+    addToName = ''
+    for adjective in adj:
+        if adjective != 'regular':
+            addToName += adjective + ' '
+    
+    i = 0
+    for stat in armorEquipment.stats:
+        moddedStat = equipmentStatsStrings[i]
+        try:
+            dictToUse = raritySmallAdd
+            if moddedStat == 'HP' or moddedStat == 'MP' or moddedStat == 'stam':
+                dictToUse = rarityBigAdd
+            stat.value = armorDict[equipmentStatsStrings[i]] + randint(-2 + dictToUse[stringRarity], 2 + dictToUse[stringRarity])
+            if stat < 0 and armorDict[equipmentStatsStrings[i]] > 0: #if a postive value becomes negative
+                stat.value = 0
+        except:
+            pass
+        i += 1
+    
+    tempWeight = armorDict['weight']
+    
+    i = 0
+    for stat in armorEquipment.stats:
+        for adjective in adj:
+            dictToUse = raritySmallAdd
+            if moddedStat == 'HP' or moddedStat == 'MP' or moddedStat == 'stam':
+                dictToUse = rarityBigAdd
+            moddedStat = equipmentStatsStrings[i]
+            try:
+                stat += adjEffects[adjective][equipmentStatsStrings[i]] + randint(0, dictToUse[stringRarity]//2)
+            except:
+                pass
+        i += 1
+    
+    for adjective in adj:
+        try:
+            tempWeight += adjEffects[adjective]['weight']
+            if 'headed' in adjective and 'heavy' in armorEquipment.type:
+                tempWeight += adjEffects[adjective]['weight']
+        except:
+            pass
+    
+    weaponItem = ItemTemplate('Equip', weight = tempWeight, itemtype = 'armor', useText = 'Equip')
+
+    try:
+        weaponItem.description = armorDict['desc']
+    except:
+        pass
+    try:
+        weaponItem.pic = armorDict['pic']
+    except:
+        pass
+    
+    weaponObject = GameObjectTemplate(']', addToName + armorNames[slot][armorType], colors.silver, Item = weaponItem, Equipment = armorEquipment)
+    return weaponObject
+
 if __name__ == '__main__':
     for loop in range(10):
-        print(generateMeleeWeapon())
+        print(generateArmor('cloth'))
         print()
 
 

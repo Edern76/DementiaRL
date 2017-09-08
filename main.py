@@ -12730,7 +12730,7 @@ def targetTile(maxRange = None, showBresenham = False, unlimited = False, AOE = 
                             
                             for x in range(player.x - rangeAOE - 1, player.x + rangeAOE + 2):
                                 for y in range(player.y - rangeAOE - 1, player.y + rangeAOE + 2):
-                                    if (isInTriangle((x, y), (player.x, player.y), pointA, pointB)or (x, y) in lineA or (x, y) in lineB or (x, y) in lineAB) and not myMap[x][y].blocked:
+                                    if (isInTriangle((x, y), (player.x, player.y), pointA, pointB) or (x, y) in lineA or (x, y) in lineB or (x, y) in lineAB) and not myMap[x][y].blocked:
                                         dot = GameObject(x = x, y = y, char = '.', name = 'AOE dot', color = colors.yellow, Ghost = True)
                                         objects.append(dot)
                                         dotsAOE.append(dot)

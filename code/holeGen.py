@@ -109,12 +109,14 @@ def createVerticalTunnel(y1, y2, x):
     for y in range(min(y1, y2), max(y1, y2) + 1):
         myMap[x][y].baseBlocked = False
 
-def checkMap():
+def checkMap(mapToUse = None):
     global myMap
+    if not mapToUse:
+        mapToUse = myMap
     for x in range(MAP_WIDTH):
         for y in range(MAP_HEIGHT):
-            if myMap[x][y].hole and not myMap[x][y].unbreakable:
-                myMap[x][y].baseBlocked = False
+            if mapToUse[x][y].hole and not mapToUse[x][y].unbreakable:
+                mapToUse[x][y].baseBlocked = False
 
 def createHoles(mapToUse):
     for x in range(1, MAP_WIDTH - 1):
@@ -125,9 +127,9 @@ def createHoles(mapToUse):
                 mapToUse[x][y].hole = True
     for loop in range(STEPS_NUMBER):
         mapToUse = doStep(mapToUse)
-    checkMap()
+    checkMap(mapToUse)
     
-    myMap = tunneling.checkDoors(myMap)
+    myMap = tunneling.checkDoors(mapToUse)
     
     return mapToUse
     
