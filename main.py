@@ -9182,8 +9182,8 @@ def makeMap(generateChasm = True, generateHole = False, fall = False, temple = F
                 unchasmable.append((x, y))
         print("BEFORE CHASM")
         
-        if generateChasm:
-            myMap = chasmGen.createChasms(myMap, roomTiles, tunnelTiles, unchasmable)
+        #if generateChasm:
+        #    myMap = chasmGen.createChasms(myMap, roomTiles, tunnelTiles, unchasmable)
         if generateHole:
             myMap = holeGen.createHoles(myMap)
         print("AFTER CHASM")

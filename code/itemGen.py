@@ -3,7 +3,7 @@ import code.custom_except
 from random import randint
 from code.constants import *
 import colors
-import code.dunbranches as dBr
+#import code.dunbranches as dBr
 from math import *
 
 #GameObject template: x, y, char, name, color, blocks, Fighter, AI, Player, Ghost, flying, Item, alwaysVisible, darkColor, Equipment, pName, Essence,
@@ -203,7 +203,8 @@ adjEffects = {'regular': {},
               'telluric': {'arm': 8, 'weight': 1.0}, #add earth resist
               'padded': {'HP': 10},
               'riveted': {'arm': 5},
-              'reinforced': {'arm': 5, 'weight': 0.5}
+              'reinforced': {'arm': 5, 'weight': 0.5},
+              'bulky': {'arm': 4, 'stam': 15, 'weight': 0.8}
               }
 
 adjActive = {'regular': {'name': 'none'},
@@ -239,8 +240,8 @@ armorTypeProb = {'junk': {'cloth': 80, 'leather': 20},
                  'common': {'cloth': 70, 'leather': 25, 'chainmail': 5},
                  'uncommon': {'cloth': 30, 'leather': 55, 'chainmail': 15},
                  'rare': {'cloth': 30, 'leather': 20, 'chainmail': 30, 'scale': 20},
-                 'epic': {'cloth': 30, 'chainmail': 25, 'scale': 40, 'plate': 5},
-                 'legendary': {'cloth': 30, 'scale': 20, 'plate': 50}
+                 'epic': {'cloth': 25, 'leather': 15, 'chainmail': 15, 'scale': 40, 'plate': 5},
+                 'legendary': {'cloth': 20, 'leather': 10, 'chainmail': 15, 'scale': 20, 'plate': 35}
                  }
 
 armorNames = {'head': {'cloth': 'hood', 'leather': 'hood', 'chainmail': 'coif', 'scale': 'aventail', 'plate': 'great helm'},
@@ -421,36 +422,36 @@ armorAdj = {'cloth': {'head': {'junk': {'regular': 50, 'tattered': 50},
                                'epic': {'lamellar': 14, 'padded': 15, 'reinforced': 14, 'ethereal': 14, 'ignited': 14, 'frozen': 14, 'telluric': 15},
                                'legendary': {'lamellar': 11, 'padded': 11, 'reinforced': 11, 'ethereal': 11, 'ignited': 11, 'frozen': 11, 'telluric': 12, 'nimble': 11, 'runic': 11}}
                       },
-            'plate': {'head': {'junk': {'regular': 50, 'tattered': 50},
-                               'common': {'regular': 80, 'tattered': 10, 'dark': 5, 'lightweight': 5},
-                               'uncommon': {'regular': 71, 'tattered': 5, 'dark': 12, 'lightweight': 12},
-                               'rare': {'regular': 50, 'tattered': 2, 'dark': 16, 'lightweight': 16, 'hardened': 16}, 
-                               'epic': {'dark': 14, 'lightweight': 15, 'hardened': 14, 'ethereal': 14, 'ignited': 14, 'frozen': 14, 'shadow': 15},
-                               'legendary': {'dark': 11, 'lightweight': 11, 'hardened': 11, 'ethereal': 11, 'ignited': 11, 'frozen': 11, 'shadow': 12, 'nimble': 11, 'runic': 11}},
-                        'legs': {'junk': {'regular': 50, 'tattered': 50},
-                               'common': {'regular': 80, 'tattered': 10, 'dark': 5, 'lightweight': 5},
-                               'uncommon': {'regular': 71, 'tattered': 5, 'dark': 12, 'lightweight': 12},
-                               'rare': {'regular': 50, 'tattered': 2, 'dark': 16, 'lightweight': 16, 'hardened': 16}, 
-                               'epic': {'dark': 14, 'lightweight': 15, 'hardened': 14, 'ethereal': 14, 'ignited': 14, 'frozen': 14, 'shadow': 15},
-                               'legendary': {'dark': 11, 'lightweight': 11, 'hardened': 11, 'ethereal': 11, 'ignited': 11, 'frozen': 11, 'shadow': 12, 'nimble': 11, 'healthful': 11}},
-                        'chest': {'junk': {'regular': 50, 'tattered': 50},
-                               'common': {'regular': 80, 'tattered': 10, 'dark': 5, 'lightweight': 5},
-                               'uncommon': {'regular': 71, 'tattered': 5, 'dark': 12, 'lightweight': 12},
-                               'rare': {'regular': 50, 'tattered': 2, 'dark': 16, 'lightweight': 16, 'hardened': 16}, 
-                               'epic': {'dark': 14, 'lightweight': 15, 'hardened': 14, 'ethereal': 14, 'ignited': 14, 'frozen': 14, 'shadow': 15},
-                               'legendary': {'dark': 11, 'lightweight': 11, 'hardened': 11, 'ethereal': 11, 'ignited': 11, 'frozen': 11, 'shadow': 12, 'nimble': 11, 'healthful': 11}},
-                        'feet': {'junk': {'regular': 50, 'tattered': 50},
-                               'common': {'regular': 80, 'tattered': 10, 'dark': 5, 'lightweight': 5},
-                               'uncommon': {'regular': 71, 'tattered': 5, 'dark': 12, 'lightweight': 12},
-                               'rare': {'regular': 50, 'tattered': 2, 'dark': 16, 'lightweight': 16, 'hardened': 16}, 
-                               'epic': {'dark': 14, 'lightweight': 15, 'hardened': 14, 'ethereal': 14, 'ignited': 14, 'frozen': 14, 'shadow': 15},
-                               'legendary': {'dark': 13, 'lightweight': 12, 'hardened': 12, 'ethereal': 13, 'ignited': 12, 'frozen': 12, 'shadow': 13, 'nimble': 13}},
-                        'hands': {'junk': {'regular': 50, 'tattered': 50},
-                               'common': {'regular': 80, 'tattered': 10, 'dark': 5, 'lightweight': 5},
-                               'uncommon': {'regular': 71, 'tattered': 5, 'dark': 12, 'lightweight': 12},
-                               'rare': {'regular': 50, 'tattered': 2, 'dark': 16, 'lightweight': 16, 'hardened': 16}, 
-                               'epic': {'dark': 14, 'lightweight': 15, 'hardened': 14, 'ethereal': 14, 'ignited': 14, 'frozen': 14, 'shadow': 15},
-                               'legendary': {'dark': 11, 'lightweight': 11, 'hardened': 11, 'ethereal': 11, 'ignited': 11, 'frozen': 11, 'shadow': 12, 'nimble': 11, 'runic': 11}}
+            'plate': {'head': {'junk': {'regular': 50, 'rusted': 50},
+                               'common': {'regular': 80, 'rusted': 10, 'bulky': 5, 'padded': 5},
+                               'uncommon': {'regular': 71, 'rusted': 5, 'bulky': 12, 'padded': 12},
+                               'rare': {'regular': 50, 'rusted': 2, 'bulky': 16, 'padded': 16, 'reinforced': 16}, 
+                               'epic': {'bulky': 14, 'padded': 15, 'reinforced': 14, 'barbed': 14, 'ignited': 14, 'frozen': 14, 'telluric': 15},
+                               'legendary': {'bulky': 11, 'padded': 11, 'reinforced': 11, 'barbed': 11, 'ignited': 11, 'frozen': 11, 'telluric': 12, 'healthful': 11, 'runic': 11}},
+                      'legs': {'junk': {'regular': 50, 'rusted': 50},
+                               'common': {'regular': 80, 'rusted': 10, 'bulky': 5, 'padded': 5},
+                               'uncommon': {'regular': 71, 'rusted': 5, 'bulky': 12, 'padded': 12},
+                               'rare': {'regular': 50, 'rusted': 2, 'bulky': 16, 'padded': 16, 'reinforced': 16}, 
+                               'epic': {'bulky': 14, 'padded': 15, 'reinforced': 14, 'barbed': 14, 'ignited': 14, 'frozen': 14, 'telluric': 15},
+                               'legendary': {'bulky': 13, 'padded': 12, 'reinforced': 13, 'barbed': 12, 'ignited': 12, 'frozen': 13, 'telluric': 13, 'healthful': 12}},
+                      'chest': {'junk': {'regular': 50, 'rusted': 50},
+                               'common': {'regular': 80, 'rusted': 10, 'bulky': 5, 'padded': 5},
+                               'uncommon': {'regular': 71, 'rusted': 5, 'bulky': 12, 'padded': 12},
+                               'rare': {'regular': 50, 'rusted': 2, 'bulky': 16, 'padded': 16, 'reinforced': 16}, 
+                               'epic': {'bulky': 14, 'padded': 15, 'reinforced': 14, 'barbed': 14, 'ignited': 14, 'frozen': 14, 'telluric': 15},
+                               'legendary': {'bulky': 13, 'padded': 12, 'reinforced': 13, 'barbed': 12, 'ignited': 12, 'frozen': 13, 'telluric': 13, 'healthful': 12}},
+                      'feet': {'junk': {'regular': 50, 'rusted': 50},
+                               'common': {'regular': 80, 'rusted': 10, 'bulky': 5, 'padded': 5},
+                               'uncommon': {'regular': 71, 'rusted': 5, 'bulky': 12, 'padded': 12},
+                               'rare': {'regular': 50, 'rusted': 2, 'bulky': 16, 'padded': 16, 'reinforced': 16}, 
+                               'epic': {'bulky': 14, 'padded': 15, 'reinforced': 14, 'barbed': 14, 'ignited': 14, 'frozen': 14, 'telluric': 15},
+                               'legendary': {'bulky': 13, 'padded': 12, 'reinforced': 12, 'barbed': 13, 'ignited': 12, 'frozen': 12, 'telluric': 13, 'nimble': 13}},
+                      'hands': {'junk': {'regular': 50, 'rusted': 50},
+                               'common': {'regular': 80, 'rusted': 10, 'bulky': 5, 'padded': 5},
+                               'uncommon': {'regular': 71, 'rusted': 5, 'bulky': 12, 'padded': 12},
+                               'rare': {'regular': 50, 'rusted': 2, 'bulky': 16, 'padded': 16, 'reinforced': 16}, 
+                               'epic': {'bulky': 14, 'padded': 15, 'reinforced': 14, 'barbed': 14, 'ignited': 14, 'frozen': 14, 'telluric': 15},
+                               'legendary': {'bulky': 11, 'padded': 11, 'reinforced': 11, 'barbed': 11, 'ignited': 11, 'frozen': 11, 'telluric': 12, 'nimble': 11, 'runic': 11}}
                       }
             }
 
@@ -783,17 +784,16 @@ def generateMeleeWeapon(weaponType = None):
 
 def generateArmor(armorType = None, slot = None):
     armorRarity = randomChoice(rarity)
+    stringRarity = str(armorRarity)
     
     if armorType is None:
-        armorType = randomChoice(armorTypeProb[armorRarity])
+        armorType = randomChoice(armorTypeProb[stringRarity])
     
     if slot is None:
         slot = randItemFrom(armorSlots)
         while armorType not in possibleTypes[slot]:
             slot = randItemFrom(armorSlots)
 
-    stringRarity = str(armorRarity)
-    
     armorDict = armorAttributes[armorType][slot]
     armorEquipment = EquipmentTemplate(slot, stringRarity + ' ' + armorType + ' armor')
     
@@ -880,7 +880,7 @@ def generateArmor(armorType = None, slot = None):
 
 if __name__ == '__main__':
     for loop in range(10):
-        print(generateArmor('scale'))
+        print(generateArmor())
         print()
 
 

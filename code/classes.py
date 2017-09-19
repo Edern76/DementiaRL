@@ -2,12 +2,12 @@ import code.dunbranches as dBr
 import colors, copy, pdb, traceback, os, sys, time, math
 from random import *
 
-color_dark_wall = dBr.mainDungeon.color_dark_wall
-color_light_wall = dBr.mainDungeon.color_light_wall
-color_dark_ground = dBr.mainDungeon.color_dark_ground
-color_dark_gravel = dBr.mainDungeon.color_dark_gravel
-color_light_ground = dBr.mainDungeon.color_light_ground
-color_light_gravel = dBr.mainDungeon.color_light_gravel
+color_dark_wall = dBr.mainDungeon.mapGeneration['wallDarkFG']
+color_light_wall = dBr.mainDungeon.mapGeneration['wallFG']
+color_dark_ground = dBr.mainDungeon.mapGeneration['groundDarkBG']
+color_dark_gravel = dBr.mainDungeon.mapGeneration['gravelDarkFG']
+color_light_ground = dBr.mainDungeon.mapGeneration['groundBG']
+color_light_gravel = dBr.mainDungeon.mapGeneration['gravelFG']
 maxRooms = dBr.mainDungeon.maxRooms
 roomMinSize = dBr.mainDungeon.roomMinSize
 roomMaxSize = dBr.mainDungeon.roomMaxSize

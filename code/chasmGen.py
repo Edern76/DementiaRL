@@ -121,43 +121,21 @@ def createChasms(mapToUse): #, roomTiles, tunnelTiles, unchasmable):
     for loop in range(STEPS_NUMBER):
         newMap = doStep(newMap)
         #update(newMap)
-    #newMap = unblockTunnels(mapToUse, roomTiles, tunnelTiles, unchasmable)
+    newMap = unblockTunnels(newMap, roomTiles, tunnelTiles, unchasmable)
     return newMap
     
 def makeMap():
     global myMap, rooms, roomTiles, tunnelTiles, unchasmable, firstX, firstY, lastX, lastY
     
-    myMap = tunneling.makeTunnelMap()
-    myMap = makeChasmMap(myMap)
+    myMap, tunnelTiles, roomTiles = tunneling.makeTunnelMap(returnTunTiles = True)
+    myMap = createChasms(myMap)
     return myMap
 
-def makeChasmMap(mapToUse):
-    state = False
+def makeChasmMap(mapToUse, roomT, tunnelT):
+    global myMap, roomTiles, tunnelTiles, unchasmable
+    roomTiles, tunnelTiles = roomT, tunnelT
     
-    while not state:
-        print(state, 'new iter')
-        state = True
-        tempMap = createChasms(mapToUse) #, roomTiles, tunnelTiles, unchasmable)
-        fFX = randint(0, MAP_WIDTH - 1)
-        fFY = randint(0, MAP_HEIGHT-1)
-        print('flood fill coords:', fFX, fFY)
-        while tempMap[fFX][fFY].blocked or tempMap[fFX][fFY].chasm:
-            fFX = randint(0, MAP_WIDTH - 1)
-            fFY = randint(0, MAP_HEIGHT-1)
-            print('blocked, flood fill coords:', fFX, fFY)
-            
-        connected = floodFill(fFX, fFY, tempMap)
-        print(connected)
-        for x in range(MAP_WIDTH):
-            for y in range(MAP_HEIGHT):
-                if not tempMap[x][y].blocked and not tempMap[x][y].chasm:
-                    if not (x, y) in connected:
-                        state = False
-                        print('floodfill is wrong')
-                        break
-            if not state:
-                break
-    
+    tempMap = createChasms(mapToUse)
     return tempMap
     
     '''

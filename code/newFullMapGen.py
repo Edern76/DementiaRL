@@ -17,15 +17,11 @@ MAX_ROOMS = 30
 '''
 
 myMap = None
-color_dark_wall = dBr.mainDungeon.color_dark_wall
-color_light_wall = dBr.mainDungeon.color_light_wall
-color_dark_ground = dBr.mainDungeon.color_dark_ground
-color_dark_gravel = dBr.mainDungeon.color_dark_gravel
-color_light_ground = dBr.mainDungeon.color_light_ground
-color_light_gravel = dBr.mainDungeon.color_light_gravel
 maxRooms = dBr.mainDungeon.maxRooms
 roomMinSize = dBr.mainDungeon.roomMinSize
 roomMaxSize = dBr.mainDungeon.roomMaxSize
+roomEdges = None
+tunnelEdges = None
 
 WIDTH, HEIGHT, LIMIT = 150, 80, 20
 MAP_WIDTH, MAP_HEIGHT = 140, 60
@@ -75,51 +71,52 @@ unchasmable = []
 noCheckTiles = []
 
 def initializeMapGen(currentBranch):
-    global color_dark_wall, color_light_wall, color_dark_ground, color_dark_gravel, color_light_ground, color_light_gravel, maxRooms, roomMinSize, roomMaxSize
-    
-    color_dark_wall = currentBranch.color_dark_wall
-    color_light_wall = currentBranch.color_light_wall
-    color_dark_ground = currentBranch.color_dark_ground
-    color_dark_gravel = currentBranch.color_dark_gravel
-    color_light_ground = currentBranch.color_light_ground
-    color_light_gravel = currentBranch.color_light_gravel
-    maxRooms = currentBranch.maxRooms
-    roomMinSize = currentBranch.roomMinSize
-    roomMaxSize = currentBranch.roomMaxSize
-    
     chasms = False
     holes = False
     cave = False
     mine = False
     temple = False
-    for feature in currentBranch.genFeatures:
-        if feature == 'chasms':
-            chasms = True
-        if feature == 'cave':
-            cave = True
-        if feature == 'holes':
-            holes = True
-        if feature == 'mines':
-            cave = True
-            mine = True
-        if feature == 'temple':
-            temple = True
+    if currentBranch.mapGeneration['chasm']:
+        chasms = True
+    if currentBranch.mapGeneration['caves']:
+        cave = True
+    if currentBranch.mapGeneration['holes']:
+        holes = True
+    if currentBranch.mapGeneration['mines']:
+        cave = True
+        mine = True
+    if currentBranch.mapGeneration['pillars']:
+        temple = True
     
     return chasms, holes, cave, mine, temple
 
 def generateMap(currentBranch = dBr.mainDungeon):
+    global roomEdges, tunnelEdges
     chasms, holes, cave, mine, temple = initializeMapGen(currentBranch)
     if not cave and not mine:
         if not temple:
-            myMap = tunneling.makeTunnelMap(holes)
-            if chasms:
-                myMap = chasmGen.makeChasmMap(myMap)
+            myMap, tunnelTiles, roomTiles = tunneling.makeTunnelMap(holes, True)
             if holes:
                 myMap = holeGen.createHoles(myMap)
+            if chasms:
+                myMap = chasmGen.makeChasmMap(myMap, roomTiles, tunnelTiles)
     else:
-        myMap = caveGen.generateCaveLevel(mine)
+        myMap, roomEdges, tunnelEdges = caveGen.generateCaveLevel(mine)
     
     return myMap
+
+def updateTiles(mapToUse):
+    for x in range(MAP_WIDTH):
+        for y in range(MAP_HEIGHT):
+            tile = mapToUse[x][y]
+            if tile.blocked:
+                root.draw_char(x, y, '#', colors.grey, colors.darker_grey)
+            elif mapToUse[x][y].chasm:
+                root.draw_char(x, y, None, bg = (16, 16, 16))
+            elif mapToUse[x][y].door:
+                root.draw_char(x, y, '+', colors.darker_orange, colors.sepia)
+            else:
+                root.draw_char(x, y, None, bg = colors.sepia)
 
 '''
 def update():
@@ -136,8 +133,12 @@ def update(mapToUse = myMap):
     for x in range(MAP_WIDTH):
         for y in range(MAP_HEIGHT):
             try:
-                if mapToUse[x][y].blocked:
+                if myMap[x][y].blocked and not (x, y) in roomEdges and not (x, y) in tunnelEdges:
                     root.draw_char(x, y, '#', colors.grey, colors.darker_grey)
+                elif myMap[x][y].blocked and (x, y) in roomEdges:
+                    root.draw_char(x, y, '#', colors.dark_sepia, colors.darkest_sepia)
+                elif myMap[x][y].blocked and (x, y) in tunnelEdges:
+                    root.draw_char(x, y, chr(254), colors.darkest_sepia, colors.sepia)
                 elif mapToUse[x][y].chasm:
                     root.draw_char(x, y, None, bg = (16, 16, 16))
                 elif mapToUse[x][y].door:

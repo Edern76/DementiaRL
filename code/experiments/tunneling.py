@@ -223,7 +223,7 @@ def checkDoors(mapToUse):
     
     return mapToUse
 
-def makeTunnelMap(messyTunnels = False):
+def makeTunnelMap(messyTunnels = False, returnTunTiles = False):
     global myMap, rooms, roomTiles, tunnelTiles
 
     myMap = [[Tile(blocked = True, x = x, y = y) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
@@ -278,6 +278,8 @@ def makeTunnelMap(messyTunnels = False):
     placeDoors()
     myMap = checkDoors(myMap)
     
+    if returnTunTiles:
+        return myMap, tunnelTiles, roomTiles
     return myMap
 
 

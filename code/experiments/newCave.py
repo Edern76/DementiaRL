@@ -46,14 +46,14 @@ def createRoom(room):
             myMap[x][y].baseBlocked = False
     for x in range(room.x1, room.x2 + 1):
         if myMap[x][room.y1].blocked:
-            roomEdges.append(myMap[x][room.y1])
+            roomEdges.append((x, room.y1))
         if myMap[x][room.y2].blocked:
-            roomEdges.append(myMap[x][room.y2])
+            roomEdges.append((x, room.y2))
     for y in range(room.y1, room.y2 + 1):
         if myMap[room.x1][y].blocked:
-            roomEdges.append(myMap[room.x1][y])
+            roomEdges.append((room.x1, y))
         if myMap[room.x2][y].blocked:
-            roomEdges.append(myMap[room.x2][y])
+            roomEdges.append((room.x2, y))
 
 def createHorizontalTunnel(x1, x2, y):
     global myMap, tunnelEdges
@@ -66,9 +66,9 @@ def createHorizontalTunnel(x1, x2, y):
         if wood == 0 and not prevWood:
             prevWood = True
             if myMap[x][y-1].blocked:
-                tunnelEdges.append(myMap[x][y-1])
+                tunnelEdges.append((x, y-1))
             if myMap[x][y+1].blocked:
-                tunnelEdges.append(myMap[x][y+1])
+                tunnelEdges.append((x, y+1))
         else:
             prevWood = False
             
@@ -83,9 +83,9 @@ def createVerticalTunnel(y1, y2, x):
         if wood == 0 and not prevWood:
             prevWood = True
             if myMap[x-1][y].blocked:
-                tunnelEdges.append(myMap[x-1][y])
+                tunnelEdges.append((x-1, y))
             if myMap[x+1][y].blocked:
-                tunnelEdges.append(myMap[x+1][y])
+                tunnelEdges.append((x+1, y))
         else:
             prevWood = False
 
@@ -463,24 +463,24 @@ def generateCaveLevel(mine=False):
         #time.sleep(2)
         generateCaveLevel(mine)
     
-    return myMap
+    return myMap, roomEdges, tunnelEdges
 
 def update():
     root.clear()
     for x in range(MAP_WIDTH):
         for y in range(MAP_HEIGHT):
-            if myMap[x][y].blocked and not myMap[x][y] in roomEdges and not myMap[x][y] in tunnelEdges:
+            if myMap[x][y].blocked and not (x, y) in roomEdges and not (x, y) in tunnelEdges:
                 root.draw_char(x, y, '#', colors.grey, colors.darker_grey)
-            elif myMap[x][y].blocked and myMap[x][y] in roomEdges:
+            elif myMap[x][y].blocked and (x, y) in roomEdges:
                 root.draw_char(x, y, '#', colors.dark_sepia, colors.darkest_sepia)
-            elif myMap[x][y].blocked and myMap[x][y] in tunnelEdges:
+            elif myMap[x][y].blocked and (x, y) in tunnelEdges:
                 root.draw_char(x, y, chr(254), colors.darkest_sepia, colors.sepia)
             else:
                 root.draw_char(x, y, None, bg = colors.sepia)
     tdl.flush()
 
 if __name__ == '__main__':
-    myMap = generateCaveLevel(True)
+    myMap, roomEdges, tunnelEdges = generateCaveLevel(True)
     while not tdl.event.is_window_closed():
         update()
 
