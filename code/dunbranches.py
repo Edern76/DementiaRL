@@ -2,8 +2,8 @@ import colors
 
 branches = []
 
-branchMapTemplate = {'wallFG': colors.grey, 'wallDarkFG': colors.darker_grey, 'wallBG': colors.darker_grey, 'wallDarkBG': colors.darkest_grey, 'wallChar': '#',
-                     'groundBG': colors.sepia, 'groundDarkBG': colors.darker_sepia,
+branchMapTemplate = {'wallFG': colors.dark_grey, 'wallDarkFG': colors.darkest_grey, 'wallBG': colors.darker_grey, 'wallDarkBG': (16, 16, 16), 'wallChar': '#',
+                     'groundBG': colors.dark_sepia, 'groundDarkBG': colors.darkest_sepia,
                      'gravelFG': (50, 37, 0), 'gravelDarkFG': (27, 20, 0), 'gravelChars': [chr(176), chr(177)],
                      'stairsColor': colors.white, 'stairsDarkColor': colors.dark_grey,
                      'chasm': True, 'chasmColor': (0, 0, 16),
@@ -11,7 +11,7 @@ branchMapTemplate = {'wallFG': colors.grey, 'wallDarkFG': colors.darker_grey, 'w
                      'mines': False, 'mineWallFG': colors.dark_sepia, 'mineWallDarkFG': colors.darkest_sepia, 'mineWallBG': colors.darkest_sepia, 'mineWallDarkBG': (14, 11, 7),
                      'pillars': False, 'pillarChar': 'o', 'pillarColor': colors.grey, 'pillarDarkColor': colors.darker_grey,
                      'holes': False,
-                     'doors': True, 'doorChar': '+', 'doorColor': colors.darker_orange, 'doorDarkColor': colors.darker_orange,
+                     'doors': True, 'doorChar': '+', 'doorColor': colors.darker_flame, 'doorDarkColor': colors.darkest_flame,
                      'fixedMap': None}
 
 class Branch:
@@ -65,8 +65,8 @@ class Branch:
 
 mainDungeon = Branch(shortName = "main", name = "Main", branchesTo = None)
 
-gluttMapTemplate = {'wallFG': colors.grey, 'wallDarkFG': colors.darker_grey, 'wallBG': colors.darker_grey, 'wallDarkBG': colors.darkest_grey, 'wallChar': '#',
-                     'groundBG': colors.sepia, 'groundDarkBG': colors.darker_sepia,
+gluttMapTemplate = {'wallFG': colors.dark_grey, 'wallDarkFG': colors.darkest_grey, 'wallBG': colors.darker_grey, 'wallDarkBG': (16, 16, 16), 'wallChar': '#',
+                     'groundBG': colors.dark_sepia, 'groundDarkBG': colors.darkest_sepia,
                      'gravelFG': (50, 37, 0), 'gravelDarkFG': (27, 20, 0), 'gravelChars': [chr(176), chr(177)],
                      'stairsColor': colors.desaturated_chartreuse, 'stairsDarkColor': colors.darkest_chartreuse,
                      'chasm': True, 'chasmColor': (0, 0, 16),
@@ -74,13 +74,13 @@ gluttMapTemplate = {'wallFG': colors.grey, 'wallDarkFG': colors.darker_grey, 'wa
                      'mines': False, 'mineWallFG': colors.dark_sepia, 'mineWallDarkFG': colors.darkest_sepia, 'mineWallBG': colors.darkest_sepia, 'mineWallDarkBG': (14, 11, 7),
                      'pillars': False, 'pillarChar': 'o', 'pillarColor': colors.grey, 'pillarDarkColor': colors.darker_grey,
                      'holes': False,
-                     'doors': True, 'doorChar': '+', 'doorColor': colors.darker_orange, 'doorDarkColor': colors.darker_orange,
+                     'doors': True, 'doorChar': '+', 'doorColor': colors.darker_flame, 'doorDarkColor': colors.darker_flame,
                      'fixedMap': None}
 
 gluttonyDungeon = Branch(shortName = "glutt", name = "Gluttony Dungeon", maxDepth = 5, branchesFrom = (mainDungeon, 1), monsterChances = {'darksoul': 400, 'ogre': 200, 'starveling': 250, 'cultist': 150}, itemChances = {'potion': 360, 'scroll': 20, 'weapon': 20, 'shield': 100, 'food': 500}, bossLevels = [5], bossNames = {'Gluttony': 5}, mapGeneration = gluttMapTemplate)
 
-townMapTemplate = {'wallFG': colors.grey, 'wallDarkFG': colors.darker_grey, 'wallBG': colors.darker_grey, 'wallDarkBG': colors.darkest_grey, 'wallChar': '#',
-                     'groundBG': colors.sepia, 'groundDarkBG': colors.darker_sepia,
+townMapTemplate = {'wallFG': colors.dark_grey, 'wallDarkFG': colors.darkest_grey, 'wallBG': colors.darker_grey, 'wallDarkBG': (16, 16, 16), 'wallChar': '#',
+                     'groundBG': colors.dark_sepia, 'groundDarkBG': colors.darkest_sepia,
                      'gravelFG': (50, 37, 0), 'gravelDarkFG': (27, 20, 0), 'gravelChars': [chr(176), chr(177)],
                      'stairsColor': colors.azure, 'stairsDarkColor': colors.darker_azure,
                      'chasm': True, 'chasmColor': (0, 0, 16),
@@ -88,13 +88,13 @@ townMapTemplate = {'wallFG': colors.grey, 'wallDarkFG': colors.darker_grey, 'wal
                      'mines': False, 'mineWallFG': colors.dark_sepia, 'mineWallDarkFG': colors.darkest_sepia, 'mineWallBG': colors.darkest_sepia, 'mineWallDarkBG': (14, 11, 7),
                      'pillars': False, 'pillarChar': 'o', 'pillarColor': colors.grey, 'pillarDarkColor': colors.darker_grey,
                      'holes': False,
-                     'doors': True, 'doorChar': '+', 'doorColor': colors.darker_orange, 'doorDarkColor': colors.darker_orange,
+                     'doors': True, 'doorChar': '+', 'doorColor': colors.darker_flame, 'doorDarkColor': colors.darker_flame,
                      'fixedMap': 'town'}
 
 hiddenTown = Branch(shortName = 'town',name = "Hidden Refuge", maxDepth = 1, branchesFrom = (mainDungeon, 1), mapGeneration = townMapTemplate)
 
-greedMapTemplate = {'wallFG': colors.grey, 'wallDarkFG': colors.darker_grey, 'wallBG': colors.darker_grey, 'wallDarkBG': colors.darkest_grey, 'wallChar': '#',
-                     'groundBG': colors.sepia, 'groundDarkBG': colors.darker_sepia,
+greedMapTemplate = {'wallFG': colors.dark_grey, 'wallDarkFG': colors.darkest_grey, 'wallBG': colors.darker_grey, 'wallDarkBG': (16, 16, 16), 'wallChar': '#',
+                     'groundBG': colors.dark_sepia, 'groundDarkBG': colors.darkest_sepia,
                      'gravelFG': (50, 37, 0), 'gravelDarkFG': (27, 20, 0), 'gravelChars': [chr(176), chr(177)],
                      'stairsColor': colors.yellow, 'stairsDarkColor': colors.darker_yellow,
                      'chasm': False, 'chasmColor': (0, 0, 16),
@@ -102,13 +102,13 @@ greedMapTemplate = {'wallFG': colors.grey, 'wallDarkFG': colors.darker_grey, 'wa
                      'mines': True, 'mineWallFG': colors.dark_sepia, 'mineWallDarkFG': colors.darkest_sepia, 'mineWallBG': colors.darkest_sepia, 'mineWallDarkBG': (14, 11, 7),
                      'pillars': False, 'pillarChar': chr(254), 'pillarColor': colors.darkest_sepia, 'pillarDarkColor': (14, 11, 7),
                      'holes': False,
-                     'doors': False, 'doorChar': '+', 'doorColor': colors.darker_orange, 'doorDarkColor': colors.darker_orange,
+                     'doors': False, 'doorChar': '+', 'doorColor': colors.darker_flame, 'doorDarkColor': colors.darker_flame,
                      'fixedMap': None}
 
 greedDungeon = Branch(shortName = 'greed', name = 'Greed Cavern', maxDepth = 5, branchesFrom= (mainDungeon, 2), monsterChances = {'darksoul': 400, 'ogre': 100, 'snake': 10, 'cultist': 150, 'greedyFiend' : 200}, itemChances = {'potion': 100, 'scroll': 150, 'weapon': 50, 'shield': 50, 'food': 90, 'money' : 300}, mapGeneration = greedMapTemplate)
 
-wrathMapTemplate = {'wallFG': colors.grey, 'wallDarkFG': colors.darker_grey, 'wallBG': colors.darker_grey, 'wallDarkBG': colors.darkest_grey, 'wallChar': '#',
-                     'groundBG': colors.sepia, 'groundDarkBG': colors.darker_sepia,
+wrathMapTemplate = {'wallFG': colors.dark_grey, 'wallDarkFG': colors.darkest_grey, 'wallBG': colors.darker_grey, 'wallDarkBG': (16, 16, 16), 'wallChar': '#',
+                     'groundBG': colors.dark_sepia, 'groundDarkBG': colors.darkest_sepia,
                      'gravelFG': (50, 37, 0), 'gravelDarkFG': (27, 20, 0), 'gravelChars': [chr(176), chr(177)],
                      'stairsColor': colors.dark_red, 'stairsDarkColor': colors.darkest_red,
                      'chasm': True, 'chasmColor': (0, 0, 16),
@@ -116,7 +116,7 @@ wrathMapTemplate = {'wallFG': colors.grey, 'wallDarkFG': colors.darker_grey, 'wa
                      'mines': False, 'mineWallFG': colors.dark_sepia, 'mineWallDarkFG': colors.darkest_sepia, 'mineWallBG': colors.darkest_sepia, 'mineWallDarkBG': (14, 11, 7),
                      'pillars': False, 'pillarChar': 'o', 'pillarColor': colors.grey, 'pillarDarkColor': colors.darker_grey,
                      'holes': True,
-                     'doors': True, 'doorChar': '+', 'doorColor': colors.darker_orange, 'doorDarkColor': colors.darker_orange,
+                     'doors': True, 'doorChar': '+', 'doorColor': colors.darker_flame, 'doorDarkColor': colors.darker_flame,
                      'fixedMap': None}
 
 wrathDungeon = Branch(shortName = "wrath", name = "Wrath Lair", maxDepth = 5, branchesFrom = (mainDungeon, 2), monsterChances = {'darksoul': 400, 'ogre': 400, 'cultist': 200}, itemChances = {'potion': 360, 'scroll': 20, 'weapon': 400, 'shield': 20, 'food': 200}, bossLevels = [5], bossNames = {'Wrath': 5}, mapGeneration = wrathMapTemplate)

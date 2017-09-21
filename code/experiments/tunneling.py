@@ -279,7 +279,7 @@ def makeTunnelMap(messyTunnels = False, returnTunTiles = False):
     myMap = checkDoors(myMap)
     
     if returnTunTiles:
-        return myMap, tunnelTiles, roomTiles
+        return myMap, tunnelTiles, roomTiles, rooms
     return myMap
 
 

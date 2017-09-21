@@ -95,28 +95,77 @@ def generateMap(currentBranch = dBr.mainDungeon):
     chasms, holes, cave, mine, temple = initializeMapGen(currentBranch)
     if not cave and not mine:
         if not temple:
-            myMap, tunnelTiles, roomTiles = tunneling.makeTunnelMap(holes, True)
+            myMap, tunnelTiles, roomTiles, rooms = tunneling.makeTunnelMap(holes, True)
             if holes:
                 myMap = holeGen.createHoles(myMap)
             if chasms:
                 myMap = chasmGen.makeChasmMap(myMap, roomTiles, tunnelTiles)
     else:
-        myMap, roomEdges, tunnelEdges = caveGen.generateCaveLevel(mine)
+        myMap, roomEdges, tunnelEdges, rooms = caveGen.generateCaveLevel(mine)
     
-    return myMap
+    myMap = updateTiles(myMap, currentBranch)
+    
+    return myMap, rooms
 
-def updateTiles(mapToUse):
+def updateTiles(mapToUse, branch):
+    mapDict = branch.mapGeneration
     for x in range(MAP_WIDTH):
         for y in range(MAP_HEIGHT):
             tile = mapToUse[x][y]
-            if tile.blocked:
-                root.draw_char(x, y, '#', colors.grey, colors.darker_grey)
-            elif mapToUse[x][y].chasm:
-                root.draw_char(x, y, None, bg = (16, 16, 16))
-            elif mapToUse[x][y].door:
-                root.draw_char(x, y, '+', colors.darker_orange, colors.sepia)
+            if tile.blocked and not (x, y) in roomEdges and not (x, y) in tunnelEdges:
+                tile.baseCharacter = mapDict['wallChar']
+                tile.baseFg = mapDict['wallFG']
+                tile.baseBg = mapDict['wallBG']
+                tile.baseDark_fg = mapDict['wallDarkFG']
+                tile.baseDark_bg = mapDict['wallDarkBG']
+                tile.wall = True
+                tile.block_sight = True
+            elif tile.blocked and (x, y) in roomEdges:
+                tile.baseCharacter = mapDict['wallChar']
+                tile.baseFg = mapDict['mineWallFG']
+                tile.baseBg = mapDict['mineWallBG']
+                tile.baseDark_fg = mapDict['mineWallDarkFG']
+                tile.baseDark_bg = mapDict['mineWallDarkBG']
+                tile.wall = True
+                tile.block_sight = True
+            elif tile.blocked and (x, y) in tunnelEdges:
+                tile.baseCharacter = mapDict['pillarChar']
+                tile.baseFg = mapDict['pillarColor']
+                tile.baseBg = mapDict['groundBG']
+                tile.baseDark_fg = mapDict['pillarDarkColor']
+                tile.baseDark_bg = mapDict['groundDarkBG']
+                tile.pillar = True
+                tile.block_sight = False
+            elif tile.chasm:
+                tile.baseCharacter = None
+                tile.baseFg = None
+                tile.baseBg = mapDict['chasmColor']
+                tile.baseDark_fg = None
+                tile.baseDark_bg = mapDict['chasmColor']
+                tile.block_sight = False
+                tile.baseBlocked = False
+            elif tile.door:
+                tile.baseCharacter = mapDict['doorChar']
+                tile.baseFg = mapDict['doorColor']
+                tile.baseBg = mapDict['groundBG']
+                tile.baseDark_fg = mapDict['doorDarkColor']
+                tile.baseDark_bg = mapDict['groundDarkBG']
+                tile.baseBlocked = False
+                tile.block_sight = True
             else:
-                root.draw_char(x, y, None, bg = colors.sepia)
+                gravelChoice = randint(0, 20 + len(mapDict['gravelChars']))
+                try:
+                    tile.baseCharacter = mapDict['gravelChars'][gravelChoice]
+                except:
+                    tile.baseCharacter = None
+                tile.baseFg = mapDict['gravelFG']
+                tile.baseBg = mapDict['groundBG']
+                tile.baseDark_fg = mapDict['gravelDarkFG']
+                tile.baseDark_bg = mapDict['groundDarkBG']
+                tile.baseBlocked = False
+                tile.block_sight = False
+    
+    return mapToUse
 
 '''
 def update():
@@ -132,7 +181,10 @@ def update(mapToUse = myMap):
     root.clear()
     for x in range(MAP_WIDTH):
         for y in range(MAP_HEIGHT):
+            tile = mapToUse[x][y]
             try:
+                root.draw_char(x, y, tile.character, tile.fg, tile.bg)
+                '''
                 if myMap[x][y].blocked and not (x, y) in roomEdges and not (x, y) in tunnelEdges:
                     root.draw_char(x, y, '#', colors.grey, colors.darker_grey)
                 elif myMap[x][y].blocked and (x, y) in roomEdges:
@@ -145,6 +197,7 @@ def update(mapToUse = myMap):
                     root.draw_char(x, y, '+', colors.darker_orange, colors.sepia)
                 else:
                     root.draw_char(x, y, None, bg = colors.sepia)
+                '''
             except IndexError:
                 print('___PROBLEM___:', x, y)
     tdl.flush()

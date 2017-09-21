@@ -463,7 +463,7 @@ def generateCaveLevel(mine=False):
         #time.sleep(2)
         generateCaveLevel(mine)
     
-    return myMap, roomEdges, tunnelEdges
+    return myMap, roomEdges, tunnelEdges, roomList
 
 def update():
     root.clear()

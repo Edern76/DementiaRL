@@ -23,9 +23,10 @@ from code.dunbranches import gluttonyDungeon
 from code.custom_except import *
 from music import playWavSound
 from multiprocessing import freeze_support, current_process
-import code.chasmGen as chasmGen
-import code.holeGen as holeGen
+#import code.chasmGen as chasmGen
+#import code.holeGen as holeGen
 from code.classes import Tile
+import code.newFullMapGen as mapGen
 
 from tkinter import *
 from tkinter.messagebox import * #For making obvious freaking error boxes when the console gets too bloated to read anything useful.
@@ -257,12 +258,12 @@ REGEN_THRESHOLD = 4000 #Number of iterations of stairs placing loop before you t
 #_____________ CONSTANTS __________________
 
 myMap = None
-color_dark_wall = dBr.mainDungeon.color_dark_wall
-color_light_wall = dBr.mainDungeon.color_light_wall
-color_dark_ground = dBr.mainDungeon.color_dark_ground
-color_dark_gravel = dBr.mainDungeon.color_dark_gravel
-color_light_ground = dBr.mainDungeon.color_light_ground
-color_light_gravel = dBr.mainDungeon.color_light_gravel
+color_dark_wall = dBr.mainDungeon.mapGeneration['wallDarkFG']
+color_light_wall = dBr.mainDungeon.mapGeneration['wallFG']
+color_dark_ground = dBr.mainDungeon.mapGeneration['groundDarkBG']
+color_dark_gravel = dBr.mainDungeon.mapGeneration['gravelDarkFG']
+color_light_ground = dBr.mainDungeon.mapGeneration['groundBG']
+color_light_gravel = dBr.mainDungeon.mapGeneration['gravelFG']
 maxRooms = dBr.mainDungeon.maxRooms
 roomMinSize = dBr.mainDungeon.roomMinSize
 roomMaxSize = dBr.mainDungeon.roomMaxSize
@@ -8408,12 +8409,12 @@ def generateCave(fall = False):
             formerBranch = currentBranch.origBranch
         else:
             formerBranch = None
-        upStairs = GameObject(pX, pY, '<', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor, Stairs = Stairs(climb='up', branchesFrom=formerBranch, branchesTo=currentBranch))
+        upStairs = GameObject(pX, pY, '<', 'stairs', currentBranch.mapGeneration['stairsColor'], alwaysVisible = True, darkColor = currentBranch.mapGeneration['stairsDarkColor'], Stairs = Stairs(climb='up', branchesFrom=formerBranch, branchesTo=currentBranch))
         objects.append(upStairs)
         upStairs.sendToBack()
         stairsRoom = rooms[randint(1, len(rooms) - 1)]
         (sX, sY) = stairsRoom.tiles[randint(0, len(stairsRoom.tiles) - 1)]
-        stairs = GameObject(sX, sY, '>', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor, Stairs = Stairs(climb='down', branchesFrom=currentBranch, branchesTo=currentBranch))
+        stairs = GameObject(sX, sY, '>', 'stairs', currentBranch.mapGeneration['stairsColor'], alwaysVisible = True, darkColor = currentBranch.mapGeneration['stairsDarkColor'], Stairs = Stairs(climb='down', branchesFrom=currentBranch, branchesTo=currentBranch))
         objects.append(stairs)
         stairs.sendToBack()
         applyIdentification()
@@ -8693,7 +8694,7 @@ def generateCaveLevel(fall = False):
         formerBranch = currentBranch.origBranch
     else:
         formerBranch = None
-    upStairs = GameObject(stairsX, stairsY, '<', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor, Stairs = Stairs(climb='up', branchesFrom=formerBranch, branchesTo=currentBranch))
+    upStairs = GameObject(stairsX, stairsY, '<', 'stairs', currentBranch.mapGeneration['stairsColor'], alwaysVisible = True, darkColor = currentBranch.mapGeneration['stairsDarkColor'], Stairs = Stairs(climb='up', branchesFrom=formerBranch, branchesTo=currentBranch))
     objects.append(upStairs)
     upStairs.sendToBack()
     
@@ -8701,7 +8702,7 @@ def generateCaveLevel(fall = False):
     while myMap[sX][sY].blocked and countNeighbours(myMap, sX, sY, True) > 0:
         sX = randint(1, MAP_WIDTH - 2)
         sY = randint(1, MAP_HEIGHT - 2)
-    stairs = GameObject(sX, sY, '>', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor, Stairs = Stairs(climb='down', branchesFrom=currentBranch, branchesTo=currentBranch))
+    stairs = GameObject(sX, sY, '>', 'stairs', currentBranch.mapGeneration['stairsColor'], alwaysVisible = True, darkColor = currentBranch.mapGeneration['stairsDarkColor'], Stairs = Stairs(climb='down', branchesFrom=currentBranch, branchesTo=currentBranch))
     objects.append(stairs)
     stairs.sendToBack()
     applyIdentification()
@@ -9080,13 +9081,15 @@ def makeMap(generateChasm = True, generateHole = False, fall = False, temple = F
         townStairs = None
         wrathStairs = None
         bossTiles = None
-            
-        color_dark_wall = currentBranch.color_dark_wall
-        color_light_wall = currentBranch.color_light_wall
-        color_dark_ground = currentBranch.color_dark_ground
-        color_dark_gravel = currentBranch.color_dark_gravel
-        color_light_ground = currentBranch.color_light_ground
-        color_light_gravel = currentBranch.color_light_gravel
+        
+        myMap, rooms = mapGen.generateMap(currentBranch)
+        '''    
+        color_dark_wall = dBr.mainDungeon.mapGeneration['wallDarkFG']
+        color_light_wall = dBr.mainDungeon.mapGeneration['wallFG']
+        color_dark_ground = dBr.mainDungeon.mapGeneration['groundDarkBG']
+        color_dark_gravel = dBr.mainDungeon.mapGeneration['gravelDarkFG']
+        color_light_ground = dBr.mainDungeon.mapGeneration['groundBG']
+        color_light_gravel = dBr.mainDungeon.mapGeneration['gravelFG']
         maxRooms = currentBranch.maxRooms
         roomMinSize = currentBranch.roomMinSize
         roomMaxSize = currentBranch.roomMaxSize
@@ -9155,11 +9158,6 @@ def makeMap(generateChasm = True, generateHole = False, fall = False, temple = F
             baseMap = list(deepcopy(myMap))
             for x in range(MAP_WIDTH):
                 for y in range(MAP_HEIGHT):
-                    '''
-                    if countNeighbours(myMap, x, y) == 7:
-                        myMap[x][y].pillar = True
-                        myMap[x][y].baseCharacter = 'O'
-                    '''
                     if 0 <= countNeighbours(myMap, x, y) <= 2 and not myMap[x][y].pillar and not (x == 0 or x == MAP_WIDTH - 1 or y == 0 or y == MAP_HEIGHT - 1):
                         if myMap[x][y].blocked:
                             #baseMap[x][y].baseBg = colors.red
@@ -9188,6 +9186,8 @@ def makeMap(generateChasm = True, generateHole = False, fall = False, temple = F
             myMap = holeGen.createHoles(myMap)
         print("AFTER CHASM")
         checkMap(temple=temple)
+        '''
+        
         print("PREPING IDENTIFIYING")
         applyIdentification()
         print("DONE IDING")
@@ -9248,6 +9248,7 @@ def makeMap(generateChasm = True, generateHole = False, fall = False, temple = F
                     randRoom = randint(0, len(rooms) - 1)
                     room = rooms[randRoom]
                     chasmedRoom = False
+                    '''
                     for x in range(room.x1 + 1, room.x2):
                         for y in range(room.y1 + 1, room.y2):
                             if myMap[x][y].chasm:
@@ -9255,6 +9256,7 @@ def makeMap(generateChasm = True, generateHole = False, fall = False, temple = F
                                 break
                         if chasmedRoom:
                             break
+                    '''
                     (x, y) = room.center()
                     wrongCentre = False
                     if genPlayer:
@@ -9262,8 +9264,9 @@ def makeMap(generateChasm = True, generateHole = False, fall = False, temple = F
                             if object.x == x and object.y == y:
                                 wrongCentre = True
                                 break
-                    if not wrongCentre and not chasmedRoom:
-                        newStairs = GameObject(x, y, '>', 'stairs to ' + branch.name, branch.lightStairsColor, alwaysVisible = True, darkColor = branch.darkStairsColor, Stairs=Stairs('down', currentBranch, branch))
+                    if not wrongCentre and not chasmedRoom and not myMap[x][y].chasm:
+                        newStairs = GameObject(x, y, '>', 'stairs to ' + branch.name, branch.mapGeneration['stairsColor'], alwaysVisible = True, darkColor = branch.mapGeneration['stairsDarkColor'], Stairs=Stairs('down', currentBranch, branch))
+                        player.x, player.y = x, y #TEMPORARY, TO-DO: add smart stairs placement
                         objects.append(newStairs)
                         newStairs.sendToBack()
                         branch.appeared = True
@@ -9457,7 +9460,7 @@ def makeBossLevel(fall = False, generateHole=False, temple = False):
                     player.x = new_x
                     player.y = new_y
                 if dungeonLevel > 1:
-                    upStairs = GameObject(new_x, new_y, '<', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor, Stairs = Stairs(climb='up', branchesFrom=currentBranch, branchesTo=currentBranch))
+                    upStairs = GameObject(new_x, new_y, '<', 'stairs', currentBranch.mapGeneration['stairsColor'], alwaysVisible = True, darkColor = currentBranch.mapGeneration['stairsDarkColor'], Stairs = Stairs(climb='up', branchesFrom=currentBranch, branchesTo=currentBranch))
                     objects.append(upStairs)
                     upStairs.sendToBack()
             else:
@@ -9830,7 +9833,7 @@ def makeHiddenTown(fall = False):
     for attributeList in objectsToCreate:
         object = createNPCFromMapReader(attributeList)
         objects.append(object)
-    upStairs = GameObject(10, 26, '<', 'stairs', currentBranch.lightStairsColor, alwaysVisible = True, darkColor = currentBranch.darkStairsColor, Stairs=Stairs(climb='up', branchesFrom=dBr.mainDungeon, branchesTo=dBr.hiddenTown))
+    upStairs = GameObject(10, 26, '<', 'stairs', currentBranch.mapGeneration['stairsColor'], alwaysVisible = True, darkColor = currentBranch.mapGeneration['stairsDarkColor'], Stairs=Stairs(climb='up', branchesFrom=dBr.mainDungeon, branchesTo=dBr.hiddenTown))
     objects.append(upStairs)
     upStairs.sendToBack()
     
@@ -10439,7 +10442,7 @@ def createDarksoul(x, y, friendly = False, corpse = False):
             lootOnDeath = [darksoulHelmet, money]
             deathType = monsterDeath
             darksoulName = "darksoul"
-            color = colors.dark_grey
+            color = colors.light_grey
             toEquip = [darksoulHelmet]
         else:
             darksoulName = "darksoul skeleton"
@@ -10520,7 +10523,7 @@ def createHiroshiman(x, y):
 def createCultist(x,y):
     if x != player.x or y != player.y:
         robeEquipment = Equipment(slot = 'torso', type = 'light armor', maxHP_Bonus = 5, maxMP_Bonus = 10)
-        robe = GameObject(0, 0, '[', 'cultist robe', colors.desaturated_purple, Equipment = robeEquipment, Item=Item(weight = 1.5, pic = 'cultistRobe.xp'))
+        robe = GameObject(0, 0, '[', 'cultist robe', colors.purple, Equipment = robeEquipment, Item=Item(weight = 1.5, pic = 'cultistRobe.xp'))
         
         knifeEquipment = Equipment(slot = 'one handed', type = 'light weapon', powerBonus = 7, meleeWeapon = True)
         knife = GameObject(0, 0, '-', 'cultist knife', colors.desaturated_azure, Equipment = knifeEquipment, Item=Item(weight = 1.0))
@@ -10531,7 +10534,7 @@ def createCultist(x,y):
         
         fighterComponent = Fighter(hp = 20, armor = 2, power = 6, xp = 30, deathFunction = monsterDeath, accuracy = 18, evasion = 30, lootFunction = [robe, knife, spellbook, money], lootRate = [60, 20, 7, 40])
         AI_component = BasicMonster()
-        monster = GameObject(x, y, char = 'c', color = colors.desaturated_purple, name = 'cultist', blocks = True, Fighter = fighterComponent, AI = AI_component)
+        monster = GameObject(x, y, char = 'c', color = colors.purple, name = 'cultist', blocks = True, Fighter = fighterComponent, AI = AI_component)
         return monster
     else:
         return 'cancelled'
@@ -10539,7 +10542,7 @@ def createCultist(x,y):
 def createHighCultist(x, y):
     if x != player.x or y != player.y:
         robeEquipment = Equipment(slot = 'torso', type = 'light armor', maxHP_Bonus = 5, maxMP_Bonus = 25)
-        robe = GameObject(0, 0, '[', 'high cultist robe', colors.desaturated_purple, Equipment = robeEquipment, Item=Item(weight = 1.5, pic = 'cultistRobe.xp'))
+        robe = GameObject(0, 0, '[', 'high cultist robe', colors.purple, Equipment = robeEquipment, Item=Item(weight = 1.5, pic = 'cultistRobe.xp'))
         
         flailEquipment = Equipment(slot = 'one handed', type = 'heavy weapon', powerBonus = 13, meleeWeapon = True)
         flail = GameObject(0, 0, '/', 'bloodsteel flail', colors.red, Equipment=flailEquipment, Item=Item(weight=5.5, pic = 'bloodsteelFlail.xp', description = "A heavy flail wielded by the high cultists and made of a heavy, blood-red metal."))
@@ -10612,11 +10615,11 @@ def placeObjects(room, first = False):
     for i in range(numMonsters):
         monCount += 1
         print("{}th ITERATION OF MONSTER LOOP WTF IS THIS FREEZING WHY DID REMOVING CHASMS MAKE THIS BREAK".format(monCount))
-        if type(room) is Rectangle:
+        try:
             print("THIS IS A RECTANGE")
             x = randint(room.x1+1, room.x2-1)
             y = randint(room.y1+1, room.y2-1)
-        else:
+        except:
             (x,y) = room[randint(0, len(room) - 1)]
             print("THIS IS A CAVE")
         print("X : {} | Y : {}".format(x,y))
@@ -10699,11 +10702,11 @@ def placeObjects(room, first = False):
     for i in range(num_items):
         itemCount += 1
         print("{}th ITERATION OF ITEM LOOP".format(itemCount))
-        if type(room) is Rectangle:
+        try:
             x = randint(room.x1+1, room.x2-1)
             y = randint(room.y1+1, room.y2-1)
             print("ITEM ROOM IS RECTANGLE")
-        else:
+        except:
             (x,y) = room[randint(0, len(room) - 1)]
             print("ITEM ROOM IS CAVE")
         item = None
@@ -10910,7 +10913,7 @@ def turnIntoNemesis():
     nemesis = None
     if lastHitter == 'darksoul':
         fightComp = Fighter(hp=60, armor=1, power=7, accuracy=50, evasion=15, xp=70, deathFunction=monsterDeath, armorPenetration=3, lootFunction=[], lootRate=[])
-        objComp = GameObject(0, 0, 'P', nameGen.nemesisName(race = player.Player.race, classe = player.Player.classes), color = colors.dark_gray, blocks=True, Fighter=fightComp, AI = BasicMonster())
+        objComp = GameObject(0, 0, 'P', nameGen.nemesisName(race = player.Player.race, classe = player.Player.classes), color = colors.light_gray, blocks=True, Fighter=fightComp, AI = BasicMonster())
         for equipment in equipmentList:
             if randint(1, 100) <= 60 and not equipment.Equipment.ranged:
                 equipment.Equipment.equip(objComp.Fighter)
@@ -10922,7 +10925,7 @@ def turnIntoNemesis():
     if lastHitter == 'cultist':
         '''
         robeEquipment = Equipment(slot = 'torso', type = 'light armor', maxHP_Bonus = 5, maxMP_Bonus = 25)
-        robe = GameObject(0, 0, '[', 'high cultist robe', colors.desaturated_purple, Equipment = robeEquipment, Item=Item(weight = 1.5, pic = 'cultistRobe.xp'))
+        robe = GameObject(0, 0, '[', 'high cultist robe', colors.purple, Equipment = robeEquipment, Item=Item(weight = 1.5, pic = 'cultistRobe.xp'))
         
         flailEquipment = Equipment(slot = 'one handed', type = 'heavy weapon', powerBonus = 13, meleeWeapon = True)
         flail = GameObject(0, 0, '/', 'bloodsteel flail', colors.red, Equipment=flailEquipment, Item=Item(weight=5.5, pic = 'bloodsteelFlail.xp', description = "A heavy flail wielded by the high cultists and made of a heavy, blood-red metal."))
@@ -13306,13 +13309,6 @@ def nextLevel(boss = False, changeBranch = None, fall = False, fromStairs = None
         chasmGeneration = False
         holeGeneration = False
         temple = False
-        for feature in currentBranch.genFeatures:
-            if feature == 'chasms':
-                chasmGeneration = True
-            if feature == 'holes':
-                holeGeneration = True
-            if feature == 'temple':
-                temple = True
         if not boss:
             if currentBranch.fixedMap is None:
                 if currentBranch.genType == 'dungeon':
