@@ -8,6 +8,7 @@ import code.experiments.newCave as caveGen
 import code.experiments.tunneling as tunneling
 import code.chasmGen as chasmGen
 import code.holeGen as holeGen
+from copy import deepcopy
 
 
 '''
@@ -92,16 +93,35 @@ def initializeMapGen(currentBranch):
 
 def generateMap(currentBranch = dBr.mainDungeon):
     global roomEdges, tunnelEdges
-    chasms, holes, cave, mine, temple = initializeMapGen(currentBranch)
+    chasms, holes, cave, mine, pillars = initializeMapGen(currentBranch)
     if not cave and not mine:
-        if not temple:
-            myMap, tunnelTiles, roomTiles, rooms = tunneling.makeTunnelMap(holes, True)
-            if holes:
-                myMap = holeGen.createHoles(myMap)
-            if chasms:
-                myMap = chasmGen.makeChasmMap(myMap, roomTiles, tunnelTiles)
+        myMap, tunnelTiles, roomTiles, rooms = tunneling.makeTunnelMap(holes, True)
+        if holes:
+            myMap = holeGen.createHoles(myMap)
+        if chasms:
+            myMap = chasmGen.makeChasmMap(myMap, roomTiles, tunnelTiles)
     else:
         myMap, roomEdges, tunnelEdges, rooms = caveGen.generateCaveLevel(mine)
+    
+    if pillars:
+        #baseMap = list(deepcopy(myMap))
+        for x in range(1, MAP_WIDTH-1):
+            for y in range(1, MAP_HEIGHT-1):
+                if myMap[x][y].blocked and myMap[x][y].neighbours(myMap, True) == 3:
+                    myMap[x][y].pillar = True
+        
+        for room in rooms:
+            centerPillar = randint(0, 2)
+            offsetW = ((room.x2 - room.x1) - 4) // 2
+            offsetH = ((room.y2 - room.y1) - 4) // 2
+            if centerPillar != 0:
+                myMap[room.x1 + offsetW][room.y1 + offsetH].pillar = True
+                myMap[room.x1 + offsetW][room.y2 - offsetH].pillar = True
+                myMap[room.x2 - offsetW][room.y1 + offsetH].pillar = True
+                myMap[room.x2 - offsetW][room.y2 - offsetH].pillar = True
+            else:
+                x, y = room.center()
+                myMap[x][y].pillar = True
     
     myMap = updateTiles(myMap, currentBranch)
     
@@ -112,7 +132,15 @@ def updateTiles(mapToUse, branch):
     for x in range(MAP_WIDTH):
         for y in range(MAP_HEIGHT):
             tile = mapToUse[x][y]
-            if tile.blocked and not (x, y) in roomEdges and not (x, y) in tunnelEdges:
+            if tile.pillar and not tile.chasm:
+                tile.baseCharacter = mapDict['pillarChar']
+                tile.baseFg = mapDict['pillarColor']
+                tile.baseBg = mapDict['groundBG']
+                tile.baseDark_fg = mapDict['pillarDarkColor']
+                tile.baseDark_bg = mapDict['groundDarkBG']
+                tile.pillar = True
+                tile.block_sight = True
+            elif tile.blocked and not (x, y) in roomEdges and not (x, y) in tunnelEdges:
                 tile.baseCharacter = mapDict['wallChar']
                 tile.baseFg = mapDict['wallFG']
                 tile.baseBg = mapDict['wallBG']
@@ -182,6 +210,7 @@ def update(mapToUse = myMap):
     for x in range(MAP_WIDTH):
         for y in range(MAP_HEIGHT):
             tile = mapToUse[x][y]
+            print(x, y, type(tile), tile)
             try:
                 root.draw_char(x, y, tile.character, tile.fg, tile.bg)
                 '''

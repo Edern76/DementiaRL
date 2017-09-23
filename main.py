@@ -27,6 +27,7 @@ from multiprocessing import freeze_support, current_process
 #import code.holeGen as holeGen
 from code.classes import Tile
 import code.newFullMapGen as mapGen
+import code.itemGen as itemGen
 
 from tkinter import *
 from tkinter.messagebox import * #For making obvious freaking error boxes when the console gets too bloated to read anything useful.
@@ -129,7 +130,7 @@ MID_WIDTH, MID_HEIGHT = int(WIDTH/2), int(HEIGHT/2)
 # - GUI Constants -
 BAR_WIDTH = 20 #Default : 20
 
-PANEL_HEIGHT = 19 #Default : 10
+PANEL_HEIGHT = HEIGHT - MAP_HEIGHT - 1 #Default : 10
 PANEL_WIDTH = MAP_WIDTH #default: WIDTH
 CON_HEIGHT = HEIGHT - PANEL_HEIGHT
 MID_CON_HEIGHT = int(CON_HEIGHT // 2)
@@ -7350,7 +7351,9 @@ def castCreateWeapon():
         return 'cancelled'
     else:
         (x,y) = target
-        weapon = createWeapon(x=x, y=y)
+        #weapon = createWeapon(x=x, y=y)
+        weapon = convertItemTemplate(itemGen.generateMeleeWeapon())
+        weapon.x, weapon.y = x, y
         if weapon is not None:
             objects.append(weapon)
 
@@ -10157,6 +10160,23 @@ scrollIdentify = {}
 colorDict = {'blue': (colors.blue, 'smokybluepotion.xp', 'The blueish smokes emanating from this potion is not very reassuring about what effects it could bring.'), 'red': (colors.red, 'redpotion.xp', 'A slighly bubbling red beverage.'), 'violet': (colors.violet, 'violetpotion.xp', 'A slighly bubbling violet beverage.')}
 nameDict = ['Ewaz', 'Vuzin', 'Armuz', 'Gowid', 'Ansuz', 'Juman', 'Ji', 'Morwen']
 
+def convertItemTemplate(template):
+    if template.Equipment:
+        eq = template.Equipment
+        equipmentComp = Equipment(eq.slot, eq.type, eq.powerBonus.value, eq.armorBonus.value, eq.maxHP_Bonus.value, eq.accuracyBonus.value,
+                                  eq.evasionBonus.value, eq.criticalBonus.value, eq.maxMP_Bonus.value, eq.strengthBonus.value,
+                                  eq.dexterityBonus.value, eq.vitalityBonus.value, eq.willpowerBonus.value, eq.ranged, eq.rangedPower.value,
+                                  eq.maxRange.value, eq.ammo, eq.meleeWeapon, eq.armorPenetrationBonus.value, eq.slow, eq.enchant,
+                                  eq.staminaBonus.value, eq.stealthBonus.value)
+    if template.Item:
+        it = template.Item
+        
+        useFunc = None
+        
+        itemComp = Item(useFunc, it.arg1, it.arg2, it.arg3, it.stackable, it.amount, it.weight, it.description, it.pic, it.itemType, it.useText)
+    
+    return GameObject(0, 0, template.char, template.name, template.color, Item = itemComp, Equipment = equipmentComp, pName = template.pName)
+
 def createSword(x, y):
     name = 'sword'
     pic = 'shortSword.xp'
@@ -10723,8 +10743,12 @@ def placeObjects(room, first = False):
                 item = None
                 print("NO")
             elif itemChoice == 'weapon':
-                item = createWeapon(x, y)
+                #item = createWeapon(x, y)
+                item = convertItemTemplate(itemGen.generateMeleeWeapon())
                 print("WEP")
+            elif itemChoice == 'armor':
+                item = convertItemTemplate(itemGen.generateArmor())
+                print("ARM")
             elif itemChoice == 'money':
                 item = GameObject(x, y, char = '$', name = 'gold piece', color = colors.gold, Item=Money(randint(15, 30)), blocks = False, pName = 'gold pieces')
                 print("MON")
@@ -10799,6 +10823,7 @@ def placeObjects(room, first = False):
                 
             if item is not None:
                 print("ITEM NOT NONE") 
+                item.x, item.y = x, y
                 objects.append(item)
                 item.sendToBack()
             
