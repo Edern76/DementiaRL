@@ -9084,8 +9084,15 @@ def makeMap(generateChasm = True, generateHole = False, fall = False, temple = F
         townStairs = None
         wrathStairs = None
         bossTiles = None
+        rooms = []
+        roomTiles = []
+        tunnelTiles = []
+        unchasmable = []
+        noCheckTiles = []
+        numberRooms = 0
+        objects = [player]
         
-        myMap, rooms = mapGen.generateMap(currentBranch)
+        myMap, rooms, roomsForStairs = mapGen.generateMap(currentBranch, dungeonLevel)
         '''    
         color_dark_wall = dBr.mainDungeon.mapGeneration['wallDarkFG']
         color_light_wall = dBr.mainDungeon.mapGeneration['wallFG']
@@ -9231,6 +9238,35 @@ def makeMap(generateChasm = True, generateHole = False, fall = False, temple = F
                 print('created nemesis', nemesisMonster.name, x, y)
         
         print("DONE NEMESIS")
+        
+        branches = []
+        stairsRooms = []
+        placedPlayer = False
+        for room, branch, way in roomsForStairs:
+            x, y = room.center()
+            if way == 'down':
+                char = '>'
+                text = 'stairs to '
+            else:
+                player.x, player.y = x, y #TEMPORARY, TO-DO: add smart stairs placement
+                placedPlayer = True
+                char = '<'
+                text = 'stairs from '
+            newStairs = GameObject(x, y, char, text + branch.name, branch.mapGeneration['stairsColor'], alwaysVisible = True, darkColor = branch.mapGeneration['stairsDarkColor'], Stairs=Stairs(way, currentBranch, branch))
+            objects.append(newStairs)
+            newStairs.sendToBack()
+            branch.appeared = True
+            branches.append(branch)
+            stairsRooms.append(room)
+        
+        while not placedPlayer:
+            randRoom = rooms[randint(0, len(rooms)-1)]
+            if not randRoom in stairsRooms:
+                x, y = randRoom.center()
+                if not myMap[x][y].blocked and not myMap[x][y].chasm:
+                    player.x, player.y = x, y
+                    placedPlayer = True
+        '''
         branches = []
         for (branch, level) in currentBranch.branchesTo:
             print("IN BRANCH LEVEL LOOP")
@@ -9252,14 +9288,14 @@ def makeMap(generateChasm = True, generateHole = False, fall = False, temple = F
                     room = rooms[randRoom]
                     chasmedRoom = False
                     '''
-                    for x in range(room.x1 + 1, room.x2):
-                        for y in range(room.y1 + 1, room.y2):
-                            if myMap[x][y].chasm:
-                                chasmedRoom = True
-                                break
-                        if chasmedRoom:
-                            break
-                    '''
+                    #for x in range(room.x1 + 1, room.x2):
+                    #    for y in range(room.y1 + 1, room.y2):
+                    #        if myMap[x][y].chasm:
+                    #            chasmedRoom = True
+                    #            break
+                    #    if chasmedRoom:
+                    #        break
+        '''
                     (x, y) = room.center()
                     wrongCentre = False
                     if genPlayer:
@@ -9275,8 +9311,8 @@ def makeMap(generateChasm = True, generateHole = False, fall = False, temple = F
                         branch.appeared = True
                         createdStairs = True
                         print('created {} stairs at {}, {}'.format(branch.shortName, str(x), str(y)))
-                
-            '''
+        '''        
+        '''
             if branch == dBr.gluttonyDungeon:
                 if dungeonLevel == level and not bossDungeonsAppeared['gluttony']:
                     createdStairs = False
@@ -13335,11 +13371,11 @@ def nextLevel(boss = False, changeBranch = None, fall = False, fromStairs = None
         holeGeneration = False
         temple = False
         if not boss:
-            if currentBranch.fixedMap is None:
-                if currentBranch.genType == 'dungeon':
-                    makeMap(generateChasm=chasmGeneration, generateHole=holeGeneration, fall = fall, temple=temple)
-                elif currentBranch.genType == 'cave':
-                    generateCaveLevel(fall = fall)
+            if currentBranch.mapGeneration['fixedMap'] is None:
+                #if currentBranch.genType == 'dungeon':
+                makeMap(generateChasm=chasmGeneration, generateHole=holeGeneration, fall = fall, temple=temple)
+                #elif currentBranch.genType == 'cave':
+                #    generateCaveLevel(fall = fall)
             elif currentBranch.fixedMap == 'town':
                 makeHiddenTown(fall = fall)
             else:

@@ -91,7 +91,7 @@ def initializeMapGen(currentBranch):
     
     return chasms, holes, cave, mine, temple
 
-def generateMap(currentBranch = dBr.mainDungeon):
+def generateMap(currentBranch = dBr.mainDungeon, level = 2):
     global roomEdges, tunnelEdges
     chasms, holes, cave, mine, pillars = initializeMapGen(currentBranch)
     if not cave and not mine:
@@ -125,7 +125,11 @@ def generateMap(currentBranch = dBr.mainDungeon):
     
     myMap = updateTiles(myMap, currentBranch)
     
-    return myMap, rooms
+    roomsForStairs = checkStairsRooms(myMap, currentBranch, level, rooms)
+    if roomsForStairs == 'abort':
+        myMap, rooms, roomsForStairs = generateMap(currentBranch, level)
+    
+    return myMap, rooms, roomsForStairs
 
 def updateTiles(mapToUse, branch):
     mapDict = branch.mapGeneration
@@ -230,6 +234,40 @@ def update(mapToUse = myMap):
             except IndexError:
                 print('___PROBLEM___:', x, y)
     tdl.flush()
+    
+def checkStairsRooms(mapToUse, currentBranch, currentLevel, rooms):
+    branchesToAdd = []
+    for branch, level in currentBranch.branchesTo:
+        if level == currentLevel:
+            branchesToAdd.append((branch, 'down'))
+    if currentBranch != dBr.mainDungeon or currentLevel > 1:
+        if currentBranch.origBranch:
+            branchesToAdd.append((currentBranch.origBranch, 'up'))
+        else:
+            branchesToAdd.append((currentBranch, 'up'))
+    if currentLevel < currentBranch.maxDepth:
+        branchesToAdd.append((currentBranch, 'down'))
+    
+    chosenRooms = []
+    l = 0
+    while len(chosenRooms) < len(branchesToAdd) and l < 300:
+        curRoom = rooms[randint(0, len(rooms)-1)]
+        if not curRoom in chosenRooms:
+            centerX, centerY = curRoom.center()
+            if not mapToUse[centerX][centerY].blocked and not mapToUse[centerX][centerY].chasm and not mapToUse[centerX][centerY].pillar:
+                chosenRooms.append(curRoom)
+        l += 1
+    
+    roomsForStairs = []
+    while chosenRooms and branchesToAdd:
+        randRoom = chosenRooms.pop(randint(0, len(chosenRooms)-1))
+        randBranch, way = branchesToAdd.pop(randint(0, len(branchesToAdd)-1))
+        roomsForStairs.append((randRoom, randBranch, way))
+    
+    if l >= 300:
+        return 'abort'
+    else:
+        return roomsForStairs
 
 if __name__ == '__main__':
     myMap = generateMap(dBr.mainDungeon)

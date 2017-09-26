@@ -55,7 +55,7 @@ rare = Rarity('rare', colors.blue)
 epic = Rarity('epic', colors.violet)
 legendary = Rarity('legendary', colors.orange)
 
-rarity = {junk: 15, common: 50, uncommon: 15, rare: 10, epic: 7, legendary: 1003}
+rarity = {junk: 15, common: 50, uncommon: 15, rare: 10, epic: 7, legendary: 3}
 raritySmallAdd = {'junk': -2, 'common': 0, 'uncommon': 2, 'rare': 3, 'epic': 5, 'legendary': 8}
 rarityBigAdd = {'junk': -10, 'common': 0, 'uncommon': 10, 'rare': 15, 'epic': 20, 'legendary': 30}
 
