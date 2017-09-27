@@ -480,7 +480,7 @@ def update():
     tdl.flush()
 
 if __name__ == '__main__':
-    myMap, roomEdges, tunnelEdges = generateCaveLevel(True)
+    myMap, roomEdges, tunnelEdges, roomList = generateCaveLevel(True)
     while not tdl.event.is_window_closed():
         update()
 

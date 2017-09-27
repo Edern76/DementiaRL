@@ -49,13 +49,30 @@ class Rarity:
 
 
 junk = Rarity('junk', colors.copper)
-common = Rarity('common', colors.silver)
-uncommon = Rarity('uncommon', colors.gold)
-rare = Rarity('rare', colors.blue)
-epic = Rarity('epic', colors.violet)
-legendary = Rarity('legendary', colors.orange)
+common = Rarity('common', colors.brass)
+uncommon = Rarity('uncommon', colors.silver)
+rare = Rarity('rare', colors.gold)
+epic = Rarity('epic', colors.blue)
+legendary = Rarity('legendary', colors.violet)
 
 rarity = {junk: 15, common: 50, uncommon: 15, rare: 10, epic: 7, legendary: 3}
+
+def updateRarityChances(level):
+    global rarity
+    print('level', level, end = ', ')
+    rarity[common] = round(1 + 147/sqrt(level+8))
+    print(common, rarity[common], end = ', ')
+    rarity[uncommon] = round(41/3 + 4/3 * sqrt(level))
+    print(uncommon, rarity[uncommon], end = ', ')
+    rarity[rare] = round(37/5 + 13/5 * sqrt(level))
+    print(rare, rarity[rare], end = ', ')
+    rarity[epic] = round(24/5 + 11/5 * sqrt(level))
+    print(epic, rarity[epic], end = ', ')
+    rarity[legendary] = round(1 + 2 * sqrt(level))
+    print(legendary, rarity[legendary], end = ', ')
+    rarity[junk] = 100 - (rarity[common] + rarity[uncommon] + rarity[rare] + rarity[epic] + rarity[legendary])
+    print(junk, rarity[junk])
+
 raritySmallAdd = {'junk': -2, 'common': 0, 'uncommon': 2, 'rare': 3, 'epic': 5, 'legendary': 8}
 rarityBigAdd = {'junk': -10, 'common': 0, 'uncommon': 10, 'rare': 15, 'epic': 20, 'legendary': 30}
 
@@ -233,8 +250,8 @@ rangedWeaponTypes = ['bow', 'crossbow', 'throwing axe', 'throwing knife', 'pisto
 
 ### armors ###
 armorTypes = ['cloth', 'leather', 'chainmail', 'scale', 'plate']
-armorSlots = ['head', 'legs', 'chest', 'feet', 'hands', 'back']
-possibleTypes = {'head': armorTypes, 'legs': armorTypes, 'chest': armorTypes, 'feet': armorTypes, 'hands': armorTypes, 'back': ['leather', 'cloth']}
+armorSlots = ['head', 'legs', 'torso', 'feet', 'hands', 'back']
+possibleTypes = {'head': armorTypes, 'legs': armorTypes, 'torso': armorTypes, 'feet': armorTypes, 'hands': armorTypes, 'back': ['leather', 'cloth']}
 
 armorTypeProb = {'junk': {'cloth': 80, 'leather': 20},
                  'common': {'cloth': 70, 'leather': 25, 'chainmail': 5},
@@ -246,7 +263,7 @@ armorTypeProb = {'junk': {'cloth': 80, 'leather': 20},
 
 armorNames = {'head': {'cloth': 'hood', 'leather': 'hood', 'chainmail': 'coif', 'scale': 'aventail', 'plate': 'great helm'},
               'legs': {'cloth': 'pants', 'leather': 'pants', 'chainmail': 'chausses', 'scale': 'chausses', 'plate': 'greaves'},
-              'chest': {'cloth': 'shirt', 'leather': 'tunique', 'chainmail': 'hauberk', 'scale': 'hauberk', 'plate': 'breastplate'},
+              'torso': {'cloth': 'shirt', 'leather': 'tunique', 'chainmail': 'hauberk', 'scale': 'hauberk', 'plate': 'breastplate'},
               'feet': {'cloth': 'shoes', 'leather': 'boots', 'chainmail': 'boots', 'scale': 'sabatons', 'plate': 'sabatons'},
               'hands': {'cloth': 'gloves', 'leather': 'gloves', 'chainmail': 'mittens', 'scale': 'gauntlets', 'plate': 'gauntlets'},
               'back': {'cloth': 'cloak', 'leather': 'cape'},
@@ -254,33 +271,33 @@ armorNames = {'head': {'cloth': 'hood', 'leather': 'hood', 'chainmail': 'coif', 
 
 armorAttributes = {'cloth': {'head': {'pic': 'hood.xp', 'ev': 5, 'stealth': 5, 'weight': 0.1}, #TO-DO add pics
                              'legs': {'ev': 10, 'stealth': 10, 'weight': 0.3}, 
-                             'chest': {'ev': 15, 'stealth': 10, 'weight': 0.5},
+                             'torso': {'ev': 15, 'stealth': 10, 'weight': 0.5},
                              'feet': {'stealth': 5, 'weight': 0.2},
                              'hands': {'stealth': 5, 'dex': 5, 'weight': 0.1},
                              'back': {'stealth': 20, 'ev': 10, 'weight': 0.6}
                              },
                    'leather': {'head': {'pic': 'leatherHood.xp', 'arm': 1, 'stealth': 3, 'weight': 0.5},
                              'legs': {'arm': 3, 'weight': 1.2},
-                             'chest': {'arm': 5, 'weight': 1.5},
+                             'torso': {'arm': 5, 'weight': 1.5},
                              'feet': {'arm': 2, 'weight': 0.9},
                              'hands': {'dex': 4, 'weight': 0.1},
                              'back': {'arm': 3, 'stealth': 7, 'weight': 1.0}
                              },
                    'chainmail': {'head': {'pic': 'coif.xp', 'arm': 5, 'dex': -2, 'weight': 1.2},
                                  'legs': {'arm': 7, 'ev': -7, 'weight': 1.9},
-                                 'chest': {'arm': 10, 'ev': -10, 'weight': 2.4},
+                                 'torso': {'arm': 10, 'ev': -10, 'weight': 2.4},
                                  'feet': {'arm': 3, 'ev': -5, 'weight': 1.3},
                                  'hands': {'arm': 3, 'dex': 3, 'weight': 1.0}
                                  },
                    'scale': {'head': {'pic': 'aventail.xp', 'arm': 8, 'dex': -4, 'weight': 2.1},
                              'legs': {'arm': 10, 'ev': -10, 'weight': 2.7},
-                             'chest': {'arm': 13, 'ev': -15, 'weight': 3.4},
+                             'torso': {'arm': 13, 'ev': -15, 'weight': 3.4},
                              'feet': {'arm': 7, 'ev': -7, 'weight': 2.4},
                              'hands': {'arm': 5, 'dex': 2, 'weight': 1.9}
                              },
                    'plate': {'head': {'pic': 'greatHelm.xp', 'arm': 12, 'dex': -6, 'weight': 3.5},
                              'legs': {'arm': 14, 'ev': -15, 'weight': 4.1},
-                             'chest': {'arm': 17, 'ev': -25, 'weight': 5.4},
+                             'torso': {'arm': 17, 'ev': -25, 'weight': 5.4},
                              'feet': {'arm': 11, 'ev': -10, 'weight': 3.0},
                              'hands': {'arm': 9, 'dex': 2, 'weight': 2.1}
                              }
@@ -298,7 +315,7 @@ armorAdj = {'cloth': {'head': {'junk': {'regular': 50, 'tattered': 50},
                                'rare': {'regular': 50, 'tattered': 2, 'dark': 16, 'lightweight': 16, 'hardened': 16}, 
                                'epic': {'dark': 14, 'lightweight': 15, 'hardened': 14, 'ethereal': 14, 'ignited': 14, 'frozen': 14, 'shadow': 15},
                                'legendary': {'dark': 11, 'lightweight': 11, 'hardened': 11, 'ethereal': 11, 'ignited': 11, 'frozen': 11, 'shadow': 12, 'nimble': 11, 'healthful': 11}},
-                        'chest': {'junk': {'regular': 50, 'tattered': 50},
+                        'torso': {'junk': {'regular': 50, 'tattered': 50},
                                'common': {'regular': 80, 'tattered': 10, 'dark': 5, 'lightweight': 5},
                                'uncommon': {'regular': 71, 'tattered': 5, 'dark': 12, 'lightweight': 12},
                                'rare': {'regular': 50, 'tattered': 2, 'dark': 16, 'lightweight': 16, 'hardened': 16}, 
@@ -335,7 +352,7 @@ armorAdj = {'cloth': {'head': {'junk': {'regular': 50, 'tattered': 50},
                                'rare': {'regular': 50, 'tattered': 2, 'boiled': 16, 'lightweight': 16, 'lamellar': 16}, 
                                'epic': {'boiled': 14, 'lightweight': 15, 'lamellar': 14, 'ethereal': 14, 'ignited': 14, 'frozen': 14, 'shadow': 15},
                                'legendary': {'boiled': 11, 'lightweight': 11, 'lamellar': 11, 'ethereal': 11, 'ignited': 11, 'frozen': 11, 'shadow': 12, 'nimble': 11, 'healthful': 11}},
-                        'chest': {'junk': {'regular': 50, 'tattered': 50},
+                        'torso': {'junk': {'regular': 50, 'tattered': 50},
                                'common': {'regular': 80, 'tattered': 10, 'boiled': 5, 'lightweight': 5},
                                'uncommon': {'regular': 71, 'tattered': 5, 'boiled': 12, 'lightweight': 12},
                                'rare': {'regular': 50, 'tattered': 2, 'boiled': 16, 'lightweight': 16, 'lamellar': 16}, 
@@ -372,7 +389,7 @@ armorAdj = {'cloth': {'head': {'junk': {'regular': 50, 'tattered': 50},
                                'rare': {'regular': 50, 'rusted': 2, 'riveted': 16, 'lightweight': 16, 'padded': 16}, 
                                'epic': {'riveted': 14, 'lightweight': 15, 'padded': 14, 'ethereal': 14, 'ignited': 14, 'frozen': 14, 'telluric': 15},
                                'legendary': {'riveted': 13, 'lightweight': 12, 'padded': 13, 'ethereal': 12, 'ignited': 12, 'frozen': 13, 'telluric': 13, 'healthful': 12}},
-                        'chest': {'junk': {'regular': 50, 'rusted': 50},
+                        'torso': {'junk': {'regular': 50, 'rusted': 50},
                                'common': {'regular': 80, 'rusted': 10, 'riveted': 5, 'lightweight': 5},
                                'uncommon': {'regular': 71, 'rusted': 5, 'riveted': 12, 'lightweight': 12},
                                'rare': {'regular': 50, 'rusted': 2, 'riveted': 16, 'lightweight': 16, 'padded': 16}, 
@@ -403,7 +420,7 @@ armorAdj = {'cloth': {'head': {'junk': {'regular': 50, 'tattered': 50},
                                'rare': {'regular': 50, 'rusted': 2, 'lamellar': 16, 'padded': 16, 'reinforced': 16}, 
                                'epic': {'lamellar': 14, 'padded': 15, 'reinforced': 14, 'ethereal': 14, 'ignited': 14, 'frozen': 14, 'telluric': 15},
                                'legendary': {'lamellar': 13, 'padded': 12, 'reinforced': 13, 'ethereal': 12, 'ignited': 12, 'frozen': 13, 'telluric': 13, 'healthful': 12}},
-                      'chest': {'junk': {'regular': 50, 'rusted': 50},
+                      'torso': {'junk': {'regular': 50, 'rusted': 50},
                                'common': {'regular': 80, 'rusted': 10, 'lamellar': 5, 'padded': 5},
                                'uncommon': {'regular': 71, 'rusted': 5, 'lamellar': 12, 'padded': 12},
                                'rare': {'regular': 50, 'rusted': 2, 'lamellar': 16, 'padded': 16, 'reinforced': 16}, 
@@ -434,7 +451,7 @@ armorAdj = {'cloth': {'head': {'junk': {'regular': 50, 'tattered': 50},
                                'rare': {'regular': 50, 'rusted': 2, 'bulky': 16, 'padded': 16, 'reinforced': 16}, 
                                'epic': {'bulky': 14, 'padded': 15, 'reinforced': 14, 'barbed': 14, 'ignited': 14, 'frozen': 14, 'telluric': 15},
                                'legendary': {'bulky': 13, 'padded': 12, 'reinforced': 13, 'barbed': 12, 'ignited': 12, 'frozen': 13, 'telluric': 13, 'healthful': 12}},
-                      'chest': {'junk': {'regular': 50, 'rusted': 50},
+                      'torso': {'junk': {'regular': 50, 'rusted': 50},
                                'common': {'regular': 80, 'rusted': 10, 'bulky': 5, 'padded': 5},
                                'uncommon': {'regular': 71, 'rusted': 5, 'bulky': 12, 'padded': 12},
                                'rare': {'regular': 50, 'rusted': 2, 'bulky': 16, 'padded': 16, 'reinforced': 16}, 
@@ -666,7 +683,8 @@ def randomChoice(chancesDictionnary):
     return strings[randomChoiceIndex(chances)]
 
 
-def generateMeleeWeapon(weaponType = None):
+def generateMeleeWeapon(level, weaponType = None):
+    updateRarityChances(level)
     if weaponType is None:
         weaponType = randItemFrom(weaponTypes)
     
@@ -782,7 +800,8 @@ def generateMeleeWeapon(weaponType = None):
     weaponObject = GameObjectTemplate(char, addToName + weapon + endName, weaponRarity.color, Item = weaponItem, Equipment = weaponEquipment)
     return weaponObject
 
-def generateArmor(armorType = None, slot = None):
+def generateArmor(level, armorType = None, slot = None):
+    updateRarityChances(level)
     armorRarity = randomChoice(rarity)
     stringRarity = str(armorRarity)
     
@@ -879,8 +898,9 @@ def generateArmor(armorType = None, slot = None):
     return weaponObject
 
 if __name__ == '__main__':
-    for loop in range(10):
-        print(generateArmor())
+    level = 1
+    for i in range(10):
+        print(generateArmor(level + i * 2))
         print()
 
 

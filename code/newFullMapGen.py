@@ -214,7 +214,6 @@ def update(mapToUse = myMap):
     for x in range(MAP_WIDTH):
         for y in range(MAP_HEIGHT):
             tile = mapToUse[x][y]
-            print(x, y, type(tile), tile)
             try:
                 root.draw_char(x, y, tile.character, tile.fg, tile.bg)
                 '''
@@ -270,7 +269,7 @@ def checkStairsRooms(mapToUse, currentBranch, currentLevel, rooms):
         return roomsForStairs
 
 if __name__ == '__main__':
-    myMap = generateMap(dBr.mainDungeon)
+    myMap, rooms, roomsForStairs = generateMap(dBr.greedDungeon)
     while not tdl.event.is_window_closed():
         update(myMap)
     

@@ -2,8 +2,8 @@ import colors
 
 branches = []
 
-branchMapTemplate = {'wallFG': colors.dark_grey, 'wallDarkFG': colors.darkest_grey, 'wallBG': colors.darker_grey, 'wallDarkBG': (16, 16, 16), 'wallChar': '#',
-                     'groundBG': colors.dark_sepia, 'groundDarkBG': colors.darkest_sepia,
+branchMapTemplate = {'wallFG': colors.grey, 'wallDarkFG': colors.darker_grey, 'wallBG': colors.darker_grey, 'wallDarkBG': (16, 16, 16), 'wallChar': '#',
+                     'groundBG': colors.sepia, 'groundDarkBG': colors.darker_sepia,
                      'gravelFG': (50, 37, 0), 'gravelDarkFG': (27, 20, 0), 'gravelChars': [chr(176), chr(177)],
                      'stairsColor': colors.white, 'stairsDarkColor': colors.dark_grey,
                      'chasm': True, 'chasmColor': (0, 0, 16),
@@ -65,8 +65,8 @@ class Branch:
 
 mainDungeon = Branch(shortName = "main", name = "Main", branchesTo = None)
 
-gluttMapTemplate = {'wallFG': colors.dark_grey, 'wallDarkFG': colors.darkest_grey, 'wallBG': colors.darker_grey, 'wallDarkBG': (16, 16, 16), 'wallChar': '#',
-                     'groundBG': colors.dark_sepia, 'groundDarkBG': colors.darkest_sepia,
+gluttMapTemplate = {'wallFG': colors.grey, 'wallDarkFG': colors.darker_grey, 'wallBG': colors.darker_grey, 'wallDarkBG': (16, 16, 16), 'wallChar': '#',
+                     'groundBG': colors.sepia, 'groundDarkBG': colors.darker_sepia,
                      'gravelFG': (50, 37, 0), 'gravelDarkFG': (27, 20, 0), 'gravelChars': [chr(176), chr(177)],
                      'stairsColor': colors.desaturated_chartreuse, 'stairsDarkColor': colors.darkest_chartreuse,
                      'chasm': True, 'chasmColor': (0, 0, 16),
@@ -79,8 +79,8 @@ gluttMapTemplate = {'wallFG': colors.dark_grey, 'wallDarkFG': colors.darkest_gre
 
 gluttonyDungeon = Branch(shortName = "glutt", name = "Gluttony Dungeon", maxDepth = 5, branchesFrom = (mainDungeon, 1), monsterChances = {'darksoul': 400, 'ogre': 200, 'starveling': 250, 'cultist': 150}, itemChances = {'potion': 340, 'scroll': 20, 'weapon': 20, 'armor': 100, 'food': 450, 'shield': 70}, bossLevels = [5], bossNames = {'Gluttony': 5}, mapGeneration = gluttMapTemplate)
 
-townMapTemplate = {'wallFG': colors.dark_grey, 'wallDarkFG': colors.darkest_grey, 'wallBG': colors.darker_grey, 'wallDarkBG': (16, 16, 16), 'wallChar': '#',
-                     'groundBG': colors.dark_sepia, 'groundDarkBG': colors.darkest_sepia,
+townMapTemplate = {'wallFG': colors.grey, 'wallDarkFG': colors.darker_grey, 'wallBG': colors.darker_grey, 'wallDarkBG': (16, 16, 16), 'wallChar': '#',
+                     'groundBG': colors.sepia, 'groundDarkBG': colors.darker_sepia,
                      'gravelFG': (50, 37, 0), 'gravelDarkFG': (27, 20, 0), 'gravelChars': [chr(176), chr(177)],
                      'stairsColor': colors.azure, 'stairsDarkColor': colors.darker_azure,
                      'chasm': True, 'chasmColor': (0, 0, 16),
@@ -93,8 +93,8 @@ townMapTemplate = {'wallFG': colors.dark_grey, 'wallDarkFG': colors.darkest_grey
 
 hiddenTown = Branch(shortName = 'town',name = "Hidden Refuge", maxDepth = 1, branchesFrom = (mainDungeon, 1), mapGeneration = townMapTemplate)
 
-greedMapTemplate = {'wallFG': colors.dark_grey, 'wallDarkFG': colors.darkest_grey, 'wallBG': colors.darker_grey, 'wallDarkBG': (16, 16, 16), 'wallChar': '#',
-                     'groundBG': colors.dark_sepia, 'groundDarkBG': colors.darkest_sepia,
+greedMapTemplate = {'wallFG': colors.grey, 'wallDarkFG': colors.darker_grey, 'wallBG': colors.darker_grey, 'wallDarkBG': (16, 16, 16), 'wallChar': '#',
+                     'groundBG': colors.sepia, 'groundDarkBG': colors.darker_sepia,
                      'gravelFG': (50, 37, 0), 'gravelDarkFG': (27, 20, 0), 'gravelChars': [chr(176), chr(177)],
                      'stairsColor': colors.yellow, 'stairsDarkColor': colors.darker_yellow,
                      'chasm': False, 'chasmColor': (0, 0, 16),
@@ -107,8 +107,8 @@ greedMapTemplate = {'wallFG': colors.dark_grey, 'wallDarkFG': colors.darkest_gre
 
 greedDungeon = Branch(shortName = 'greed', name = 'Greed Cavern', maxDepth = 5, branchesFrom= (mainDungeon, 2), monsterChances = {'darksoul': 400, 'ogre': 100, 'snake': 10, 'cultist': 150, 'greedyFiend' : 200}, itemChances = {'potion': 100, 'scroll': 100, 'weapon': 50, 'shield': 50, 'food': 90, 'money' : 300, 'armor': 50}, mapGeneration = greedMapTemplate)
 
-wrathMapTemplate = {'wallFG': colors.dark_grey, 'wallDarkFG': colors.darkest_grey, 'wallBG': colors.darker_grey, 'wallDarkBG': (16, 16, 16), 'wallChar': '#',
-                     'groundBG': colors.dark_sepia, 'groundDarkBG': colors.darkest_sepia,
+wrathMapTemplate = {'wallFG': colors.grey, 'wallDarkFG': colors.darker_grey, 'wallBG': colors.darker_grey, 'wallDarkBG': (16, 16, 16), 'wallChar': '#',
+                     'groundBG': colors.sepia, 'groundDarkBG': colors.darker_sepia,
                      'gravelFG': (50, 37, 0), 'gravelDarkFG': (27, 20, 0), 'gravelChars': [chr(176), chr(177)],
                      'stairsColor': colors.dark_red, 'stairsDarkColor': colors.darkest_red,
                      'chasm': True, 'chasmColor': (0, 0, 16),
@@ -121,7 +121,7 @@ wrathMapTemplate = {'wallFG': colors.dark_grey, 'wallDarkFG': colors.darkest_gre
 
 wrathDungeon = Branch(shortName = "wrath", name = "Wrath Lair", maxDepth = 5, branchesFrom = (mainDungeon, 2), monsterChances = {'darksoul': 400, 'ogre': 400, 'cultist': 200}, itemChances = {'potion': 310, 'scroll': 20, 'weapon': 400, 'shield': 20, 'food': 200, 'armor': 50}, bossLevels = [5], bossNames = {'Wrath': 5}, mapGeneration = wrathMapTemplate)
 
-templeMapTemplate = {'wallFG': colors.light_grey, 'wallDarkFG': colors.dark_grey, 'wallBG': colors.grey, 'wallDarkBG': colors.darker_grey, 'wallChar': '#',
+templeMapTemplate = {'wallFG': colors.light_grey, 'wallDarkFG': colors.dark_grey, 'wallBG': colors.darker_grey, 'wallDarkBG': (16, 16, 16), 'wallChar': '#',
                      'groundBG': colors.dark_grey, 'groundDarkBG': colors.darkest_grey,
                      'gravelFG': (140, 140, 140), 'gravelDarkFG': (76, 76, 76), 'gravelChars': [chr(254), chr(250)],
                      'stairsColor': colors.han, 'stairsDarkColor': colors.darker_han,
