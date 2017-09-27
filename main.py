@@ -5374,14 +5374,26 @@ class Item:
                 equipmentStats['HP Bonus'] = str(equipmentComp.maxHP_Bonus)
             if equipmentComp.maxMP_Bonus != 0:
                 equipmentStats['MP Bonus'] = str(equipmentComp.maxMP_Bonus)
+            if equipmentComp.staminaBonus != 0:
+                equipmentStats['Stamina Bonus'] = str(equipmentComp.staminaBonus)
             if equipmentComp.accuracyBonus != 0:
                 equipmentStats['Accuracy Bonus'] = str(equipmentComp.accuracyBonus)
             if equipmentComp.evasionBonus != 0:
                 equipmentStats['Evasion Bonus'] = str(equipmentComp.evasionBonus)
             if equipmentComp.criticalBonus != 0:
                 equipmentStats['Critical Bonus'] = str(equipmentComp.criticalBonus)
+            if equipmentComp.stealthBonus != 0:
+                equipmentStats['Stealth Bonus'] = str(equipmentComp.stealthBonus)
             if equipmentComp.armorPenetrationBonus != 0:
                 equipmentStats['Armor Penetration'] = str(equipmentComp.armorPenetrationBonus)
+            if equipmentComp.strengthBonus != 0:
+                equipmentStats['Strength Bonus'] = str(equipmentComp.strengthBonus)
+            if equipmentComp.dexterityBonus != 0:
+                equipmentStats['Dexterity Bonus'] = str(equipmentComp.dexterityBonus)
+            if equipmentComp.vitalityBonus != 0:
+                equipmentStats['Constitution Bonus'] = str(equipmentComp.vitalityBonus)
+            if equipmentComp.willpowerBonus != 0:
+                equipmentStats['Willpower Bonus'] = str(equipmentComp.willpowerBonus)
             if equipmentComp.ranged:
                 equipmentStats['Ranged Damage'] = str(equipmentComp.rangedPower)
             if equipmentComp.slow:
@@ -5390,7 +5402,7 @@ class Item:
         return fullDesc, equipmentStats
     
     def sortFullDesc(self, statList):
-        newList = ['Power Bonus', 'Armor Bonus', 'HP Bonus', 'MP Bonus', 'Accuracy Bonus', 'Evasion Bonus', 'Critical Bonus', 'Armor Penetration', 'Ranged Damage', 'Weight']
+        newList = ['Power Bonus', 'Armor Bonus', 'HP Bonus', 'MP Bonus', 'Stamina Bonus', 'Accuracy Bonus', 'Evasion Bonus', 'Critical Bonus', 'Stealth Bonus', 'Armor Penetration', 'Strength Bonus', 'Dexterity Bonus', 'Constitution Bonus', 'Willpower Bonus', 'Ranged Damage', 'Weight']
         toRemove = []
         for stat in newList:
             if not (stat in statList):
