@@ -1,5 +1,5 @@
 
-import colors, math, textwrap, time, os, sys, code, gzip, pathlib, traceback, ffmpy, pdb, copy, queue, random, cProfile, functools #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
+import colors, math, textwrap, time, os, sys, code, gzip, pathlib, traceback, ffmpy, pdb, copy, random, cProfile, functools #Code is not unused. Importing it allows us to import the rest of our custom modules in the code package.
 import tdlib as tdl
 import code.dialog as dial
 import music as mus
@@ -12,7 +12,8 @@ from math import *
 from code.custom_except import *
 from copy import copy, deepcopy
 from os import makedirs
-from queue import *
+from collections import deque
+
 from code.constants import MAX_HIGH_CULTIST_MINIONS
 import code.nameGen as nameGen
 import code.xpLoaderPy3 as xpL
@@ -805,7 +806,7 @@ class TileBuff:
 
 class Spell:
     "Class used by all active abilites (not just spells)"
-    def __init__(self,  ressourceCost, cooldown, useFunction, name, ressource = 'MP', type = 'Magic', magicLevel = 0, arg1 = None, arg2 = None, arg3 = None, hiddenName = None, onRecoverLearn = []):
+    def __init__(self,  ressourceCost, cooldown, useFunction, name, ressource = 'MP', type = 'Magic', magicLevel = 0, arg1 = None, arg2 = None, arg3 = None, hiddenName = None, onRecoverLearn = [], castSpeed = 100):
         self.ressource = ressource
         self.ressourceCost = ressourceCost
         self.maxCooldown = cooldown
@@ -822,6 +823,7 @@ class Spell:
         else:
             self.hiddenName = name
         self.onRecoverLearn = onRecoverLearn
+        self.castSpeed = castSpeed
 
     def updateSpellStats(self):
         if self.name == 'Fireball':
@@ -3222,8 +3224,10 @@ class GameObject:
         self.AI = AI
         if self.AI:  #let the AI component know who owns it
             self.AI.owner = self
+            self.AI.futureCoords = (self.x, self.y)
         if self.Player:
             self.Player.owner = self
+            self.Fighter.actionPoints = 100
         if self.Item:
             self.Item.owner = self 
         self.Equipment = Equipment
@@ -3604,7 +3608,7 @@ def createNPCFromMapReader(attributeList):
     return GameObject(int(attributeList[0]), int(attributeList[1]), attributeList[2], attributeList[3], attributeList[4], blocks = True, socialComp = getattr(dial, attributeList[5]), shopComp = shop)
 
 class Fighter: #All NPCs, enemies and the player
-    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = [0], shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = None, slots = ['head', 'torso', 'left hand', 'right hand', 'legs', 'feet'], equipmentList = [], toEquip = [], attackFunctions = [], noDirectDamage = False, pic = 'ogre.xp', description = 'Placeholder', rangedPower = 0, Ranged = None, stamina = 0):
+    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = [0], shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = None, slots = ['head', 'torso', 'left hand', 'right hand', 'legs', 'feet'], equipmentList = [], toEquip = [], attackFunctions = [], noDirectDamage = False, pic = 'ogre.xp', description = 'Placeholder', rangedPower = 0, Ranged = None, stamina = 0, attackSpeed = 100, moveSpeed = 100):
         self.noVitHP = hp
         self.BASE_MAX_HP = hp
         self.hp = hp
@@ -3629,6 +3633,10 @@ class Fighter: #All NPCs, enemies and the player
         self.BASE_STAMINA = stamina
         self.noConstStamina = stamina
         self.stamina = stamina
+        
+        self.baseAttackSpeed = attackSpeed
+        self.baseMoveSpeed = moveSpeed
+        self.actionPoints = 0
         
         self.leechRessource = leechRessource
         self.leechAmount = leechAmount
@@ -3678,6 +3686,21 @@ class Fighter: #All NPCs, enemies and the player
         
         self.attackFunctions = attackFunctions
         self.noDirectDamage = noDirectDamage
+    
+    @property
+    def attackSpeed(self):
+        return self.baseAttackSpeed
+    
+    @property
+    def moveSpeed(self):
+        return self.baseMoveSpeed
+    
+    @property
+    def minimumSpeed(self):
+        mini = min(self.moveSpeed, self.attackSpeed)
+        for spell in self.knownSpells:
+            mini = min(mini, spell.castSpeed)
+        return mini
 
     @property
     def basePower(self):
@@ -4356,6 +4379,7 @@ class BasicMonster(TargetSelector): #Basic monsters' AI
         self.failCounter = 0
         self.didRecalcThisTurn = False
         self.wanderer = wanderer
+        self.futureCoords = (0, 0)
         #super(TargetSelector, self).__init__()
     
     def takeTurn(self):
@@ -4370,6 +4394,7 @@ class BasicMonster(TargetSelector): #Basic monsters' AI
             if self.owner.flying or not myMap[x][y].chasm:
                 print('moving')
                 monster.move(dx, dy) #wandering
+                self.futureCoords = (x, y)
 
     def takeBasicTurn(self):
         global mustCalculate
@@ -4382,23 +4407,34 @@ class BasicMonster(TargetSelector): #Basic monsters' AI
             for newM in monster.sizeComponents:
                 monsters.append(newM)
         
-        if self.owner.Fighter.canTakeTurn and monster.distanceTo(player) <= 20:
-            self.selectTarget()
-            if self.selectedTarget is not None:
-                print("SELECTED TARGET IS NOT NONE")
-                for mons in monsters:
-                    if mons.distanceTo(self.selectedTarget) < 2:
-                        mons.Fighter.attack(self.selectedTarget)
-                        break
-                else:
-                    print("TRYING TO MOVE")
+        while monster.Fighter.actionPoints >= monster.Fighter.minimumSpeed:
+            if self.owner.Fighter.canTakeTurn and monster.distanceTo(player) <= 20:
+                self.selectTarget()
+                if self.selectedTarget is not None:
+                    print("SELECTED TARGET IS NOT NONE")
+                    for mons in monsters:
+                        dx, dy = mons.x - monster.x, mons.y - monster.y
+                        fx, fy = self.futureCoords
+                        if self.selectedTarget.distanceToCoords(fx+dx, fy+dy) < 2 and monster.Fighter.actionPoints >= monster.Fighter.attackSpeed:
+                            mons.Fighter.attack(self.selectedTarget)
+                            monster.Fighter.actionPoints -= monster.Fighter.attackSpeed
+                            break
+                    else:
+                        if monster.Fighter.actionPoints >= monster.Fighter.moveSpeed:
+                            print("TRYING TO MOVE")
+                            self.tryMove()
+                            monster.Fighter.actionPoints -= monster.Fighter.moveSpeed
+                elif monster.Fighter.actionPoints >= monster.Fighter.moveSpeed:
+                    print("No target, still trying to move")
                     self.tryMove()
-            else:
-                print("No target, still trying to move")
-                self.tryMove()
-                
-        elif self.owner.Fighter.canTakeTurn:
-            self.wander()
+                    monster.Fighter.actionPoints -= monster.Fighter.moveSpeed
+                    
+            elif self.owner.Fighter.canTakeTurn and monster.Fighter.actionPoints >= monster.Fighter.moveSpeed:
+                self.wander()
+                monster.Fighter.actionPoints -= monster.Fighter.moveSpeed
+            
+            elif not monster.Fighter.canTakeTurn:
+                monster.Fighter.actionPoints -= 100
     
     def tryMove(self):
         global mustCalculate
@@ -4437,6 +4473,7 @@ class BasicMonster(TargetSelector): #Basic monsters' AI
                             print(monster.astarPath)
                     monster.moveTo(x, y)
                     monster.astarPath.remove(monster.astarPath[0])
+                    self.futureCoords = (x, y)
 
                 else:
                     print("Blocked")
@@ -4585,6 +4622,7 @@ class Charger:
         FOV_recompute = True
         self.charging = False
 
+'''
 class FastMonster(BasicMonster):
     def __init__(self, speed, wanderer = True):
         BasicMonster.__init__(self, wanderer)
@@ -4593,6 +4631,7 @@ class FastMonster(BasicMonster):
     def takeTurn(self):
         for loop in range(self.speed):
             self.takeBasicTurn() #for some reason when moving only one tile it won't attack as a second action
+'''
 
 class Fleeing(BasicMonster):
     def __init__(self, wanderer = True):
@@ -6389,6 +6428,9 @@ def getInput():
         currentSidepanelMode += 1
         if currentSidepanelMode >= len(SIDE_PANEL_MODES):
             currentSidepanelMode = 0
+    
+    elif userInput.keychar.upper() == 'ENTER':
+        return 'end turn'
 
     if gameState == 'looking':
         if userInput.keychar.upper() == 'ESCAPE':
@@ -10526,7 +10568,7 @@ def createDarksoul(x, y, friendly = False, corpse = False):
             AI_component = BasicMonster()
         else:
             AI_component = FriendlyMonster(friendlyTowards = player)
-        fighterComponent = Fighter(hp=30, armor=0, power=6, xp = 35, deathFunction = deathType, evasion = 25, accuracy = 10, lootFunction = lootOnDeath, lootRate = [30, 20], toEquip=toEquip)
+        fighterComponent = Fighter(hp=30, armor=0, power=6, xp = 35, deathFunction = deathType, evasion = 25, accuracy = 10, lootFunction = lootOnDeath, lootRate = [30, 20], toEquip=toEquip, moveSpeed = 150, attackSpeed = 150)
         monster = GameObject(x, y, char = 'd', color = color, name = darksoulName, blocks = True, Fighter=fighterComponent, AI = AI_component)
         return monster
     else:
@@ -10632,8 +10674,8 @@ def createHighCultist(x, y):
 
 def createSnake(x, y):
     if x!= player.x or y != player.y:
-        fighterComponent = Fighter(hp = 10, armor = 0, power = 3, xp = 10, deathFunction = monsterDeath, accuracy = 20, evasion = 70, buffsOnAttack=[[5, 'poisoned']])
-        AI_component = FastMonster(2)
+        fighterComponent = Fighter(hp = 10, armor = 0, power = 3, xp = 10, deathFunction = monsterDeath, accuracy = 20, evasion = 70, buffsOnAttack=[[5, 'poisoned']], moveSpeed = 50, attackSpeed = 50)
+        AI_component = BasicMonster() #FastMonster(2)
         monster = GameObject(x, y, char = 's', color = colors.light_green, name = 'snake', blocks = True, Fighter = fighterComponent, AI = AI_component)
         return monster
     else:
@@ -11916,7 +11958,7 @@ def mainMenu():
                         name = enterName(chosenRace)
                         LvlUp = {'power': createdCharacter['powLvl'], 'acc': createdCharacter['accLvl'], 'ev': createdCharacter['evLvl'], 'arm': createdCharacter['armLvl'], 'hp': createdCharacter['hpLvl'], 'mp': createdCharacter['mpLvl'], 'crit': createdCharacter['critLvl'], 'stren': createdCharacter['strLvl'], 'dex': createdCharacter['dexLvl'], 'vit': createdCharacter['vitLvl'], 'will': createdCharacter['willLvl'], 'ap': createdCharacter['apLvl'], 'stamina': createdCharacter['stamLvl']}
                         playComp = Player(name, playerComponent['stren'], playerComponent['dex'], playerComponent['vit'], playerComponent['will'], playerComponent['load'], chosenRace, chosenClass, allTraits, LvlUp, skillpoints=skillpoints, baseStealth=createdCharacter['stealth'], unlockableTraits=unlockableTraits)
-                        playFight = Fighter(hp = playerComponent['hp'], power= playerComponent['power'], armor= playerComponent['arm'], deathFunction=playerDeath, xp=0, evasion = playerComponent['ev'], accuracy = playerComponent['acc'], maxMP= playerComponent['mp'], knownSpells=playerComponent['spells'], critical = playerComponent['crit'], armorPenetration = playerComponent['ap'], stamina=createdCharacter['stamina'])
+                        playFight = Fighter(hp = playerComponent['hp'], power= playerComponent['power'], armor= playerComponent['arm'], deathFunction=playerDeath, xp=0, evasion = playerComponent['ev'], accuracy = playerComponent['acc'], maxMP= playerComponent['mp'], knownSpells=playerComponent['spells'], critical = playerComponent['crit'], armorPenetration = playerComponent['ap'], stamina=createdCharacter['stamina'], attackSpeed = 100, moveSpeed = 50)
                         player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = name, color = (0, 210, 0))
                         player.level = 1
                         player.Fighter.hp = player.Fighter.baseMaxHP
@@ -13810,7 +13852,7 @@ def playGame(noSave = False):
     music = multiprocessing.Process(target = mus.runMusic, args = (currentMusic,))
     music.start()
     activeProcess.append(music)
-    actions = 1
+    #actions = 1
     while not tdl.event.isWindowClosed():
         checkLevelUp()
         for trait in player.Player.unlockableTraits:
@@ -13823,6 +13865,25 @@ def playGame(noSave = False):
         for object in objects:
             object.clear()
         
+        endedTurn = False
+        while player.Fighter.actionPoints >= player.Fighter.minimumSpeed and not endedTurn:
+            playerAction = getInput()
+            if bossTiles:
+                bossFleeDjik()
+                print("Did Boss Djik")
+            FOV_recompute = True
+            Update()
+            checkLevelUp()
+            tdl.flush()
+            for object in objects:
+                object.clear()
+            if playerAction == 'exit':
+                quitGame('Player pressed escape', True, noSave)
+            if playerAction == 'end turn':
+                endedTurn = True
+                break
+            
+        '''
         if player.Player.attackedSlowly:
             message('You are too focused on recovering from your slow attack to move this turn!', colors.dark_flame)
             player.Player.slowAttackCooldown -= 1
@@ -13843,6 +13904,7 @@ def playGame(noSave = False):
                         object.clear()
                 if playerAction == 'exit':
                     quitGame('Player pressed escape', True, noSave)
+        '''
         FOV_recompute = True #So as to avoid the blackscreen bug no matter which key we press
         if gameState == 'playing' and playerAction != 'didnt-take-turn':
             global mobsToCalculate
@@ -13859,6 +13921,7 @@ def playGame(noSave = False):
                 if object.AI:
                     try:
                         object.AI.takeTurn()
+                        object.Fighter.actionPoints += 100
                     except TypeError as error:
                         print("==================WARNING===================")
                         print(type(error))
@@ -14089,6 +14152,7 @@ def playGame(noSave = False):
         if 'uncontrollable' in convertBuffsToNames(player.Fighter) and ratioHP > 25:
             buff.removeBuff()
         
+        '''
         actions = 1
         if player.Player.speed == 'fast' and randint(1, 100) <= player.Player.speedChance:
             message('Your great speed allows you to take two actions this turn!', colors.green)
@@ -14096,7 +14160,9 @@ def playGame(noSave = False):
         if player.Player.speed == 'slow' and randint(1, 100) <= player.Player.speedChance:
             message('Your incredible slowness prevents you from taking any action this turn', colors.red)
             actions -= 1
-    
+        '''
+        player.Fighter.actionPoints += 100
+        
     DEBUG = False
     quitGame('Window has been closed', noSave = noSave)
     
