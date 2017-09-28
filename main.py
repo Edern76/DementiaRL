@@ -6525,7 +6525,7 @@ def getInput():
                         keypress = False
     elif userInput.keychar.upper() == "W" or userInput.keychar.upper() == 'KP5':                 
         FOV_recompute = True
-        return None 
+        return 'end turn' 
     elif userInput.keychar == 'A' and gameState == 'playing' and DEBUG and not tdl.event.isWindowClosed():
         castArmageddon()         
     elif userInput.keychar == 'l' and gameState == 'playing':
@@ -6599,9 +6599,6 @@ def getInput():
         currentSidepanelMode += 1
         if currentSidepanelMode >= len(SIDE_PANEL_MODES):
             currentSidepanelMode = 0
-    
-    elif userInput.keychar.upper() == 'ENTER':
-        return 'end turn'
 
     if gameState == 'looking':
         if userInput.keychar.upper() == 'ESCAPE':
@@ -14047,6 +14044,9 @@ def playGame(noSave = False):
             if bossTiles:
                 bossFleeDjik()
                 print("Did Boss Djik")
+            if playerAction == 'end turn':
+                endedTurn = True
+                break
             FOV_recompute = True
             Update()
             checkLevelUp()
@@ -14055,9 +14055,6 @@ def playGame(noSave = False):
                 object.clear()
             if playerAction == 'exit':
                 quitGame('Player pressed escape', True, noSave)
-            if playerAction == 'end turn':
-                endedTurn = True
-                break
             
         '''
         if player.Player.attackedSlowly:

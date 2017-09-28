@@ -52,8 +52,8 @@ junk = Rarity('junk', colors.copper)
 common = Rarity('common', colors.brass)
 uncommon = Rarity('uncommon', colors.silver)
 rare = Rarity('rare', colors.gold)
-epic = Rarity('epic', colors.blue)
-legendary = Rarity('legendary', colors.violet)
+epic = Rarity('epic', colors.azure)
+legendary = Rarity('legendary', colors.dark_purple)
 
 rarity = {junk: 15, common: 50, uncommon: 15, rare: 10, epic: 7, legendary: 3}
 
