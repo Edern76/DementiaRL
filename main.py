@@ -14,7 +14,7 @@ from copy import copy, deepcopy
 from os import makedirs
 from collections import deque
 
-from code.constants import MAX_HIGH_CULTIST_MINIONS
+from code.constants import MAX_HIGH_CULTIST_MINIONS, ACTION_COSTS
 import code.nameGen as nameGen
 import code.xpLoaderPy3 as xpL
 import code.dunbranches as dBr
@@ -887,6 +887,7 @@ class Spell:
 
         if self.arg1 is None:
             if self.useFunction(caster, target) != 'cancelled':
+                caster.Fighter.actionPoints -= self.castSpeed
                 FOV_recompute = True
                 self.setOnCooldown(caster.Fighter)
                 if self.ressource == 'MP':
@@ -900,6 +901,7 @@ class Spell:
                 return 'cancelled'
         elif self.arg2 is None and self.arg1 is not None:
             if self.useFunction(self.arg1, caster, target) != 'cancelled':
+                caster.Fighter.actionPoints -= self.castSpeed
                 FOV_recompute = True
                 self.setOnCooldown(caster.Fighter)
                 if self.ressource == 'MP':
@@ -913,6 +915,7 @@ class Spell:
                 return 'cancelled'
         elif self.arg3 is None and self.arg2 is not None:
             if self.useFunction(self.arg1, self.arg2, caster, target) != 'cancelled':
+                caster.Fighter.actionPoints -= self.castSpeed
                 FOV_recompute = True
                 self.setOnCooldown(caster.Fighter)
                 if self.ressource == 'MP':
@@ -926,6 +929,7 @@ class Spell:
                 return 'cancelled'
         elif self.arg3 is not None:
             if self.useFunction(self.arg1, self.arg2, self.arg3, caster, target) != 'cancelled':
+                caster.Fighter.actionPoints -= self.castSpeed
                 FOV_recompute = True
                 self.setOnCooldown(caster.Fighter)
                 if self.ressource == 'MP':
@@ -3769,7 +3773,7 @@ def createNPCFromMapReader(attributeList):
     return GameObject(int(attributeList[0]), int(attributeList[1]), attributeList[2], attributeList[3], attributeList[4], blocks = True, socialComp = getattr(dial, attributeList[5]), shopComp = shop)
 
 class Fighter: #All NPCs, enemies and the player
-    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = [0], shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = None, slots = ['head', 'torso', 'left hand', 'right hand', 'legs', 'feet'], equipmentList = [], toEquip = [], attackFunctions = [], noDirectDamage = False, pic = 'ogre.xp', description = 'Placeholder', rangedPower = 0, Ranged = None, stamina = 0, attackSpeed = 100, moveSpeed = 100):
+    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = [0], shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = None, slots = ['head', 'torso', 'left hand', 'right hand', 'legs', 'feet'], equipmentList = [], toEquip = [], attackFunctions = [], noDirectDamage = False, pic = 'ogre.xp', description = 'Placeholder', rangedPower = 0, Ranged = None, stamina = 0, attackSpeed = 100, moveSpeed = 100, rangedSpeed = 100):
         self.noVitHP = hp
         self.BASE_MAX_HP = hp
         self.hp = hp
@@ -3797,6 +3801,7 @@ class Fighter: #All NPCs, enemies and the player
         
         self.baseAttackSpeed = attackSpeed
         self.baseMoveSpeed = moveSpeed
+        self.baseRangedSpeed = rangedSpeed
         self.actionPoints = 0
         
         self.leechRessource = leechRessource
@@ -3857,11 +3862,8 @@ class Fighter: #All NPCs, enemies and the player
         return self.baseMoveSpeed
     
     @property
-    def minimumSpeed(self):
-        mini = min(self.moveSpeed, self.attackSpeed)
-        for spell in self.knownSpells:
-            mini = min(mini, spell.castSpeed)
-        return mini
+    def rangedSpeed(self):
+        return self.baseRangedSpeed
 
     @property
     def basePower(self):
@@ -4568,7 +4570,7 @@ class BasicMonster(TargetSelector): #Basic monsters' AI
             for newM in monster.sizeComponents:
                 monsters.append(newM)
         
-        while monster.Fighter.actionPoints >= monster.Fighter.minimumSpeed:
+        while monster.Fighter.actionPoints > 0:
             if self.owner.Fighter.canTakeTurn and monster.distanceTo(player) <= 20:
                 self.selectTarget()
                 if self.selectedTarget is not None:
@@ -4576,21 +4578,20 @@ class BasicMonster(TargetSelector): #Basic monsters' AI
                     for mons in monsters:
                         dx, dy = mons.x - monster.x, mons.y - monster.y
                         fx, fy = self.futureCoords
-                        if self.selectedTarget.distanceToCoords(fx+dx, fy+dy) < 2 and monster.Fighter.actionPoints >= monster.Fighter.attackSpeed:
+                        if self.selectedTarget.distanceToCoords(fx+dx, fy+dy) < 2:
                             mons.Fighter.attack(self.selectedTarget)
                             monster.Fighter.actionPoints -= monster.Fighter.attackSpeed
                             break
                     else:
-                        if monster.Fighter.actionPoints >= monster.Fighter.moveSpeed:
-                            print("TRYING TO MOVE")
-                            self.tryMove()
-                            monster.Fighter.actionPoints -= monster.Fighter.moveSpeed
-                elif monster.Fighter.actionPoints >= monster.Fighter.moveSpeed:
+                        print("TRYING TO MOVE")
+                        self.tryMove()
+                        monster.Fighter.actionPoints -= monster.Fighter.moveSpeed
+                else:
                     print("No target, still trying to move")
                     self.tryMove()
                     monster.Fighter.actionPoints -= monster.Fighter.moveSpeed
                     
-            elif self.owner.Fighter.canTakeTurn and monster.Fighter.actionPoints >= monster.Fighter.moveSpeed:
+            elif self.owner.Fighter.canTakeTurn:
                 self.wander()
                 monster.Fighter.actionPoints -= monster.Fighter.moveSpeed
             
@@ -5478,7 +5479,7 @@ class Item:
                 return 'didnt-take-turn'
             else:
                 self.identify()
-                return
+                return 'Equip'
         if self.useFunction is None:
             message('The ' + self.owner.name + ' cannot be used !')
             return 'cancelled'
@@ -6548,6 +6549,7 @@ def getInput():
         chosenItem = inventoryMenu('Press the key next to an item to drop it, or press any other key to cancel.')
         if chosenItem is not None:
             chosenItem.drop()
+            return 'Drop'
         else:
             return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'Z' and gameState == 'playing':
@@ -6658,7 +6660,7 @@ def getInput():
             if not foundObj:
                 return 'didnt-take-turn'
             else:
-                return
+                return 'Pick Up'
                 
         elif userInput.keychar.upper() == '<':
             print('You pressed the freaking climb up key')
@@ -6792,6 +6794,8 @@ def getInput():
                         if using == 'cancelled' or using == 'didnt-take-turn':
                             FOV_recompute = True
                             return 'didnt-take-turn'
+                        else:
+                            return chosenItem.useText
                     elif usage == 1:
                         chosenItem.drop()
                         return None
@@ -6960,16 +6964,19 @@ def moveOrAttack(dx, dy):
     if target is not None:
         if player.Player.race == 'Virus ':
             if player.Player.inHost:
+                player.Fighter.actionPoints -= player.Fighter.attackSpeed
                 player.Fighter.attack(target)
             else:
                 player.Player.takeControl(target)
         else:
+            player.Fighter.actionPoints -= player.Fighter.attackSpeed
             player.Fighter.attack(target)
     else:
         if not 'burdened' in convertBuffsToNames(player.Fighter):
             moving = player.move(dx, dy)
             if moving == 'didnt-take-turn':
                 return 'didnt-take-turn'
+            player.Fighter.actionPoints -= player.Fighter.moveSpeed
         else:
             return 'didnt-take-turn'
 
@@ -6995,6 +7002,7 @@ def shoot():
                                 message('Invalid target.')
                                 return 'didnt-take-turn'
                             else:
+                                player.Fighter.actionPoints -= player.Fighter.rangedSpeed
                                 (aimX, aimY) = aimedTile
                                 (targetX, targetY) = projectile(player.x, player.y, aimX, aimY, '/', colors.light_orange, continues=True)
                                 FOV_recompute = True
@@ -7046,6 +7054,7 @@ def shoot():
                         message('Invalid target.')
                         return 'didnt-take-turn'
                     else:
+                        player.Fighter.actionPoints -= player.Fighter.rangedSpeed
                         FOV_recompute = True
                         [hit, criticalHit] = player.Fighter.toHit(target)
                         if hit:
@@ -12131,7 +12140,7 @@ def mainMenu():
                         name = enterName(chosenRace)
                         LvlUp = {'power': createdCharacter['powLvl'], 'acc': createdCharacter['accLvl'], 'ev': createdCharacter['evLvl'], 'arm': createdCharacter['armLvl'], 'hp': createdCharacter['hpLvl'], 'mp': createdCharacter['mpLvl'], 'crit': createdCharacter['critLvl'], 'stren': createdCharacter['strLvl'], 'dex': createdCharacter['dexLvl'], 'vit': createdCharacter['vitLvl'], 'will': createdCharacter['willLvl'], 'ap': createdCharacter['apLvl'], 'stamina': createdCharacter['stamLvl']}
                         playComp = Player(name, playerComponent['stren'], playerComponent['dex'], playerComponent['vit'], playerComponent['will'], playerComponent['load'], chosenRace, chosenClass, allTraits, LvlUp, skillpoints=skillpoints, baseStealth=createdCharacter['stealth'], unlockableTraits=unlockableTraits)
-                        playFight = Fighter(hp = playerComponent['hp'], power= playerComponent['power'], armor= playerComponent['arm'], deathFunction=playerDeath, xp=0, evasion = playerComponent['ev'], accuracy = playerComponent['acc'], maxMP= playerComponent['mp'], knownSpells=playerComponent['spells'], critical = playerComponent['crit'], armorPenetration = playerComponent['ap'], stamina=createdCharacter['stamina'], attackSpeed = 100, moveSpeed = 50)
+                        playFight = Fighter(hp = playerComponent['hp'], power= playerComponent['power'], armor= playerComponent['arm'], deathFunction=playerDeath, xp=0, evasion = playerComponent['ev'], accuracy = playerComponent['acc'], maxMP= playerComponent['mp'], knownSpells=playerComponent['spells'], critical = playerComponent['crit'], armorPenetration = playerComponent['ap'], stamina=createdCharacter['stamina'])
                         player = GameObject(25, 23, '@', Fighter = playFight, Player = playComp, name = name, color = (0, 210, 0))
                         player.level = 1
                         player.Fighter.hp = player.Fighter.baseMaxHP
@@ -14039,20 +14048,26 @@ def playGame(noSave = False):
             object.clear()
         
         endedTurn = False
-        while player.Fighter.actionPoints >= player.Fighter.minimumSpeed and not endedTurn:
+        while player.Fighter.actionPoints > 0 and not endedTurn:
             playerAction = getInput()
             if bossTiles:
                 bossFleeDjik()
                 print("Did Boss Djik")
-            if playerAction == 'end turn':
-                endedTurn = True
-                break
             FOV_recompute = True
             Update()
             checkLevelUp()
             tdl.flush()
             for object in objects:
                 object.clear()
+            if playerAction == 'end turn':
+                endedTurn = True
+                if player.Fighter.actionPoints > 0:
+                    player.Fighter.actionPoints = 0
+                break
+            try:
+                player.Fighter.actionPoints -= ACTION_COSTS[playerAction]
+            except:
+                pass
             if playerAction == 'exit':
                 quitGame('Player pressed escape', True, noSave)
             
