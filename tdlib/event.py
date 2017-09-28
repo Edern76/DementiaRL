@@ -462,6 +462,23 @@ def key_wait():
                 return KeyDown('F4', '', True, False, True, False, False)
         _time.sleep(.001)
 
+def key_wait_no_shift():
+    """Behaves like key_wait but ignore the shift key.
+
+    @rtype: L{KeyDown}
+    """
+    while 1:
+        for event in get():
+            if event.type == 'KEYDOWN':
+                if event.keychar == "SHIFT":
+                    continue
+                else:
+                    return event
+            if event.type == 'QUIT':
+                # convert QUIT into alt+F4
+                return KeyDown('F4', '', True, False, True, False, False)
+        _time.sleep(.001)
+
 def set_key_repeat(delay=500, interval=0):
     """Change or disable key repeat.
 

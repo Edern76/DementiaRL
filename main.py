@@ -158,6 +158,8 @@ BUFF_WIDTH = 30 #Default : 30
 BUFF_X = WIDTH - 35 #Default : WIDTH - 35
 
 INVENTORY_WIDTH = 70 #Default : 70
+SPELLS_MENU_WIDTH = INVENTORY_WIDTH + 4 #Default : INVETORY_WIDTH + 4 (so as to compensate for the slightly longer headers).
+SPELL_MENU_WIDTH = SPELLS_MENU_WIDTH #Alias for SPELLS_MENU_WIDTH because dumbass me always types one in place of the other.
 
 LEVEL_SCREEN_WIDTH = 40 #Default : 40
 
@@ -171,6 +173,7 @@ heroName = None
 FORBIDDEN_NAMES = ["Ayeth", "Pukil", "Zarg", "Guillem"]
 
 SURPRISE_ATTACK_CRIT = 30
+SPELL_INFO_WIDTH = 60 #Default : 60 / This is actually the width which we pass to textwrap when displaying the spells description (which is useless in normal circumstances), not the actual width of the menubox itself. In other terms, this is the maximum width value that the actual menubox width value can take.  
 
 def getHeroName():
     hiddenPath = findHiddenOptionsPath()
@@ -453,8 +456,9 @@ def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxP
     if not displayItem:
         tdl.flush()
 
-def menu(header, options, width, usedList = None, noItemMessage = None, inGame = True, adjustHeight = True, needsInput = True, displayItem = False, name = 'noName'):
+def menu(header, options, width, usedList = None, noItemMessage = None, inGame = True, adjustHeight = True, needsInput = True, displayItem = False, name = 'noName', switchKey = None, switchHeader = None):
     global menuWindows, FOV_recompute
+    hasSwitched = False
     index = 0
     print('display item:', str(displayItem))
     page = 0
@@ -467,6 +471,9 @@ def menu(header, options, width, usedList = None, noItemMessage = None, inGame =
         pagesDispHeight = 1
     headerWrapped = textwrap.wrap(header, width)
     headerHeight = len(headerWrapped)
+    if switchHeader :
+        switchHeaderWrapped = textwrap.wrap(switchHeader, width)
+        switchHeaderHeight = len(switchHeaderWrapped)
     if adjustHeight:
         toAdd = 3
     else:
@@ -483,8 +490,13 @@ def menu(header, options, width, usedList = None, noItemMessage = None, inGame =
     window = NamedConsole(name, width, height, 'menu')
     menuWindows.append(window)
     window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
-    y = headerHeight + 2 + pagesDispHeight
-    drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp, index, noItemMessage, displayItem)
+    if not hasSwitched:
+        y = headerHeight + 2 + pagesDispHeight
+        headerToDraw = headerWrapped
+    else:
+        y = switchHeaderHeight + 2 + pagesDispHeight
+        headerToDraw = switchHeaderWrapped
+    drawMenuOptions(y, options, window, page, width, height, headerToDraw, maxPages, pagesDisp, index, noItemMessage, displayItem)
     print('Not loop menu option draw')
     
     if displayItem and usedList:
@@ -497,17 +509,23 @@ def menu(header, options, width, usedList = None, noItemMessage = None, inGame =
         choseOrQuit = False
         index = 0
         while not choseOrQuit:
-            print('display item:', str(displayItem))
+            if not hasSwitched:
+                y = headerHeight + 2 + pagesDispHeight
+                headerToDraw = headerWrapped
+            else:
+                y = switchHeaderHeight + 2 + pagesDispHeight
+                headerToDraw = switchHeaderWrapped
+            
             if page == maxPages:
                 maxIndex = len(options) - maxPages * 26 - 1
             else:
                 maxIndex = 25
-            choseOrQuit = True
+            #choseOrQuit = True
             arrow = False
-            drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp, index, noItemMessage, displayItem)
+            drawMenuOptions(y, options, window, page, width, height, headerToDraw, maxPages, pagesDisp, index, noItemMessage, displayItem)
             tdl.flush()
             print('Loop menu option disp')
-            key = tdl.event.key_wait()
+            key = tdl.event.key_wait_no_shift()
             keyChar = key.keychar
             if keyChar == '':
                 keyChar = ' '
@@ -531,6 +549,7 @@ def menu(header, options, width, usedList = None, noItemMessage = None, inGame =
                 choseOrQuit = False
                 index += 1
                 arrow = True
+
             if page > maxPages:
                 page = 0
             if page < 0:
@@ -546,23 +565,43 @@ def menu(header, options, width, usedList = None, noItemMessage = None, inGame =
             print('Loop item disp')
             
             if not arrow:
+                if switchKey and keyChar == switchKey:
+                    hasSwitched = not hasSwitched
+                    for loop in range(10):
+                        print("SWITCHED")
                 if keyChar in 'abcdefghijklmnopqrstuvwxyz':
+                    if DEBUG:
+                        message(keyChar)
                     index = ord(keyChar) - ord('a')
                     if index >= 0 and index < len(options):
-                        return index + page * 26
+                        if not switchKey:
+                            return index + page * 26
+                        else:
+                            return (index + page * 26, hasSwitched)
                 elif keyChar.upper() == 'ENTER':
                     if menuWindows and inGame:
                         for mWindow in menuWindows:
                             mWindow.clear()
                             ind = menuWindows.index(mWindow)
                             del menuWindows[ind]
-                    return index + page * 26
+                    if not switchKey:
+                        return index + page * 26
+                    else:
+                        return (index + page * 26, hasSwitched)
                 elif keyChar.upper() == "ESCAPE":
                     print('Cancelled')
-                    return "cancelled"
+                    if not switchKey:
+                        return "cancelled"
+                    else:
+                        return ("cancelled", False)
+                else:
+                    continue
     else:
         pass
-    return None
+    if not switchKey:
+        return None
+    else:
+        return (None, False)
 
 def msgBox(text, width = 50, inGame = True, adjustHeight = True, adjustWidth = False, needsInput = True):
     if adjustWidth:
@@ -806,7 +845,7 @@ class TileBuff:
 
 class Spell:
     "Class used by all active abilites (not just spells)"
-    def __init__(self,  ressourceCost, cooldown, useFunction, name, ressource = 'MP', type = 'Magic', magicLevel = 0, arg1 = None, arg2 = None, arg3 = None, hiddenName = None, onRecoverLearn = [], castSpeed = 100):
+    def __init__(self,  ressourceCost, cooldown, useFunction, name, ressource = 'MP', type = 'Magic', magicLevel = 0, arg1 = None, arg2 = None, arg3 = None, hiddenName = None, onRecoverLearn = [], castSpeed = 100, template = None):
         self.ressource = ressource
         self.ressourceCost = ressourceCost
         self.maxCooldown = cooldown
@@ -824,6 +863,7 @@ class Spell:
             self.hiddenName = name
         self.onRecoverLearn = onRecoverLearn
         self.castSpeed = castSpeed
+        self.template = template
 
     def updateSpellStats(self):
         if self.name == 'Fireball':
@@ -905,6 +945,88 @@ class Spell:
             fighter.spellsOnCooldown.append(self)
         except ValueError:
             print('SPELL {} is not in known spell list when trying to set it on cooldown'.format(self.name))
+
+    def displayInfo(self):
+        global FOV_recompute
+        FOV_recompute = True
+        if self.template:
+            baseWidth = SPELL_INFO_WIDTH
+            desc = dial.formatText(str(self.template), baseWidth)
+            prevLine = None
+            descriptionHeight = 0
+            for line in desc:
+                if line != "BREAK":
+                    descriptionHeight += 1
+                else:
+                    if prevLine and prevLine == "BREAK":
+                        descriptionHeight += 1
+                prevLine = line
+                
+            height = descriptionHeight + 5
+            
+            curMaxWidth = 0
+            for line in desc:
+                if len(line) > curMaxWidth:
+                    curMaxWidth = len(line)
+            width = curMaxWidth + 3
+            
+            
+            if menuWindows:
+                for mWindow in menuWindows:
+                    if not mWindow.name == 'inventory' and not mWindow.type == 'menu':
+                        mWindow.clear()
+                        print('CLEARED {} WINDOW OF TYPE {}'.format(mWindow.name, mWindow.type))
+                        if mWindow.name == 'displayItemInInventory':
+                            ind = menuWindows.index(mWindow)
+                            del menuWindows[ind]
+                            print('Deleted')
+                    tdl.flush()
+            FOV_recompute = True
+            Update()
+            window = NamedConsole('displayItemInInventory', width, height)
+            print('Created disp window')
+            window.clear()
+            menuWindows.append(window)
+    
+            for k in range(width):
+                window.draw_char(k, 0, chr(196))
+            window.draw_char(0, 0, chr(218))
+            window.draw_char(k, 0, chr(191))
+            kMax = k
+            for l in range(height):
+                if l > 0:
+                    window.draw_char(0, l, chr(179))
+                    window.draw_char(kMax, l, chr(179))
+            lMax = l
+            for m in range(width):
+                window.draw_char(m, lMax, chr(196))
+            window.draw_char(0, lMax, chr(192))
+            window.draw_char(kMax, lMax, chr(217))
+            Y = 3
+            X = 3
+            prevLine = None
+            drawCenteredVariableWidth(window, y=1, text = self.name.capitalize(), fg=colors.amber, width=width)
+            for line in desc:
+                if line != "BREAK":
+                    window.draw_str(1,Y, line)
+                    incrementY = True
+                else:
+                    if prevLine and prevLine == "BREAK":
+                        incrementY = True
+                    else:
+                        incrementY = False
+                if incrementY:
+                    Y += 1
+                prevLine = line
+            posX = MID_WIDTH - width // 2
+            posY = MID_HEIGHT - height//2
+            root.blit(window, posX, posY, width, height, 0, 0)
+        
+            menuWindows.append(window)
+            FOV_recompute = True
+            tdl.flush()
+            tdl.event.key_wait()
+            
 
 
 def rSpellDamage(amount, caster, target, type):
@@ -1297,7 +1419,7 @@ def convertRandTemplateToSpell(template = None):
     color = template.color
     
     finalFunction = functools.partial(rSpellExec, effect1, effect2, effect3, targetFunction, zoneFunction, color)
-    return Spell(ressourceCost = template.cost, cooldown = 10, useFunction = finalFunction, ressource = template.ressource, type="Magic", magicLevel=0, name = nameGen.humanLike()) #TO-DO : Generate values for cooldown and minimum magic level
+    return Spell(ressourceCost = template.cost, cooldown = 10, useFunction = finalFunction, ressource = template.ressource, type="Magic", magicLevel=0, name = nameGen.humanLike(), template = template) #TO-DO : Generate values for cooldown and minimum magic level
         
     #TO-DO : Finish this
     
@@ -6429,32 +6551,42 @@ def getInput():
         else:
             return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'Z' and gameState == 'playing':
-        chosenSpell = spellsMenu('Press the key next to a spell to use it')
+        try:
+            chosenSpell, switch = spellsMenu('Press the key next to a spell to use it (press ? to switch to info mode)')
+        except TypeError:
+            traceback.print_exc()
+            print(switch)
+            stopProcess()
+            os._exit(-1)
+            
         if chosenSpell == None:
             FOV_recompute = True
             if DEBUG:
                 message('No spell chosen', colors.violet)
             return 'didnt-take-turn'
         else:
-            if chosenSpell.magicLevel > player.Player.getTrait(searchedType = 'skill', name = 'Magic ').amount:
-                '''
-                FOV_recompute = True
-                message('Your arcane knowledge is not high enough to cast ' + chosenSpell.name + '.')
-                return 'didnt-take-turn'
-                '''
-                action = chosenSpell.cast(caster = player)
-                if action == 'cancelled':
+            if not switch:
+                if chosenSpell.magicLevel > player.Player.getTrait(searchedType = 'skill', name = 'Magic ').amount:
+                    '''
                     FOV_recompute = True
+                    message('Your arcane knowledge is not high enough to cast ' + chosenSpell.name + '.')
                     return 'didnt-take-turn'
+                    '''
+                    action = chosenSpell.cast(caster = player)
+                    if action == 'cancelled':
+                        FOV_recompute = True
+                        return 'didnt-take-turn'
+                    else:
+                        return
                 else:
-                    return
+                    action = chosenSpell.cast(caster = player)
+                    if action == 'cancelled':
+                        FOV_recompute = True
+                        return 'didnt-take-turn'
+                    else:
+                        return
             else:
-                action = chosenSpell.cast(caster = player)
-                if action == 'cancelled':
-                    FOV_recompute = True
-                    return 'didnt-take-turn'
-                else:
-                    return
+                chosenSpell.displayInfo()
     elif userInput.keychar.upper() == 'X':
         print('SHOOTING')
         shooting = shoot()
@@ -11635,7 +11767,12 @@ def sortSpells(spellsToSort):
         spellsOrdered.append(kSpells[unorderedIndex])
     return spellsOrdered
         
-        
+def spellMenu(header):
+    '''
+    Alias for spellsMenu. Mainly used for when Edern wants to CTRL-F this function but forgets whether or not he wrote spells in plural in the function name.
+    '''
+    return spellsMenu(header)
+
 def spellsMenu(header):
     '''
     Shows a menu with each known ready spell as an option
@@ -11653,14 +11790,14 @@ def spellsMenu(header):
         except TDLError:
             options = []
             borked = True
-    index = menu(header, options, INVENTORY_WIDTH, noItemMessage="You don't have any spells ready right now")
+    index, switch = menu(header, options, SPELLS_MENU_WIDTH, noItemMessage="You don't have any spells ready right now", switchKey = "?", switchHeader = "Select a spell to get information on (press ? to switch to cast mode)")
     if index is None or len(player.Fighter.knownSpells) == 0 or borked or index == "cancelled":
         global DEBUG
         if DEBUG:
             message('No spell selected in menu', colors.purple)
-        return None
+        return (None, False)
     else:
-        return player.Fighter.knownSpells[index]
+        return (player.Fighter.knownSpells[index], switch)
 
 
 def equipmentMenu(header):
@@ -12270,7 +12407,7 @@ def Update():
         if object != player:
             if (object.x, object.y) in visibleTiles or (object.alwaysVisible and myMap[object.x][object.y].explored) or REVEL or object in allMonstersDetected:
                 object.draw()
-                if object.Fighter and (SIDE_PANEL_MODES[currentSidepanelMode] == 'enemies') and object.owner is None:
+                if object.Fighter and (SIDE_PANEL_MODES[currentSidepanelMode] == 'enemies'): #and object.owner is None
                     name = textwrap.wrap(object.name, SIDE_PANEL_TEXT_WIDTH)
                     char = object.char
                     if object.size > 1 and object.smallChar:
