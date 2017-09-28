@@ -1020,6 +1020,17 @@ def targetTileWrapper(caster = None):
 def singleTarget(startPoint, shotRange = 0):
     return [(startPoint.x, startPoint.y)]
 
+def verticalCross(startPoint, shotRange = 3):
+    affectedTiles = [(startPoint.x, startPoint.y)]
+    i = 1
+    while i <= shotRange:
+        affectedTiles.append((startPoint.x + i, startPoint.y))
+        affectedTiles.append((startPoint.x - i, startPoint.y))
+        affectedTiles.append((startPoint.x, startPoint.y + i))
+        affectedTiles.append((startPoint.x, startPoint.y - i))
+        i += 1
+    return affectedTiles
+
 def areaOfEffect(startPoint, shotRange = 2):
     '''    
                               X
@@ -1094,6 +1105,18 @@ Then find everything in affected tiles, fill in the targets list and return said
     
     return affectedTiles
 
+def cleanList(entryList):
+    "For when duplicates are still showing up in a list after you've tried everything else"
+    cleanedList = []
+    idList = []
+    while entryList:
+        curObj = entryList.pop(0)
+        curID = id(curObj)
+        if not curID in idList:
+            cleanedList.append(curObj)
+        idList.append(curID)
+    return cleanedList
+
 def processTiles(tileList, targetDead = False):
     targetList = []
     counter = 0
@@ -1101,7 +1124,7 @@ def processTiles(tileList, targetDead = False):
         counter += 1
         if counter > 500:
             raise InfiniteLoopPrevention("Processing tiles. Objects list = {}".format(objects))
-        if (int(object.x), int(object.y)) in tileList and object.Fighter and (object.Fighter.hp > 0 or targetDead):
+        if (int(object.x), int(object.y)) in tileList and object.Fighter and (object.Fighter.hp > 0 or targetDead) and not object in targetList:
             targetList.append(object)
     return targetList
 
@@ -1131,8 +1154,9 @@ def rSpellExec(func1 = Erwan, func2 = Erwan, func3 = Erwan, targetFunction = tar
         Update()
         tdl.flush()
     print("After draw, before process")
-    targetList = processTiles(tilesList)
-    print("")
+    targetList = cleanList(processTiles(tilesList))
+    
+    print(targetList)
     
     if len(targetList) > 0:
         counter = 0
@@ -1168,6 +1192,8 @@ def convertRandTemplateToSpell(template = None):
     
     if template.zone == "AOE":
         zoneFunction = areaOfEffect
+    elif template.zone == "Cross":
+        zoneFunction = verticalCross
     else:
         zoneFunction = singleTarget 
     zone = "SingleTile"
@@ -2183,7 +2209,7 @@ def findTileNeighbouringDjik(startTile, negative = False):
     found = False
     curLow = 0
     curLowTile = None
-    for tile in startTile.neighbors():
+    for tile in startTile.neighbors(myMap):
         if tile is not None and not (tile.blocked or tile.chasm or tile.wall) and (not found or tile.djikValue < curLow):
             found = True
             curLow = tile.djikValue
@@ -3488,9 +3514,9 @@ class GameObject:
     
     def moveOnAstarPath(self, goal = player):
         if self.size > 1:
-            self.astarPath = astarPath(self.x, self.y, goal.x, goal.y, silent = False, mapToUse = myMap, size = self.size, bigMonster=self)
+            self.astarPath = astarPath(self.x, self.y, goal.x, goal.y, silent = True, mapToUse = myMap, size = self.size, bigMonster=self)
         else:
-            self.astarPath = astarPath(self.x, self.y, goal.x, goal.y)
+            self.astarPath = astarPath(self.x, self.y, goal.x, goal.y, silent = True)
         if self.astarPath is not None:
             nextTile = self.astarPath.pop(0)
             (self.x, self.y) = (nextTile.x, nextTile.y)
@@ -4262,9 +4288,9 @@ class Pathfinder(threading.Thread):
         
     def run(self):
         if self.mob.size > 1:
-            self.mob.astarPath = astarPath(self.mob.x, self.mob.y, self.goalX, self.goalY, silent = False, mapToUse = self.mapToUse, size = self.mob.size, bigMonster=self.mob)
+            self.mob.astarPath = astarPath(self.mob.x, self.mob.y, self.goalX, self.goalY, silent = True, mapToUse = self.mapToUse, size = self.mob.size, bigMonster=self.mob)
         else:
-            self.mob.astarPath = astarPath(self.mob.x, self.mob.y, self.goalX, self.goalY)
+            self.mob.astarPath = astarPath(self.mob.x, self.mob.y, self.goalX, self.goalY, silent = True)
 
 class TargetSelector:
     def __init__(self):
@@ -4392,7 +4418,7 @@ class BasicMonster(TargetSelector): #Basic monsters' AI
             x, y = self.owner.x + dx, self.owner.y + dy
             print('wandering, chasm:', myMap[x][y].chasm)
             if self.owner.flying or not myMap[x][y].chasm:
-                print('moving')
+                #print('moving')
                 monster.move(dx, dy) #wandering
                 self.futureCoords = (x, y)
 
@@ -4440,13 +4466,13 @@ class BasicMonster(TargetSelector): #Basic monsters' AI
         global mustCalculate
         monster = self.owner
         if monster.Fighter.canTakeTurn and monster.distanceTo(player) >= 2:
-            print("IN TRYMOVE BLOCK")
+            #print("IN TRYMOVE BLOCK")
             print("SELECTED TARGET : {}".format(self.selectedTarget))
             pathState = "fail"
             diagPathState = None
             forceRecalculate = False
             if monster.astarPath and ((not self.selectedTarget) or self.didRecalcThisTurn):
-                print("Found astarPath")
+                #print("Found astarPath")
                 potentialX = int(monster.astarPath[0].x)
                 potentialY = int(monster.astarPath[0].y)
                 '''
@@ -4459,12 +4485,12 @@ class BasicMonster(TargetSelector): #Basic monsters' AI
                 '''
                         
                 if not monster.astarPath[0].blocked and not forceRecalculate:
-                    print("Not blocked")
-                    print("ASTARX {} | ASTARY {}".format(monster.astarPath[0].x, monster.astarPath[0].y))
+                    #print("Not blocked")
+                    #print("ASTARX {} | ASTARY {}".format(monster.astarPath[0].x, monster.astarPath[0].y))
                     x = int(monster.astarPath[0].x)
                     y = int(monster.astarPath[0].y)
                     if x == monster.x and y == monster.y:
-                        print("Next step is identical to monster current position")
+                        #print("Next step is identical to monster current position")
                         if len(monster.astarPath) > 1:
                             x = int(monster.astarPath[1].x)
                             y = int(monster.astarPath[1].y)
@@ -4476,9 +4502,9 @@ class BasicMonster(TargetSelector): #Basic monsters' AI
                     self.futureCoords = (x, y)
 
                 else:
-                    print("Blocked")
+                    #print("Blocked")
                     if self.selectedTarget and self.failCounter <= MAX_ASTAR_FAILS:
-                        print("Recalculating")
+                        #print("Recalculating")
                         self.didRecalcThisTurn = True
                         self.failCounter += 1
                         mustCalculate = True
