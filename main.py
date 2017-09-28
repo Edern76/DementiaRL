@@ -1031,6 +1031,17 @@ def verticalCross(startPoint, shotRange = 3):
         i += 1
     return affectedTiles
 
+def diagonalCross(startPoint, shotRange = 3):
+    affectedTiles = [(startPoint.x, startPoint.y)]
+    i = 1
+    while i <= shotRange:
+        affectedTiles.append((startPoint.x + i, startPoint.y + i))
+        affectedTiles.append((startPoint.x - i, startPoint.y - i))
+        affectedTiles.append((startPoint.x - i, startPoint.y + i))
+        affectedTiles.append((startPoint.x + i, startPoint.y - i))
+        i += 1
+    return affectedTiles
+
 def areaOfEffect(startPoint, shotRange = 2):
     '''    
                               X
@@ -1194,6 +1205,8 @@ def convertRandTemplateToSpell(template = None):
         zoneFunction = areaOfEffect
     elif template.zone == "Cross":
         zoneFunction = verticalCross
+    elif template.zone == "X":
+        zoneFunction = diagonalCross
     else:
         zoneFunction = singleTarget 
     zone = "SingleTile"
