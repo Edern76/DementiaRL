@@ -111,7 +111,7 @@ weaponAttributes = {'dagger': {'type': 'light', 'slot': 'one handed', 'pic': 'da
                     'peasant flail': {'type': 'heavy', 'slot': 'two handed', 'pic': 'greatFlail.xp', 'pow': 15, 'acc': -25, 'ap': 12, 'weight': 4.2, 'slow': True},
                     
                     'mace': {'type': 'light', 'slot': 'one handed', 'pic': 'mace.xp', 'pow': 8, 'acc': 10, 'ap': 2, 'weight': 1.7},
-                    'morning star': {'type': 'light', 'slot': 'one handed', 'pic': 'moringStar.xp', 'pow': 10, 'acc': 5, 'ap': 4, 'weight': 1.8},
+                    'morning star': {'type': 'light', 'slot': 'one handed', 'pic': 'morningStar.xp', 'pow': 10, 'acc': 5, 'ap': 4, 'weight': 1.8},
                     'great mace': {'type': 'heavy', 'slot': 'two handed', 'pic': 'greatMace.xp', 'pow': 13, 'acc': -10, 'ap': 8, 'weight': 5.0, 'slow': True},
                     
                     'warhammer': {'type': 'heavy', 'slot': 'one handed', 'pic': 'hammer.xp', 'pow': 13, 'crit': 3, 'weight': 1.5},

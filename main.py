@@ -2745,9 +2745,9 @@ def initializeTraits():
     demon = Trait('Demon Spawn', 'Demon spawns, a very uncommon breed of a human and a demon, are cursed with the heritage of  their demonic parents, which will make them grow disturbing mutations as they grow older and stronger.', type = 'race', spells = [demonForm])
     tree = Trait('Rootling', 'Rootlings, also called treants, are rare, sentient plants. They begin their life as a simple twig, but, with time, might become gigantic oaks.', type = 'race', stren=(-3, 0), dex=(-2, 0), vit=(-4, 0), will=(-3, 0), spells = [expandRootsDmg, expandRootsRegen])
     wolf = Trait('Werewolf', 'Werewolves are a martyred and despised race. Very tough to kill, they are naturally stronger than basic humans and unconogreably shapeshift more or less regularly. However, older werewolves are used to these transformations and can even use them to their interests.', type = 'race', stren=(2, 0), dex=(1, 0), vit=(-2, 0), will=(-4, 0)) #, allowsSelection=[wild]
-    devourer = Trait('Devourer', 'Devourers are strange, dreaded creatures from another dimension. Few have arrived in ours and even fewer have been described. These animals, half mantis, half lizard, are only born to kill and consume. Some of their breeds can even, after consuming anything - even a weapon - grow an organic replica of it.', type = 'race', vit = (-2, 0), will = (-10, 0))
-    virus = Trait('Virus ', 'Viruses are the physically weakest race, but do not base their success on their own bodies. Indeed, they are able to infect another race, making it their host and fully controllable by the virus. What is more, the virus own physical attributes, instead of applying to it directly, rather modifies the host metabolism, potentially making it stronger or tougher. However, this take-over is very harmful for the host, who will eventually die. The virus must then find a new host to continue living.', type = 'race', ev = (999, 0))
-    races = [human, mino, insect, cat, rept, demon, tree, wolf, devourer, virus]
+    #devourer = Trait('Devourer', 'Devourers are strange, dreaded creatures from another dimension. Few have arrived in ours and even fewer have been described. These animals, half mantis, half lizard, are only born to kill and consume. Some of their breeds can even, after consuming anything - even a weapon - grow an organic replica of it.', type = 'race', vit = (-2, 0), will = (-10, 0))
+    #virus = Trait('Virus ', 'Viruses are the physically weakest race, but do not base their success on their own bodies. Indeed, they are able to infect another race, making it their host and fully controllable by the virus. What is more, the virus own physical attributes, instead of applying to it directly, rather modifies the host metabolism, potentially making it stronger or tougher. However, this take-over is very harmful for the host, who will eventually die. The virus must then find a new host to continue living.', type = 'race', ev = (999, 0))
+    races = [human, mino, insect, cat, rept, demon, tree, wolf]#, devourer, virus]
     allTraits.extend(races) 
     leftTraits.extend(races)
     
@@ -3773,7 +3773,7 @@ def createNPCFromMapReader(attributeList):
     return GameObject(int(attributeList[0]), int(attributeList[1]), attributeList[2], attributeList[3], attributeList[4], blocks = True, socialComp = getattr(dial, attributeList[5]), shopComp = shop)
 
 class Fighter: #All NPCs, enemies and the player
-    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = [0], shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = None, slots = ['head', 'torso', 'left hand', 'right hand', 'legs', 'feet'], equipmentList = [], toEquip = [], attackFunctions = [], noDirectDamage = False, pic = 'ogre.xp', description = 'Placeholder', rangedPower = 0, Ranged = None, stamina = 0, attackSpeed = 100, moveSpeed = 100, rangedSpeed = 100):
+    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = [0], shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = None, slots = ['head', 'torso', 'left hand', 'right hand', 'legs', 'feet'], equipmentList = [], toEquip = [], attackFunctions = [], noDirectDamage = False, pic = 'ogre.xp', description = 'Placeholder', rangedPower = 0, Ranged = None, stamina = 0, attackSpeed = 100, moveSpeed = 100, rangedSpeed = 100, resistances = {'physical': 0, 'poison': 0, 'fire': 0, 'cold': 0, 'lightning': 0, 'light': 0, 'dark': 0}, attackTypes = {'physical': 100}):
         self.noVitHP = hp
         self.BASE_MAX_HP = hp
         self.hp = hp
@@ -3852,6 +3852,9 @@ class Fighter: #All NPCs, enemies and the player
         
         self.attackFunctions = attackFunctions
         self.noDirectDamage = noDirectDamage
+        
+        self.baseResistances = resistances
+        self.attackTypes = attackTypes
     
     @property
     def attackSpeed(self):
@@ -3978,6 +3981,10 @@ class Fighter: #All NPCs, enemies and the player
         return self.baseMaxStamina + bonus
     
     @property
+    def resistances(self):
+        return self.baseResistances
+    
+    @property
     def canTakeTurn(self):
         if not 'frozen' in convertBuffsToNames(self) and not 'stunned' in convertBuffsToNames(self):
             return True
@@ -3991,14 +3998,25 @@ class Fighter: #All NPCs, enemies and the player
         else:
             return False
         
-    def takeDamage(self, damage, damageSource, armored = False, armorPenetration=0):
+    def takeDamage(self, damageDict, damageSource, armored = False, armorPenetration=0):
         global lastHitter
         lastHitter = damageSource
-        if armored:
-            damage = damage - (self.armor - armorPenetration)
-        if self.owner == player and player.Player.race == 'Insectoid':
+        print('DamageDict:', damageDict)
+        damageTaken = {}
+        keyList = list(damageDict.keys())
+        for key in keyList:
+            if key == 'physical' and armored:
+                physDamage = damageDict['physical'] - (self.armor - armorPenetration)
+                damageTaken[key] = damageDict[key] - round((self.resistances[key] * physDamage)/100)
+            else:
+                damageTaken[key] = damageDict[key] - round((self.resistances[key] * damageDict[key])/100)
+        
+        damageList = [damageTaken[key] for key in keyList]
+        print('damageList:', damageList)
+        damage = sum(dmg for dmg in damageList)        
+        #if self.owner == player and player.Player.race == 'Insectoid':
             #formerDamage = damage
-            damage -= int(damage/10)
+        #    damage -= int(damage/10)
             #if formerDamage != damage:
             #    message('The damage was reduced to {} thanks to your chitin carapace!'.format(str(damage)), colors.sea)
         if damage > 0:
@@ -4015,7 +4033,7 @@ class Fighter: #All NPCs, enemies and the player
                     xp = self.xp
                 player.Fighter.xp += xp
                 player.Player.baseScore += xp
-        return damage
+        return damageTaken
 
     def onAttack(self, target):
         print('on attck function:', self.owner.name, target.name)
@@ -4079,9 +4097,9 @@ class Fighter: #All NPCs, enemies and the player
         return hit, criticalHit
 
     def attack(self, target):
-        [hit, criticalHit] = self.toHit(target)
+        hit, criticalHit = self.toHit(target)
         damageTaken = 0
-        baseText = '{} {} hit{} {} for {} hit points!'
+        baseText = '{} {} hit{} {} for {}!'
         baseNoDmgText = '{} attack{} {} but it has no effect.'
         textColor = {'dark_green': True, 'orange':False, 'darker_green':False, 'dark_orange':False}
         if self.owner == player:
@@ -4126,10 +4144,35 @@ class Fighter: #All NPCs, enemies and the player
                         damage = randint(self.power - 2, self.power + 2) + 4 - penetratedArmor
                     else:
                         damage = randint(self.power - 2, self.power + 2) - penetratedArmor
-                if self.canTakeTurn:
-                    damageTaken = target.Fighter.takeDamage(damage, self.owner.name)
                 
-                if damageTaken > 0:
+                damageDict = {}
+                keyList = list(self.attackTypes.keys())
+                i = 0
+                for key in keyList:
+                    if i == len(keyList)-1:
+                        dmgList = [damageDict[dmgKey] for dmgKey in keyList if dmgKey != key]
+                        damageDict[key] = damage - sum(dmg for dmg in dmgList)
+                    else:
+                        damageDict[key] = (self.attackTypes[key] * damage)//100
+                    i += 1
+                
+                if self.canTakeTurn:
+                    damageTaken = target.Fighter.takeDamage(damageDict, self.owner.name)
+                
+                totalDmgText = ''
+                lastDmgText = ''
+                totalDamage = 0
+                for key in keyList:
+                    if damageTaken[key] > 0:
+                        totalDmgText += lastDmgText.format(', ')
+                        lastDmgText = '{}' + str(damageTaken[key]) + ' ' + key + ' damage'
+                        totalDamage += damageTaken[key]
+                if len(totalDmgText) <= 0:
+                    totalDmgText += lastDmgText.format('')
+                else:
+                    totalDmgText += lastDmgText.format('and ')
+                print(textColor)
+                if totalDamage > 0:
                     for color in list(textColor.keys()):
                         if textColor[color]:
                             if color == 'dark_green':
@@ -4140,7 +4183,7 @@ class Fighter: #All NPCs, enemies and the player
                                 finalColor = colors.orange
                             else:
                                 finalColor = colors.dark_orange
-                    message(baseText.format(attackerText, critText, thirdPsnAdd, targetText, str(damageTaken)), finalColor)
+                    message(baseText.format(attackerText, critText, thirdPsnAdd, targetText, totalDmgText), finalColor)
                 else:
                     if self.owner == player:
                         finalColor = colors.dark_grey
@@ -7587,7 +7630,7 @@ def castCreateWeapon():
     else:
         (x,y) = target
         #weapon = createWeapon(x=x, y=y)
-        weapon = convertItemTemplate(itemGen.generateMeleeWeapon())
+        weapon = convertItemTemplate(itemGen.generateMeleeWeapon(depthLevel))
         weapon.x, weapon.y = x, y
         if weapon is not None:
             objects.append(weapon)
@@ -12100,7 +12143,7 @@ def mainMenu():
         
         while not tdl.event.isWindowClosed():
             root.clear()
-            asciiFile = os.path.join(absAsciiPath, 'logo.xp')
+            asciiFile = os.path.join(absAsciiPath, 'logo2.xp')
             xpRawString = gzip.open(asciiFile, "r").read()
             convertedString = xpRawString
             attributes = xpL.load_xp_string(convertedString)
