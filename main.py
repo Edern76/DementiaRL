@@ -3854,19 +3854,7 @@ class Fighter: #All NPCs, enemies and the player
         self.noDirectDamage = noDirectDamage
         
         self.baseResistances = resistances
-        self.attackTypes = attackTypes
-    
-    @property
-    def attackSpeed(self):
-        return self.baseAttackSpeed
-    
-    @property
-    def moveSpeed(self):
-        return self.baseMoveSpeed
-    
-    @property
-    def rangedSpeed(self):
-        return self.baseRangedSpeed
+        self.baseAttackTypes = attackTypes
 
     @property
     def basePower(self):
@@ -3982,7 +3970,46 @@ class Fighter: #All NPCs, enemies and the player
     
     @property
     def resistances(self):
-        return self.baseResistances
+        types = self.baseResistances.copy()
+        for equipment in getAllEquipped(self.owner):
+            for key in list(equipment.resistances.keys()):
+                if key in list(types.keys()):
+                    types[key] += equipment.resistances[key]
+                else:
+                    types[key] = equipment.resistances[key]
+        return types
+    
+    @property
+    def attackTypes(self):
+        types = self.baseAttackTypes.copy()
+        for equipment in getAllEquipped(self.owner):
+            if equipment.slot == 'one handed' or equipment.slot == 'two handed':
+                for key in list(equipment.damageTypes.keys()):
+                    if key in list(types.keys()):
+                        types[key] = (types[key] + equipment.damageTypes[key])//2
+                    else:
+                        types[key] = equipment.damageTypes[key]//2
+        return types
+    
+    @property
+    def attackSpeed(self):
+        bonus = 0
+        i = 0
+        for equipment in getAllEquipped(self.owner):
+            if equipment.slot == 'one handed' or equipment.slot == 'two handed':
+                i += 1
+                bonus += equipment.attackSpeed
+        if i <= 1:
+            i = 1
+        return self.baseAttackSpeed + round(bonus/i)
+    
+    @property
+    def moveSpeed(self):
+        return self.baseMoveSpeed
+    
+    @property
+    def rangedSpeed(self):
+        return self.baseRangedSpeed
     
     @property
     def canTakeTurn(self):
@@ -4153,7 +4180,7 @@ class Fighter: #All NPCs, enemies and the player
                         dmgList = [damageDict[dmgKey] for dmgKey in keyList if dmgKey != key]
                         damageDict[key] = damage - sum(dmg for dmg in dmgList)
                     else:
-                        damageDict[key] = (self.attackTypes[key] * damage)//100
+                        damageDict[key] = round((self.attackTypes[key] * damage)/100)
                     i += 1
                 
                 if self.canTakeTurn:
@@ -4164,13 +4191,16 @@ class Fighter: #All NPCs, enemies and the player
                 totalDamage = 0
                 for key in keyList:
                     if damageTaken[key] > 0:
-                        totalDmgText += lastDmgText.format(', ')
+                        if len(totalDmgText) > 0:
+                            totalDmgText += lastDmgText.format(', ')
+                        else:
+                            totalDmgText += lastDmgText.format('')
                         lastDmgText = '{}' + str(damageTaken[key]) + ' ' + key + ' damage'
                         totalDamage += damageTaken[key]
                 if len(totalDmgText) <= 0:
                     totalDmgText += lastDmgText.format('')
                 else:
-                    totalDmgText += lastDmgText.format('and ')
+                    totalDmgText += lastDmgText.format(' and ')
                 print(textColor)
                 if totalDamage > 0:
                     for color in list(textColor.keys()):
@@ -5848,7 +5878,7 @@ class Enchantment:
         self.stealth = stealth
     
 class Equipment:
-    def __init__(self, slot, type, powerBonus=0, armorBonus=0, maxHP_Bonus=0, accuracyBonus=0, evasionBonus=0, criticalBonus = 0, maxMP_Bonus = 0, strengthBonus = 0, dexterityBonus = 0, vitalityBonus = 0, willpowerBonus = 0, ranged = False, rangedPower = 0, maxRange = 0, ammo = None, meleeWeapon = False, armorPenetrationBonus = 0, slow = False, enchant = None, staminaBonus = 0, stealthBonus = 0):
+    def __init__(self, slot, type, powerBonus=0, armorBonus=0, maxHP_Bonus=0, accuracyBonus=0, evasionBonus=0, criticalBonus = 0, maxMP_Bonus = 0, strengthBonus = 0, dexterityBonus = 0, vitalityBonus = 0, willpowerBonus = 0, ranged = False, rangedPower = 0, maxRange = 0, ammo = None, meleeWeapon = False, armorPenetrationBonus = 0, slow = False, enchant = None, staminaBonus = 0, stealthBonus = 0, attackSpeed = 100, damageTypes = {'physical': 100}, resistances = {'physical': 0, 'poison': 0, 'fire': 0, 'cold': 0, 'lightning': 0, 'light': 0, 'dark': 0}):
         self.slot = slot
         self.type = type
         self.basePowerBonus = powerBonus
@@ -5867,6 +5897,10 @@ class Equipment:
         self.baseWillpowerBonus = willpowerBonus
         self.baseStaminaBonus = staminaBonus
         self.baseStealthBonus = stealthBonus
+        self.baseAttackSpeed = attackSpeed
+        
+        self.damageTypes = damageTypes
+        self.resistances = resistances
         
         self.ranged = ranged
         self.baseRangedPower = rangedPower
@@ -6014,6 +6048,10 @@ class Equipment:
             return self.baseStealthBonus + self.enchant.stealth
         else:
             return self.baseStealthBonus
+    
+    @property
+    def attackSpeed(self):
+        return self.baseAttackSpeed
 
     def toggleEquip(self):
         self.updateState()
@@ -6841,7 +6879,7 @@ def getInput():
                             return chosenItem.useText
                     elif usage == 1:
                         chosenItem.drop()
-                        return None
+                        return 'Drop'
                     elif usage == 2:
                         choseOrQuit = False
                     else:
@@ -6852,6 +6890,7 @@ def getInput():
             chosenItem = inventoryMenu('Press the key next to an item to eat it, or any other to cancel.\n', 'food', 'You have nothing to eat')
             if chosenItem is not None:
                 chosenItem.use()
+                return 'Eat'
             else:
                 return 'didnt-take-turn'
         elif userInput.keychar == '*':
@@ -6877,10 +6916,11 @@ def getInput():
                         if using == 'cancelled' or using == 'didnt-take-turn':
                             FOV_recompute = True
                             return 'didnt-take-turn'
+                        return 'Unequip'
                     elif usage == 1:
                         chosenItem.owner.Equipment.unequip()
                         chosenItem.drop()
-                        return None
+                        return 'Unequip'
                     elif usage == 2:
                         choseOrQuit = False
                     else:
@@ -10481,7 +10521,7 @@ def convertItemTemplate(template):
                                   eq.evasionBonus.value, eq.criticalBonus.value, eq.maxMP_Bonus.value, eq.strengthBonus.value,
                                   eq.dexterityBonus.value, eq.vitalityBonus.value, eq.willpowerBonus.value, eq.ranged, eq.rangedPower.value,
                                   eq.maxRange.value, eq.ammo, eq.meleeWeapon, eq.armorPenetrationBonus.value, eq.slow, eq.enchant,
-                                  eq.staminaBonus.value, eq.stealthBonus.value)
+                                  eq.staminaBonus.value, eq.stealthBonus.value, eq.atkSpeed, eq.dmgType, eq.res)
     if template.Item:
         it = template.Item
         
@@ -11426,7 +11466,7 @@ def nudgeDown(score, curIndex):
 
 def getHighScore():
     def computeHighScore():
-        return player.Player.baseScore + (player.Player.money // 10)
+        return player.Player.baseScore + round(player.Player.money / 10)
     
     curHigh = HighScore(player.name, player.Player.race, player.Player.classes, player.level, branchLevel, currentBranch.name, lastHitter, computeHighScore())
     '''
@@ -12563,6 +12603,7 @@ def Update():
     panel.draw_str(8, 13, str(player.Player.money), colors.white)
     panel.draw_str(1, 15, 'Total depth: ', colors.amber)
     panel.draw_str(14, 15, str(depthLevel), colors.white)
+    panel.draw_str(1, 17, str(player.Fighter.actionPoints), colors.white)
     renderBar(panel, 1, 1, BAR_WIDTH, 'HP', player.Fighter.hp, player.Fighter.maxHP, player.color, colors.dark_gray, textColor = player.Player.hpTextColor)
     renderBar(panel, 1, 3, BAR_WIDTH, 'MP', player.Fighter.MP, player.Fighter.maxMP, colors.blue, colors.dark_gray, colors.darkest_blue)
     renderBar(panel, 1, 5, BAR_WIDTH, 'Stamina', player.Fighter.stamina, player.Fighter.maxStamina, colors.lighter_yellow, colors.dark_grey, colors.darker_yellow)
@@ -14016,7 +14057,7 @@ def playTutorial():
                 player.Player.hunger = BASE_HUNGER
             if player.Player.hunger < 0:
                 player.Player.hunger = 0
-            if player.Player.hunger <= BASE_HUNGER // 10:
+            if player.Player.hunger <= round(BASE_HUNGER /10):
                 if not player.Player.hungerStatus == 'starving':
                     starving = Buff('starving', colors.red, cooldown = 99999, showCooldown = False, continuousFunction = lambda fighter: randomDamage('starvation', fighter, chance = 33, minDamage = 1, maxDamage = 1, dmgMessage = 'You are starving!', dmgColor = colors.red, msgPlayerOnly = True))
                     starving.applyBuff(player)
@@ -14347,7 +14388,7 @@ def playGame(noSave = False):
                 player.Player.hunger = BASE_HUNGER
             if player.Player.hunger < 0:
                 player.Player.hunger = 0
-            if player.Player.hunger <= BASE_HUNGER // 10:
+            if player.Player.hunger <= round(BASE_HUNGER / 10):
                 if not player.Player.hungerStatus == 'starving':
                     starving = Buff('starving', colors.red, cooldown = 99999, showCooldown = False, continuousFunction = lambda fighter: randomDamage('starvation', fighter, chance = 33, minDamage = 1, maxDamage = 1, dmgMessage = 'You are starving!', dmgColor = colors.red, msgPlayerOnly = True))
                     starving.applyBuff(player)

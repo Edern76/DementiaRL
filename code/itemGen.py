@@ -93,36 +93,36 @@ weaponSize = {'dagger': {'dagger': 70, 'stiletto': 15, 'misericorde': 15},
               'gloves': {'cestus': 85, 'knuckles': 10, 'fighting claws': 5},
               'spear': {'pike': 85, 'halberd': 15}}
 
-weaponDictTemplate = ['pow', 'arm', 'HP', 'acc', 'ev', 'crit', 'MP', 'strength', 'dex', 'vit', 'will', 'ap', 'slow', 'stam', 'stealth']
+weaponDictTemplate = ['pow', 'arm', 'HP', 'acc', 'ev', 'crit', 'MP', 'strength', 'dex', 'vit', 'will', 'ap', 'slow', 'stam', 'stealth', 'dmgTypes', 'res', 'atkSpeed']
 
-weaponAttributes = {'dagger': {'type': 'light', 'slot': 'one handed', 'pic': 'dagger.xp', 'pow': 6, 'acc': 15, 'stealth': 7, 'weight': 0.5},
-                    'stiletto': {'type': 'light', 'slot': 'one handed', 'pic': 'stiletto.xp', 'pow': 5, 'acc': 20, 'stealth': 10, 'crit': 5, 'weight': 0.5},
-                    'misericorde': {'type': 'light', 'slot': 'one handed', 'pic': 'dagger.xp', 'pow': 6, 'acc': 10, 'stealth': 5, 'ap': 1, 'weight': 0.5},
+weaponAttributes = {'dagger': {'type': 'light', 'slot': 'one handed', 'pic': 'dagger.xp', 'pow': 6, 'acc': 15, 'stealth': 7, 'weight': 0.5, 'atkSpeed': -50},
+                    'stiletto': {'type': 'light', 'slot': 'one handed', 'pic': 'stiletto.xp', 'pow': 5, 'acc': 20, 'stealth': 10, 'crit': 5, 'weight': 0.5, 'atkSpeed': -50},
+                    'misericorde': {'type': 'light', 'slot': 'one handed', 'pic': 'dagger.xp', 'pow': 6, 'acc': 10, 'stealth': 5, 'ap': 1, 'weight': 0.5, 'atkSpeed': -50},
                     
                     'shortsword': {'type': 'light', 'slot': 'one handed', 'pic': 'shortSword.xp', 'pow': 8, 'acc': 5, 'weight': 1.1},
                     'longsword': {'type': 'light', 'slot': 'one handed', 'pic': 'longSword.xp', 'pow': 12, 'weight': 1.9},
                     'katana': {'type': 'light', 'slot': 'one handed', 'pic': 'katana.xp', 'pow': 11, 'ap': 3, 'weight': 1.5},
-                    'great sword': {'type': 'heavy', 'slot': 'two handed', 'pic': 'greatSword.xp', 'pow': 18, 'acc': -10, 'weight': 3.5, 'slow': True},
+                    'great sword': {'type': 'heavy', 'slot': 'two handed', 'pic': 'greatSword.xp', 'pow': 18, 'acc': -10, 'weight': 3.5, 'atkSpeed': 100},
                     
                     'axe': {'type': 'light', 'slot': 'one handed', 'pic': 'axe.xp', 'pow': 9, 'acc': 10, 'weight': 1.3},
-                    'greataxe': {'type': 'heavy', 'slot': 'two handed', 'pic': 'greatAxe.xp', 'pow': 20, 'acc': -15, 'weight': 3.3, 'slow': True},
+                    'greataxe': {'type': 'heavy', 'slot': 'two handed', 'pic': 'greatAxe.xp', 'pow': 20, 'acc': -15, 'weight': 3.3, 'atkSpeed': 100},
                     
-                    'flail': {'type': 'heavy', 'slot': 'one handed', 'pic': 'flail.xp', 'pow': 9, 'ap': 6, 'acc': -5, 'crit': -3, 'weight': 2.4},
-                    'peasant flail': {'type': 'heavy', 'slot': 'two handed', 'pic': 'greatFlail.xp', 'pow': 15, 'acc': -25, 'ap': 12, 'weight': 4.2, 'slow': True},
+                    'flail': {'type': 'heavy', 'slot': 'one handed', 'pic': 'flail.xp', 'pow': 9, 'ap': 6, 'acc': -5, 'crit': -3, 'weight': 2.4, 'atkSpeed': 50},
+                    'peasant flail': {'type': 'heavy', 'slot': 'two handed', 'pic': 'greatFlail.xp', 'pow': 15, 'acc': -25, 'ap': 12, 'weight': 4.2, 'atkSpeed': 100},
                     
                     'mace': {'type': 'light', 'slot': 'one handed', 'pic': 'mace.xp', 'pow': 8, 'acc': 10, 'ap': 2, 'weight': 1.7},
                     'morning star': {'type': 'light', 'slot': 'one handed', 'pic': 'morningStar.xp', 'pow': 10, 'acc': 5, 'ap': 4, 'weight': 1.8},
-                    'great mace': {'type': 'heavy', 'slot': 'two handed', 'pic': 'greatMace.xp', 'pow': 13, 'acc': -10, 'ap': 8, 'weight': 5.0, 'slow': True},
+                    'great mace': {'type': 'heavy', 'slot': 'two handed', 'pic': 'greatMace.xp', 'pow': 13, 'acc': -10, 'ap': 8, 'weight': 5.0, 'atkSpeed': 100},
                     
-                    'warhammer': {'type': 'heavy', 'slot': 'one handed', 'pic': 'hammer.xp', 'pow': 13, 'crit': 3, 'weight': 1.5},
-                    'maul': {'type': 'heavy', 'slot': 'two handed', 'pic': 'greatHammer.xp', 'pow': 19, 'crit': 6, 'weight': 5.7, 'slow': True},
+                    'warhammer': {'type': 'heavy', 'slot': 'one handed', 'pic': 'hammer.xp', 'pow': 13, 'crit': 3, 'weight': 1.5, 'atkSpeed': 50},
+                    'maul': {'type': 'heavy', 'slot': 'two handed', 'pic': 'greatHammer.xp', 'pow': 19, 'crit': 6, 'weight': 5.7, 'atkSpeed': 100},
                     
-                    'cestus': {'type': 'light', 'slot': 'two handed', 'pic': 'mace.xp', 'pow': 7, 'acc': 15, 'ev': 20, 'crit': -5, 'arm': 2, 'weight': 0.3},
-                    'knuckles': {'type': 'light', 'slot': 'two handed', 'pic': 'mace.xp', 'pow': 13, 'acc': 10, 'ev': 15, 'crit': 2, 'weight': 0.7},
+                    'cestus': {'type': 'light', 'slot': 'two handed', 'pic': 'mace.xp', 'pow': 7, 'acc': 15, 'ev': 20, 'crit': -5, 'arm': 2, 'weight': 0.3, 'atkSpeed': -25},
+                    'knuckles': {'type': 'light', 'slot': 'two handed', 'pic': 'mace.xp', 'pow': 13, 'acc': 10, 'ev': 15, 'crit': 2, 'weight': 0.7, 'atkSpeed': -25},
                     'fighting claws': {'type': 'light', 'slot': 'two handed', 'pic': 'mace.xp', 'pow': 16, 'acc': 10, 'ev': 25, 'crit': 5, 'weight': 0.6},
                     
                     'pike': {'type': 'light', 'slot': 'one handed', 'pic': 'spear.xp', 'pow': 8, 'acc': 10, 'ev': 10, 'weight': 3.1},
-                    'halberd': {'type': 'heavy', 'slot': 'two handed', 'pic': 'halberd.xp', 'pow': 14, 'ap': 2, 'acc': 5, 'weight': 3.9, 'slow': True}
+                    'halberd': {'type': 'heavy', 'slot': 'two handed', 'pic': 'halberd.xp', 'pow': 14, 'ap': 2, 'acc': 5, 'weight': 3.9, 'atkSpeed': 100}
                     }
 
 weaponAdj = {'dagger': {'junk': {'regular': 50, 'rusty': 50},
@@ -188,10 +188,10 @@ adjEffects = {'regular': {},
               'sharp': {'pow': 2},
               'discrete': {'stealth': 5},
               'precise': {'crit': 3},
-              'frost': {}, #add freeze chance
-              'poisoned': {}, #add poison chance
-              'burning': {}, #add burn chance
-              'electric': {}, #add electric arc chance
+              'frost': {'dmgType': {'physical': 80, 'cold': 20}}, #add freeze chance
+              'poisoned': {'dmgType': {'physical': 80, 'poison': 20}}, #add poison chance
+              'burning': {'dmgType': {'physical': 80, 'fire': 20}}, #add burn chance
+              'electric': {'dmgType': {'physical': 80, 'lightning': 20}}, #add electric arc chance
               'deadly': {'crit': 8}, #add +1 crit multiplier
               'leech': {}, #add life steal effect
               'mighty': {'strength': 1},
@@ -206,9 +206,9 @@ adjEffects = {'regular': {},
               'dark': {'stealth': 5},
               'lightweight': {'ev': 5, 'weight': -0.3},
               'hardened': {'arm': 2, 'weight': 0.2},
-              'ethereal': {'ev': 20, 'weight': -1.0}, #add air resist
-              'ignited': {'stealth': -5, 'pow': 2}, #add fire resist
-              'frozen': {'ev': -5, 'arm': 3, 'weight': 0.3}, #add water resist
+              'ethereal': {'ev': 20, 'weight': -1.0, 'res': {'lightning': 20}}, #add air resist
+              'ignited': {'stealth': -5, 'pow': 2, 'res': {'fire': 10}}, #add fire resist
+              'frozen': {'ev': -5, 'arm': 3, 'weight': 0.3, 'res': {'cold': 10}}, #add water resist
               'shadow': {'stealth': 15},
               'nimble': {'dex': 2},
               'runic': {'will': 2},
@@ -217,7 +217,7 @@ adjEffects = {'regular': {},
               'lamellar': {'acc': 5},
               'barbed': {}, #add damage on attack
               'rusted': {'arm': -5},
-              'telluric': {'arm': 8, 'weight': 1.0}, #add earth resist
+              'telluric': {'arm': 8, 'weight': 1.0, 'res': {'physical': 10}}, #add earth resist
               'padded': {'HP': 10},
               'riveted': {'arm': 5},
               'reinforced': {'arm': 5, 'weight': 0.5},
@@ -285,19 +285,19 @@ armorAttributes = {'cloth': {'head': {'pic': 'hood.xp', 'ev': 5, 'stealth': 5, '
                              },
                    'chainmail': {'head': {'pic': 'coif.xp', 'arm': 5, 'dex': -2, 'weight': 1.2},
                                  'legs': {'arm': 7, 'ev': -7, 'weight': 1.9},
-                                 'torso': {'arm': 10, 'ev': -10, 'weight': 2.4},
+                                 'torso': {'pic': 'mailHauberk.xp', 'arm': 10, 'ev': -10, 'weight': 2.4},
                                  'feet': {'arm': 3, 'ev': -5, 'weight': 1.3},
                                  'hands': {'arm': 3, 'dex': 3, 'weight': 1.0}
                                  },
                    'scale': {'head': {'pic': 'aventail.xp', 'arm': 8, 'dex': -4, 'weight': 2.1},
                              'legs': {'arm': 10, 'ev': -10, 'weight': 2.7},
-                             'torso': {'arm': 13, 'ev': -15, 'weight': 3.4},
+                             'torso': {'pic': 'scaleHauberk.xp', 'arm': 13, 'ev': -15, 'weight': 3.4},
                              'feet': {'arm': 7, 'ev': -7, 'weight': 2.4},
                              'hands': {'arm': 5, 'dex': 2, 'weight': 1.9}
                              },
                    'plate': {'head': {'pic': 'greatHelm.xp', 'arm': 12, 'dex': -6, 'weight': 3.5},
                              'legs': {'arm': 14, 'ev': -15, 'weight': 4.1},
-                             'torso': {'arm': 17, 'ev': -25, 'weight': 5.4},
+                             'torso': {'pic': 'breastplate.xp', 'arm': 17, 'ev': -25, 'weight': 5.4},
                              'feet': {'arm': 11, 'ev': -10, 'weight': 3.0},
                              'hands': {'arm': 9, 'dex': 2, 'weight': 2.1}
                              }
@@ -472,7 +472,7 @@ armorAdj = {'cloth': {'head': {'junk': {'regular': 50, 'tattered': 50},
                       }
             }
 
-armorDictTemplate = ['pow', 'arm', 'HP', 'acc', 'ev', 'crit', 'MP', 'strength', 'dex', 'vit', 'will', 'ap', 'stam', 'stealth']
+armorDictTemplate = ['pow', 'arm', 'HP', 'acc', 'ev', 'crit', 'MP', 'strength', 'dex', 'vit', 'will', 'ap', 'stam', 'stealth', 'dmgTypes', 'res', 'atkSpeed']
 ### armors ###
 
 potionTypes = ['heal HP', 'heal MP', 'heal stamina', 'cure poison', 'poison', 'cure fire', 'fire', 'frost', 'speed fast', 'speed slow', 'strength', 'constitution', 'dexterity', 'willpower']
@@ -566,7 +566,7 @@ equipmentStatsStrings = ['pow', 'arm', 'HP', 'acc', 'ev', 'crit', 'MP', 'strengt
 class EquipmentTemplate:
     def __init__(self, slot, type, powerBonus=0, armorBonus=0, maxHP_Bonus=0, accuracyBonus=0, evasionBonus=0, criticalBonus=0, maxMP_Bonus=0,
                 strengthBonus=0, dexterityBonus=0, vitalityBonus=0, willpowerBonus=0, ranged=False, rangedPower=0, maxRange=0, ammo=None, meleeWeapon=False,
-                armorPenetrationBonus=0, slow=False, enchant=None, staminaBonus=0, stealthBonus = 0):
+                armorPenetrationBonus=0, slow=False, enchant=None, staminaBonus=0, stealthBonus = 0, dmgType = {'physical': 100}, res = {}, atkSpeed = 0):
         self.slot = slot
         self.type = type
         self.powerBonus = BetterInt(powerBonus)
@@ -590,6 +590,9 @@ class EquipmentTemplate:
         self.enchant = enchant
         self.staminaBonus = BetterInt(staminaBonus)
         self.stealthBonus = BetterInt(stealthBonus)
+        self.dmgType = dmgType
+        self.res = res
+        self.atkSpeed = atkSpeed
     
     @property
     def stats(self):
@@ -630,8 +633,12 @@ class EquipmentTemplate:
             text += '\n' + str('stamina:' + str(self.staminaBonus))
         if self.stealthBonus != 0:
             text += '\n' + str('stealth:' + str(self.stealthBonus))
-        if self.slow:
-            text += '\n' + str('slow!')
+        if self.atkSpeed != 0:
+            text += '\n' + str('speed:' + str(self.atkSpeed))
+        if self.dmgType:
+            text += '\n' + 'Damage types:' + str(self.dmgType)
+        if self.res:
+            text += '\n' + 'Resistances:' + str(self.res)
         
         return text
 
@@ -697,7 +704,7 @@ def generateMeleeWeapon(level, weaponType = None):
     weaponEquipment = EquipmentTemplate(weaponDict['slot'], stringRarity + ' ' + weaponDict['type'] + ' ' + weaponType, meleeWeapon = True)
     
     try:
-        weaponEquipment.slow = weaponDict['slow']
+        weaponEquipment.atkSpeed = weaponDict['atkSpeed']
     except:
         pass
     
@@ -779,6 +786,16 @@ def generateMeleeWeapon(level, weaponType = None):
             tempWeight += adjEffects[adjective]['weight']
             if 'headed' in adjective and 'heavy' in weaponEquipment.type:
                 tempWeight += adjEffects[adjective]['weight']
+        except:
+            pass
+        
+        try:
+            weaponEquipment.dmgType = adjEffects[adjective]['dmgType'].copy()
+        except:
+            pass
+        
+        try:
+            weaponEquipment.atkSpeed += adjEffects[adjective]['atkSpeed']
         except:
             pass
     
@@ -873,6 +890,7 @@ def generateArmor(level, armorType = None, slot = None):
                 pass
         i += 1
     
+    resist = {}
     for adjective in adj:
         try:
             tempWeight += adjEffects[adjective]['weight']
@@ -880,6 +898,17 @@ def generateArmor(level, armorType = None, slot = None):
                 tempWeight += adjEffects[adjective]['weight']
         except:
             pass
+        
+        try:
+            for key in list(adjEffects[adjective]['res']):
+                if key in list(resist.keys()):
+                    resist[key] += adjEffects[adjective]['res'][key]
+                else:
+                    resist[key] = adjEffects[adjective]['res'][key]
+        except:
+            pass
+    
+    armorEquipment.res = resist.copy()
     
     if tempWeight < 0:
         tempWeight = 0
@@ -900,7 +929,7 @@ def generateArmor(level, armorType = None, slot = None):
 if __name__ == '__main__':
     level = 1
     for i in range(10):
-        print(generateArmor(level + i * 2))
+        print(generateMeleeWeapon(level + i * 2))
         print()
 
 
