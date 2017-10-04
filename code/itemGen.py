@@ -271,14 +271,14 @@ armorNames = {'head': {'cloth': 'hood', 'leather': 'hood', 'chainmail': 'coif', 
 
 armorAttributes = {'cloth': {'head': {'pic': 'hood.xp', 'ev': 5, 'stealth': 5, 'weight': 0.1}, #TO-DO add pics
                              'legs': {'ev': 10, 'stealth': 10, 'weight': 0.3}, 
-                             'torso': {'ev': 15, 'stealth': 10, 'weight': 0.5},
+                             'torso': {'pic': 'shirt.xp', 'ev': 15, 'stealth': 10, 'weight': 0.5},
                              'feet': {'stealth': 5, 'weight': 0.2},
                              'hands': {'stealth': 5, 'dex': 5, 'weight': 0.1},
                              'back': {'stealth': 20, 'ev': 10, 'weight': 0.6}
                              },
                    'leather': {'head': {'pic': 'leatherHood.xp', 'arm': 1, 'stealth': 3, 'weight': 0.5},
                              'legs': {'arm': 3, 'weight': 1.2},
-                             'torso': {'arm': 5, 'weight': 1.5},
+                             'torso': {'pic': 'tunqiue.xp', 'arm': 5, 'weight': 1.5},
                              'feet': {'arm': 2, 'weight': 0.9},
                              'hands': {'dex': 4, 'weight': 0.1},
                              'back': {'arm': 3, 'stealth': 7, 'weight': 1.0}

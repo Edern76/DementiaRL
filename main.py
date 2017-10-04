@@ -745,13 +745,26 @@ def consumeRessource(fighter, buff, ressources = {'stamina': 1}):
                 fighter.hp = 0
                 buff.removeBuff()
 
-def randomDamage(name, fighter = None, chance = 33, minDamage = 1, maxDamage = 1, dmgMessage = None, dmgColor = colors.red, msgPlayerOnly = True):
+def randomDamage(name, fighter = None, chance = 33, minDamage = 1, maxDamage = 1, dmgMessage = None, dmgColor = colors.red, msgPlayerOnly = True, dmgType = {'fire': 100}):
     dice = randint(1, 100)
     if dice <= chance:
         damage = randint(minDamage, maxDamage)
-        fighter.takeDamage(damage, name)
+        damageDict = {}
+        keyList = list(dmgType.keys())
+        i = 0
+        for key in keyList:
+            if i == len(keyList)-1:
+                dmgList = [damageDict[dmgKey] for dmgKey in keyList if dmgKey != key]
+                damageDict[key] = damage - sum(dmg for dmg in dmgList)
+            else:
+                damageDict[key] = round((dmgType[key] * damage)/100)
+            i += 1
+        damageTaken = fighter.takeDamage(damageDict, name)
+        totalDmg = 0
+        for key in list(damageTaken.keys()):
+            totalDmg += damageTaken[key]
         if (dmgMessage is not None) and (fighter == player.Fighter or (not msgPlayerOnly)):
-            message(dmgMessage.format(damage), dmgColor)
+            message(dmgMessage.format(totalDmg), dmgColor)
 
 def addSlot(fighter, slot):
     print('adding {} slot to {}'.format(slot, fighter.owner.name))
@@ -893,7 +906,7 @@ class Spell:
                 if self.ressource == 'MP':
                     caster.Fighter.MP -= self.ressourceCost
                 elif self.ressource == 'HP':
-                    caster.Fighter.takeDamage(self.ressourceCost, 'your spell')
+                    caster.Fighter.takeDamage({'none': self.ressourceCost}, 'your spell')
                 elif self.ressource == 'Stamina':
                     caster.Fighter.stamina -= self.ressourceCost
                 return 'used'
@@ -907,7 +920,7 @@ class Spell:
                 if self.ressource == 'MP':
                     caster.Fighter.MP -= self.ressourceCost
                 elif self.ressource == 'HP':
-                    caster.Fighter.takeDamage(self.ressourceCost, 'your spell')
+                    caster.Fighter.takeDamage({'none': self.ressourceCost}, 'your spell')
                 elif self.ressource == 'Stamina':
                     caster.Fighter.stamina -= self.ressourceCost
                 return 'used'
@@ -921,7 +934,7 @@ class Spell:
                 if self.ressource == 'MP':
                     caster.Fighter.MP -= self.ressourceCost
                 elif self.ressource == 'HP':
-                    caster.Fighter.takeDamage(self.ressourceCost, 'your spell')
+                    caster.Fighter.takeDamage({'none': self.ressourceCost}, 'your spell')
                 elif self.ressource == 'Stamina':
                     caster.Fighter.stamina -= self.ressourceCost
                 return 'used'
@@ -935,7 +948,7 @@ class Spell:
                 if self.ressource == 'MP':
                     caster.Fighter.MP -= self.ressourceCost
                 elif self.ressource == 'HP':
-                    caster.Fighter.takeDamage(self.ressourceCost, 'your spell')
+                    caster.Fighter.takeDamage({'none': self.ressourceCost}, 'your spell')
                 elif self.ressource == 'Stamina':
                     caster.Fighter.stamina -= self.ressourceCost
                 return 'used'
@@ -1033,24 +1046,36 @@ class Spell:
             
 
 
-def rSpellDamage(amount, caster, target, type):
+def rSpellDamage(amount, caster, target, type, dmgTypes = {'physical': 100}):
         if caster is None:
             caster = player
-        target.Fighter.takeDamage(amount, "A spell")
+        damageDict = {}
+        keyList = list(dmgTypes.keys())
+        i = 0
+        for key in keyList:
+            if i == len(keyList)-1:
+                dmgList = [damageDict[dmgKey] for dmgKey in keyList if dmgKey != key]
+                damageDict[key] = amount - sum(dmg for dmg in dmgList)
+            else:
+                damageDict[key] = round((dmgTypes[key] * amount)/100)
+            i += 1
         if target != player:
             if caster == player:
                 messageColor = colors.green
             else:
                 messageColor = colors.white
-            message(target.name.capitalize() + " takes {} damage !".format(amount), messageColor)
+            dmgTxtFunc = lambda damageTaken: target.Fighter.formatRawDamageText(damageTaken, " takes {}!", messageColor, '{} is hit by the spell but is insensible to it.', colors.white)
         else:
-            message("You take {} damage !".format(amount), colors.red)
+            dmgTxtFunc = lambda damageTaken: player.Fighter.formatRawDamageText(damageTaken, "{} take {} damage !", colors.red, '{} are hit by the spell but are insensible to it.', colors.white)
+        
+        target.Fighter.takeDamage(damageDict, "A spell", damageTextFunction = dmgTxtFunc)
+        
         if target is not None and target.Fighter is not None and target.Fighter.hp > 0:
             if type == "Fire" and randint(1,10) < 7:
                 burning = Buff('burning', colors.flame, cooldown= randint(3, 6), continuousFunction=lambda fighter: randomDamage('fire', fighter, chance = 100, minDamage=1, maxDamage=3, dmgMessage = 'You take {} damage from burning !'))
                 burning.applyBuff(target)
             elif type == "Poison" and randint(1,10) < 7:
-                poisoned = Buff('poisoned', colors.purple, owner = None, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10))
+                poisoned = Buff('poisoned', colors.purple, owner = None, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10, dmgType = {'poison': 100}))
                 poisoned.applyBuff(target)
         else:
             if DEBUG:
@@ -1497,8 +1522,9 @@ def castLightning(caster = None, monsterTarget = player):
     if target is None:
         message(caster.name.capitalize() + "'s magic fizzles: there is no enemy near enough to strike", colors.red)
         return 'cancelled'
-    message('A lightning bolt strikes the ' + target.name + ' with a heavy thunder ! It is shocked and suffers ' + str(LIGHTNING_DAMAGE) + ' shock damage.', colors.light_blue)
-    target.Fighter.takeDamage(LIGHTNING_DAMAGE, caster.name + "'s lightning spell")
+    else:
+        dmgTxtFunc = lambda damageTaken: target.Fighter.formatRawDamageText(damageTaken, 'A lightning bolt strikes {} with a heavy thunder ! It is shocked and suffers {}.', colors.light_blue, 'Your spell has no effect on {}.', colors.grey)
+        target.Fighter.takeDamage({'lightning': LIGHTNING_DAMAGE}, caster.name + "'s lightning spell", damageTextFunction = dmgTxtFunc)
 
 def castConfuse(caster = None, monsterTarget = None):
     if caster is None or caster == player:
@@ -1558,12 +1584,12 @@ def castFireball(radius = 3, damage = 24, shotRange = 4, caster = None, monsterT
         #TODO : Make where the projectile lands actually matter (?)
         for obj in objects:
             if obj.distanceToCoords(targetX, targetY) <= radius and obj.Fighter:
-                if obj != player:
-                    message('The {} gets burned for {} damage !'.format(obj.name, damage), colors.light_blue)
-                else:
-                    message('You get burned for {} damage !'.format(damage), colors.orange)
-                obj.Fighter.takeDamage(damage, caster.name + "'s fireball spell")
+                damageTaken = obj.Fighter.takeDamage({'fire': damage}, caster.name + "'s fireball spell")
                 applyBurn(obj)
+                if obj != player:
+                    message('{} gets burned for {} damage !'.format(obj.name.capitalize(), damageTaken['fire']), colors.light_blue)
+                else:
+                    message('You get burned for {} damage !'.format(damageTaken['fire']), colors.orange)
         for x in range(targetX - radmax, targetX + radmax):
             for y in range(targetY - radmax, targetY + radmax):
                 if tileDistance(targetX, targetY, x, y) <= radius and not myMap[x][y].block_sight:
@@ -1608,11 +1634,8 @@ def castArmageddon(radius = 4, damage = 80, caster = None, monsterTarget = None)
                     for obj in objects:
                         if obj.Fighter and obj.x == x and obj.y == y: 
                             try:
-                                if obj != player:
-                                    message('The {} gets smited for {} damage !'.format(obj.name, damage), colors.light_blue)
-                                else:
-                                    message('You get smited for {} damage !'.format(damage), colors.orange)        
-                                obj.Fighter.takeDamage(damage, caster.name + "'s armaggedon spell")
+                                dmgTxtFunc = lambda damageTaken: obj.Fighter.formatRawDamageText(damageTaken, '{} smited for {}!', colors.white, '{} smited but it has no effect.', colors.white, True)
+                                damageTaken = obj.Fighter.takeDamage({'fire': damage}, caster.name + "'s armaggedon spell", damageTextFunction = dmgTxtFunc) 
                             except AttributeError: #If it tries to access a non-existing object (aka outside of the map)
                                 continue
             except IndexError: #If an IndexError is encountered (aka if the function tries to access a tile outside of the map), execute code below except
@@ -1641,8 +1664,9 @@ def stealMoneyAndDamage(initiator, target, amount):
     else:
         leftToSteal -= target.Player.money
         actuallySteal(initiator, target.Player.money)
-        target.Fighter.takeDamage(leftToSteal // 10, damageSource = 'greedy fiend')
-        message("You take {} damage from {} !".format(leftToSteal // 10, initiator.owner.name), colors.red)
+        dmgTxtFunc = lambda damageTaken: initiator.formatAttackText(target, True, False, damageTaken)
+        target.Fighter.takeDamage({'physical': leftToSteal // 10}, damageSource = 'greedy fiend', damageTextFunction = dmgTxtFunc)
+        #message("You take {} damage from {} !".format(damageTaken['physical'], initiator.owner.name), colors.red)
 
 def castPlaceIceWall(caster = None, monsterTarget = None):
     if caster is None or caster == player:
@@ -1710,7 +1734,7 @@ enrage = Spell(ressourceCost = 5, cooldown = 30, useFunction = castEnrage, name 
 ### RACE SPECIFIC SPELLS ###
 
 def castEnvenom(caster = None, monsterTarget = None):
-    poisoned = Buff('poisoned', colors.purple, owner = None, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10))
+    poisoned = Buff('poisoned', colors.purple, owner = None, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10, dmgType={'poison': 100}))
     for equipment in equipmentList:
         if equipment.Equipment.meleeWeapon or equipment.Equipment.ranged:
             equipment.Equipment.enchant = Enchantment('envenomed', buffOnTarget=[poisoned])
@@ -1723,8 +1747,8 @@ def castKnockback(caster = None, monsterTarget = None, abilityRange = 1, KBrange
             melee = True
         target = targetMonster(abilityRange, melee = melee)
     if target:
-        target.Fighter.takeDamage(damage, 'player', armored = True)
-        message('You ram into {}!'.format(target.name), colors.yellow)
+        dmgTxtFunc = lambda damageTaken: target.Fighter.formatRawDamageText(damageTaken, 'You ram into {} for {}!', colors.yellow, 'You ram into {} for no damage.', colors.grey)
+        target.Fighter.takeDamage({'physical': damage}, 'player', armored = True, damageTextFunction = dmgTxtFunc)
         dx = target.x - caster.x
         dy = target.y - caster.y
         for kb in range(KBrange):
@@ -1834,7 +1858,7 @@ def castExpandRoots(caster = None, monsterTarget = None, mode = 'AOE', AOERange 
             Update()
             for object in objects:
                 if object.Fighter and (object.x, object.y) in rootedTiles:
-                    rooted = Buff('rooted', colors.dark_sepia, cooldown = cooldown, continuousFunction=lambda fighter: randomDamage(caster.name + "'s roots", fighter, 100, damage - 1, damage + 2, dmgMessage = '{} suffers {} damage from your roots!'.format(object.name.capitalize(), '{}'), dmgColor = colors.dark_sepia, msgPlayerOnly = False))
+                    rooted = Buff('rooted', colors.dark_sepia, cooldown = cooldown, continuousFunction=lambda fighter: randomDamage(caster.name + "'s roots", fighter, 100, damage - 1, damage + 2, dmgMessage = '{} suffers {} damage from your roots!'.format(object.name.capitalize(), '{}'), dmgColor = colors.dark_sepia, msgPlayerOnly = False, dmgType={'physical': 100}))
                     rooted.applyBuff(object)
         elif mode == 'regen':
             hpRecover = round(regenRatio * caster.Fighter.maxHP/100)
@@ -1968,7 +1992,7 @@ def castSeismicSlam(caster, monsterTarget, AOErange = 6, damage = 10, stunCooldo
             for monster in affectedMonsters:
                 stunned = Buff('stunned', colors.yellow, cooldown = stunCooldown)
                 stunned.applyBuff(monster)
-                monster.Fighter.takeDamage(damage, 'player')
+                monster.Fighter.takeDamage({'physical': damage}, armored = True, 'player')
         else:
             return 'didnt-take-turn'
 
@@ -3773,7 +3797,7 @@ def createNPCFromMapReader(attributeList):
     return GameObject(int(attributeList[0]), int(attributeList[1]), attributeList[2], attributeList[3], attributeList[4], blocks = True, socialComp = getattr(dial, attributeList[5]), shopComp = shop)
 
 class Fighter: #All NPCs, enemies and the player
-    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = [0], shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = None, slots = ['head', 'torso', 'left hand', 'right hand', 'legs', 'feet'], equipmentList = [], toEquip = [], attackFunctions = [], noDirectDamage = False, pic = 'ogre.xp', description = 'Placeholder', rangedPower = 0, Ranged = None, stamina = 0, attackSpeed = 100, moveSpeed = 100, rangedSpeed = 100, resistances = {'physical': 0, 'poison': 0, 'fire': 0, 'cold': 0, 'lightning': 0, 'light': 0, 'dark': 0}, attackTypes = {'physical': 100}):
+    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = [0], shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = None, slots = ['head', 'torso', 'left hand', 'right hand', 'legs', 'feet'], equipmentList = [], toEquip = [], attackFunctions = [], noDirectDamage = False, pic = 'ogre.xp', description = 'Placeholder', rangedPower = 0, Ranged = None, stamina = 0, attackSpeed = 100, moveSpeed = 100, rangedSpeed = 100, resistances = {'physical': 0, 'poison': 0, 'fire': 0, 'cold': 0, 'lightning': 0, 'light': 0, 'dark': 0, 'none': 0}, attackTypes = {'physical': 100}):
         self.noVitHP = hp
         self.BASE_MAX_HP = hp
         self.hp = hp
@@ -4024,10 +4048,28 @@ class Fighter: #All NPCs, enemies and the player
             return True
         else:
             return False
+    
+    def computeDamageDict(self, damage):
+        damageDict = {}
+        keyList = list(self.attackTypes.keys())
+        i = 0
+        for key in keyList:
+            if i == len(keyList)-1:
+                dmgList = [damageDict[dmgKey] for dmgKey in keyList if dmgKey != key]
+                damageDict[key] = damage - sum(dmg for dmg in dmgList)
+            else:
+                damageDict[key] = round((self.attackTypes[key] * damage)/100)
+            i += 1
         
-    def takeDamage(self, damageDict, damageSource, armored = False, armorPenetration=0):
+        return damageDict
+    
+    def takeDamage(self, damageDict, damageSource, armored = False, armorPenetration=0, damageTextFunction = None):
         global lastHitter
         lastHitter = damageSource
+        
+        if damageTextFunction is None:
+            damageTextFunction = lambda damageTaken: self.formatRawDamageText(damageTaken, '', colors.white, '', colors.white)
+        
         print('DamageDict:', damageDict)
         damageTaken = {}
         keyList = list(damageDict.keys())
@@ -4049,6 +4091,9 @@ class Fighter: #All NPCs, enemies and the player
         if damage > 0:
             self.hp -= damage
             self.updateDamageText()
+        
+        damageTextFunction(damageTaken)
+        
         if self.hp <= 0:
             death=self.deathFunction
             if death is not None:
@@ -4071,7 +4116,7 @@ class Fighter: #All NPCs, enemies and the player
                     if buff[1] == 'burning':
                         applyBurn(target, 100)
                     if buff[1] == 'poisoned':
-                        poisoned = Buff('poisoned', colors.purple, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10))
+                        poisoned = Buff('poisoned', colors.purple, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10, dmgType={'poison': 100}))
                         poisoned.applyBuff(target)
         if self.leechRessource is not None:
             hunger = self.leechRessource == 'hunger'
@@ -4122,12 +4167,8 @@ class Fighter: #All NPCs, enemies and the player
             if crit <= self.critical:
                 criticalHit = True
         return hit, criticalHit
-
-    def attack(self, target):
-        hit, criticalHit = self.toHit(target)
-        damageTaken = 0
-        baseText = '{} {} hit{} {} for {}!'
-        baseNoDmgText = '{} attack{} {} but it has no effect.'
+    
+    def formatAttackText(self, target, hit, crit, damageTaken, baseText = '{} {} hit{} {} for {}!', baseNoDmgText = '{} attack{} {} but it has no effect.'):
         textColor = {'dark_green': True, 'orange':False, 'darker_green':False, 'dark_orange':False}
         if self.owner == player:
             attackerText = 'You'
@@ -4140,7 +4181,7 @@ class Fighter: #All NPCs, enemies and the player
             thirdPsnAdd = 's'
             textColor['orange'] = True
             textColor['dark_green'] = False
-        if criticalHit:
+        if crit:
             critText = 'critically'
             if textColor['orange']:
                 textColor['dark_orange'] = True
@@ -4158,37 +4199,10 @@ class Fighter: #All NPCs, enemies and the player
 
         if hit:
             if not self.noDirectDamage:
-                penetratedArmor = target.Fighter.armor - self.armorPenetration
-                if penetratedArmor < 0:
-                    penetratedArmor = 0
-                if criticalHit:
-                    if self.owner.Player and player.Player.getTrait('trait', 'Aggressive').selected:
-                        damage = (randint(self.power - 2, self.power + 2) + 4  - penetratedArmor) * 3
-                    else:
-                        damage = (randint(self.power - 2, self.power + 2) - penetratedArmor) * 3
-                else:
-                    if self.owner.Player and player.Player.getTrait('trait', 'Aggressive').selected:
-                        damage = randint(self.power - 2, self.power + 2) + 4 - penetratedArmor
-                    else:
-                        damage = randint(self.power - 2, self.power + 2) - penetratedArmor
-                
-                damageDict = {}
-                keyList = list(self.attackTypes.keys())
-                i = 0
-                for key in keyList:
-                    if i == len(keyList)-1:
-                        dmgList = [damageDict[dmgKey] for dmgKey in keyList if dmgKey != key]
-                        damageDict[key] = damage - sum(dmg for dmg in dmgList)
-                    else:
-                        damageDict[key] = round((self.attackTypes[key] * damage)/100)
-                    i += 1
-                
-                if self.canTakeTurn:
-                    damageTaken = target.Fighter.takeDamage(damageDict, self.owner.name)
-                
                 totalDmgText = ''
                 lastDmgText = ''
                 totalDamage = 0
+                keyList = list(self.attackTypes.keys())
                 for key in keyList:
                     if damageTaken[key] > 0:
                         if len(totalDmgText) > 0:
@@ -4220,8 +4234,6 @@ class Fighter: #All NPCs, enemies and the player
                     else:
                         finalColor = colors.white
                     message(baseNoDmgText.format(attackerText, thirdPsnAdd, targetText), finalColor)
-                    
-            self.onAttack(target)
         
         else:
             if not self.owner.Player:
@@ -4231,6 +4243,69 @@ class Fighter: #All NPCs, enemies and the player
                     message(self.owner.name.capitalize() + ' missed ' + target.name + '.')
             else:
                 message('You missed ' + target.name + '!', colors.grey)
+    
+    def formatRawDamageText(self, damageTaken, text, color, noDmgText, noDmgColor, verbBe = False):
+        totalDmgText = ''
+        lastDmgText = ''
+        totalDamage = 0
+        keyList = list(damageTaken.keys())
+        for key in keyList:
+            if damageTaken[key] > 0:
+                if len(totalDmgText) > 0:
+                    totalDmgText += lastDmgText.format(', ')
+                else:
+                    totalDmgText += lastDmgText.format('')
+                lastDmgText = '{}' + str(damageTaken[key]) + ' ' + key + ' damage'
+                totalDamage += damageTaken[key]
+        if len(totalDmgText) <= 0:
+            totalDmgText += lastDmgText.format('')
+        else:
+            totalDmgText += lastDmgText.format(' and ')
+        
+        if self.owner == player:
+            if verbBe:
+                targetText = 'You are'
+            else:
+                targetText = 'You'
+        else:
+            if verbBe:
+                targetText = self.owner.name.capitalize() + ' is'
+            else:
+                targetText = self.owner.name.capitalize()
+        
+        if totalDamage > 0:
+            message(text.format(targetText, totalDmgText), color)
+        else:
+            message(noDmgText.format(targetText), noDmgColor)
+    
+    def attack(self, target):
+        hit, criticalHit = self.toHit(target)
+        damageTaken = 0
+        if hit:
+            if not self.noDirectDamage:
+                if criticalHit:
+                    if self.owner.Player and player.Player.getTrait('trait', 'Aggressive').selected:
+                        damage = (randint(self.power - 2, self.power + 2) + 4) * 3
+                    else:
+                        damage = (randint(self.power - 2, self.power + 2)) * 3
+                else:
+                    if self.owner.Player and player.Player.getTrait('trait', 'Aggressive').selected:
+                        damage = randint(self.power - 2, self.power + 2) + 4
+                    else:
+                        damage = randint(self.power - 2, self.power + 2)
+                
+                damageDict = self.computeDamageDict(damage)
+                
+                if self.canTakeTurn:
+                    dmgTxtFunc = lambda damageTaken: self.formatAttackText(target, hit, criticalHit, damageTaken)
+                    
+                    target.Fighter.takeDamage(damageDict, self.owner.name, armored = True, damageTextFunction = dmgTxtFunc)
+                    
+            self.onAttack(target)
+        else:
+            self.formatAttackText(target, hit, criticalHit, damageTaken)
+        
+        '''
         if self.owner.Player:
             #if getEquippedInHands() is not None:
                 #print('found weapons')
@@ -4242,7 +4317,8 @@ class Fighter: #All NPCs, enemies and the player
                         print('found slow weapon')
                         player.Player.attackedSlowly = True
                         player.Player.slowAttackCooldown = 1
-        
+        '''
+            
     def heal(self, amount):
         self.hp += amount
         if self.hp > self.maxHP:
@@ -4398,7 +4474,7 @@ class RangedNPC:
                     if buff[1] == 'burning':
                         applyBurn(target, 100)
                     if buff[1] == 'poisoned':
-                        poisoned = Buff('poisoned', colors.purple, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10))
+                        poisoned = Buff('poisoned', colors.purple, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10, dmgType={'poison': 100}))
                         poisoned.applyBuff(target)
         if self.leechRessource is not None:
             hunger = self.leechRessource == 'hunger'
@@ -4444,42 +4520,22 @@ class RangedNPC:
         [hit, criticalHit] = self.toHit(target)
         projectile(self.owner.owner.x, self.owner.owner.y, target.x, target.y, self.projChar, self.projColor, self.continues, self.passesThrough, self.ghost)
         FOV_recompute = True
+        damageTaken = 0
         if hit:
             penetratedArmor = target.Fighter.armor - self.armorPenetration
             if penetratedArmor < 0:
                 penetratedArmor = 0
             if criticalHit:
-                damage = (randint(self.power - 2, self.power + 2) - penetratedArmor) * 3
+                damage = (randint(self.power - 2, self.power + 2) * 3)
             else:
-                damage = randint(self.power - 2, self.power + 2) - penetratedArmor
+                damage = randint(self.power - 2, self.power + 2)
             if self.owner.canTakeTurn:
-                if damage > 0:
-                    if target == player:
-                        if criticalHit:
-                            message(self.owner.owner.name.capitalize() + ' critically' + self.shootMessage.format('you') + 'for ' + str(damage) + ' hit points!', colors.dark_orange)
-                        else:
-                            message(self.owner.owner.name.capitalize() + self.shootMessage.format('you') + 'for ' + str(damage) + ' hit points.', colors.orange)
-                    elif self.owner.AI and self.owner.AI.__class__.__name__ == "FriendlyMonster" and self.owner.AI.friendlyTowards == player:
-                        if criticalHit:
-                            message('Your fellow ' + self.owner.name + ' critically' + self.shootMessage.format(target.name) + 'for ' + str(damage) + ' hit points!', colors.darker_green)
-                        else:
-                            message('Your fellow ' + self.owner.name + self.shootMessage.format(target.name) + 'for ' + str(damage) + ' hit points.', colors.dark_green)
-                    else:
-                        if criticalHit:
-                            message(self.owner.owner.name.capitalize() + ' critically' + self.shootMessage.format(target.name) + 'for ' + str(damage) + ' hit points!')
-                        else:
-                            message(self.owner.owner.name.capitalize() + self.shootMessage.format(target.name) + 'for ' + str(damage) + ' hit points.')
-                    target.Fighter.takeDamage(damage, self.owner.owner.name)
-                else:
-                    if target == player:
-                        message(self.owner.owner.name.capitalize() + self.shootMessage.format('you') + 'but it has no effect !')
+                damageDict = self.owner.computeDamageDict(damage)
+                dmgTxtFunc = lambda damageTaken: self.owner.formatAttackText(target, hit, criticalHit, damageTaken, baseText = '{} {} shoot{} {} for {}!', baseNoDmgText = '{} shoot{} {} but it has no effect.')
+                target.Fighter.takeDamage(damageDict, self.owner.owner.name, armored = True, damageTextFunction = dmgTxtFunc)
             self.onAttack(target)
-        
         else:
-            if target == player:
-                message(self.owner.owner.name.capitalize() + ' missed you!', colors.white)
-            else:
-                message(self.owner.owner.name.capitalize() + ' missed ' + target.name + '.')
+            self.owner.formatAttackText(target, hit, criticalHit, damageTaken, baseText = '{} {} shoot{} {} for {}!', baseNoDmgText = '{} shoot{} {} but it has no effect.')
         
 class Pathfinder(threading.Thread):
     def __init__(self, mob, goalX, goalY, mapToUse = None):
@@ -4755,26 +4811,28 @@ class Charger:
             while counter < 25:
                 newX = x + dx
                 newY = y + dy
-                if not newX >= MAP_WIDTH and not newY >= MAP_HEIGHT and not newX <= 0 and not newY <= 0:
-                    tempLine = tdl.map.bresenham(x, y, newX, newY)
-                    dx = newX - x
-                    dy = newY - y
-                    x = newX
-                    y = newY
-                    counter += 1
-                    del tempLine[0]
-                    newLine.extend(tempLine)
-                else:
+                tempLine = tdl.map.bresenham(x, y, newX, newY)
+                dx = newX - x
+                dy = newY - y
+                x = newX
+                y = newY
+                counter += 1
+                del tempLine[0]
+                newLine.extend(tempLine)
+                if newX >= MAP_WIDTH or newY >= MAP_HEIGHT or newX <= 0 or newY <= 0:
                     break
         line.extend(newLine)
         self.chargePath = line
         print('charge path of {}:'.format(self.owner.name), self.chargePath)
         for (x, y) in self.chargePath:
-            if not (x, y) == (monster.x, monster.y) and not myMap[x][y].blocked:
+            if x >= MAP_WIDTH or y >= MAP_HEIGHT or x <= 0 or y <= 0:
+                self.chargePath.remove((x, y))
+            elif not (x, y) == (monster.x, monster.y) and not myMap[x][y].blocked:
                 sign = GameObject(x, y, '.', 'chargePath', color = colors.red, Ghost = True)
                 self.chargePathSigns.append(sign)
                 objects.append(sign)
                 sign.sendToBack()
+        print('final charge path of {}:'.format(self.owner.name), self.chargePath)
 
     def charge(self):
         global FOV_recompute
@@ -4827,8 +4885,9 @@ class Charger:
                                     myMap[cx][cy].clearance = checkTileClearance(myMap, cx, cy)
                             object.x = newX
                             object.y = newY
-                            message('{} is slammed into the wall!'.format(object.name.capitalize()), colors.red)
-                            object.Fighter.takeDamage(randint(monster.Fighter.power - 5, monster.Fighter.power + 5), "{}'s charge".format(monster.name))
+                            damageDict = monster.Fighter.computeDamageDict(randint(monster.Fighter.power - 5, monster.Fighter.power + 5))
+                            dmgTxtFunc = lambda damageTaken: object.Fighter.formatRawDamageText(damageTaken, '{} slammed into the wall for {}!', colors.red, '{} is slammed into the wall but it has no effect', colors.white, True)
+                            object.Fighter.takeDamage(damageDict, "{}'s charge".format(monster.name), damageTextFunction = dmgTxtFunc)
                             
             if not myMap[x][y].blocked:
                 monster.x, monster.y = x, y
@@ -4844,9 +4903,10 @@ class Charger:
                     myMap[x][y].wall = False
                     dragged.x = x
                     dragged.y = y
-                    message('{} is slammed into the wall by the force of the charge!'.format(dragged.name.capitalize()), colors.red)
-                    dragged.Fighter.takeDamage(randint(monster.Fighter.power , monster.Fighter.power + 10), "{}'s charge".format(monster.name))
-
+                    damageDict = monster.Fighter.computeDamageDict(randint(monster.Fighter.power , monster.Fighter.power + 10))
+                    dmgTxtFunc = lambda damageTaken: dragged.Fighter.formatRawDamageText(damageTaken, '{} slammed into the wall by the force of the charge!', colors.red, '{} slammed into the wall but it has no effect.', colors.white, True)
+                    dragged.Fighter.takeDamage(damageDict, "{}'s charge".format(monster.name), damageTextFunction = dmgTxtFunc)
+                    
                 break
 
         self.chargePath = []
@@ -5878,7 +5938,7 @@ class Enchantment:
         self.stealth = stealth
     
 class Equipment:
-    def __init__(self, slot, type, powerBonus=0, armorBonus=0, maxHP_Bonus=0, accuracyBonus=0, evasionBonus=0, criticalBonus = 0, maxMP_Bonus = 0, strengthBonus = 0, dexterityBonus = 0, vitalityBonus = 0, willpowerBonus = 0, ranged = False, rangedPower = 0, maxRange = 0, ammo = None, meleeWeapon = False, armorPenetrationBonus = 0, slow = False, enchant = None, staminaBonus = 0, stealthBonus = 0, attackSpeed = 100, damageTypes = {'physical': 100}, resistances = {'physical': 0, 'poison': 0, 'fire': 0, 'cold': 0, 'lightning': 0, 'light': 0, 'dark': 0}):
+    def __init__(self, slot, type, powerBonus=0, armorBonus=0, maxHP_Bonus=0, accuracyBonus=0, evasionBonus=0, criticalBonus = 0, maxMP_Bonus = 0, strengthBonus = 0, dexterityBonus = 0, vitalityBonus = 0, willpowerBonus = 0, ranged = False, rangedPower = 0, maxRange = 0, ammo = None, meleeWeapon = False, armorPenetrationBonus = 0, slow = False, enchant = None, staminaBonus = 0, stealthBonus = 0, attackSpeed = 0, damageTypes = {'physical': 100}, resistances = {'physical': 0, 'poison': 0, 'fire': 0, 'cold': 0, 'lightning': 0, 'light': 0, 'dark': 0, 'none': 0}):
         self.slot = slot
         self.type = type
         self.basePowerBonus = powerBonus
@@ -6368,7 +6428,7 @@ def badPieEffect(): #Presentation de l'initialisation d'un buff (poison)
         satiateHunger(randint(50, 200))
     if dice > 70:
         message("This had a very strange aftertaste...", colors.red)
-        poisoned = Buff('poisoned', colors.purple, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10))
+        poisoned = Buff('poisoned', colors.purple, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10, dmgType={'poison': 100}))
         poisoned.applyBuff(player)
 
 badPie = GameObject(None, None, ',', "awful pie", colors.dark_fuchsia, Item = Item(useFunction = lambda : badPieEffect(), weight = 0.4, stackable=True, amount = 1, description = "This pie looks barely edible. Whoever baked it deserves the title of the worst baker of all this world.", itemtype = 'food', pic = 'pie.xp'), blocks = False, pName = "awful pies") # TO-DO : Once we find the name of the world, change description
@@ -7097,26 +7157,18 @@ def shoot():
                                             break
                                     if monsterTarget:
                                         [hit, criticalHit] = player.Fighter.toHit(monsterTarget)
+                                        dmgTxtFunc = lambda damageTaken: player.Fighter.formatAttackText(monsterTarget, hit, criticalHit, damageTaken, baseText = '{} {} shoot{} {} for {}!', baseNoDmgText = '{} shoot{} {} but it has no effect.')
                                         if hit:
-                                            penetratedArmor = monsterTarget.Fighter.armor - weapon.Equipment.armorPenetrationBonus
-                                            if penetratedArmor < 0:
-                                                penetratedArmor = 0
                                             if player.Player.getTrait('trait', 'Aggressive').selected:
-                                                damage = randint(weapon.Equipment.rangedPower - 2, weapon.Equipment.rangedPower + 2) + 4 - penetratedArmor
+                                                damage = randint(weapon.Equipment.rangedPower - 2, weapon.Equipment.rangedPower + 2) + 4
                                             else:
-                                                damage = randint(weapon.Equipment.rangedPower - 2, weapon.Equipment.rangedPower + 2) - penetratedArmor
+                                                damage = randint(weapon.Equipment.rangedPower - 2, weapon.Equipment.rangedPower + 2)
         
-                                            if damage <= 0:
-                                                message('You hit ' + monsterTarget.name + ' but it has no effect !')
-                                            else:
-                                                if criticalHit:
-                                                    damage = damage * CRITICAL_MULTIPLIER
-                                                    message('You critically hit ' + monsterTarget.name + ' for ' + str(damage) + ' damage !', colors.darker_green)
-                                                else:
-                                                    message('You hit ' + monsterTarget.name + ' for ' + str(damage) + ' damage !', colors.dark_green)
-                                                monsterTarget.Fighter.takeDamage(damage, player.name)
+                                            if criticalHit:
+                                                damage = damage * CRITICAL_MULTIPLIER
+                                            monsterTarget.Fighter.takeDamage(damage, player.name, armored = True, damageTextFunction = dmgTxtFunc)
                                         else:
-                                            message('You missed ' + monsterTarget.name + '!', colors.grey)
+                                            dmgTxtFunc(0)
                                     else:
                                         message("Your arrow didn't hit anything", colors.grey)
                                 else:
@@ -7131,28 +7183,40 @@ def shoot():
                         return 'didnt-take-turn'
                 else:
                     message('Choose a target for your ' + weapon.name + '.', colors.cyan)
-                    target = targetMonster(weapon.Equipment.maxRange)
-                    if target is None:
+                    aimedTile = targetTile(weapon.Equipment.maxRange, showBresenham=True)
+                    if aimedTile == "cancelled":
                         FOV_recompute = True
                         message('Invalid target.')
                         return 'didnt-take-turn'
                     else:
                         player.Fighter.actionPoints -= player.Fighter.rangedSpeed
+                        (aimX, aimY) = aimedTile
+                        (targetX, targetY) = projectile(player.x, player.y, aimX, aimY, '/', colors.light_orange, continues=True)
                         FOV_recompute = True
-                        [hit, criticalHit] = player.Fighter.toHit(target)
-                        if hit:
-                            damage = weapon.Equipment.rangedPower - target.Fighter.armor
-                            if damage <= 0:
-                                message('You hit ' + target.name + ' but it has no effect !')
-                            else:
-                                if criticalHit:
-                                    damage = damage * 3
-                                    message('You critically hit ' + target.name + ' for ' + str(damage) + ' damage !', colors.darker_green)
+                        monsterTarget = None
+                        if targetX is not None and targetY is not None:
+                            for thing in objects:
+                                if thing.Fighter and thing.Fighter.hp > 0 and thing.x == targetX and thing.y == targetY:
+                                    monsterTarget = thing
+                                    break
+                            if monsterTarget:
+                                [hit, criticalHit] = player.Fighter.toHit(monsterTarget)
+                                dmgTxtFunc = lambda damageTaken: player.Fighter.formatAttackText(monsterTarget, hit, criticalHit, damageTaken, baseText = '{} {} shoot{} {} for {}!', baseNoDmgText = '{} shoot{} {} but it has no effect.')
+                                if hit:
+                                    if player.Player.getTrait('trait', 'Aggressive').selected:
+                                        damage = randint(weapon.Equipment.rangedPower - 2, weapon.Equipment.rangedPower + 2) + 4
+                                    else:
+                                        damage = randint(weapon.Equipment.rangedPower - 2, weapon.Equipment.rangedPower + 2)
+
+                                    if criticalHit:
+                                        damage = damage * CRITICAL_MULTIPLIER
+                                    monsterTarget.Fighter.takeDamage(damage, player.name, armored = True, damageTextFunction = dmgTxtFunc)
                                 else:
-                                    message('You hit ' + target.name + ' for ' + str(damage) + ' damage !', colors.dark_green)
-                                target.Fighter.takeDamage(damage, player.owner.name)
+                                    dmgTxtFunc(0)
+                            else:
+                                message("Your arrow didn't hit anything", colors.grey)
                         else:
-                            message('You missed ' + target.name + '!', colors.grey)
+                            message("Your arrow didn't hit anything", colors.grey)
             else:
                 FOV_recompute = True
                 message('You have no ranged weapon equipped.')
@@ -7622,16 +7686,13 @@ def monsterArmageddon(monsterName, monsterX, monsterY, radius = 4, damage = 40, 
                     if x in range(1, MAP_WIDTH-1) and y in range(1,MAP_HEIGHT - 1):
                         explodingTiles.append((x,y))
                     for obj in objects:
-                        if obj.Fighter and obj.x == x and obj.y == y: 
+                        if obj.Fighter and obj.x == x and obj.y == y:
                             try:
-                                if obj != player:
-                                    if selfHit:
-                                        message('The explosion deals {} damage to {} !'.format(damage, obj.name))
-                                    elif not (obj.x == monsterX and obj.y == monsterY):
-                                        message('The explosion deals {} damage to {} !'.format(damage, obj.name))
-                                else:
-                                    message('The explosion deals {} damage to you !'.format(damage), colors.orange)        
-                                obj.Fighter.takeDamage(damage, 'an explosion')
+                                dmgTxtFunc = lambda damageTaken: obj.Fighter.formatRawDamageText(damageTaken, '{} smited for {}!', colors.white, '{} smited but it has no effect.', colors.white, True)
+                                if selfHit:
+                                    obj.Fighter.takeDamage({'fire': damage}, 'an explosion', damageTextFunction = dmgTxtFunc)
+                                elif not (obj.x == monsterX and obj.y == monsterY):      
+                                    obj.Fighter.takeDamage({'fire': damage}, 'an explosion', damageTextFunction = dmgTxtFunc)
                             except AttributeError: #If it tries to access a non-existing object (aka outside of the map)
                                 continue
             except IndexError: #If an IndexError is encountered (aka if the function tries to access a tile outside of the map), execute code below except
@@ -10327,23 +10388,23 @@ class Gluttony():
                             for fighter in objects:
                                 if (fighter.x == x and fighter.y == y) and not (fighter.x == object.x and fighter.y == object.y):
                                     if fighter.Fighter:
-                                        fighter.Fighter.takeDamage(2, "Gluttony's vomit")
+                                        dmgTextFunc = lambda damageTaken: fighter.Fighter.formatRawDamageText(damageTaken, " touched by the vomit splatters and suffers {}!", colors.orange, " touched by the vomit splatters but it has no effect.", colors.white, True)
+                                        fighter.Fighter.takeDamage({'poison': 2}, "Gluttony's vomit", damageTextFunction = dmgTextFunc)
                                         fighter.Fighter.acidify()
-                                        message(fighter.name + " is touched by the vomit  splatters and suffers 2 damage!", color = colors.orange)
                 for fighter in objects:
                     if fighter.x == object.x and fighter.y == object.y:
                         if fighter.Fighter and not fighter == object:
-                            fighter.Fighter.takeDamage(15, "Gluttony's vomit")
+                            dmgTextFunc = lambda damageTaken: fighter.Fighter.formatRawDamageText(damageTaken, " touched by the vomit splatters and suffers {}!", colors.orange, " touched by the vomit splatters but it has no effect.", colors.white, True)
+                            damageTaken = fighter.Fighter.takeDamage({'poison': 15}, "Gluttony's vomit", damageTextFunction = dmgTextFunc)
                             fighter.Fighter.acidify()
-                            message(fighter.name + " is hit by Gluttony's vomit and suffers 15 damage!", color = colors.orange)
                 objects.remove(object)
                 FOV_recompute = True
                 break
 
         for object in objects:
             if object.name == "Gluttony's fat" and object.distanceTo(player) < 2:
-                player.Fighter.takeDamage(1, object.name)
-                message('The massive chunks of flesh around you start crushing you slowly! You lose 1 hit point.', colors.dark_orange)
+                dmgTextFunc = lambda damageTaken: player.Fighter.formatRawDamageText(damageTaken, 'The massive chunks of flesh around you start crushing you slowly! {} suffer {}.', colors.dark_orange, "Gluttony's pression has no effect on you.", colors.white)
+                player.Fighter.takeDamage({'physical': 1}, object.name, damageTextFunction = dmgTextFunc)
                 break
 
 def gluttonysDeath(monster):
@@ -11124,7 +11185,7 @@ def placeObjects(room, first = False):
                 elif foodChoice == 'rMeat':
                     def rMeatDebuff(amount, text):
                         if not 'poisoned' in convertBuffsToNames(player.Fighter):
-                            poisoned = Buff('poisoned', colors.purple, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10))
+                            poisoned = Buff('poisoned', colors.purple, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10, dmgType={'poison': 100}))
                             satiateHunger(amount, text)
                             dice = randint(1, 100)
                             if DEBUG:
@@ -11144,7 +11205,7 @@ def placeObjects(room, first = False):
                         satiateHunger(amount, text)
                         if choice == 'poison':
                             message("This had a very strange aftertaste...", colors.red)
-                            poisoned = Buff('poisoned', colors.purple, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10))
+                            poisoned = Buff('poisoned', colors.purple, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10, dmgType={'poison': 100}))
                             poisoned.applyBuff(player)
                         elif choice == 'freeze':
                             if not 'burning' in convertBuffsToNames(player.Fighter):
@@ -13057,24 +13118,33 @@ def targetTile(maxRange = None, showBresenham = False, unlimited = False, AOE = 
                     if styleAOE == 'circle':
                         for tx in range(cursor.x - rangeAOE - 1, cursor.x + rangeAOE + 1):
                             for ty in range(cursor.y - rangeAOE - 1, cursor.y + rangeAOE + 1):
-                                if cursor.distanceToCoords(tx, ty) <= rangeAOE and not myMap[tx][ty].blocked:
-                                    dot = GameObject(x = tx, y = ty, char = '.', name = 'AOE dot', color = colors.yellow, Ghost = True)
+                                try:
+                                    if cursor.distanceToCoords(tx, ty) <= rangeAOE and not myMap[tx][ty].blocked:
+                                        dot = GameObject(x = tx, y = ty, char = '.', name = 'AOE dot', color = colors.yellow, Ghost = True)
+                                        objects.append(dot)
+                                        dotsAOE.append(dot)
+                                        dot.sendToBack()
+                                except IndexError:
+                                    pass
+                    elif styleAOE == 'cardinal cross':
+                        for tx in range(cursor.x - rangeAOE, cursor.x + rangeAOE + 1):
+                            try:
+                                if not myMap[tx][cursor.y].blocked:
+                                    dot = GameObject(x = tx, y = cursor.y, char = '.', name = 'AOE dot', color = colors.yellow, Ghost = True)
                                     objects.append(dot)
                                     dotsAOE.append(dot)
                                     dot.sendToBack()
-                    elif styleAOE == 'cardinal cross':
-                        for tx in range(cursor.x - rangeAOE, cursor.x + rangeAOE + 1):
-                            if not myMap[tx][cursor.y].blocked:
-                                dot = GameObject(x = tx, y = cursor.y, char = '.', name = 'AOE dot', color = colors.yellow, Ghost = True)
-                                objects.append(dot)
-                                dotsAOE.append(dot)
-                                dot.sendToBack()
+                            except IndexError:
+                                    pass
                         for ty in range(cursor.y - rangeAOE, cursor.y + rangeAOE + 1):
-                            if not myMap[cursor.x][ty].blocked:
-                                dot = GameObject(x = tx, y = cursor.y, char = '.', name = 'AOE dot', color = colors.yellow, Ghost = True)
-                                objects.append(dot)
-                                dotsAOE.append(dot)
-                                dot.sendToBack()
+                            try:
+                                if not myMap[cursor.x][ty].blocked:
+                                    dot = GameObject(x = tx, y = cursor.y, char = '.', name = 'AOE dot', color = colors.yellow, Ghost = True)
+                                    objects.append(dot)
+                                    dotsAOE.append(dot)
+                                    dot.sendToBack()
+                            except IndexError:
+                                    pass
                     elif styleAOE == 'cone':
                         if not (cursor.x == player.x and cursor.y == player.y):
                             pointA, pointB = arcCoordinates(player.distanceTo(cursor), cursor.x - player.x, cursor.y - player.y, (cursor.x, cursor.y))
@@ -14059,7 +14129,7 @@ def playTutorial():
                 player.Player.hunger = 0
             if player.Player.hunger <= round(BASE_HUNGER /10):
                 if not player.Player.hungerStatus == 'starving':
-                    starving = Buff('starving', colors.red, cooldown = 99999, showCooldown = False, continuousFunction = lambda fighter: randomDamage('starvation', fighter, chance = 33, minDamage = 1, maxDamage = 1, dmgMessage = 'You are starving!', dmgColor = colors.red, msgPlayerOnly = True))
+                    starving = Buff('starving', colors.red, cooldown = 99999, showCooldown = False, continuousFunction = lambda fighter: randomDamage('starvation', fighter, chance = 33, minDamage = 1, maxDamage = 1, dmgMessage = 'You are starving!', dmgColor = colors.red, msgPlayerOnly = True, dmgType={'none': 100}))
                     starving.applyBuff(player)
                     player.Player.hungerStatus = "starving"
                 #starveDamage = randint(0, 2)
@@ -14390,7 +14460,7 @@ def playGame(noSave = False):
                 player.Player.hunger = 0
             if player.Player.hunger <= round(BASE_HUNGER / 10):
                 if not player.Player.hungerStatus == 'starving':
-                    starving = Buff('starving', colors.red, cooldown = 99999, showCooldown = False, continuousFunction = lambda fighter: randomDamage('starvation', fighter, chance = 33, minDamage = 1, maxDamage = 1, dmgMessage = 'You are starving!', dmgColor = colors.red, msgPlayerOnly = True))
+                    starving = Buff('starving', colors.red, cooldown = 99999, showCooldown = False, continuousFunction = lambda fighter: randomDamage('starvation', fighter, chance = 33, minDamage = 1, maxDamage = 1, dmgMessage = 'You are starving!', dmgColor = colors.red, msgPlayerOnly = True, dmgType={'none': 100}))
                     starving.applyBuff(player)
                     player.Player.hungerStatus = "starving"
                 #starveDamage = randint(0, 2)
