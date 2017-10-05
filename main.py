@@ -663,69 +663,6 @@ def convertTilesToCoords(tilesList):
         newList.append((tile.x, tile.y))
     return newList
 
-def modifyFighterStats(fighter = None, power = 0, acc = 0, evas = 0, arm = 0, hp = 0, mp = 0, crit = 0, ap = 0, stren = 0, dex = 0, vit = 0, will = 0, stam = 0, stealth = 0, flight = None):
-    hpDiff = fighter.baseMaxHP - fighter.hp
-    print(fighter.baseMaxHP, fighter.hp, hpDiff)
-    mpDiff = fighter.baseMaxMP - fighter.MP
-    stamDiff = fighter.baseMaxStamina - fighter.stamina
-    if fighter.owner == player:
-        player.Player.baseStrength += stren
-        player.Player.baseDexterity += dex
-        player.Player.baseVitality += vit
-        print(player.Player.BASE_VITALITY, player.Player.vitality, vit)
-        player.Player.baseWillpower += will
-        player.Player.baseStealth += stealth
-    fighter.noStrengthPower += power
-    fighter.noDexAccuracy += acc
-    fighter.noDexEvasion += evas
-    fighter.baseArmor += arm
-    
-    print(fighter.noVitHP, fighter.hp)
-    fighter.noVitHP += hp
-    fighter.hp = fighter.baseMaxHP - hpDiff
-    print(fighter.noVitHP, fighter.hp, fighter.baseMaxHP, hp)
-    fighter.noWillMP += mp
-    fighter.MP = fighter.baseMaxMP - mpDiff
-    fighter.baseCritical += crit
-    fighter.baseArmorPenetration += ap
-    fighter.noConstStamina += stam
-    fighter.stamina = fighter.baseMaxStamina - stamDiff
-    if flight is not None:
-        fighter.owner.flying = flight
-
-def setFighterStatsBack(fighter = None):
-    hpDiff = fighter.baseMaxHP - fighter.hp
-    print(fighter.baseMaxHP, fighter.hp, hpDiff, fighter.noVitHP)
-    mpDiff = fighter.baseMaxMP - fighter.MP
-    print(player.Player.vitality, player.Player.BASE_VITALITY)
-    stamDiff = fighter.baseMaxStamina - fighter.stamina
-    if fighter.owner == player:
-        player.Player.baseStrength = player.Player.BASE_STRENGTH
-        player.Player.baseDexterity = player.Player.BASE_DEXTERITY
-        player.Player.baseVitality = player.Player.BASE_VITALITY
-        print(player.Player.vitality)
-        player.Player.baseWillpower = player.Player.BASE_WILLPOWER
-        player.Player.baseStealth = player.Player.BASE_STEALTH
-    fighter.noStrengthPower = fighter.BASE_POWER
-    fighter.noDexAccuracy = fighter.BASE_ACCURACY
-    fighter.noDexEvasion = fighter.BASE_EVASION
-    fighter.baseArmor = fighter.BASE_ARMOR
-
-    fighter.noVitHP = fighter.BASE_MAX_HP
-    print(fighter.noVitHP, fighter.BASE_MAX_HP, fighter.hp)
-    fighter.hp = fighter.baseMaxHP - hpDiff
-    print(fighter.hp, fighter.baseMaxHP)
-
-    fighter.noWillMP = fighter.BASE_MAX_MP
-    fighter.MP = fighter.baseMaxMP - mpDiff
-    
-    fighter.noConstStamina = fighter.BASE_STAMINA
-    fighter.stamina = fighter.baseMaxStamina - stamDiff
-
-    fighter.baseCritical = fighter.BASE_CRITICAL
-    fighter.baseArmorPenetration = fighter.BASE_ARMOR_PENETRATION
-    fighter.owner.flying = fighter.owner.BASE_FLYING
-
 def consumeRessource(fighter, buff, ressources = {'stamina': 1}):
     ressourcelist = list(ressources.keys())
     for ressource in ressourcelist:
@@ -772,7 +709,11 @@ def addSlot(fighter, slot):
 
 class Buff: #also (and mainly) used for debuffs
     def __init__(self, name, color, owner = None, cooldown = 20, showCooldown = True, showBuff = True,
-                 applyFunction = None, continuousFunction = None, removeFunction = None):
+                 applyFunction = None, continuousFunction = None, removeFunction = None,
+                 strength = 0, dexterity = 0, constitution = 0, willpower = 0, hp = 0, armor = 0, power = 0, accuracy = 0, evasion = 0, maxMP = 0,
+                 critical = 0, armorPenetration = 0, rangedPower = 0, stamina = 0, stealth = 0, attackSpeed = 0, moveSpeed = 0, rangedSpeed = 0,
+                 resistances = {'physical': 0, 'poison': 0, 'fire': 0, 'cold': 0, 'lightning': 0, 'light': 0, 'dark': 0, 'none': 0},
+                 attackTypes = {}, flight = None):
         '''
         Function used to initialize a new instance of the Buff class
         '''
@@ -786,6 +727,31 @@ class Buff: #also (and mainly) used for debuffs
         self.owner = owner
         self.showCooldown = showCooldown
         self.showBuff = showBuff
+        
+        self.strength = strength
+        self.dexterity = dexterity
+        self.constitution = constitution
+        self.willpower = willpower
+        self.maxHP = hp
+        self.armor = armor
+        self.power = power
+        self.accuracy = accuracy
+        self.evasion = evasion
+        self.maxMP = maxMP
+        self.critical = critical
+        self.armorPenetration = armorPenetration
+        self.rangedPower = rangedPower
+        self.stamina = stamina
+        self.stealth = stealth
+        self.attackSpeed = attackSpeed
+        self.moveSpeed = moveSpeed
+        self.rangedSpeed = rangedSpeed
+        self.resistances = resistances
+        self.attackTypes = attackTypes
+        self.flight = flight
+        
+        self.hpDiff = 0
+        self.mpDiff = 0
     
     def applyBuff(self, target):
         '''
@@ -800,6 +766,10 @@ class Buff: #also (and mainly) used for debuffs
             if self.applyFunction is not None:
                 self.applyFunction(self.owner.Fighter) #If the applyFunction method exists, execute it
             self.owner.Fighter.buffList.append(self) #Add the buff to target's buffs list
+            
+            self.owner.Fighter.hp += self.maxHP
+            self.owner.Fighter.MP += self.maxMP
+            
         else: #If target is already under effect of the buff
             bIndex = convertBuffsToNames(self.owner.Fighter).index(self.name)
             target.Fighter.buffList[bIndex].curCooldown += self.baseCooldown #Extend duration of the buff
@@ -1101,10 +1071,10 @@ def rSpellAttack(amount, type, caster, target):
         message(target.name.capitalize() + " should have had its attack decrease. But the developper was to lazy to implement it in time !") #TO-DO
     '''
     if type == "Buff":
-        enraged = Buff('enraged', colors.dark_red, cooldown = amount, applyFunction = lambda fighter: modifyFighterStats(fighter, power = 10), removeFunction = lambda fighter: setFighterStatsBack(fighter))
+        enraged = Buff('enraged', colors.dark_red, cooldown = amount, power = 10)
         enraged.applyBuff(target)
     else:
-        enraged = Buff('weakened', colors.light_red, cooldown = amount, applyFunction = lambda fighter: modifyFighterStats(fighter, power = -10), removeFunction = lambda fighter: setFighterStatsBack(fighter))
+        enraged = Buff('weakened', colors.light_red, cooldown = amount, power = -10)
         enraged.applyBuff(target)
 
 def rSpellDefense(amount, type, caster, target):
@@ -1115,10 +1085,10 @@ def rSpellDefense(amount, type, caster, target):
         message(target.name.capitalize() + " should have had its defense decrease. But the developper was to lazy to implement it in time !") #TO-DO
     '''
     if type == "Buff":
-        armor = Buff('invigorated', colors.cyan, cooldown = amount, applyFunction = lambda fighter: modifyFighterStats(fighter, arm = 10), removeFunction = lambda fighter: setFighterStatsBack(fighter))
+        armor = Buff('invigorated', colors.cyan, cooldown = amount, armor = 10)
         armor.applyBuff(target)
     else:
-        armor = Buff('vulnerable', colors.dark_cyan, cooldown = amount, applyFunction = lambda fighter: modifyFighterStats(fighter, arm = -10), removeFunction = lambda fighter: setFighterStatsBack(fighter))
+        armor = Buff('vulnerable', colors.dark_cyan, cooldown = amount, armor = -10)
         armor.applyBuff(target)
         
 def rSpellSpeed(amount, type, caster, target):
@@ -1690,7 +1660,7 @@ ice = Spell(ressourceCost = 9, cooldown = 5, useFunction = castFreeze, name = 'I
 def castEnrage(enrageTurns, caster = None, monsterTarget = None):
     if caster is None or caster == player:
         caster = player
-    enraged = Buff('enraged', colors.dark_red, cooldown = enrageTurns, applyFunction = lambda fighter: modifyFighterStats(fighter, power = 10), removeFunction = lambda fighter: setFighterStatsBack(fighter))
+    enraged = Buff('enraged', colors.dark_red, cooldown = enrageTurns, power = 10)
     enraged.applyBuff(caster)
 
 def castRessurect(shotRange = 4, caster = None, monsterTarget = None):
@@ -1768,18 +1738,18 @@ def castMovement(caster = None, monsterTarget = None, tileRange = 4, ignoresChas
             message('You leap!', colors.amber)
         formerFlight = caster.flying
         if ignoresChasm:
-            caster.flying = True
+            caster.baseFlying = True
         for (nextX, nextY) in line:
             caster.moveTo(nextX, nextY)
             animStep(0.05)
             if isBlocked(nextX, nextY):
                 break
-        caster.flying = formerFlight
+        caster.baseFlying = formerFlight
         return
     else:
         return 'cancelled'
 
-def removeFlightBuff(fighter, evasion, spellNameToLearn):
+def removeFlightBuff(fighter, spellNameToLearn):
     allSpells = []
     allSpells.extend(player.Fighter.knownSpells)
     allSpells.extend(player.Fighter.spellsOnCooldown)
@@ -1795,8 +1765,7 @@ def removeFlightBuff(fighter, evasion, spellNameToLearn):
             fighter.hiddenSpells.remove(spell)
             spell.setOnCooldown(player.Fighter)
             break
-    player.flying = player.BASE_FLYING
-    player.Fighter.noDexEvasion -= evasion
+    player.baseFlying = player.BASE_FLYING
     if myMap[player.x][player.y].chasm and not player.flying:
         temporaryBox('You fall deeper into the dungeon...')
         if branchLevel + 1 in currentBranch.bossLevels:
@@ -1825,9 +1794,8 @@ def castFly(caster=None, monsterTarget=None, ressources = {'stamina': 1}, cooldo
                 caster.Fighter.hiddenSpells.append(spell)
                 break
     
-    flying = Buff('flying', colors.light_azure, cooldown = cooldown, showCooldown=False,
-                  applyFunction= lambda fighter: modifyFighterStats(fighter, evas = evasionBonus, flight = True),
-                  removeFunction = lambda fighter : removeFlightBuff(fighter, evasionBonus, spellHiddenName))
+    flying = Buff('flying', colors.light_azure, cooldown = cooldown, showCooldown=False, evasion = evasionBonus, flight = True,
+                  removeFunction = lambda fighter : removeFlightBuff(fighter, spellHiddenName))
     flying.continuousFunction = lambda fighter: consumeRessource(fighter, buff = flying, ressources = ressources)
     flying.applyBuff(caster)
     return
@@ -1899,7 +1867,7 @@ def castExpandRoots(caster = None, monsterTarget = None, mode = 'AOE', AOERange 
         
         return
 
-def removeDemonBuff(fighter, power, armor, accuracy, evasion, spellNameToLearn):
+def removeDemonBuff(fighter, spellNameToLearn):
     allSpells = []
     allSpells.extend(player.Fighter.knownSpells)
     allSpells.extend(player.Fighter.spellsOnCooldown)
@@ -1913,11 +1881,6 @@ def removeDemonBuff(fighter, power, armor, accuracy, evasion, spellNameToLearn):
             fighter.hiddenSpells.remove(spell)
             spell.setOnCooldown(player.Fighter)
             break
-    player.flying = player.BASE_FLYING
-    player.Fighter.noDexEvasion -= evasion
-    player.Fighter.noStrengthPower -= power
-    player.Fighter.noDexAccuracy -= accuracy
-    player.Fighter.baseArmor -= armor
     if myMap[player.x][player.y].chasm and not player.flying:
         temporaryBox('You fall deeper into the dungeon...')
         if branchLevel + 1 in currentBranch.bossLevels:
@@ -1946,9 +1909,7 @@ def castDemonForm(caster=None, monsterTarget=None, ressources = {'stamina': 2, '
                 caster.Fighter.hiddenSpells.append(spell)
                 break
     
-    demon = Buff('in Demon form', colors.dark_flame, cooldown = cooldown, showCooldown=False,
-                  applyFunction= lambda fighter: modifyFighterStats(fighter, power = powerBonus, arm = armorBonus, acc = accuracyBonus, evas = evasionBonus, flight = True),
-                  removeFunction = lambda fighter : removeDemonBuff(fighter, powerBonus, armorBonus, accuracyBonus, evasionBonus, spellHiddenName))
+    demon = Buff('in Demon form', colors.dark_flame, cooldown = cooldown, showCooldown=False, power = powerBonus, armor = armorBonus, accuracy = accuracyBonus, evasion = evasionBonus, flight = True, removeFunction = lambda fighter : removeDemonBuff(fighter, spellHiddenName))
     demon.continuousFunction = lambda fighter: consumeRessource(fighter, buff = demon, ressources = ressources)
     demon.applyBuff(caster)
     return
@@ -1992,7 +1953,7 @@ def castSeismicSlam(caster, monsterTarget, AOErange = 6, damage = 10, stunCooldo
             for monster in affectedMonsters:
                 stunned = Buff('stunned', colors.yellow, cooldown = stunCooldown)
                 stunned.applyBuff(monster)
-                monster.Fighter.takeDamage({'physical': damage}, armored = True, 'player')
+                monster.Fighter.takeDamage({'physical': damage}, armored = True, damageSource = 'player')
         else:
             return 'didnt-take-turn'
 
@@ -3406,7 +3367,7 @@ class GameObject:
         if self.alwaysAlwaysVisible:
             self.alwaysVisible = True
         self.darkColor = darkColor
-        self.flying = flying
+        self.baseFlying = flying
         self.BASE_FLYING = flying
         if self.Fighter:  #let the fighter component know who owns it
             self.Fighter.owner = self
@@ -3515,6 +3476,19 @@ class GameObject:
                 return self.pName
             else:
                 return self.name + 's'
+    
+    @property
+    def flying(self):
+        mightReturnTrue = False
+        if self.Fighter:
+            for buff in self.Fighter.buffList:
+                if buff.flight is not None:
+                    if not buff.flight:
+                        return False
+                    else:
+                        mightReturnTrue = True
+        return mightReturnTrue or self.baseFlying
+                
 
     def moveTowards(self, target_x, target_y):
         dx = target_x - self.x
@@ -3947,50 +3921,59 @@ class Fighter: #All NPCs, enemies and the player
     @property
     def power(self):
         bonus = sum(equipment.powerBonus for equipment in getAllEquipped(self.owner))
-        return self.basePower + bonus
+        buffBonus = sum(buff.power for buff in self.buffList)
+        return self.basePower + bonus + buffBonus
  
     @property
     def armor(self):
         bonus = sum(equipment.armorBonus for equipment in getAllEquipped(self.owner))
-        return self.baseArmor + bonus
+        buffBonus = sum(buff.armor for buff in self.buffList)
+        return self.baseArmor + bonus + buffBonus
  
     @property
     def maxHP(self):
         bonus = sum(equipment.maxHP_Bonus for equipment in getAllEquipped(self.owner))
-        return self.baseMaxHP + bonus
+        buffBonus = sum(buff.maxHP for buff in self.buffList)
+        return self.baseMaxHP + bonus + buffBonus
 
     @property
     def accuracy(self):
         bonus = sum(equipment.accuracyBonus for equipment in getAllEquipped(self.owner))
-        return self.baseAccuracy + bonus
+        buffBonus = sum(buff.accuracy for buff in self.buffList)
+        return self.baseAccuracy + bonus + buffBonus
 
     @property
     def evasion(self):
         bonus = sum(equipment.evasionBonus for equipment in getAllEquipped(self.owner))
-        return self.baseEvasion + bonus
+        buffBonus = sum(buff.evasion for buff in self.buffList)
+        return self.baseEvasion + bonus + buffBonus
 
     @property
     def critical(self):
         bonus = sum(equipment.criticalBonus for equipment in getAllEquipped(self.owner))
+        buffBonus = sum(buff.critical for buff in self.buffList)
         if self.owner == player and player.Player.getTrait('Surprise attack') != 'not found' and not checkPlayerDetected():
             bonus += SURPRISE_ATTACK_CRIT
             print('player can backstab')
-        return self.baseCritical + bonus
+        return self.baseCritical + bonus + buffBonus
 
     @property
     def maxMP(self):
         bonus = sum(equipment.maxMP_Bonus for equipment in getAllEquipped(self.owner))
-        return self.baseMaxMP + bonus
+        buffBonus = sum(buff.maxMP for buff in self.buffList)
+        return self.baseMaxMP + bonus + buffBonus
     
     @property
     def armorPenetration(self):
         bonus = sum(equipment.armorPenetrationBonus for equipment in getAllEquipped(self.owner))
-        return self.baseArmorPenetration + bonus
+        buffBonus = sum(buff.armorPenetration for buff in self.buffList)
+        return self.baseArmorPenetration + bonus + buffBonus
     
     @property
     def maxStamina(self):
         bonus = sum(equipment.staminaBonus for equipment in getAllEquipped(self.owner))
-        return self.baseMaxStamina + bonus
+        buffBonus = sum(buff.stamina for buff in self.buffList)
+        return self.baseMaxStamina + bonus + buffBonus
     
     @property
     def resistances(self):
@@ -4001,6 +3984,12 @@ class Fighter: #All NPCs, enemies and the player
                     types[key] += equipment.resistances[key]
                 else:
                     types[key] = equipment.resistances[key]
+        for buff in self.buffList:
+            for key in list(buff.resistances.keys()):
+                if key in list(types.keys()):
+                    types[key] += buff.resistances[key]
+                else:
+                    types[key] = buff.resistances[key]
         return types
     
     @property
@@ -4013,6 +4002,12 @@ class Fighter: #All NPCs, enemies and the player
                         types[key] = (types[key] + equipment.damageTypes[key])//2
                     else:
                         types[key] = equipment.damageTypes[key]//2
+        for buff in self.buffList:
+            for key in list(buff.attackTypes.keys()):
+                if key in list(types.keys()):
+                    types[key] = (types[key] + buff.attackTypes[key])//2
+                else:
+                    types[key] = buff.attackTypes[key]//2
         return types
     
     @property
@@ -4025,15 +4020,18 @@ class Fighter: #All NPCs, enemies and the player
                 bonus += equipment.attackSpeed
         if i <= 1:
             i = 1
-        return self.baseAttackSpeed + round(bonus/i)
+        buffBonus = sum(buff.attackSpeed for buff in self.buffList)
+        return self.baseAttackSpeed + round(bonus/i) + buffBonus
     
     @property
     def moveSpeed(self):
-        return self.baseMoveSpeed
+        buffBonus = sum(buff.moveSpeed for buff in self.buffList)
+        return self.baseMoveSpeed + buffBonus
     
     @property
     def rangedSpeed(self):
-        return self.baseRangedSpeed
+        buffBonus = sum(buff.rangedSpeed for buff in self.buffList)
+        return self.baseRangedSpeed + buffBonus
     
     @property
     def canTakeTurn(self):
@@ -5254,24 +5252,29 @@ class Player:
     
     @property
     def strength(self):
-        return sum(equipment.strengthBonus for equipment in getAllEquipped(self.owner)) + self.baseStrength
+        buffBonus = sum(buff.strength for buff in self.owner.Fighter.buffList)
+        return sum(equipment.strengthBonus for equipment in getAllEquipped(self.owner)) + self.baseStrength + buffBonus
     
     @property
     def dexterity(self):
-        return sum(equipment.dexterityBonus for equipment in getAllEquipped(self.owner)) + self.baseDexterity
+        buffBonus = sum(buff.dexterity for buff in self.owner.Fighter.buffList)
+        return sum(equipment.dexterityBonus for equipment in getAllEquipped(self.owner)) + self.baseDexterity + buffBonus
     
     @property
     def vitality(self):
-        return sum(equipment.vitalityBonus for equipment in getAllEquipped(self.owner)) + self.baseVitality
+        buffBonus = sum(buff.constitution for buff in self.owner.Fighter.buffList)
+        return sum(equipment.vitalityBonus for equipment in getAllEquipped(self.owner)) + self.baseVitality + buffBonus
     
     @property
     def willpower(self):
-        return sum(equipment.willpowerBonus for equipment in getAllEquipped(self.owner)) + self.baseWillpower
+        buffBonus = sum(buff.willpower for buff in self.owner.Fighter.buffList)
+        return sum(equipment.willpowerBonus for equipment in getAllEquipped(self.owner)) + self.baseWillpower + buffBonus
     
     @property
     def stealth(self):
+        buffBonus = sum(buff.stealth for buff in self.owner.Fighter.buffList)
         bonus = sum(equipment.stealthBonus for equipment in getAllEquipped(self.owner))
-        return self.baseStealth + bonus
+        return self.baseStealth + bonus + buffBonus
 
     def stealthValue(self, monster):
         dex = self.dexterity
@@ -14379,8 +14382,8 @@ def playGame(noSave = False):
                         #    dexBonus += randint(-2, 2)
                         #    vitBonus += randint(-3, 3)
                         #    willMalus += randint(-2, 2)
-                        human = Buff('human', colors.lightest_yellow, cooldown = humanCooldown, showBuff = False, applyFunction = lambda fighter: setFighterStatsBack(fighter), removeFunction = lambda fighter: shapeshift(fighter))
-                        wolf = Buff('in wolf form', colors.amber, cooldown = wolfCooldown, applyFunction = lambda fighter: modifyFighterStats(fighter, stren = strenBonus, dex = dexBonus, vit = vitBonus, will = willMalus), removeFunction = lambda fighter: shapeshift(fighter, fromHuman=False, fromWolf=True))
+                        human = Buff('human', colors.lightest_yellow, cooldown = humanCooldown, showBuff = False, removeFunction = lambda fighter: shapeshift(fighter))
+                        wolf = Buff('in wolf form', colors.amber, cooldown = wolfCooldown, strength = strenBonus, dexterity = dexBonus, constitution = vitBonus, willpower = willMalus, removeFunction = lambda fighter: shapeshift(fighter, fromHuman=False, fromWolf=True))
                         if object.Player.shapeshift == 'wolf':
                             message('You feel your wild instincts overwhelming you! You have turned into your wolf form!', colors.amber)
                             wolf.applyBuff(player)
@@ -14487,7 +14490,7 @@ def playGame(noSave = False):
         for trait in player.Player.allTraits:
             if trait.name == 'Rage' and trait.selected:
                 if ratioHP <= 25 and not 'enraged' in convertBuffsToNames(player.Fighter):
-                    enraged = Buff('uncontrollable', colors.dark_red, cooldown = 99999, applyFunction = lambda fighter: modifyFighterStats(fighter, power = 10), removeFunction = lambda fighter: setFighterStatsBack(fighter))
+                    enraged = Buff('uncontrollable', colors.dark_red, cooldown = 99999, power = 10)
                     enraged.applyBuff(player)
                 break
         
