@@ -174,6 +174,7 @@ FORBIDDEN_NAMES = ["Ayeth", "Pukil", "Zarg", "Guillem"]
 
 SURPRISE_ATTACK_CRIT = 30
 SPELL_INFO_WIDTH = 60 #Default : 60 / This is actually the width which we pass to textwrap when displaying the spells description (which is useless in normal circumstances), not the actual width of the menubox itself. In other terms, this is the maximum width value that the actual menubox width value can take.  
+TRAIT_INFO_WIDTH = 25
 
 def getHeroName():
     hiddenPath = findHiddenOptionsPath()
@@ -969,7 +970,7 @@ class Spell:
                             print('Deleted')
                     tdl.flush()
             FOV_recompute = True
-            Update()
+            #Update()
             window = NamedConsole('displayItemInInventory', width, height)
             print('Created disp window')
             window.clear()
@@ -2411,7 +2412,8 @@ class Trait():
             skill.owner = self
         self.bonusSkill = bonusSkill
         self.isBonus = False
-        
+        self.unlockables = []
+    
     def description(self):
         wrappedText = textwrap.wrap(self.desc, 25)
         line = 0
@@ -2668,6 +2670,122 @@ class Trait():
             cons.draw_char(x, self.y - 1, '/', fg = color)
             cons.draw_str(x, self.y, '---', fg = color)
             cons.draw_str(x, self.y + 1, chr(92) + '__', fg = color)
+    
+    def fullDescription(self, width):
+        desc = textwrap.wrap(self.desc, width)
+        stats = []
+        if self.stren != 0:
+            stats.append(('Strength', str(self.stren)))
+        if self.dex != 0:
+            stats.append(('Dexterity', str(self.dex)))
+        if self.vit != 0:
+            stats.append(('Constitution', str(self.vit)))
+        if self.will != 0:
+            stats.append(('Willpower', str(self.will)))
+        if self.power != 0:
+            stats.append(('Power', str(self.power)))
+        if self.acc != 0:
+            stats.append(('Accuracy', str(self.acc)))
+        if self.ev != 0:
+            stats.append(('Evasion', str(self.ev)))
+        if self.arm != 0:
+            stats.append(('Armor', str(self.arm)))
+        if self.hp != 0:
+            stats.append(('Max HP', str(self.hp)))
+        if self.mp != 0:
+            stats.append(('Max MP', str(self.mp)))
+        if self.stamina != 0:
+            stats.append(('Max Stamina', str(self.stamina)))
+        if self.crit != 0:
+            stats.append(('Critical', str(self.crit)))
+        if self.ap != 0:
+            stats.append(('Armor Penetration', str(self.ap)))
+        if self.stealth != 0:
+            stats.append(('Stealth', str(self.stealth)))
+        
+        unlock = []
+        levels = []
+        levelDict = {}
+        for trait, level in self.unlockables:
+            text = str(level) + ': ' + trait.name
+            state = trait.selected
+            levels.append(level)
+            levelDict[level] = (text, state)
+        
+        levels.sort()
+        for level in levels:
+            unlock.append(levelDict[level])
+
+        return desc, stats, unlock
+    
+    def displayTrait(self, motherWindow, fromCharCreation = False):
+        global FOV_recompute, menuWindows
+        
+        width = TRAIT_INFO_WIDTH
+        if width < len(self.name) + 3:
+            width = len(self.name) + 3
+        desc, stats, unlock = self.fullDescription(width - 2)
+        descriptionHeight = len(desc) + len(stats) + len(unlock)
+        if desc == '':
+            descriptionHeight = 0
+        height = descriptionHeight + 7
+        #height = HEIGHT - 4
+        
+        if menuWindows:
+            for mWindow in menuWindows:
+                if not mWindow.name == 'levelUpScreen':
+                    mWindow.clear()
+                    print('CLEARED {} WINDOW OF TYPE {}'.format(mWindow.name, mWindow.type))
+                    if mWindow.name == 'displayTrait':
+                        ind = menuWindows.index(mWindow)
+                        del menuWindows[ind]
+                        print('Deleted')
+                tdl.flush()
+        FOV_recompute = True
+        #if not fromCharCreation:
+        #    Update()
+        window = NamedConsole('displayTrait', width, height)
+        print('Created disp window')
+        window.clear()
+        menuWindows.append(window)
+
+        for k in range(width):
+            window.draw_char(k, 0, chr(196))
+        window.draw_char(0, 0, chr(218))
+        window.draw_char(k, 0, chr(191))
+        kMax = k
+        for l in range(height):
+            if l > 0:
+                window.draw_char(0, l, chr(179))
+                window.draw_char(kMax, l, chr(179))
+        lMax = l
+        for m in range(width):
+            window.draw_char(m, lMax, chr(196))
+        window.draw_char(0, lMax, chr(192))
+        window.draw_char(kMax, lMax, chr(217))
+        
+        window.draw_str(1, 1, self.name + ':', fg = colors.amber, bg = None)
+        for i, line in enumerate(desc):
+            window.draw_str(1, 3 + i, line, fg = colors.white)
+        finalI = i
+        i = 0
+        for i, stat in enumerate(stats):
+            header, value = stat
+            drawHeaderAndValue(window, 1, 5 + finalI + i, header, value, headerColor = colors.light_amber, underline = False)
+        finalY = 7 + finalI + i
+        for i, unlockable in enumerate(unlock):
+            text, state = unlockable
+            if state:
+                color = colors.white
+            else:
+                color = colors.light_grey
+            window.draw_str(1, finalY + i, text, fg = color)
+        posX = WIDTH - width - 3
+        motherWindow.blit(window, posX, 1, width, height, 0, 0)
+        
+        menuWindows.append(window)
+        FOV_recompute = True
+        tdl.flush()
 
 class UnlockableTrait(Trait):
     def __init__(self, name, description, type, x = 0, y = 0, underCursor = False, selectable = False, selected = False, allowsSelection = [],
@@ -2795,7 +2913,7 @@ def initializeTraits():
     skills.extend(thirdTierSkills)
     skills.extend(fourthTierSkills)
     
-    quarterX = (WIDTH - 2)//5
+    quarterX = (WIDTH - 2)//6
     
     def initiateSkill(skillList, maxHeight, heightCounter, originY = 0):
         newHeight = maxHeight//len(skillList)
@@ -2883,6 +3001,12 @@ def initializeTraits():
     shadowCrit = UnlockableTrait('Surprise attack', 'When concealed, you have a greater chance to inflinct critical damage.', 'trait', requiredTraits = {'Cunning': 4})
     
     unlockableTraits.extend([controllableWerewolf, dual, aware, flurryTrait, seismicTrait, ignoreSlow, shadowstepTrait, shadowCrit])
+    
+    for skill in skills:
+        for unlock in unlockableTraits:
+            if skill.name in list(unlock.requiredTraits.keys()):
+                print(skill.name, 'can unlock', unlock.name)
+                skill.unlockables.append((unlock, unlock.requiredTraits[skill.name]))
     
     return allTraits, leftTraits, rightTraits, races, attributes, skills, classes, traits, human, unlockableTraits #skilled, human, unlockableTraits
 
@@ -4376,6 +4500,7 @@ class Fighter: #All NPCs, enemies and the player
     
     def displayFighter(self, posX = 0):
         global FOV_recompute, menuWindows
+        '''
         asciiFile = os.path.join(absAsciiPath, self.pic)
         xpRawString = gzip.open(asciiFile, "r").read()
         convertedString = xpRawString
@@ -4384,15 +4509,15 @@ class Fighter: #All NPCs, enemies and the player
         picHeight = int(attributes["height"])
         print("Pic Height = ", picHeight)
         lData = attributes["layer_data"]
-        
-        width = picWidth + 15
+        '''
+        width = 40#picWidth + 15
         if width < len(self.owner.name) + 3:
             width = len(self.owner.name) + 3
         desc = self.fullDescription(width - 2)
         descriptionHeight = len(desc)
         if desc == '':
             descriptionHeight = 0
-        height = descriptionHeight + 6 + int(picHeight) + 1
+        height = descriptionHeight + 6 #+ int(picHeight) + 1
         
         if menuWindows:
             for mWindow in menuWindows:
@@ -4403,7 +4528,7 @@ class Fighter: #All NPCs, enemies and the player
                 print('Deleted')
                 tdl.flush()
         FOV_recompute = True
-        Update()
+        #Update()
         window = NamedConsole('displayFighter', width, height)
         print('Created disp window')
         window.clear()
@@ -4425,9 +4550,10 @@ class Fighter: #All NPCs, enemies and the player
         window.draw_char(kMax, lMax, chr(217))
         startY = 4
         startX = 3
-        layerInd = int(0)
-        for layerInd in range(len(lData)):
-            xpL.load_layer_to_console(window, lData[layerInd], startY, startX)
+        #layerInd = int(0)
+        #for layerInd in range(len(lData)):
+        #    xpL.load_layer_to_console(window, lData[layerInd], startY, startX)
+        
         #for line in self.pic:
             #x = 2
             #for char in line:
@@ -4437,7 +4563,8 @@ class Fighter: #All NPCs, enemies and the player
         
         window.draw_str(1, 1, self.owner.name.capitalize() + ':', fg = colors.amber, bg = None)
         for i, line in enumerate(desc):
-            window.draw_str(1, int(picHeight) + 5 + i, desc[i], fg = colors.white)
+            #window.draw_str(1, int(picHeight) + 5 + i, desc[i], fg = colors.white)
+            window.draw_str(1, 2 + i, desc[i], fg = colors.white)
         posY = MID_HEIGHT - height//2
         root.blit(window, posX, posY, width, height, 0, 0)
         
@@ -5780,6 +5907,7 @@ class Item:
                         print('Deleted')
                 tdl.flush()
         FOV_recompute = True
+        tdl.flush()
         Update()
         window = NamedConsole('displayItemInInventory', width, height)
         print('Created disp window')
@@ -7341,7 +7469,9 @@ def levelUpScreen(newSkillpoints = True, skillpoint = 3, fromCreation = False, s
             if not skill.underCursor:
                 drawCenteredOnX(window, skill.x, skill.y, skill.name + toAdd, color)
             else:
+                skill.displayTrait(window, fromCreation)
                 drawCenteredOnX(window, skill.x, skill.y, skill.name + toAdd, colors.black, color)
+            
             '''
             if skill.tier == 1:
                 if not skill.underCursor:
@@ -7363,7 +7493,7 @@ def levelUpScreen(newSkillpoints = True, skillpoint = 3, fromCreation = False, s
                 counter2 += 5
             '''
         
-        windowX = MID_WIDTH - int(width/2)
+        windowX = 1 #MID_WIDTH - int(width/2)
         windowY = 1
         root.blit(window, windowX, windowY, width, height, 0, 0)
         
@@ -11660,7 +11790,7 @@ def displayLog(height):
         for mWindow in menuWindows:
             mWindow.clear()
         FOV_recompute = True
-        Update()
+        #Update()
         tdl.flush()
     width = MSG_WIDTH + 2
     window = NamedConsole('displayLog', width, height)
@@ -11751,7 +11881,7 @@ def displayMap():
         for mWindow in menuWindows:
             mWindow.clear()
         FOV_recompute = True
-        Update()
+        #Update()
         tdl.flush()
     width = MAP_WIDTH + 4
     height = MAP_HEIGHT + 5
@@ -12097,7 +12227,7 @@ def temporaryBox(text, color = colors.white):
 def controlBox():
     global FOV_recompute
     FOV_recompute = True
-    Update()
+    #Update()
     width = 45
     height = 33
     window = NamedConsole('controlBox', width, height)
