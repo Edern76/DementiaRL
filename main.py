@@ -221,7 +221,7 @@ MAX_ROOM_ITEMS = 3 #Default : 3
 GRAPHICS = 'modern'
 LEVEL_UP_BASE = 200 # Set to 200 once testing complete
 LEVEL_UP_FACTOR = 150 #Default : 150
-SKILLPOINTS_PER_LEVEL = 10 #Default: 2
+SKILLPOINTS_PER_LEVEL = 2 #Default: 2
 NATURAL_REGEN = True
 BASE_HIT_CHANCE = 50 #Default : 50
 
@@ -7297,7 +7297,8 @@ def shoot():
         
                                             if criticalHit:
                                                 damage = damage * CRITICAL_MULTIPLIER
-                                            monsterTarget.Fighter.takeDamage(damage, player.name, armored = True, damageTextFunction = dmgTxtFunc)
+                                            damageDict = player.Fighter.computeDamageDict(damage)
+                                            monsterTarget.Fighter.takeDamage(damageDict, player.name, armored = True, damageTextFunction = dmgTxtFunc)
                                         else:
                                             dmgTxtFunc(0)
                                     else:
@@ -7341,6 +7342,7 @@ def shoot():
 
                                     if criticalHit:
                                         damage = damage * CRITICAL_MULTIPLIER
+                                    damageDict = player.Fighter.computeDamageDict(damage)
                                     monsterTarget.Fighter.takeDamage(damage, player.name, armored = True, damageTextFunction = dmgTxtFunc)
                                 else:
                                     dmgTxtFunc(0)
