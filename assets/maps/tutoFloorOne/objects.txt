@@ -1,9 +1,9 @@
 NPC:98/27/@/Soldier/(203, 203, 203)/sld1Tree/None/\
-NPC:98/27/@/Soldier/(203, 203, 203)/sld1Tree/None/\
-NPC:106/25/@/General Guillem/(229, 191, 0)/sld1Tree/None/\
+NPC:98/27/@/Soldier/(203, 203, 203)/sld2Tree/None/\
+NPC:106/25/@/General Guillem/(229, 191, 0)/guilTree/None/\
 NPC:92/33/@/Soldier/(203, 203, 203)/sld1Tree/None/\
 NPC:91/26/@/Soldier/(203, 203, 203)/sld1Tree/None/\
-NPC:102/24/@/Soldier/(203, 203, 203)/sld1Tree/None/\
-NPC:126/29/@/Soldier/(203, 203, 203)/sld1Tree/None/\
+NPC:102/24/@/Soldier/(203, 203, 203)/sld2Tree/None/\
+NPC:126/29/@/Soldier/(203, 203, 203)/sld2Tree/None/\
 NPC:113/30/@/Soldier/(203, 203, 203)/sld1Tree/None/\
 NPC:110/24/@/Soldier/(203, 203, 203)/sld2Tree/None/\

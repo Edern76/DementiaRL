@@ -1,6 +1,10 @@
-import tdl, colors, copy, pdb, traceback, os, sys, time
+import colors, copy, pdb, traceback, os, sys, time
 from random import *
 from code.custom_except import *
+import tdlib as tdl
+from code.classes import Tile, Rectangle
+import code.experiments.tunneling as tunneling
+import code.chasmGen as chasmGen
 
 
 WIDTH, HEIGHT, LIMIT = 150, 80, 20
@@ -26,33 +30,34 @@ sys.setrecursionlimit(3000)
 
 if __name__ == '__main__':
     root = tdl.init(WIDTH, HEIGHT, 'Dementia')
-    
+
+'''
 class Tile:
     def __init__(self, blocked, x, y):
-        self.blocked = blocked
+        self.baseBlocked = blocked
         self.x = x
         self.y = y
         self.indestructible = False
         self.belongsTo = []
-        self.fg = colors.lighter_grey
-        self.bg = colors.dark_sepia
+        self.baseFg = colors.lighter_grey
+        self.baseBg = colors.dark_sepia
         self.hole = True
         
     def setIndestructible(self):
-        self.blocked = True
+        self.baseBlocked = True
         self.indestructible = True
         self.hole = False
         
     def open(self):
         if not self.indestructible:
-            self.blocked = False
+            self.baseBlocked = False
             return True
         else:
             return False
     
     def close(self):
         if not self.blocked:
-            self.blocked = True
+            self.baseBlocked = True
     
     def addOwner(self, toAdd):
         if not toAdd in self.belongsTo:
@@ -86,55 +91,65 @@ class Rectangle:
     def intersect(self, other):
         return (self.x1 <= other.x2 and self.x2 >= other.x1 and
                 self.y1 <= other.y2 and self.y2 >= other.y1)
-        
+'''
+      
 def createRoom(room):
     global myMap, roomTiles
     for x in range(room.x1 + 1, room.x2):
         for y in range(room.y1 + 1, room.y2):
-            myMap[x][y].blocked = False
+            myMap[x][y].baseBlocked = False
             
 def createHorizontalTunnel(x1, x2, y):
     global myMap, tunnelTiles
     for x in range(min(x1, x2), max(x1, x2) + 1):
-        myMap[x][y].blocked = False
+        myMap[x][y].baseBlocked = False
             
 def createVerticalTunnel(y1, y2, x):
     global myMap, tunnelTiles
     for y in range(min(y1, y2), max(y1, y2) + 1):
-        myMap[x][y].blocked = False
+        myMap[x][y].baseBlocked = False
 
-def checkMap():
+def checkMap(mapToUse = None):
     global myMap
+    if not mapToUse:
+        mapToUse = myMap
     for x in range(MAP_WIDTH):
         for y in range(MAP_HEIGHT):
-            if myMap[x][y].hole and not myMap[x][y].indestructible:
-                myMap[x][y].blocked = False
+            if mapToUse[x][y].hole and not mapToUse[x][y].unbreakable:
+                mapToUse[x][y].baseBlocked = False
 
 def createHoles(mapToUse):
     for x in range(1, MAP_WIDTH - 1):
         for y in range(1, MAP_HEIGHT - 1):
             if randint(0, 100) < CHANCE_TO_START_ALIVE:
                 mapToUse[x][y].hole = False
+            else:
+                mapToUse[x][y].hole = True
     for loop in range(STEPS_NUMBER):
         mapToUse = doStep(mapToUse)
+    checkMap(mapToUse)
+    
+    myMap = tunneling.checkDoors(mapToUse)
     
     return mapToUse
     
 def makeMap():
     global myMap, rooms, firstX, firstY, lastX, lastY
 
-    myMap = [[Tile(blocked = True, x = x, y = y) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
+    myMap = tunneling.makeTunnelMap(True)
+    #[[Tile(blocked = True, x = x, y = y) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
+    '''
     rooms = []
     roomTiles = []
     tunnelTiles = []
     numberRooms = 0
     
     for x in range(MAP_WIDTH):
-        myMap[x][0].setIndestructible()
-        myMap[x][MAP_HEIGHT - 1].setIndestructible()
+        myMap[x][0].setUnbreakable()
+        myMap[x][MAP_HEIGHT - 1].setUnbreakable()
     for y in range(MAP_HEIGHT):
-        myMap[0][y].setIndestructible()
-        myMap[MAP_WIDTH - 1][y].setIndestructible()
+        myMap[0][y].setUnbreakable()
+        myMap[MAP_WIDTH - 1][y].setUnbreakable()
  
     for r in range(30):
         w = randint(6, 10)
@@ -164,9 +179,9 @@ def makeMap():
             rooms.append(newRoom)
             numberRooms += 1
     lastX, lastY = new_x, new_y
+    '''
     
     myMap = createHoles(myMap)
-    checkMap()
 
 myMap = [[]]
 
@@ -201,24 +216,22 @@ def doStep(oldMap):
                     newMap[x][y].hole = True
     return newMap
 
-def update(mapToUse):
+
+def update(mapToUse = myMap):
     root.clear()
-    try:
-        for x in range(MAP_WIDTH):
-            for y in range(MAP_HEIGHT):
+    for x in range(MAP_WIDTH):
+        for y in range(MAP_HEIGHT):
+            try:
                 if mapToUse[x][y].blocked:
-                    root.draw_char(x, y, char = '#', fg = mapToUse[x][y].fg, bg = mapToUse[x][y].bg)
+                    root.draw_char(x, y, '#', colors.grey, colors.darker_grey)
+                elif mapToUse[x][y].chasm:
+                    root.draw_char(x, y, None, bg = (16, 16, 16))
+                elif mapToUse[x][y].door:
+                    root.draw_char(x, y, '+', colors.darker_orange, colors.sepia)
                 else:
-                    root.draw_char(x, y, char = None, fg = mapToUse[x][y].fg, bg = mapToUse[x][y].bg)
-                if (x, y) == (firstX, firstY):
-                    root.draw_char(x, y, char = 'X', fg = colors.red, bg = mapToUse[x][y].bg)
-                if (x, y) == (lastX, lastY):
-                    root.draw_char(x, y, char = 'X', fg = colors.green, bg = mapToUse[x][y].bg)
-        
-    except IndexError:
-        traceback.print_exc()
-        os._exit(-1)
-        
+                    root.draw_char(x, y, None, bg = colors.sepia)
+            except IndexError:
+                print('___PROBLEM___:', x, y)
     tdl.flush()
     
 if __name__ == '__main__':

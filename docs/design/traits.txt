@@ -1,0 +1,78 @@
+    ((## racial traits ## STATUS: 9 / 9 (gotta add some more too))) REMOVED TEMPORARILY
+    XXfastLearn = Trait('Fast learner', 'You are very smart and learn from your wins or losses very fast', type = 'trait', selectable = False)  STATUS: implemented EFFECT: +10%xp
+    XXskilled = Trait('Skilled', 'You are already a skillful warrior', type = 'trait', selectable=False) STATUS: implemented EFFECT: +1 skillpoint
+    XXrage = Trait('Rage', 'When low on health, you will lose all control', type = 'trait', selectable = False) STATUS: implemented EFFECT: +autocast Enrage when <25% hp
+    XXhorns = Trait('Horned', 'Your horns are very large and can be used in combats', type = 'trait', selectable = False) STATUS: implemented EFFECT: +dmg, +knockback ability
+    XXcarapace = Trait('Chitin carapace', 'Your natural exoskeleton is very resistant', type = 'trait', arm=(2, 0), selectable = False) STATUS: implemented EFFECT: +armor
+    XXsilence = Trait('Silent walk', 'Your paws are very soft, allowing you to be very sneaky', type = 'trait', selectable = False) STATUS: implemented EFFECT: +stealth
+    XXvenom = Trait('Venomous glands', 'You are able to envenom your weapons', type = 'trait', selectable = False, spells = [envenom]) STATUS: implemented EFFECT: +envenom ability
+    XXmimesis = Trait('Mimesis', 'You can mimic your environment, making it very hard to see you', type = 'trait', selectable = False) STATUS: implemented EFFECT: +stealth
+    XXwild = Trait('Wild instincts', 'Your natural transformation is even more deadly', type = 'trait', selectable = False) STATUS: implemented EFFECT: +more random, stronger transformations
+    
+    ## races ##  STATUS: 7 / 9 
+    XXhuman = Trait('Human', 'Humans are the most common race. They have no special characteristic, and are neither better or worse at anything. However, they are good learners and gain experience faster.', type = 'race', allowsSelection=[fastLearn, skilled]) STATUS: implemented EFFECT: +10% xp
+    XXmino = Trait('Minotaur', 'Minotaurs, whose muscular bodies are topped with a taurine head, are tougher and stronger than humans, but are way less smart. They are uncontrollable and, when angered, can become a wrecking ball of muscles and thorns.', type= 'race', allowsSelection=[rage, horns], stren=(5, 0), dex=(-4, 0), vit=(4, 0), will=(-3, 0)) STATUS: kinda implemented EFFECT: stronger, ++ice resist, --fire resist
+    insect = Trait('Insectoid', 'Insectoids are a rare race of bipedal insects which are stronger than human but, more importantly, very good at arcane arts. They come in all kinds of forms, from the slender mantis to the bulky beetle.', type = 'race', allowsSelection=[carapace], stren=(1, 0), dex=(-1, 0), vit=(-2, 0), will=(2, 0)) STATUS: implemented (?) EFFECT: +will (that's it?)
+    XXcat = Trait('Felis', 'Felis, kinds of humanoid cats, are sneaky thieves and assassins. They usually move silently and can see in the dark.', type ='race', allowsSelection=[silence], stren = (2, 0), vit = (-2, 0)) STATUS: implemented EFFECT: +stealth, +ability Leap, +sight radius
+    XXrept = Trait('Reptilian', 'Reptilians are very agile but absurdly weak. Their scaled skin, however, sometimes provides them with natural camouflage, and they might use their natural venom on their daggers or arrows to make them even more deadly.', type = 'race', allowsSelection=[venom, mimesis], ev=(20, 0), stren=(-4, 0), dex=(2, 0)) STATUS: kinda implemented EFFECT: ++fire resist (+?)
+    XXdemon = Trait('Demon Spawn', 'Demon spawns, a very uncommon breed of a human and a demon, are cursed with the heritage of  their demonic parents, which will make them grow disturbing mutations as they grow older and stronger.', type = 'race') STATUS: kinda implemented EFFECT: +mutations (gotta add some)
+    XXtree = Trait('Rootling', 'Rootlings, also called treants, are rare, sentient plants. They begin their life as a simple twig, but, with time, might become gigantic oaks.', type = 'race', stren=(-3, 0), dex=(-2, 0), vit=(-4, 0), will=(-3, 0)) STATUS: implemented (but gotta nerf them) EFFECT: +growth
+    XXwolf = Trait('Werewolf', 'Werewolves are a martyred and despised race. Very tough to kill, they are naturally stronger than basic humans and unconogreably shapeshift more or less regularly. However, older werewolves are used to these transformations and can even use them to their interests.', type = 'race', allowsSelection=[wild], stren=(2, 0), dex=(1, 0), vit=(-2, 0), will=(-4, 0)) STATUS: implemented EFFECT: +shapeshift, +controllable shapeshift
+    devourer = Trait('Devourer', 'Devourers are strange, dreaded creatures from another dimension. Few have arrived in ours and even fewer have been described. These animals, half mantis, half lizard, are only born to kill and consume. Some of their breeds can even, after consuming anything - even a weapon - grow an organic replica of it.', type = 'race', vit = (-2, 0), will = (-10, 0)) STATUS: unimplemented as hell EFFECT: ++eat stuff instead of equipping it
+    virus = Trait('Virus ', 'Viruses are the physically weakest race, but do not base their success on their own bodies. Indeed, they are able to infect another race, making it their host and fully controllable by the virus. What is more, the virus own physical attributes, instead of applying to it directly, rather modifies the host metabolism, potentially making it stronger or tougher. However, this take-over is very harmful for the host, who will eventually die. The virus must then find a new host to continue living.', type = 'race', ev = (999, 0)) STATUS: implemented but bugged EFFECT: controls monsters
+
+    ## attributes ## STATUS: 4/4 (add elemental resists?)
+    XXstren = Trait('Strength', 'Strength augments the power of your attacks', type = 'attribute', maxAmount=5, stren=(1, 0))
+    XXdex = Trait('Dexterity', 'Dexterity augments your accuracy and your evasion', type = 'attribute', maxAmount=5, dex=(1, 0))
+    XXconst = Trait('Constitution', 'Constitution augments your maximum health and your regeneration rate.', type = 'attribute', maxAmount=5, vit=(1, 0))
+    XXwill = Trait('Willpower', 'Willpower augments your energy and the rate at which you regain it.', type = 'attribute', maxAmount=5, will=(1, 0))
+
+    ## skills ## STATUS: 0/24 (add some more)
+    fireSkill = Trait('Fire', 'Launch a blazing fireball at the chosen location.', type = 'skill', selectable=False, tier = 4, spells = [fireball]) STATUS: kinda implemented EFFECT: +fireball, ++fire resist, ++other spells
+    iceSkill = Trait('Water', 'Launch an ice bolt at your target in order to freeze it.', type = 'skill', selectable=False, tier = 4, spells = [ice]) STATUS: kinda implemented EFFECT: +icebolt, ++ice resist, ++other spells
+    
+    light = Trait('Light weapons', '+20% damage per skillpoints with light weapons', type = 'skill', selectable = False, tier = 3) STATUS: kinda EFFECT: +10% dmg, +dual wield, +ability (flurry?) ++level 10
+    heavy = Trait('Heavy weapons', '+20% damage per skillpoints with heavy weapons', type = 'skill', selectable = False, tier = 3) STATUS: kinda EFFECT: +10% dmg, +ignores slow, +ability (seismic slam?), ++level 4
+    missile = Trait('Missile weapons', '+20% damage per skillpoints with missile weapons', type = 'skill', selectable = False, tier = 3) STATUS: kinda implemented EFFECT: +10% dmg, ++fetch ammo, ++ability (headshot?)
+    shield = Trait('Shield mastery', 'You trained to master shield wielding.', type = 'skill', selectable = False, tier = 3) STATUS: unimplemented EFFECT: +10% armor, ++ability (parry?, stun?), ++auto parry
+    armorEff = Trait('Armor efficiency', 'You know very well how to maximize the protection brought by your armor', type = 'skill', selectable = False, tier = 3) STATUS: unimplemented EFFECT: +5% armor, ++ability (turtle up?), ++auto mitigate
+    dexterity = Trait('Dexterity', 'You are Dexter.', type = 'skill', selectable = False, dex=(1, 0), tier = 3) STATUS: kinda implemented EFFECT: +dex, ++ability (DO A BARREL ROLL?), ++autododge
+    critical = Trait('Critical', 'You know every weaknesses of your enemies.', type = 'skill', selectable = False, crit=(3, 0), tier = 3) STATUS: kinda EFFECT: +crit, ++ability (precise strike/shot?), ++chance to *4 dmg instead of *3
+    constitution = Trait('Constitution', 'You are a sturdy person', type = 'skill', hp = (5, 0), vit = (1, 0), selectable = False, tier = 3) STATUS: kinda EFFECT: +const, ++ability (regen?), ++autoregen on low health
+    hunger = Trait('Hunger management', 'You are used to starve and are now resilient to hunger.', type = 'skill', selectable=False, tier = 3) STATUS: unimplemented EFFECT: ++ hunger pool, ++ hunger on select, --hunger loss, ++ability(multiply food), ++at certain lvl, +hunger from food
+    occult = Trait('Occult magic', 'The black magic cannot hide any of its dark secrets to you.', type = 'skill', selectable=False, tier = 3) STATUS: unimplemented EFFECT: ++hp consuming spells consume less, ++new spells, ++lifestal at certain lvl
+    elemental = Trait('Elemental magic', 'You master the power of the four elements.', type = 'skill', selectable=False, tier = 3, allowsSelection=[fireSkill, iceSkill]) STATUS: unimplemented EFFECT: ++elemental dmg, ++new spells, ++at certain lvl, empowers nearby elemental debuffs
+
+    melee = Trait('Melee weaponry', 'You are trained to wreck your enemies at close range.', type = 'skill', selectable = False, tier = 2, allowsSelection=[light, heavy]) STATUS: unimplemented EFFECT: ++dex in CC, ++ability (counter attack?), ++at certain lvl, after melee attack, chance to get another
+    ranged = Trait('Ranged weaponry', 'You shoot people in the knees.', type = 'skill', selectable = False, tier = 2, allowsSelection=[missile]) STATUS: unimplemented EFFECT: ++dex at range?, ++ability (volley?), ++autopiercing shot
+    armorW = Trait('Armor wearing', 'You are trained to wield several types of armor.', type = 'skill', selectable = False, tier = 2, allowsSelection=[armorEff, shield]) STATUS: unimplemented EFFECT: --armor weight, ++ability(tackle?), ++certain lvl allows to wear 2 chest armors if one is leather
+    endurance = Trait('Endurance', 'You are used to live in harsh conditions', type = 'skill', selectable = False, tier = 2, allowsSelection=[hunger, constitution]) STATUS: unimplemented EFFECT: ++stamina, ++ability (regen stamina?, sprint?), ++auto dmg mitigation
+    strength = Trait('Strength', 'You are as strong as a bear', type = 'skill', stren=(1, 0), selectable = False, tier = 2) STATUS: kinda EFFECT: +str, ++charge, ++two handed become one handed, ++bare hands and gloves dmg *2
+    willpower = Trait('Willpower', 'Your will is very strong', type = 'skill', mp=(5, 0), will = (1, 0), selectable = False, tier = 2) STATUS: kinda EFFECT: +will, +buff cooldown knowledge, ++ability(regen mana?)
+    cunning = Trait('Cunning', 'You are cunning, and can use this to hide in the shadows in order to deliver sly but deadly attacks.', type = 'skill', selectable = False, tier = 2, allowsSelection=[dexterity, critical]) STATUS: unimplemented EFFECT: +stealth, +ability (shadow walk? (when undetected, can TP)), +crit chance when undetected
+    magic = Trait('Magic ', 'You can use the power of your mind to bind reality to your will', type = 'skill', selectable = False, tier = 2, allowsSelection=[occult, elemental]) STATUS: kinda implemented EFFECT: +spell power, +allows spell usage, ++ability(recharge all?, force field?)
+
+    martial = Trait('Martial training', 'You are trained to use a wide variety of weapons', type = 'skill', acc=(10, 0), allowsSelection=[melee, ranged, armorW]) STATUS: kinda EFFECT: +acc
+    physical = Trait('Physical training', 'You are muscular and are used to physical efforts', type = 'skill', allowsSelection=[strength, endurance]) STATUS unimplemented EFFECT: ++resist all elements
+    mental = Trait('Mental training', 'Your mind is as fast as an arrow and as sharp as a scalpel', type = 'skill', allowsSelection=[magic, willpower, cunning]) STATUS: unimplemented EFFECT: ++resist magic
+
+    ## classes ## 0/6
+    knight = Trait('Knight', 'A warrior who wears armor and wields shields', type ='class', arm=(1, 1), hp=(120, 14), mp=(30, 3)) STATUS: kinda EFFECT: ++some spells, ++resist light, ++dmg against dark, ++ability(fend? 2 range melee)
+    barb = Trait('Barbarian', 'A brutal fighter who is mighty strong', type = 'class', hp=(160, 20), mp=(30, 3), stren=(1, 1), spells=[enrage]) STATUS: kinda EFFECT: +enrage, ++ability (tourbilol?, blind might (hit 5 times in random directions w/ -acc)), ++dmg w/axe, ++decapitation chance, 
+    rogue = Trait('Rogue', 'A rogue who is stealthy and backstabby (probably has a french accent)', type = 'class', acc=(8, 4), ev=(10, 2), hp=(90, 10), mp=(40, 5), crit=(3, 0)) STATUS: kinda EFFECT: ++backstab, ++stealth, ++ability(auto stealth?, lure?), --heavy armors
+    mage = Trait('Mage ', 'A wizard who zaps everything', type ='class', hp=(70, 6), mp=(50, 7), will=(2, 0), spells=[fireball]) STATUS: kinda EFFECT: ++1 magic, ++ability(summon elemental?), --spell cooldown, ++chance to identify new stuff on pick up
+    necro = Trait('Necromancer', 'A master of the occult arts who has the ability to raise and control the dead.', type = 'class', hp=(100, 4), mp=(15, 1), spells=[darkPact, ressurect]) STATUS: kinda EFFECT: ++ see through minions, ++cast through minions, ++bonus from essences
+    ++marksman ++ability(place traps?, shoot and back?), ++dmg w/ missiles
+
+    ## traits ## 10/10
+    aggressive = Trait('Aggressive', 'Your anger is uncontrollable', type = 'trait') STATUS: implemented EFFECT: +4 dmg
+    aura = Trait('Aura', 'You are surrounded by a potent aura', type = 'trait', mp=(20, 0)) STATUS: implemented EFFECT: +20 mp
+    evasive = Trait('Evasive', 'You are aware of how to stay out of trouble', type = 'trait', ev=(10, 0)) STATUS: implemented EFFECT: +10 ev
+    healthy = Trait('Healthy', 'You are healthy', type = 'trait', vit=(2, 0)) STATUS: implemented EFFECT: +2 vit
+    muscular = Trait('Muscular', 'You are very strong', type = 'trait', stren=(2, 0)) STATUS: implemented EFFECT: +2 str
+    natArmor = Trait('Natural armor', 'Your skin is rock-hard', type = 'trait', arm = (1, 0)) STATUS: implemented EFFECT: +1 arm
+    mind = Trait('Strong mind', 'Your mind is fast and potent', type = 'trait', will=(2, 0)) STATUS: implemented EFFECT: +2 will
+    agile = Trait('Agile', 'You have incredible reflexes', type = 'trait', dex=(2, 0)) STATUS: implemented EFFECT: +2 dex
+    training = Trait('Warrior training', 'You are trained to master all weapons', type = 'trait', acc=(7, 0))STATUS: implemented EFFECT: +7 acc
+    tough = Trait('Tough', 'You can endure harm better', type = 'trait', hp=(40, 0))STATUS: implemented EFFECT: +40 hp
+

@@ -36,7 +36,7 @@ import time as _time
 from tcod import ffi as _ffi
 from tcod import lib as _lib
 
-import tdl as _tdl
+import tdlib as _tdl
 from . import style as _style
 
 _eventQueue = []
@@ -457,6 +457,23 @@ def key_wait():
         for event in get():
             if event.type == 'KEYDOWN':
                 return event
+            if event.type == 'QUIT':
+                # convert QUIT into alt+F4
+                return KeyDown('F4', '', True, False, True, False, False)
+        _time.sleep(.001)
+
+def key_wait_no_shift():
+    """Behaves like key_wait but ignore the shift key.
+
+    @rtype: L{KeyDown}
+    """
+    while 1:
+        for event in get():
+            if event.type == 'KEYDOWN':
+                if event.keychar == "SHIFT":
+                    continue
+                else:
+                    return event
             if event.type == 'QUIT':
                 # convert QUIT into alt+F4
                 return KeyDown('F4', '', True, False, True, False, False)

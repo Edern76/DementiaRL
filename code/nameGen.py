@@ -6,6 +6,7 @@ Relatively nice sounding names list:
 Pukil
 Ayeth
 Eiela
+Lunace
 '''
 def humanLike(length = randint(6, 12)):
     #Generates pronouncable, human sounding like names (in theory)

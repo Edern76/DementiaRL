@@ -43,7 +43,7 @@ class SpellTemplate:
         else:
             text += "Is a classic spell \n"
         text += "Targeting type =  {} \n".format(self.targeting)
-        text += "Affects entities in a {} \n".format(self.zone)
+        text += "Affects entities in a {} \n \n".format(self.zone)
         text += "Effect 1 : {} ({}) \n".format(self.eff1.name, self.eff1.amount)
         if self.eff2 is not None:
             text += "Effect 2 : {} ({}) \n".format(self.eff2.name, self.eff2.amount)

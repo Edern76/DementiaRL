@@ -1,6 +1,7 @@
-import tdl, colors, copy, pdb, traceback, os, sys, time
+import colors, copy, pdb, traceback, os, sys, time
 from random import *
 from code.custom_except import *
+import tdlib as tdl
 
 WIDTH, HEIGHT, LIMIT = 150, 80, 20
 MAP_WIDTH, MAP_HEIGHT = 140, 60
@@ -24,6 +25,32 @@ class Tile:
         self.fg = fg
         self.bg = bg
         self.char = char
+        self.clearance = 0
+
+class Square:
+    def __init__(self, x, y, s):
+        self.x1 = x
+        self.y1 = y
+        self.x2 = x + s
+        self.y2 = y + s
+        self.s = s
+    
+    def tiles(self, mapToUse):
+        if self.s == 0:
+            tileList = [mapToUse[self.x1][self.y1]]
+        else:
+            tileList = [mapToUse[x][y] for x in range(self.x1, self.x2 + 1) for y in range(self.y1, self.y2 + 1)]
+        return tileList
+    
+    def __str__(self):
+        return '{};{}; side = {}'.format(str(self.x1), str(self.y1), str(self.s))
+
+class SquareObject:
+    def __init__(self, squareComp, generateSmaller = False):
+        self.Square = squareComp
+        
+        if generateSmaller:
+            self.smallerSquareObject = SquareObject(squareComp = self.Square)
 
 def createLeaves(mapToUse):
     for x in range(MAP_WIDTH):
@@ -82,13 +109,47 @@ def makeMap():
     myMap = [[Tile(False, bg = colors.darker_green, fg = colors.darker_chartreuse) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
     myMap = createLeaves(myMap)
     checkMap()
+    myMap = clearanceMap(myMap)
+
+def clearanceMap(mapToUse):
+    for x in range(MAP_WIDTH):
+        for y in range(MAP_HEIGHT):
+            foundBlocked = False
+            clearance = -1
+            while not foundBlocked:
+                clearance += 1
+                square = Square(x, y, clearance)
+                if x + clearance < MAP_WIDTH and y + clearance < MAP_HEIGHT:
+                    for tile in square.tiles(mapToUse = mapToUse):
+                        if tile.leaves:
+                            foundBlocked = True
+                            break
+                else:
+                    foundBlocked = True
+            mapToUse[x][y].clearance = clearance
+    return mapToUse
 
 makeMap()
+'''
+squareComp = Square(10, 10, 3)
+fatherSquare = SquareObject(squareComp=squareComp, generateSmaller=True)
+print(squareComp)
+print(fatherSquare.Square)
+print(fatherSquare.smallerSquareObject.Square)
+fatherSquare.Square.s += 3
+print(fatherSquare.Square)
+print(fatherSquare.smallerSquareObject.Square)
+'''
 while not tdl.event.is_window_closed():
     root.clear()
     for x in range(MAP_WIDTH):
         for y in range(MAP_HEIGHT):
-            root.draw_char(x, y, myMap[x][y].char, myMap[x][y].fg, myMap[x][y].bg)
+            char = myMap[x][y].clearance
+            if char >= 10:
+                char = '+'
+            else:
+                char = str(char)
+            root.draw_str(x, y, char, myMap[x][y].fg, myMap[x][y].bg)
     tdl.flush()
 
 
