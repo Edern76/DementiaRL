@@ -221,7 +221,7 @@ MAX_ROOM_ITEMS = 3 #Default : 3
 GRAPHICS = 'modern'
 LEVEL_UP_BASE = 200 # Set to 200 once testing complete
 LEVEL_UP_FACTOR = 150 #Default : 150
-SKILLPOINTS_PER_LEVEL = 2 #Default: 2
+SKILLPOINTS_PER_LEVEL = 10 #Default: 2
 NATURAL_REGEN = True
 BASE_HIT_CHANCE = 50 #Default : 50
 
@@ -799,7 +799,7 @@ class Buff: #also (and mainly) used for debuffs
                 self.continuousFunction(self.owner.Fighter)
 
 class TileBuff:
-    def __init__(self, name, fg = None, bg = None, char = None, owner = None, cooldown = 20, blocksTile = False, buffsWhenWalked=[]):
+    def __init__(self, name, fg = None, bg = None, char = None, owner = None, cooldown = 20, blocksTile = False, buffsWhenWalked=[], addMoveCost = 0):
         self.name = name
         self.fg = fg
         self.bg = bg
@@ -809,6 +809,7 @@ class TileBuff:
         self.curCooldown = cooldown
         self.blocksTile = blocksTile
         self.buffsWhenWalked = buffsWhenWalked
+        self.addMoveCost = addMoveCost
     
     def applyTileBuff(self, x, y):
         global myMap
@@ -2372,13 +2373,14 @@ spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressur
 #______________CHARACTER GENERATION____________
 createdCharacter = {'power': 0, 'acc': 20, 'ev': 0, 'arm': 0, 'hp': 0, 'mp': 0, 'crit': 0, 'stren': 0, 'dex': 0, 'vit': 0, 'will': 0, 'ap': 0, 
                     'powLvl': 0, 'accLvl': 0, 'evLvl': 0, 'armLvl': 0, 'hpLvl': 0, 'mpLvl': 0, 'critLvl': 0, 'strLvl': 0, 'dexLvl': 0, 'vitLvl': 0, 'willLvl': 0, 'apLvl': 0,
-                    'spells': [], 'load': 45.0, 'stealth': 0, 'stamina': 0, 'stamLvl': 0}
+                    'spells': [], 'load': 45.0, 'stealth': 0, 'stamina': 0, 'stamLvl': 0,
+                    'dmgTypes': {'physical': 100}, 'resistances': {'physical': 0, 'poison': 0, 'fire': 0, 'cold': 0, 'lightning': 0, 'light': 0, 'dark': 0, 'none': 0}}
 
 class Trait():
     '''
     Actually used for everything in the character creation, from race to skills etc
     '''
-    def __init__(self, name, description, type, x = 0, y = 0, underCursor = False, selectable = True, selected = False, allowsSelection = [], amount = 0, maxAmount = 1, tier = 1, power = (0, 0), acc = (0, 0), ev = (0, 0), arm = (0, 0), hp = (0, 0), mp = (0, 0), crit = (0, 0), stren = (0, 0), dex = (0, 0), vit = (0, 0), will = (0, 0), spells = None, load = 0, ap = (0, 0), stealth = 0, stam = (0, 0), bonusSkill = []):
+    def __init__(self, name, description, type, x = 0, y = 0, underCursor = False, selectable = True, selected = False, allowsSelection = [], amount = 0, maxAmount = 1, tier = 1, power = (0, 0), acc = (0, 0), ev = (0, 0), arm = (0, 0), hp = (0, 0), mp = (0, 0), crit = (0, 0), stren = (0, 0), dex = (0, 0), vit = (0, 0), will = (0, 0), spells = None, load = 0, ap = (0, 0), stealth = 0, stam = (0, 0), bonusSkill = [], dmgTypes = {}, resistances = {}, critMult = 0):
         self.name = name
         self.desc = description
         self.type = type
@@ -2413,6 +2415,9 @@ class Trait():
         self.bonusSkill = bonusSkill
         self.isBonus = False
         self.unlockables = []
+        self.dmgTypes = dmgTypes
+        self.resistances = resistances
+        self.critMult = critMult
     
     def description(self):
         wrappedText = textwrap.wrap(self.desc, 25)
@@ -2455,6 +2460,21 @@ class Trait():
                 createdCharacter['willLvl'] += self.willPerLvl
                 createdCharacter['apLvl'] += self.apPerLvl
                 createdCharacter['stamLvl'] += self.stamPerLvl
+                
+                types = createdCharacter['resistances']
+                for key in list(self.resistances.keys()):
+                    if key in list(types.keys()):
+                        types[key] += self.resistances[key]
+                    else:
+                        types[key] = self.resistances[key]
+            
+                types = createdCharacter['dmgTypes']
+                for key in list(self.dmgTypes.keys()):
+                    if key in list(types.keys()):
+                        types[key] = (types[key] + self.dmgTypes[key])//2
+                    else:
+                        types[key] = self.dmgTypes[key]//2
+                
                 self.amount += 1
                 self.selected = True
                 if unlockSelection:
@@ -2506,6 +2526,22 @@ class Trait():
             player.Player.baseStealth += self.stealth
             player.Fighter.BASE_STAMINA += self.stamina
             player.Fighter.noConstStamina += self.stamina
+            player.Fighter.critMultiplier += self.critMult
+                
+            types = player.Fighter.baseResistances
+            for key in list(self.resistances.keys()):
+                if key in list(types.keys()):
+                    types[key] += self.resistances[key]
+                else:
+                    types[key] = self.resistances[key]
+        
+            types = player.Fighter.baseAttackTypes
+            for key in list(self.dmgTypes.keys()):
+                if key in list(types.keys()):
+                    types[key] = (types[key] + self.dmgTypes[key])//2
+                else:
+                    types[key] = self.dmgTypes[key]//2
+
             self.amount += 1
             if self.spells is not None:
                 for spell in self.spells:
@@ -2550,6 +2586,21 @@ class Trait():
                 createdCharacter['willLvl'] -= self.willPerLvl
                 createdCharacter['apLvl'] -= self.apPerLvl
                 createdCharacter['stamLvl'] -= self.stamPerLvl
+                
+                types = createdCharacter['resistances']
+                for key in list(self.resistances.keys()):
+                    #if key in list(types.keys()):
+                    types[key] -= self.resistances[key]
+                    #else:
+                    #    types[key] = self.resistances[key]
+            
+                types = createdCharacter['dmgTypes']
+                for key in list(self.dmgTypes.keys()):
+                    #if key in list(types.keys()):
+                    types[key] = (types[key] - self.dmgTypes[key]//2)*2
+                    #else:
+                    #    types[key] = self.dmgTypes[key]//2
+                
                 self.amount -= 1
                 if self.amount <= 0:
                     self.selected = False
@@ -2609,6 +2660,22 @@ class Trait():
             player.Player.baseStealth -= self.stealth
             player.Fighter.noConstStamina -= self.stamina
             player.Fighter.BASE_STAMINA -= self.stamina
+            player.Fighter.critMultiplier -= self.critMult
+                
+            types = player.Fighter.baseResistances
+            for key in list(self.resistances.keys()):
+                #if key in list(types.keys()):
+                types[key] -= self.resistances[key]
+                #else:
+                #    types[key] = self.resistances[key]
+        
+            types = player.Fighter.baseAttackTypes
+            for key in list(self.dmgTypes.keys()):
+                #if key in list(types.keys()):
+                types[key] = (types[key] - self.dmgTypes[key]//2)*2
+                #else:
+                #    types[key] = self.dmgTypes[key]//2
+                
             self.amount -= 1
             player.Player.baseMaxWeight -= self.load
             if self.amount <= 0:
@@ -2791,9 +2858,10 @@ class UnlockableTrait(Trait):
     def __init__(self, name, description, type, x = 0, y = 0, underCursor = False, selectable = False, selected = False, allowsSelection = [],
                  amount = 0, maxAmount = 1, tier = 1, power = (0, 0), acc = (0, 0), ev = (0, 0), arm = (0, 0), hp = (0, 0), mp = (0, 0), crit = (0, 0),
                   stren = (0, 0), dex = (0, 0), vit = (0, 0), will = (0, 0), spells = None, load = 0, ap = (0, 0), stealth = 0, stam = (0, 0),
+                  bonusSkill = [], dmgTypes = {}, resistances = {}, critMult = 0,
                   requiredTraits = {}): #requiredTraits = {'player level': 5, 'Light weapons': 4}
         
-        Trait.__init__(self, name, description, type, x, y, underCursor, selectable, selected, allowsSelection, amount, maxAmount, tier, power, acc, ev, arm, hp, mp, crit, stren, dex, vit, will, spells, load, ap, stealth, stam)
+        Trait.__init__(self, name, description, type, x, y, underCursor, selectable, selected, allowsSelection, amount, maxAmount, tier, power, acc, ev, arm, hp, mp, crit, stren, dex, vit, will, spells, load, ap, stealth, stam, bonusSkill, dmgTypes, resistances, critMult)
         self.requiredTraits = requiredTraits
     
     def checkForRequirements(self):
@@ -2806,6 +2874,8 @@ class UnlockableTrait(Trait):
                     if player.level >= self.requiredTraits[trait]:
                         unlocked += 1
                 elif player.Player.getTrait(name = trait).amount >= self.requiredTraits[trait]:
+                    unlocked += 1
+                elif player.Player.race == required:
                     unlocked += 1
             
             if unlocked == len(required):
@@ -2876,8 +2946,8 @@ def initializeTraits():
         counter += 1
     
     ## skills ##
-    fireSkill = Trait('Fire', 'Launch a blazing fireball at the chosen location.', type = 'skill', selectable=False, tier = 4, spells = [fireball], maxAmount=10)
-    iceSkill = Trait('Water', 'Launch an ice bolt at your target in order to freeze it.', type = 'skill', selectable=False, tier = 4, spells = [ice], maxAmount=10)
+    fireSkill = Trait('Fire', 'Launch a blazing fireball at the chosen location.', type = 'skill', selectable=False, tier = 4, spells = [fireball], maxAmount=10, resistances = {'fire': 10})
+    iceSkill = Trait('Water', 'Launch an ice bolt at your target in order to freeze it.', type = 'skill', selectable=False, tier = 4, spells = [ice], maxAmount=10, resistances = {'ice': 10})
     fourthTierSkills = [fireSkill, iceSkill]
     
     light = Trait('Light weapons', '+20% damage per skillpoints with light weapons', type = 'skill', selectable = False, tier = 3, maxAmount=10)
@@ -2991,7 +3061,7 @@ def initializeTraits():
                 return
         
     shapeshift = Spell(ressourceCost=10, cooldown = 100, useFunction=castShapeshift, name = 'Shapeshift', ressource='MP', type = 'racial')
-    controllableWerewolf = UnlockableTrait('Shape control', 'You are able to shapeshift at will.', type = 'trait', spells = [shapeshift], requiredTraits={'player level': 5})
+    controllableWerewolf = UnlockableTrait('Shape control', 'You are able to shapeshift at will.', type = 'trait', spells = [shapeshift], requiredTraits={'player level': 5, 'Werewolf': 1})
     flurryTrait = UnlockableTrait('Flurry', 'You unleash three deadly attacks on the target.', 'trait', requiredTraits={'Light weapons': 7}, spells = [flurry])
     dual = UnlockableTrait('Dual wield', 'Allows to wield two lights weapons at the same time.', 'trait', requiredTraits={'Light weapons': 4})
     aware = UnlockableTrait('Self aware', 'Allows to see the buffs and debuffs cooldowns.', 'trait', requiredTraits={'Power of will': 4})
@@ -2999,8 +3069,9 @@ def initializeTraits():
     ignoreSlow = UnlockableTrait('Easy blows', 'You are used to the weight of heavy weapons and thus can strike with them at a fast speed.', 'trait', requiredTraits={'Heavy weapons': 10})
     shadowstepTrait = UnlockableTrait('Shadow step', 'When concealed, you can move through the shadows at incredible speed.', 'trait', requiredTraits={'Cunning': 7}, spells = [shadowStep])
     shadowCrit = UnlockableTrait('Surprise attack', 'When concealed, you have a greater chance to inflinct critical damage.', 'trait', requiredTraits = {'Cunning': 4})
+    greaterCrit = UnlockableTrait('Mighty criticals', 'Your hits are so precise they can eviscerate your victim in one strike.', 'trait', requiredTraits = {'Critical': 4}, critMult = 1)
     
-    unlockableTraits.extend([controllableWerewolf, dual, aware, flurryTrait, seismicTrait, ignoreSlow, shadowstepTrait, shadowCrit])
+    unlockableTraits.extend([controllableWerewolf, dual, aware, flurryTrait, seismicTrait, ignoreSlow, shadowstepTrait, shadowCrit, greaterCrit])
     
     for skill in skills:
         for unlock in unlockableTraits:
@@ -3014,7 +3085,8 @@ def characterCreation():
     global createdCharacter
     createdCharacter = {'power': 0, 'acc': 20, 'ev': 0, 'arm': 0, 'hp': 0, 'mp': 0, 'crit': 0, 'stren': 0, 'dex': 0, 'vit': 0, 'will': 0, 'ap': 0, 
                     'powLvl': 0, 'accLvl': 0, 'evLvl': 0, 'armLvl': 0, 'hpLvl': 0, 'mpLvl': 0, 'critLvl': 0, 'strLvl': 0, 'dexLvl': 0, 'vitLvl': 0, 'willLvl': 0, 'apLvl': 0,
-                    'spells': [], 'load': 45.0, 'stealth': 0, 'stamina': 0, 'stamLvl': 0}
+                    'spells': [], 'load': 45.0, 'stealth': 0, 'stamina': 0, 'stamLvl': 0,
+                    'dmgTypes': {'physical': 100}, 'resistances': {'physical': 0, 'poison': 0, 'fire': 0, 'cold': 0, 'lightning': 0, 'light': 0, 'dark': 0, 'none': 0}}
     #allTraits = []
     #leftTraits = []
     #rightTraits = []
@@ -3359,7 +3431,7 @@ def astarPath(startX, startY, goalX, goalY, flying = False, silent = False, mapT
                 print('neighbor:', nextTile.x, nextTile.y)
             if flying or not mapToUse[nextTile.x][nextTile.y].chasm:
                 if not (isBlocked(nextTile.x, nextTile.y, ignoreSelfSize=True, bigMonster=bigMonster) or mapToUse[nextTile.x][nextTile.y].clearance < size) or ((nextTile == goal)): # or wouldBigTouchTarget(mapToUse, bigMonster, nextTile.x, nextTile.y, goalX, goalY)): # or (nextTile in goalNeighbors and allowGoalNeighbours)):
-                    newCost = costSoFar[current] + mapToUse[nextTile.x][nextTile.y].moveCost
+                    newCost = costSoFar[current] + mapToUse[nextTile.x][nextTile.y].moveCost(flying)
                     if nextTile not in costSoFar or newCost < costSoFar[nextTile]:
                         costSoFar[nextTile] = newCost
                         heurCost = heuristic(nextTile.x, nextTile.y, goal.x, goal.y)
@@ -3921,6 +3993,8 @@ class Fighter: #All NPCs, enemies and the player
         self.noConstStamina = stamina
         self.stamina = stamina
         
+        self.critMultiplier = CRITICAL_MULTIPLIER
+        
         self.baseAttackSpeed = attackSpeed
         self.baseMoveSpeed = moveSpeed
         self.baseRangedSpeed = rangedSpeed
@@ -4076,7 +4150,7 @@ class Fighter: #All NPCs, enemies and the player
     def critical(self):
         bonus = sum(equipment.criticalBonus for equipment in getAllEquipped(self.owner))
         buffBonus = sum(buff.critical for buff in self.buffList)
-        if self.owner == player and player.Player.getTrait('Surprise attack') != 'not found' and not checkPlayerDetected():
+        if self.owner == player and player.Player.getTrait('trait', 'Surprise attack') != 'not found' and not checkPlayerDetected():
             bonus += SURPRISE_ATTACK_CRIT
             print('player can backstab')
         return self.baseCritical + bonus + buffBonus
@@ -4407,9 +4481,9 @@ class Fighter: #All NPCs, enemies and the player
             if not self.noDirectDamage:
                 if criticalHit:
                     if self.owner.Player and player.Player.getTrait('trait', 'Aggressive').selected:
-                        damage = (randint(self.power - 2, self.power + 2) + 4) * 3
+                        damage = (randint(self.power - 2, self.power + 2) + 4) * self.critMultiplier
                     else:
-                        damage = (randint(self.power - 2, self.power + 2)) * 3
+                        damage = (randint(self.power - 2, self.power + 2)) * self.critMultiplier
                 else:
                     if self.owner.Player and player.Player.getTrait('trait', 'Aggressive').selected:
                         damage = randint(self.power - 2, self.power + 2) + 4
@@ -4651,7 +4725,7 @@ class RangedNPC:
             if penetratedArmor < 0:
                 penetratedArmor = 0
             if criticalHit:
-                damage = (randint(self.power - 2, self.power + 2) * 3)
+                damage = (randint(self.power - 2, self.power + 2) * self.critMultiplier)
             else:
                 damage = randint(self.power - 2, self.power + 2)
             if self.owner.canTakeTurn:
@@ -4839,15 +4913,15 @@ class BasicMonster(TargetSelector): #Basic monsters' AI
                     else:
                         print("TRYING TO MOVE")
                         self.tryMove()
-                        monster.Fighter.actionPoints -= monster.Fighter.moveSpeed
+                        monster.Fighter.actionPoints -= monster.Fighter.moveSpeed + myMap[monster.x][monster.y].moveCost(monster.flying)
                 else:
                     print("No target, still trying to move")
                     self.tryMove()
-                    monster.Fighter.actionPoints -= monster.Fighter.moveSpeed
+                    monster.Fighter.actionPoints -= monster.Fighter.moveSpeed + myMap[monster.x][monster.y].moveCost(monster.flying)
                     
             elif self.owner.Fighter.canTakeTurn:
                 self.wander()
-                monster.Fighter.actionPoints -= monster.Fighter.moveSpeed
+                monster.Fighter.actionPoints -= monster.Fighter.moveSpeed + myMap[monster.x][monster.y].moveCost(monster.flying)
             
             elif not monster.Fighter.canTakeTurn:
                 monster.Fighter.actionPoints -= 100
@@ -5166,6 +5240,7 @@ class ConfusedMonster:
     def __init__(self, old_AI, numberTurns=CONFUSE_NUMBER_TURNS):
         self.old_AI = old_AI
         self.numberTurns = numberTurns
+        self.detectedPlayer = False
  
     def takeTurn(self):
         if self.old_AI.__class__.__name__ != 'HostileStationnary' and self.old_AI.__class__.__name__ != 'Immobile':
@@ -5594,16 +5669,16 @@ class Essence:
             for stat, boost in self.affectedStats:
                 if stat == 'vitality':
                     player.Player.BASE_VITALITY += boost
-                    player.Player.vitality += boost
+                    player.Player.baseVitality += boost
                 if stat == 'strength':
-                    player.Player.strength += boost
+                    player.Player.baseStrength += boost
                     player.Player.BASE_STRENGTH += boost
                 if stat == 'willpower':
                     player.Player.BASE_WILLPOWER += boost
-                    player.Player.willpower += boost
+                    player.Player.baseWillpower += boost
                 if stat == 'dexterity':
                     player.Player.BASE_DEXTERITY += boost
-                    player.Player.dexterity += boost
+                    player.Player.baseDexterity += boost
                 if stat == 'power':
                     player.Fighter.noStrengthPower += boost
                     player.Fighter.BASE_POWER += boost
@@ -7250,7 +7325,7 @@ def moveOrAttack(dx, dy):
             moving = player.move(dx, dy)
             if moving == 'didnt-take-turn':
                 return 'didnt-take-turn'
-            player.Fighter.actionPoints -= player.Fighter.moveSpeed
+            player.Fighter.actionPoints -= player.Fighter.moveSpeed + myMap[player.x][player.y].moveCost(player.flying)
         else:
             return 'didnt-take-turn'
 
@@ -7296,7 +7371,7 @@ def shoot():
                                                 damage = randint(weapon.Equipment.rangedPower - 2, weapon.Equipment.rangedPower + 2)
         
                                             if criticalHit:
-                                                damage = damage * CRITICAL_MULTIPLIER
+                                                damage = damage * player.Fighter.critMultiplier
                                             damageDict = player.Fighter.computeDamageDict(damage)
                                             monsterTarget.Fighter.takeDamage(damageDict, player.name, armored = True, damageTextFunction = dmgTxtFunc)
                                         else:
@@ -7341,7 +7416,7 @@ def shoot():
                                         damage = randint(weapon.Equipment.rangedPower - 2, weapon.Equipment.rangedPower + 2)
 
                                     if criticalHit:
-                                        damage = damage * CRITICAL_MULTIPLIER
+                                        damage = damage * player.Fighter.critMultiplier
                                     damageDict = player.Fighter.computeDamageDict(damage)
                                     monsterTarget.Fighter.takeDamage(damage, player.name, armored = True, damageTextFunction = dmgTxtFunc)
                                 else:
@@ -7619,6 +7694,7 @@ def checkLevelUp():
         player.Fighter.baseArmorPenetration += player.Player.levelUpStats['ap']
         player.Fighter.BASE_ARMOR_PENETRATION += player.Player.levelUpStats['ap']
         player.Fighter.noConstStamina += player.Player.levelUpStats['stamina']
+        player.Fighter.stamina += player.Player.levelUpStats['stamina']
         
         if player.Player.race == 'Demon Spawn':
             if player.Player.possibleMutations and player.level in player.Player.mutationLevel:
@@ -14565,7 +14641,7 @@ def playGame(noSave = False):
                             tileBuff.passTurn()
             while mustCalculate:
                 print("Calculating")
-                pathfinders = []
+                pathfinders = [] 
                 mustCalculate = False
                 print(len(mobsToCalculate))
                 for mob in mobsToCalculate:

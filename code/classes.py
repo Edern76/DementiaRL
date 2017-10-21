@@ -1,6 +1,7 @@
 import code.dunbranches as dBr
 import colors, copy, pdb, traceback, os, sys, time, math
-from random import *
+from random import randint
+import code.constants as constants
 
 color_dark_wall = dBr.mainDungeon.mapGeneration['wallDarkFG']
 color_light_wall = dBr.mainDungeon.mapGeneration['wallFG']
@@ -18,7 +19,7 @@ def printTileWhenWalked(tile):
     print("Player walked on tile at {};{}".format(tile.x, tile.y))
 
 class Tile:
-    def __init__(self, blocked, x, y, block_sight = None, character = None, fg = None, bg = None, dark_fg = None, dark_bg = None, chasm = False, wall = False, hole = False, moveCost = 1):
+    def __init__(self, blocked, x, y, block_sight = None, character = None, fg = None, bg = None, dark_fg = None, dark_bg = None, chasm = False, wall = False, hole = False, moveCost = 0):
         self.baseBlocked = blocked
         self.explored = False
         self.unbreakable = False
@@ -66,12 +67,26 @@ class Tile:
             self.baseDark_fg = colors.black
             self.DARK_BG = (0, 0, 16)
             self.baseDark_bg = (0, 0, 16)
-        self.moveCost = moveCost
+        self.baseMoveCost = moveCost
         self.djikValue = None
         self.doNotPropagateDjik = False
         self.onTriggerFunction = printTileWhenWalked
         self.clearance = 1
         self.buffList = []
+        self.water = False
+        self.lava = False
+    
+    #@property
+    def moveCost(self, flying=False):
+        bonus = 0
+        if self.buffList:
+            for tileBuff in self.buffList:
+                bonus += tileBuff.addMoveCost
+        if self.water or self.lava:
+            bonus += constants.WATER_WALK_COST
+        if not flying:
+            return self.baseMoveCost + bonus
+        return self.baseMoveCost
     
     @property
     def blocked(self):
@@ -87,6 +102,10 @@ class Tile:
             for tileBuff in self.buffList:
                 if tileBuff.char:
                     return tileBuff.char
+        if self.water or self.lava:
+            if randint(0, 4) == 0:
+                return '~'
+            return None
         return self.baseCharacter
     
     @property
@@ -95,6 +114,10 @@ class Tile:
             for tileBuff in self.buffList:
                 if tileBuff.fg:
                     return tileBuff.fg
+        if self.water:
+            return colors.dark_sky
+        if self.lava:
+            return colors.dark_amber
         return self.baseFg
     
     @property
@@ -103,14 +126,26 @@ class Tile:
             for tileBuff in self.buffList:
                 if tileBuff.bg:
                     return tileBuff.bg
+        if self.water:
+            return colors.dark_azure
+        if self.lava:
+            return colors.dark_flame
         return self.baseBg
     
     @property
     def dark_fg(self):
+        if self.water:
+            return colors.darkest_sky
+        if self.lava:
+            return colors.darkest_amber
         return self.baseDark_fg
     
     @property
     def dark_bg(self):
+        if self.water:
+            return colors.darkest_azure
+        if self.lava:
+            return colors.darkest_flame
         return self.baseDark_bg
         
     def neighbors(self, mapToUse, count = False, cardinal = False):

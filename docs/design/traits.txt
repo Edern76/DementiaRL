@@ -28,8 +28,8 @@
     XXwill = Trait('Willpower', 'Willpower augments your energy and the rate at which you regain it.', type = 'attribute', maxAmount=5, will=(1, 0))
 
     ## skills ## STATUS: 0/24 (add some more)
-    fireSkill = Trait('Fire', 'Launch a blazing fireball at the chosen location.', type = 'skill', selectable=False, tier = 4, spells = [fireball]) STATUS: kinda implemented EFFECT: +fireball, ++fire resist, ++other spells
-    iceSkill = Trait('Water', 'Launch an ice bolt at your target in order to freeze it.', type = 'skill', selectable=False, tier = 4, spells = [ice]) STATUS: kinda implemented EFFECT: +icebolt, ++ice resist, ++other spells
+    fireSkill = Trait('Fire', 'Launch a blazing fireball at the chosen location.', type = 'skill', selectable=False, tier = 4, spells = [fireball]) STATUS: kinda implemented EFFECT: +fireball, +fire resist, ++other spells
+    iceSkill = Trait('Water', 'Launch an ice bolt at your target in order to freeze it.', type = 'skill', selectable=False, tier = 4, spells = [ice]) STATUS: kinda implemented EFFECT: +icebolt, +ice resist, ++other spells
     
     light = Trait('Light weapons', '+20% damage per skillpoints with light weapons', type = 'skill', selectable = False, tier = 3) STATUS: kinda EFFECT: +10% dmg, +dual wield, +ability (flurry?) ++level 10
     heavy = Trait('Heavy weapons', '+20% damage per skillpoints with heavy weapons', type = 'skill', selectable = False, tier = 3) STATUS: kinda EFFECT: +10% dmg, +ignores slow, +ability (seismic slam?), ++level 4
@@ -37,7 +37,7 @@
     shield = Trait('Shield mastery', 'You trained to master shield wielding.', type = 'skill', selectable = False, tier = 3) STATUS: unimplemented EFFECT: +10% armor, ++ability (parry?, stun?), ++auto parry
     armorEff = Trait('Armor efficiency', 'You know very well how to maximize the protection brought by your armor', type = 'skill', selectable = False, tier = 3) STATUS: unimplemented EFFECT: +5% armor, ++ability (turtle up?), ++auto mitigate
     dexterity = Trait('Dexterity', 'You are Dexter.', type = 'skill', selectable = False, dex=(1, 0), tier = 3) STATUS: kinda implemented EFFECT: +dex, ++ability (DO A BARREL ROLL?), ++autododge
-    critical = Trait('Critical', 'You know every weaknesses of your enemies.', type = 'skill', selectable = False, crit=(3, 0), tier = 3) STATUS: kinda EFFECT: +crit, ++ability (precise strike/shot?), ++chance to *4 dmg instead of *3
+    critical = Trait('Critical', 'You know every weaknesses of your enemies.', type = 'skill', selectable = False, crit=(3, 0), tier = 3) STATUS: kinda EFFECT: +crit, ++ability (precise strike/shot?), +chance to *4 dmg instead of *3 /!\ the *4 is a 100% chance for now
     constitution = Trait('Constitution', 'You are a sturdy person', type = 'skill', hp = (5, 0), vit = (1, 0), selectable = False, tier = 3) STATUS: kinda EFFECT: +const, ++ability (regen?), ++autoregen on low health
     hunger = Trait('Hunger management', 'You are used to starve and are now resilient to hunger.', type = 'skill', selectable=False, tier = 3) STATUS: unimplemented EFFECT: ++ hunger pool, ++ hunger on select, --hunger loss, ++ability(multiply food), ++at certain lvl, +hunger from food
     occult = Trait('Occult magic', 'The black magic cannot hide any of its dark secrets to you.', type = 'skill', selectable=False, tier = 3) STATUS: unimplemented EFFECT: ++hp consuming spells consume less, ++new spells, ++lifestal at certain lvl

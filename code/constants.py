@@ -16,3 +16,4 @@ DIAL_TEXT_START = 30
 DIAL_TEXT_WIDTH = 170 - int(DIAL_TEXT_START) * 2
 
 ACTION_COSTS = {'Drop': 50, 'Equip': 150, 'Eat': 25, 'Drink': 25, 'Read': 50, 'Pick Up': 25, 'Unequip': 150}
+WATER_WALK_COST = 50
