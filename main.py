@@ -1047,7 +1047,7 @@ def rSpellDamage(amount, caster, target, type, dmgTypes = {'physical': 100}):
                 messageColor = colors.green
             else:
                 messageColor = colors.white
-            dmgTxtFunc = lambda damageTaken: target.Fighter.formatRawDamageText(damageTaken, " takes {}!", messageColor, '{} is hit by the spell but is insensible to it.', colors.white)
+            dmgTxtFunc = lambda damageTaken: target.Fighter.formatRawDamageText(damageTaken, " {} takes {}!", messageColor, '{} is hit by the spell but is insensible to it.', colors.white)
         else:
             dmgTxtFunc = lambda damageTaken: player.Fighter.formatRawDamageText(damageTaken, "{} take {} damage !", colors.red, '{} are hit by the spell but are insensible to it.', colors.white)
         
@@ -1340,6 +1340,8 @@ def convertRandTemplateToSpell(template = None):
 
     if template.targeting == "Self":
         targetFunction = targetSelf
+    elif template.targeting == "Closest":
+        targetFunction = closestMonsterWrapper
     else:
         targetFunction = targetTileWrapper
     
@@ -3494,17 +3496,25 @@ def astarPath(startX, startY, goalX, goalY, flying = False, silent = False, mapT
         print([(tile.x, tile.y) for tile in path])
     return path
 
+def closestMonsterWrapper(caster = None, max_range = 8):
+    return closestMonster(max_range)
+
 def closestMonster(max_range):
     closestEnemy = None
     closestDistance = max_range + 1
-
+    
+    found = False
     for object in objects:
         if object.Fighter and not object == player and (object.x, object.y) in visibleTiles:
+            found = True
             dist = player.distanceTo(object)
             if dist < closestDistance:
                 closestEnemy = object
                 closestDistance = dist
-    return closestEnemy
+    if found:
+        return closestEnemy
+    else:
+        return 'cancelled'
 
 class Nemesis:
     def __init__(self, nemesisObject, branch, level):
