@@ -1148,8 +1148,12 @@ def createObjectFromCoords(x, y):
     return GameObject(x,y, char=None, name = None)
 
 def targetTileWrapper(caster = None):
-    (x,y) = targetTile()
-    return createObjectFromCoords(x, y)
+    result = targetTile()
+    if result != 'cancelled':
+        (x,y) = result
+        return createObjectFromCoords(x, y)
+    else:
+        return 'cancelled'
 
 def singleTarget(startPoint, shotRange = 0):
     return [(startPoint.x, startPoint.y)]
@@ -1278,51 +1282,55 @@ def rSpellExec(func1 = Erwan, func2 = Erwan, func3 = Erwan, targetFunction = tar
     if targetFunction.__name__ != 'targetSelf':
         message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
     chosenTarget = targetFunction(caster)
-    print("FOOOOOOOOOOOOOOOOOOOOUNNNNNNNNNNNNNNNNNNND TARGEEEEEEEEEEEEEEEEEET")
-    print("vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv")
-    print(chosenTarget)
-    print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
-    
-    print("Before Zone")
-    tilesList = zoneFunction(chosenTarget, 3)
-    print("After Zone, before draw")
-    if len(tilesList) > 1:
-        print("Draw")
-        print(tilesList)
-        for (x,y) in tilesList:
-            if not myMap[x][y].blocked:
-                con.draw_char(x,y, '*', fg = color)
-        root.blit(con, 0, 0, WIDTH, HEIGHT, 0, 0)
-        tdl.flush()
-        time.sleep(2) #Set to .125 once testing done
-        FOV_recompute = True
-        Update()
-        tdl.flush()
-    print("After draw, before process")
-    targetList = cleanList(processTiles(tilesList))
-    
-    print(targetList)
-    
-    if len(targetList) > 0:
-        counter = 0
-        for actualTarget in targetList:
-            counter += 1
-            if counter > 1000:
-                raise InfiniteLoopPrevention("Application of functions. Target list = {}".format(targetList))
-            if actualTarget is not None and actualTarget.Fighter is not None and actualTarget.Fighter.hp > 0:
-                func1(caster, actualTarget)
-            if actualTarget is not None and actualTarget.Fighter is not None and actualTarget.Fighter.hp > 0:
-                func2(caster, actualTarget)
-            else:
-                if DEBUG:
-                    message("OVERKILL !")
-            if actualTarget is not None and actualTarget.Fighter is not None and actualTarget.Fighter.hp > 0:
-                func3(caster, actualTarget)
-            else:
-                if DEBUG:
-                    message("OVERKILL !")
+    if chosenTarget != 'cancelled':
+        print("FOOOOOOOOOOOOOOOOOOOOUNNNNNNNNNNNNNNNNNNND TARGEEEEEEEEEEEEEEEEEET")
+        print("vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv")
+        print(chosenTarget)
+        print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+        
+        print("Before Zone")
+        tilesList = zoneFunction(chosenTarget, 3)
+        print("After Zone, before draw")
+        if len(tilesList) > 1:
+            print("Draw")
+            print(tilesList)
+            for (x,y) in tilesList:
+                if not myMap[x][y].blocked:
+                    con.draw_char(x,y, '*', fg = color)
+            root.blit(con, 0, 0, WIDTH, HEIGHT, 0, 0)
+            tdl.flush()
+            time.sleep(2) #Set to .125 once testing done
+            FOV_recompute = True
+            Update()
+            tdl.flush()
+        print("After draw, before process")
+        targetList = cleanList(processTiles(tilesList))
+        
+        print(targetList)
+        
+        if len(targetList) > 0:
+            counter = 0
+            for actualTarget in targetList:
+                counter += 1
+                if counter > 1000:
+                    raise InfiniteLoopPrevention("Application of functions. Target list = {}".format(targetList))
+                if actualTarget is not None and actualTarget.Fighter is not None and actualTarget.Fighter.hp > 0:
+                    func1(caster, actualTarget)
+                if actualTarget is not None and actualTarget.Fighter is not None and actualTarget.Fighter.hp > 0:
+                    func2(caster, actualTarget)
+                else:
+                    if DEBUG:
+                        message("OVERKILL !")
+                if actualTarget is not None and actualTarget.Fighter is not None and actualTarget.Fighter.hp > 0:
+                    func3(caster, actualTarget)
+                else:
+                    if DEBUG:
+                        message("OVERKILL !")
+        else:
+            message("Your spell didn't hit anything !")
     else:
-        message("Your spell didn't hit anything !")
+        message("You decided not to cast the spell.")
+        return 'cancelled'
     
 def convertRandTemplateToSpell(template = None):
     if template is None:
