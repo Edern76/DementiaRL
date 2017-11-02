@@ -2946,9 +2946,7 @@ def initializeTraits():
         counter += 1
     
     ## skills ##
-    fireSkill = Trait('Fire', 'Launch a blazing fireball at the chosen location.', type = 'skill', selectable=False, tier = 4, spells = [fireball], maxAmount=10, resistances = {'fire': 10})
-    iceSkill = Trait('Water', 'Launch an ice bolt at your target in order to freeze it.', type = 'skill', selectable=False, tier = 4, spells = [ice], maxAmount=10, resistances = {'ice': 10})
-    fourthTierSkills = [fireSkill, iceSkill]
+    #fourthTierSkills = [fireSkill, iceSkill]
     
     light = Trait('Light weapons', '+20% damage per skillpoints with light weapons', type = 'skill', selectable = False, tier = 3, maxAmount=10)
     heavy = Trait('Heavy weapons', '+20% damage per skillpoints with heavy weapons', type = 'skill', selectable = False, tier = 3, maxAmount=10)
@@ -2959,9 +2957,11 @@ def initializeTraits():
     critical = Trait('Critical', 'You know every weaknesses of your enemies.', type = 'skill', selectable = False, crit=(3, 0), tier = 3, maxAmount=10)
     constitution = Trait('Constitution', 'You are a sturdy person', type = 'skill', hp = (5, 0), vit = (1, 0), selectable = False, tier = 3, maxAmount=10)
     hunger = Trait('Hunger management', 'You are used to starve and are now resilient to hunger.', type = 'skill', selectable=False, tier = 3, maxAmount=10)
-    occult = Trait('Occult magic', 'The black magic cannot hide any of its dark secrets to you.', type = 'skill', selectable=False, tier = 3, maxAmount=10)
-    elemental = Trait('Elemental magic', 'You master the power of the four elements.', type = 'skill', selectable=False, tier = 3, allowsSelection=[fireSkill, iceSkill], maxAmount=10)
-    thirdTierSkills = [light, heavy, missile, armorEff, shield, hunger, constitution, occult, elemental, dexterity, critical]
+    fireSkill = Trait('Fire', 'You master fire magic.', type = 'skill', selectable=False, tier = 3, spells = [fireball], maxAmount=10, resistances = {'fire': 10})
+    iceSkill = Trait('Water', 'You master ice magic.', type = 'skill', selectable=False, tier = 3, spells = [ice], maxAmount=10, resistances = {'cold': 10})
+    airSkill = Trait('Air', 'You master air magic.', type = 'skill', selectable=False, tier = 3, spells = [fireball], maxAmount=10, resistances = {'fire': 10})
+    earthSkill = Trait('Earth', 'You master earth magic.', type = 'skill', selectable=False, tier = 3, spells = [ice], maxAmount=10, resistances = {'cold': 10})
+    thirdTierSkills = [light, heavy, missile, armorEff, shield, hunger, constitution, dexterity, critical, fireSkill, iceSkill, airSkill, earthSkill]
 
     melee = Trait('Melee weaponry', 'You are trained to wreck your enemies at close range.', type = 'skill', selectable = False, tier = 2, allowsSelection=[light, heavy], maxAmount=10)
     ranged = Trait('Ranged weaponry', 'You shoot people in the knees.', type = 'skill', selectable = False, tier = 2, allowsSelection=[missile], maxAmount=10)
@@ -2970,20 +2970,22 @@ def initializeTraits():
     strength = Trait('Strength', 'You are as strong as a bear', type = 'skill', stren=(1, 0), selectable = False, tier = 2, maxAmount=10)
     willpower = Trait('Power of will', 'Your will is very strong', type = 'skill', mp=(5, 0), will = (1, 0), selectable = False, tier = 2, maxAmount=10)
     cunning = Trait('Cunning', 'You are cunning, and can use this to hide in the shadows in order to deliver sly but deadly attacks.', type = 'skill', selectable = False, tier = 2, allowsSelection=[dexterity, critical], maxAmount=10, stealth = 5)
-    magic = Trait('Magic ', 'You can use the power of your mind to bind reality to your will', type = 'skill', selectable = False, tier = 2, allowsSelection=[occult, elemental], maxAmount=10)
-    secondTierSkills = [melee, ranged, armorW, strength, endurance, magic, willpower, cunning]
+    elemental = Trait('Elemental magic', 'You master the power of the four elements.', type = 'skill', selectable=False, tier = 2, allowsSelection=[fireSkill, iceSkill, airSkill, earthSkill], maxAmount=10)
+    occult = Trait('Occult magic', 'The black magic cannot hide any of its dark secrets to you.', type = 'skill', selectable=False, tier = 2, maxAmount=10)
+    #magic = Trait('Magic ', 'You can use the power of your mind to bind reality to your will', type = 'skill', selectable = False, tier = 2, allowsSelection=[occult, elemental], maxAmount=10)
+    secondTierSkills = [melee, ranged, armorW, strength, endurance, cunning, willpower, elemental, occult]
 
     martial = Trait('Martial training', 'You are trained to use a wide variety of weapons', type = 'skill', acc=(10, 0), allowsSelection=[melee, ranged, armorW], maxAmount=10)
-    physical = Trait('Physical training', 'You are muscular and are used to physical efforts', type = 'skill', allowsSelection=[strength, endurance], maxAmount=10)
-    mental = Trait('Mental training', 'Your mind is as fast as an arrow and as sharp as a scalpel', type = 'skill', allowsSelection=[magic, willpower, cunning], maxAmount=10)
+    physical = Trait('Physical training', 'You are muscular and are used to physical efforts', type = 'skill', allowsSelection=[strength, endurance, cunning], maxAmount=10, resistances = {'physical': 5, 'poison': 5, 'fire': 5, 'cold': 5, 'lightning': 5})
+    mental = Trait('Mental training', 'Your mind is as fast as an arrow and as sharp as a scalpel', type = 'skill', allowsSelection=[willpower, elemental, occult], maxAmount=10)
     basicSkills = [martial, physical, mental]
     
     skills = basicSkills
     skills.extend(secondTierSkills)
     skills.extend(thirdTierSkills)
-    skills.extend(fourthTierSkills)
+    #skills.extend(fourthTierSkills)
     
-    quarterX = (WIDTH - 2)//6
+    quarterX = (WIDTH - 2)//5#6
     
     def initiateSkill(skillList, maxHeight, heightCounter, originY = 0):
         newHeight = maxHeight//len(skillList)
@@ -3012,7 +3014,7 @@ def initializeTraits():
     knight = Trait('Knight', 'A warrior who wears armor and wields shields', type ='class', arm=(1, 1), hp=(120, 14), mp=(30, 3), stam = (60, 6), bonusSkill = [armorW])
     barb = Trait('Barbarian', 'A brutal fighter who is mighty strong', type = 'class', hp=(160, 20), mp=(30, 3), stren=(1, 1), spells=[enrage], stam = (70, 10), bonusSkill = [strength])
     rogue = Trait('Rogue', 'A rogue who is stealthy and backstabby (probably has a french accent)', type = 'class', acc=(8, 4), ev=(10, 2), hp=(90, 10), mp=(40, 5), crit=(3, 0), stam = (50, 3), bonusSkill = [cunning])
-    mage = Trait('Mage ', 'A wizard who zaps everything', type ='class', hp=(70, 6), mp=(50, 7), will=(2, 0), spells=[fireball], stam=(20, 1), bonusSkill = [magic])
+    mage = Trait('Mage ', 'A wizard who zaps everything', type ='class', hp=(70, 6), mp=(50, 7), will=(2, 0), spells=[fireball], stam=(20, 1), bonusSkill = [elemental])
     necro = Trait('Necromancer', 'A master of the occult arts who has the ability to raise and control the dead.', type = 'class', hp=(100, 4), mp=(15, 1), spells=[darkPact, ressurect], stam=(50, 3), bonusSkill = [occult])
     classes = [knight, barb, rogue, mage, necro]
     allTraits.extend(classes)
@@ -4213,7 +4215,7 @@ class Fighter: #All NPCs, enemies and the player
         bonus = 0
         i = 0
         for equipment in getAllEquipped(self.owner):
-            if equipment.slot == 'one handed' or equipment.slot == 'two handed':
+            if equipment.slot == 'one handed' or equipment.slot == 'two handed' and player.Player.getTrait('trait', 'Easy blows') != 'not found':
                 i += 1
                 bonus += equipment.attackSpeed
         if i <= 1:
@@ -6915,18 +6917,19 @@ def getInput():
             return 'didnt-take-turn'
         else:
             if not switch:
-                if chosenSpell.magicLevel > player.Player.getTrait(searchedType = 'skill', name = 'Magic ').amount:
-                    '''
+                #if chosenSpell.magicLevel > player.Player.getTrait(searchedType = 'skill', name = 'Magic ').amount:
+                '''
+                FOV_recompute = True
+                message('Your arcane knowledge is not high enough to cast ' + chosenSpell.name + '.')
+                return 'didnt-take-turn'
+                '''
+                action = chosenSpell.cast(caster = player)
+                if action == 'cancelled':
                     FOV_recompute = True
-                    message('Your arcane knowledge is not high enough to cast ' + chosenSpell.name + '.')
                     return 'didnt-take-turn'
-                    '''
-                    action = chosenSpell.cast(caster = player)
-                    if action == 'cancelled':
-                        FOV_recompute = True
-                        return 'didnt-take-turn'
-                    else:
-                        return
+                else:
+                    return
+                '''
                 else:
                     action = chosenSpell.cast(caster = player)
                     if action == 'cancelled':
@@ -6934,6 +6937,7 @@ def getInput():
                         return 'didnt-take-turn'
                     else:
                         return
+                '''
             else:
                 chosenSpell.displayInfo()
     elif userInput.keychar.upper() == 'X':
