@@ -3129,7 +3129,7 @@ def characterCreation():
     rightIndexMax = rightIndexMin + len(rightTraits) - 1
     maxIndex = len(allTraits) + 2
     
-    while not tdl.event.isWindowClosed():
+    while True:
         root.clear()
         
         raceSelected = False
@@ -3258,6 +3258,8 @@ def characterCreation():
         tdl.flush()
 
         key = tdl.event.key_wait()
+        if tdl.event.isWindowClosed():
+            quitGame("Closed game", noSave = True)
         if key.keychar.upper() == 'DOWN':
             index += 1
             playWavSound('selectClic.wav')
@@ -3339,7 +3341,7 @@ def characterCreation():
     
 def enterName(race):
     letters = []
-    while not tdl.event.isWindowClosed():
+    while True:
         text = '_'
         name = ''
         for letter in letters:
@@ -3356,6 +3358,8 @@ def enterName(race):
         tdl.flush()
         
         key = tdl.event.key_wait()
+        if tdl.event.isWindowClosed():
+            quitGame("Closed game", noSave = True)
         if key.keychar.upper()== 'ENTER':
             if name == '':
                 name = nameGen.humanLike(randint(5,8))
@@ -5618,7 +5622,7 @@ def displayCharacter():
     window.clear()
     page = 1
 
-    while not tdl.event.isWindowClosed():
+    while True:
         MAX_PAGE = 3
         for k in range(width):
             window.draw_char(k, 0, chr(196))
@@ -5696,6 +5700,8 @@ def displayCharacter():
         tdl.flush()
         
         key = tdl.event.key_wait()
+        if tdl.event.isWindowClosed():
+            quitGame("Closed game")
         keyChar = key.keychar
         if key.keychar.upper() == 'RIGHT':
             window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
@@ -6817,10 +6823,10 @@ def quitGame(message, backToMainMenu = False, noSave = False):
     global inventory
     if gameState != "dead" and not noSave: #and not tutorial:
         saveGame()
-    for obj in objects:
-        del obj
-    inventory = []
     if backToMainMenu:
+        for obj in objects:
+            del obj
+        inventory = []
         mainMenu()
     else:
         stopProcess()
@@ -6834,6 +6840,8 @@ def stopProcess():
 def getInput():
     global FOV_recompute, gameState, lookCursor, REVEL, DEBUG, currentSidepanelMode
     userInput = tdl.event.key_wait()
+    if tdl.event.isWindowClosed():
+        quitGame("Closed Game")
     if userInput.keychar.upper() ==  'ESCAPE' and gameState != 'looking':
         return 'exit'
     #elif userInput.keychar.upper() == 'ALT' and userInput.alt:
@@ -12312,7 +12320,7 @@ def deathMenu():
     window.clear()
     index = 0
 
-    while not tdl.event.isWindowClosed():
+    while True: #not tdl.event.isWindowClosed():
         for k in range(width):
             window.draw_char(k, 0, chr(196))
         window.draw_char(0, 0, chr(218))
@@ -12346,6 +12354,8 @@ def deathMenu():
         
         key = tdl.event.key_wait()
         keyChar = key.keychar
+        if tdl.event.isWindowClosed():
+            quitGame("Closed game")
         if key.keychar.upper() == 'DOWN':
             index += 1
         if key.keychar.upper() == 'UP':
@@ -12546,7 +12556,7 @@ def mainMenu():
         activeProcess.append(music)
         tutorial = False
         
-        while not tdl.event.isWindowClosed():
+        while True: #not tdl.event.isWindowClosed():
             root.clear()
             asciiFile = os.path.join(absAsciiPath, 'logo2.xp')
             xpRawString = gzip.open(asciiFile, "r").read()
@@ -12563,6 +12573,8 @@ def mainMenu():
             drawCentered(cons = root, y = 44 + index, text=choices[index], fg = colors.black, bg = colors.white)
             tdl.flush()
             key = tdl.event.key_wait()
+            if tdl.event.isWindowClosed():
+                quitGame("Closed game", noSave = True)
             if key.keychar.upper() == "DOWN":
                 index += 1
                 playWavSound('selectClic.wav')
@@ -13237,7 +13249,7 @@ def showPrologue(escapable = True):
         name = ''
         letters = []
         hasConfirmed = False
-        while not tdl.event.isWindowClosed():
+        while True:#not tdl.event.isWindowClosed():
             text = '_'
             name = ''
             for letter in letters:
@@ -13255,6 +13267,8 @@ def showPrologue(escapable = True):
             tdl.flush()
             
             key = tdl.event.key_wait()
+            if tdl.event.isWindowClosed():
+                quitGame("Closed game", noSave = True)
             if key.keychar.upper()== 'ENTER':
                 if name == '':
                     playWavSound('error.wav')
@@ -13293,6 +13307,8 @@ def showPrologue(escapable = True):
         root.blit(con, x= 22, y=10, width = 104, height = HEIGHT - 18, srcX = 0, srcY = 0)
         tdl.flush()
         tdl.event.key_wait()
+        if tdl.event.isWindowClosed():
+            quitGame("Closed game", noSave = True)
 
 
 def GetNamesUnderLookCursor():
@@ -14227,7 +14243,7 @@ def playTutorial():
     player.trueName = heroName
     
     displayTip('Move around using the directional ARROWS or the NUMPAD. Pressing 5 will pass a turn.', x = 0, y = 0, arrow = False)
-    while not tdl.event.isWindowClosed() and not foughtZarg:
+    while not foughtZarg:
         Update()
         if myMap is None:
             raise TypeError("MYMAP IS NONE, PLAYTUT FUNC")
@@ -14238,6 +14254,10 @@ def playTutorial():
         for object in objects:
             object.clear()
         playerAction = getInput()
+        '''
+        if tdl.event.isWindowClosed:
+            quitGame("Closed game") #already in getinput()
+        '''
         if playerAction == 'exit':
             quitGame('Player pressed escape', True)
         FOV_recompute = True #So as to avoid the blackscreen bug no matter which key we press
@@ -14493,7 +14513,7 @@ def playGame(noSave = False):
     music.start()
     activeProcess.append(music)
     #actions = 1
-    while not tdl.event.isWindowClosed():
+    while True:
         checkLevelUp()
         for trait in player.Player.unlockableTraits:
             trait.checkForRequirements()
