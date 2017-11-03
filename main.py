@@ -3524,14 +3524,14 @@ def closestMonster(max_range):
 
 def farthestMonster(max_range):
     farthestEnemy = None
-    farthestDistance = max_range + 1
+    farthestDistance = 0
     
     found = False
     for object in objects:
         if object.Fighter and not object == player and (object.x, object.y) in visibleTiles:
             found = True
             dist = player.distanceTo(object)
-            if dist < farthestDistance:
+            if dist > farthestDistance:
                 farthestEnemy = object
                 farthestDistance = dist
     if found:
