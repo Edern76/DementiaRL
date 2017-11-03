@@ -6843,7 +6843,7 @@ def getInput():
             #set_fullscreen(False)
         #else:
             #set_fullscreen(True)
-    elif userInput.keychar.upper() == 'F3':
+    elif userInput.keychar.upper() == 'F3' and DEBUG:
         #castFreeze(player, player)
         learnSpell(convertRandTemplateToSpell())
         '''
