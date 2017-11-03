@@ -467,6 +467,69 @@ def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxP
     
     if not displayItem:
         tdl.flush()
+        
+def drawColorMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp, selectedIndex, noItemMessage = None, displayItem = False):
+    window.clear()
+    for i, line in enumerate(headerWrapped):
+        window.draw_str(1, 1+i, headerWrapped[i], fg = colors.amber)
+    if pagesDisp:
+        window.draw_str(10, y - 2, str(page + 1) + '/' + str(maxPages + 1), fg = colors.amber)
+    letterIndex = ord('a')
+    counter = 0
+    pageIndex = 0
+    for k in range(width):
+        window.draw_char(k, 0, chr(196))
+    window.draw_char(0, 0, chr(218))
+    window.draw_char(k, 0, chr(191))
+    kMax = k
+    for l in range(height):
+        if l > 0:
+            window.draw_char(0, l, chr(179))
+            window.draw_char(kMax, l, chr(179))
+    lMax = l
+    for m in range(width):
+        window.draw_char(m, lMax, chr(196))
+    window.draw_char(0, lMax, chr(192))
+    window.draw_char(kMax, lMax, chr(217))
+    if (noItemMessage is None or not options or options[0] != str(noItemMessage)):
+        if len(options) == 1:
+            print(options[0])
+            print(str(noItemMessage))
+        for (optionText, optionColor) in options:
+            if counter >= page * 26 and counter < (page + 1) * 26:
+                if optionColor is None:
+                    colorToDraw = colors.white
+                    #colorHighlighted = colors.black
+                else:
+                    colorToDraw = optionColor
+                    '''
+                    if colorToDraw not in (colors.white, colors.grey, colors.gray, colors.dark_gray, colors.darker_gray, colors.darkest_gray, colors.light_gray, colors.lighter_gray, colors.lightest_gray, colors.grey, colors.dark_grey, colors.darker_grey, colors.darkest_grey, colors.light_grey, colors.lighter_grey, colors.lightest_grey):
+                        colorHighlighted = colorToDraw
+                    else:
+                        colorHighlighted = colors.black
+                    '''
+                text = '(' + chr(letterIndex) + ') ' + optionText
+                if selectedIndex == pageIndex:
+                    window.draw_str(1, y, text, fg = colors.black, bg = colorToDraw)
+                else:
+                    window.draw_str(1, y, text, fg=colorToDraw, bg=None)
+                letterIndex += 1
+                y += 1
+                pageIndex += 1
+            counter += 1
+    else:
+        window.draw_str(1, y, options[0], bg = None, fg = colors.red) #Draw the no item message, which is the first element of the array options
+    if displayItem:
+        print('displaying item')
+        x = MID_WIDTH - int(width/2) - 15
+    else:
+        print('not displaying item')
+        x = MID_WIDTH - int(width/2)
+    y = MID_HEIGHT - int(height/2)
+    root.blit(window, x, y, width, height, 0, 0)
+    
+    if not displayItem:
+        tdl.flush()
 
 def menu(header, options, width, usedList = None, noItemMessage = None, inGame = True, adjustHeight = True, needsInput = True, displayItem = False, name = 'noName', switchKey = None, switchHeader = None):
     global menuWindows, FOV_recompute
@@ -614,6 +677,154 @@ def menu(header, options, width, usedList = None, noItemMessage = None, inGame =
         return None
     else:
         return (None, False)
+
+def colorMenu(header, options, width, usedList = None, noItemMessage = None, inGame = True, adjustHeight = True, needsInput = True, displayItem = False, name = 'noName', switchKey = None, switchHeader = None):
+    global menuWindows, FOV_recompute
+    hasSwitched = False
+    index = 0
+    print('display item:', str(displayItem))
+    page = 0
+    pagesDisp = True
+    maxPages = len(options)//26
+    if maxPages < 1:
+        pagesDisp = False
+    pagesDispHeight = 0
+    if pagesDisp:
+        pagesDispHeight = 1
+    headerWrapped = textwrap.wrap(header, width)
+    headerHeight = len(headerWrapped)
+    if switchHeader :
+        switchHeaderWrapped = textwrap.wrap(switchHeader, width)
+        switchHeaderHeight = len(switchHeaderWrapped)
+    if adjustHeight:
+        toAdd = 3
+    else:
+        toAdd = 2
+    if header == "":
+        headerHeight = 0
+    if len(options) > 26:
+        height = 26 + headerHeight + toAdd + pagesDispHeight
+    else:
+        height = len(options) + headerHeight + toAdd + pagesDispHeight
+    if menuWindows and inGame:
+        for mWindow in menuWindows:
+            mWindow.clear()
+    window = NamedConsole(name, width, height, 'menu')
+    menuWindows.append(window)
+    window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
+    if not hasSwitched:
+        y = headerHeight + 2 + pagesDispHeight
+        headerToDraw = headerWrapped
+    else:
+        y = switchHeaderHeight + 2 + pagesDispHeight
+        headerToDraw = switchHeaderWrapped
+    drawColorMenuOptions(y, options, window, page, width, height, headerToDraw, maxPages, pagesDisp, index, noItemMessage, displayItem)
+    print('Not loop menu option draw')
+    
+    if displayItem and usedList:
+        item = usedList[0].Item
+        item.displayItem(posX = MID_WIDTH + width//2 - 15)
+    print('Not loop item disp')
+    tdl.flush()
+    
+    if needsInput:
+        choseOrQuit = False
+        index = 0
+        while not choseOrQuit:
+            if not hasSwitched:
+                y = headerHeight + 2 + pagesDispHeight
+                headerToDraw = headerWrapped
+            else:
+                y = switchHeaderHeight + 2 + pagesDispHeight
+                headerToDraw = switchHeaderWrapped
+            
+            if page == maxPages:
+                maxIndex = len(options) - maxPages * 26 - 1
+            else:
+                maxIndex = 25
+            #choseOrQuit = True
+            arrow = False
+            drawColorMenuOptions(y, options, window, page, width, height, headerToDraw, maxPages, pagesDisp, index, noItemMessage, displayItem)
+            tdl.flush()
+            print('Loop menu option disp')
+            key = tdl.event.key_wait_no_shift()
+            keyChar = key.keychar
+            if keyChar == '':
+                keyChar = ' '
+            elif keyChar == 'RIGHT':
+                if pagesDisp:
+                    index = 0
+                page += 1
+                choseOrQuit = False
+                arrow = True
+            elif keyChar == 'LEFT':
+                if pagesDisp:
+                    index = 0
+                page -= 1
+                choseOrQuit = False
+                arrow = True
+            elif keyChar == 'UP':
+                choseOrQuit = False
+                index -= 1
+                arrow = True
+            elif keyChar == 'DOWN':
+                choseOrQuit = False
+                index += 1
+                arrow = True
+
+            if page > maxPages:
+                page = 0
+            if page < 0:
+                page = maxPages
+            if index < 0:
+                index = maxIndex
+            if index > maxIndex:
+                index = 0
+            
+            if displayItem and usedList:
+                item = usedList[index + page * 26].Item
+                item.displayItem(posX = MID_WIDTH + width//2 - 15)
+            print('Loop item disp')
+            
+            if not arrow:
+                if switchKey and keyChar == switchKey:
+                    hasSwitched = not hasSwitched
+                    for loop in range(10):
+                        print("SWITCHED")
+                if keyChar in 'abcdefghijklmnopqrstuvwxyz':
+                    if DEBUG:
+                        message(keyChar)
+                    index = ord(keyChar) - ord('a')
+                    if index >= 0 and index < len(options):
+                        if not switchKey:
+                            return index + page * 26
+                        else:
+                            return (index + page * 26, hasSwitched)
+                elif keyChar.upper() == 'ENTER':
+                    if menuWindows and inGame:
+                        for mWindow in menuWindows:
+                            mWindow.clear()
+                            ind = menuWindows.index(mWindow)
+                            del menuWindows[ind]
+                    if not switchKey:
+                        return index + page * 26
+                    else:
+                        return (index + page * 26, hasSwitched)
+                elif keyChar.upper() == "ESCAPE":
+                    print('Cancelled')
+                    if not switchKey:
+                        return "cancelled"
+                    else:
+                        return ("cancelled", False)
+                else:
+                    continue
+    else:
+        pass
+    if not switchKey:
+        return None
+    else:
+        return (None, False)
+
 
 def msgBox(text, width = 50, inGame = True, adjustHeight = True, adjustWidth = False, needsInput = True):
     if adjustWidth:
@@ -12208,8 +12419,26 @@ def inventoryMenu(header, invList = None, noItemMessage = 'Inventory is empty'):
                 text = item.name
                 if item.Item.stackable:
                     text = text + ' (' + str(item.Item.amount) + ')'
-                options.append(text)
-        index = menu(header, options, INVENTORY_WIDTH, invList, noItemMessage, displayItem=displayItem, name = 'inventory')
+                if item.Equipment and item.Equipment.type:
+                    eqType = item.Equipment.type
+                    if 'junk' in eqType:
+                        optionColor = itemGen.junk.color
+                    elif 'uncommon' in eqType:
+                        optionColor = itemGen.uncommon.color
+                    elif 'common' in eqType:
+                        optionColor = itemGen.common.color
+                    elif 'rare' in eqType:
+                        optionColor = itemGen.rare.color
+                    elif 'epic' in eqType:
+                        optionColor = itemGen.epic.color
+                    elif 'legendary' in eqType:
+                        optionColor = itemGen.legendary.color
+                    else:
+                        optionColor = colors.white
+                else:
+                    optionColor = colors.white
+                options.append((text, optionColor))
+        index = colorMenu(header, options, INVENTORY_WIDTH, invList, noItemMessage, displayItem=displayItem, name = 'inventory')
         if index is None or len(invList) == 0 or index == "cancelled":
             return None
         else:
@@ -12273,6 +12502,24 @@ def equipmentMenu(header):
             for item in equipmentList:
                 text = item.name
                 if item.Equipment and item.Equipment.isEquipped:
+                    if item.Equipment.type:
+                        eqType = item.Equipment.type
+                        if 'junk' in eqType:
+                            optionColor = itemGen.junk.color
+                        elif 'uncommon' in eqType:
+                            optionColor = itemGen.uncommon.color
+                        elif 'common' in eqType:
+                            optionColor = itemGen.common.color
+                        elif 'rare' in eqType:
+                            optionColor = itemGen.rare.color
+                        elif 'epic' in eqType:
+                            optionColor = itemGen.epic.color
+                        elif 'legendary' in eqType:
+                            optionColor = itemGen.legendary.color
+                        else:
+                            optionColor = colors.white
+                    else:
+                        optionColor = colors.white
                     #powBonus = item.Equipment.basePowerBonus
                     #skillPowBonus = item.Equipment.powerBonus - powBonus
                     #hpBonus = item.Equipment.maxHP_Bonus
@@ -12301,8 +12548,8 @@ def equipmentMenu(header):
                         text = text + ' (on ' + item.Equipment.curSlot + ')'
                     else:
                         text = text + ' (on ' + item.Equipment.slot + ')'
-                options.append(text)
-        index = menu(header, options, INVENTORY_WIDTH, equipmentList, noItemMessage='You have nothing equipped', displayItem=True)
+                options.append((text, optionColor))
+        index = colorMenu(header, options, INVENTORY_WIDTH, equipmentList, noItemMessage='You have nothing equipped', displayItem=True)
         if index is None or len(equipmentList) == 0 or index == "cancelled":
             return None
         else:
