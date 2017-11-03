@@ -53,7 +53,7 @@
     magic = Trait('Magic ', 'You can use the power of your mind to bind reality to your will', type = 'skill', selectable = False, tier = 2, allowsSelection=[occult, elemental]) STATUS: kinda implemented EFFECT: +spell power, +allows spell usage, ++ability(recharge all?, force field?)
 
     martial = Trait('Martial training', 'You are trained to use a wide variety of weapons', type = 'skill', acc=(10, 0), allowsSelection=[melee, ranged, armorW]) STATUS: kinda EFFECT: +acc
-    physical = Trait('Physical training', 'You are muscular and are used to physical efforts', type = 'skill', allowsSelection=[strength, endurance]) STATUS unimplemented EFFECT: ++resist all elements
+    physical = Trait('Physical training', 'You are muscular and are used to physical efforts', type = 'skill', allowsSelection=[strength, endurance]) STATUS unimplemented EFFECT: +resist all elements
     mental = Trait('Mental training', 'Your mind is as fast as an arrow and as sharp as a scalpel', type = 'skill', allowsSelection=[magic, willpower, cunning]) STATUS: unimplemented EFFECT: ++resist magic
 
     ## classes ## 0/6

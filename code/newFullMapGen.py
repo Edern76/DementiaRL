@@ -21,6 +21,7 @@ myMap = None
 maxRooms = dBr.mainDungeon.maxRooms
 roomMinSize = dBr.mainDungeon.roomMinSize
 roomMaxSize = dBr.mainDungeon.roomMaxSize
+maxTunWidth = dBr.mainDungeon.maxTunWidth
 roomEdges = None
 tunnelEdges = None
 
@@ -72,6 +73,11 @@ unchasmable = []
 noCheckTiles = []
 
 def initializeMapGen(currentBranch):
+    global maxRooms, roomMinSize, roomMaxSize, maxTunWidth
+    maxRooms = currentBranch.maxRooms
+    roomMinSize = currentBranch.roomMinSize
+    roomMaxSize = currentBranch.roomMaxSize
+    maxTunWidth = currentBranch.maxTunWidth
     chasms = False
     holes = False
     cave = False
@@ -95,7 +101,7 @@ def generateMap(currentBranch = dBr.mainDungeon, level = 2):
     global roomEdges, tunnelEdges
     chasms, holes, cave, mine, pillars = initializeMapGen(currentBranch)
     if not cave and not mine:
-        myMap, tunnelTiles, roomTiles, rooms = tunneling.makeTunnelMap(holes, True)
+        myMap, tunnelTiles, roomTiles, rooms = tunneling.makeTunnelMap(holes, True, maxRooms, roomMinSize, roomMaxSize, maxTunWidth)
         if holes:
             myMap = holeGen.createHoles(myMap)
         if chasms:
@@ -269,7 +275,7 @@ def checkStairsRooms(mapToUse, currentBranch, currentLevel, rooms):
         return roomsForStairs
 
 if __name__ == '__main__':
-    myMap, rooms, roomsForStairs = generateMap(dBr.greedDungeon)
+    myMap, rooms, roomsForStairs = generateMap(dBr.lustDungeon)
     while not tdl.event.is_window_closed():
         update(myMap)
     

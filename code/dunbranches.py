@@ -24,7 +24,7 @@ class Branch:
                  #weaponChances = {'sword': 25, 'axe': 25, 'hammer': 25, 'mace': 25},
                  foodChances = {'bread' : 500, 'herbs' : 501, 'rMeat' : 300, 'pie' : 200, 'pasta' : 200, 'meat' : 100, 'hBaguette' : 10}, # TO-DO : Add dumb stuff here with very low chances of spawning (maybe more on Gluttony's branch ?) and dumb effects, aka easter eggs.
                  bossLevels = [3, 6], bossNames = {'High Inquisitor': 3, 'Gluttony': 6},
-                 maxRooms = 30, roomMinSize = 6, roomMaxSize = 15,
+                 maxRooms = 12, roomMinSize = 6, roomMaxSize = 15, maxTunWidth = 2, sightMalus = 0,
                  mapGeneration = branchMapTemplate):
         """
         A branch of the dungeon. Please note that the main dungeon is also considered as a branch.
@@ -60,6 +60,8 @@ class Branch:
         self.maxRooms = maxRooms
         self.roomMinSize = roomMinSize
         self.roomMaxSize = roomMaxSize
+        self.maxTunWidth = maxTunWidth
+        self.sightMalus = sightMalus
         
         branches.append(self)
 
@@ -135,11 +137,26 @@ templeMapTemplate = {'wallFG': colors.light_grey, 'wallDarkFG': colors.dark_grey
 
 temple = Branch(shortName='temple', name = 'The Temple', maxDepth=5, branchesFrom=(mainDungeon, 4), monsterChances = {'darksoul': 300, 'ogre': 200, 'snake': 50, 'cultist': 450}, itemChances = {'potion': 320, 'scroll': 360, 'weapon': 50, 'shield': 20, 'spellbook': 100, 'food': 150}, roomMinSize = 10, roomMaxSize = 20, mapGeneration = templeMapTemplate)
 
+lustMapTemplate = {'wallFG': colors.grey, 'wallDarkFG': colors.darker_grey, 'wallBG': colors.darker_grey, 'wallDarkBG': (16, 16, 16), 'wallChar': '#',
+                     'groundBG': colors.sepia, 'groundDarkBG': colors.darker_sepia,
+                     'gravelFG': (50, 37, 0), 'gravelDarkFG': (27, 20, 0), 'gravelChars': [chr(254), chr(250)],
+                     'stairsColor': colors.darker_fuchsia, 'stairsDarkColor': colors.darkest_fuchsia,
+                     'chasm': False, 'chasmColor': (0, 0, 16),
+                     'dungeon': True, 'caves': False,
+                     'mines': False, 'mineWallFG': colors.dark_sepia, 'mineWallDarkFG': colors.darkest_sepia, 'mineWallBG': colors.darkest_sepia, 'mineWallDarkBG': (14, 11, 7),
+                     'pillars': False, 'pillarChar': 'o', 'pillarColor': colors.grey, 'pillarDarkColor': colors.darker_grey,
+                     'holes': False,
+                     'doors': True, 'doorChar': '+', 'doorColor': colors.darker_flame, 'doorDarkColor': colors.darker_flame,
+                     'fixedMap': None}
+
+lustDungeon = Branch(shortName = "lust", name = "Lust Tunnels", maxDepth = 5, branchesFrom = (mainDungeon, 1), maxRooms = 22, roomMinSize = 5, roomMaxSize = 12, maxTunWidth = 0, sightMalus = 9, mapGeneration = lustMapTemplate)
+
 mainDungeon.branchesTo.append((gluttonyDungeon, 1))
 mainDungeon.branchesTo.append((hiddenTown, 1))
 mainDungeon.branchesTo.append((greedDungeon, 2))
 mainDungeon.branchesTo.append((wrathDungeon, 2))
 mainDungeon.branchesTo.append((temple, 4))
+mainDungeon.branchesTo.append((lustDungeon, 1))
 
 def reinitializeBranches():
     for branch in branches:

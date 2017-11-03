@@ -5454,9 +5454,9 @@ class Player:
             self.mutationsGotten = []
             self.mutationLevel = [2]
         
-        self.sightRadius = SIGHT_RADIUS
+        self.baseSightRadius = SIGHT_RADIUS
         if self.race == 'Felis':
-            self.sightRadius += 2
+            self.baseSightRadius += 2
         
         self.hasDiscoveredTown = False
         self.money = 0
@@ -5496,6 +5496,10 @@ class Player:
         buffBonus = sum(buff.stealth for buff in self.owner.Fighter.buffList)
         bonus = sum(equipment.stealthBonus for equipment in getAllEquipped(self.owner))
         return self.baseStealth + bonus + buffBonus
+    
+    @property
+    def sightRadius(self):
+        return self.baseSightRadius - currentBranch.sightMalus
 
     def stealthValue(self, monster):
         dex = self.dexterity
@@ -6033,8 +6037,22 @@ class Item:
                 #window.draw_char(x, y, char[0], char[1], char[2])
                 #x += 1
             #y += 1
+        headerColor = colors.amber
+        if self.owner.Equipment:
+            if 'junk' in self.owner.Equipment.type:
+                headerColor = itemGen.junk.color
+            elif 'uncommon' in self.owner.Equipment.type:
+                headerColor = itemGen.uncommon.color
+            elif 'common' in self.owner.Equipment.type:
+                headerColor = itemGen.common.color
+            elif 'rare' in self.owner.Equipment.type:
+                headerColor = itemGen.rare.color
+            elif 'epic' in self.owner.Equipment.type:
+                headerColor = itemGen.epic.color
+            elif 'legendary' in self.owner.Equipment.type:
+                headerColor = itemGen.legendary.color
         
-        window.draw_str(1, 1, self.owner.name.capitalize() + ':', fg = colors.amber, bg = None)
+        window.draw_str(1, 1, self.owner.name.capitalize() + ':', fg = headerColor, bg = None)
         for i, line in enumerate(desc):
             window.draw_str(1, int(picHeight) + 5 + i, desc[i], fg = colors.white)
         finalI = i
@@ -6103,8 +6121,22 @@ class Item:
                     #window.draw_char(x, y, char[0], char[1], char[2])
                     #x += 1
                 #y += 1
+            headerColor = colors.amber
+            if self.owner.Equipment:
+                if 'junk' in self.owner.Equipment.type:
+                    headerColor = itemGen.junk.color
+                elif 'uncommon' in self.owner.Equipment.type:
+                    headerColor = itemGen.uncommon.color
+                elif 'common' in self.owner.Equipment.type:
+                    headerColor = itemGen.common.color
+                elif 'rare' in self.owner.Equipment.type:
+                    headerColor = itemGen.rare.color
+                elif 'epic' in self.owner.Equipment.type:
+                    headerColor = itemGen.epic.color
+                elif 'legendary' in self.owner.Equipment.type:
+                    headerColor = itemGen.legendary.color
             
-            window.draw_str(1, 1, self.owner.name.capitalize() + ':', fg = colors.amber, bg = None)
+            window.draw_str(1, 1, self.owner.name.capitalize() + ':', fg = headerColor, bg = None)
             for i, line in enumerate(desc):
                 window.draw_str(1, int(picHeight) + 5 + i, desc[i], fg = colors.white)
             finalI = i

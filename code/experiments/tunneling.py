@@ -27,12 +27,12 @@ def createRoom(room):
             myMap[x][y].baseBlocked = False
             roomTiles.append((x, y))
             
-def createHorizontalTunnel(x1, x2, y):
+def createHorizontalTunnel(x1, x2, y, maxWidth = 2):
     global myMap, tunnelTiles
     print('tun len:', max(x1, x2) - min(x1, x2))
     width = (max(x1, x2) - min(x1, x2))//TUNNEL_STEP_HOR
-    if width > 2:
-        width = 2
+    if width > maxWidth:
+        width = maxWidth
     
     for x in range(min(x1, x2), max(x1, x2) + 1):
         for wY in range(-width, width+1):
@@ -40,12 +40,12 @@ def createHorizontalTunnel(x1, x2, y):
             myMap[x][tY].baseBlocked = False
             tunnelTiles.append((x, tY))
             
-def createVerticalTunnel(y1, y2, x):
+def createVerticalTunnel(y1, y2, x, maxWidth = 2):
     global myMap, tunnelTiles
     print('tun len:', max(y1, y2) - min(y1, y2))
     width = (max(y1, y2) - min(y1, y2))//TUNNEL_STEP_VERT
-    if width > 2:
-        width = 2
+    if width > maxWidth:
+        width = maxWidth
 
     for y in range(min(y1, y2), max(y1, y2) + 1):
         for wX in range(-width, width+1):
@@ -223,7 +223,7 @@ def checkDoors(mapToUse):
     
     return mapToUse
 
-def makeTunnelMap(messyTunnels = False, returnTunTiles = False):
+def makeTunnelMap(messyTunnels = False, returnTunTiles = False, roomNumber = MIN_ROOM_NUM, minSize = 6, maxSize = 17, maxTunWidth = 2):
     global myMap, rooms, roomTiles, tunnelTiles
 
     myMap = [[Tile(blocked = True, x = x, y = y) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
@@ -239,12 +239,12 @@ def makeTunnelMap(messyTunnels = False, returnTunTiles = False):
         myMap[0][y].setUnbreakable()
         myMap[MAP_WIDTH - 1][y].setUnbreakable()
  
-    while len(rooms) < MIN_ROOM_NUM:
-        w = randint(6, 17)
-        h = randint(6, 17)
+    while len(rooms) < roomNumber:
+        w = randint(minSize, maxSize)
+        h = randint(minSize, maxSize)
         while w/h < ROOM_RATIO or h/w < ROOM_RATIO:
-            w = randint(6, 17)
-            h = randint(6, 17)
+            w = randint(minSize, maxSize)
+            h = randint(minSize, maxSize)
         
         x = randint(0, MAP_WIDTH-w-1)
         y = randint(0, MAP_HEIGHT-h-1)
@@ -261,13 +261,13 @@ def makeTunnelMap(messyTunnels = False, returnTunTiles = False):
                 (previous_x, previous_y) = rooms[numberRooms-1].center()
                 tunnel = randint(0, 2)
                 if tunnel == 0:
-                    createHorizontalTunnel(previous_x, new_x, previous_y)
-                    createVerticalTunnel(previous_y, new_y, new_x)
+                    createHorizontalTunnel(previous_x, new_x, previous_y, maxTunWidth)
+                    createVerticalTunnel(previous_y, new_y, new_x, maxTunWidth)
                 elif tunnel == 1 and messyTunnels:
                     myMap = caveGen.createTunnel((new_x, new_y), (previous_x, previous_y), newRoom.tiles, myMap)
                 else:
-                    createVerticalTunnel(previous_y, new_y, previous_x)
-                    createHorizontalTunnel(previous_x, new_x, new_y)
+                    createVerticalTunnel(previous_y, new_y, previous_x, maxTunWidth)
+                    createHorizontalTunnel(previous_x, new_x, new_y, maxTunWidth)
             rooms.append(newRoom)
             numberRooms += 1
 
