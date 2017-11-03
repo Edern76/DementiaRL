@@ -7995,7 +7995,7 @@ def castCreateWeapon():
     else:
         (x,y) = target
         #weapon = createWeapon(x=x, y=y)
-        weapon = convertItemTemplate(itemGen.generateMeleeWeapon(depthLevel))
+        weapon = convertItemTemplate(itemGen.generateMeleeWeapon(depthLevel, player.level))
         weapon.x, weapon.y = x, y
         if weapon is not None:
             objects.append(weapon)
@@ -11423,10 +11423,10 @@ def placeObjects(room, first = False):
                 print("NO")
             elif itemChoice == 'weapon':
                 #item = createWeapon(x, y)
-                item = convertItemTemplate(itemGen.generateMeleeWeapon(totalLevel))
+                item = convertItemTemplate(itemGen.generateMeleeWeapon(totalLevel, player.level))
                 print("WEP")
             elif itemChoice == 'armor':
-                item = convertItemTemplate(itemGen.generateArmor(totalLevel))
+                item = convertItemTemplate(itemGen.generateArmor(totalLevel, player.level))
                 print("ARM")
             elif itemChoice == 'money':
                 item = GameObject(x, y, char = '$', name = 'gold piece', color = colors.gold, Item=Money(randint(15, 30)), blocks = False, pName = 'gold pieces')

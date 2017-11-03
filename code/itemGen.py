@@ -690,7 +690,7 @@ def randomChoice(chancesDictionnary):
     return strings[randomChoiceIndex(chances)]
 
 
-def generateMeleeWeapon(level, weaponType = None):
+def generateMeleeWeapon(level, playerLevel, weaponType = None):
     updateRarityChances(level)
     if weaponType is None:
         weaponType = randItemFrom(weaponTypes)
@@ -699,9 +699,10 @@ def generateMeleeWeapon(level, weaponType = None):
     
     weaponRarity = randomChoice(rarity)
     stringRarity = str(weaponRarity)
+    weaponLevel = playerLevel + randint(-3 + raritySmallAdd[stringRarity]//2, raritySmallAdd[stringRarity]//2)
     
     weaponDict = weaponAttributes[weapon]
-    weaponEquipment = EquipmentTemplate(weaponDict['slot'], stringRarity + ' ' + weaponDict['type'] + ' ' + weaponType, meleeWeapon = True)
+    weaponEquipment = EquipmentTemplate(weaponDict['slot'], stringRarity + ' level ' + str(weaponLevel) + ' ' + weaponDict['type'] + ' ' + weaponType, meleeWeapon = True)
     
     try:
         weaponEquipment.atkSpeed = weaponDict['atkSpeed']
@@ -756,7 +757,8 @@ def generateMeleeWeapon(level, weaponType = None):
             if moddedStat == 'HP' or moddedStat == 'MP' or moddedStat == 'stam':
                 dictToUse = rarityBigAdd
             stat.value = weaponDict[equipmentStatsStrings[i]] + randint(-2 + dictToUse[stringRarity], 2 + dictToUse[stringRarity])
-            if (stat < 0 and weaponDict[equipmentStatsStrings[i]] > 0) or (stat > 0 and weaponDict[equipmentStatsStrings[i]] < 0): #if a postive value becomes negative or vice versa
+            stat.value += round((exp(weaponLevel/8)-exp(1/5))/100 * stat.value)
+            if (stat < 0 and weaponDict[equipmentStatsStrings[i]] > 0) or (stat > 0 and weaponDict[equipmentStatsStrings[i]] < 0): #if a positive value becomes negative or vice versa
                 stat.value = 0
         except:
             pass
@@ -817,10 +819,11 @@ def generateMeleeWeapon(level, weaponType = None):
     weaponObject = GameObjectTemplate(char, addToName + weapon + endName, weaponRarity.color, Item = weaponItem, Equipment = weaponEquipment)
     return weaponObject
 
-def generateArmor(level, armorType = None, slot = None):
+def generateArmor(level, playerLevel, armorType = None, slot = None):
     updateRarityChances(level)
     armorRarity = randomChoice(rarity)
     stringRarity = str(armorRarity)
+    armorLevel = playerLevel + randint(-3 + raritySmallAdd[stringRarity]//2, raritySmallAdd[stringRarity]//2)
     
     if armorType is None:
         armorType = randomChoice(armorTypeProb[stringRarity])
@@ -831,7 +834,7 @@ def generateArmor(level, armorType = None, slot = None):
             slot = randItemFrom(armorSlots)
 
     armorDict = armorAttributes[armorType][slot]
-    armorEquipment = EquipmentTemplate(slot, stringRarity + ' ' + armorType + ' armor')
+    armorEquipment = EquipmentTemplate(slot, stringRarity + ' level ' + str(armorLevel) + ' ' + armorType + ' armor')
     
     adj = []
     passiveNumber = 1
@@ -865,6 +868,7 @@ def generateArmor(level, armorType = None, slot = None):
             if moddedStat == 'HP' or moddedStat == 'MP' or moddedStat == 'stam':
                 dictToUse = rarityBigAdd
             stat.value = armorDict[equipmentStatsStrings[i]] + randint(-2 + dictToUse[stringRarity], 2 + dictToUse[stringRarity])
+            stat.value += round((exp(armorLevel/8)-exp(1/5))/100 * stat.value)
             if (stat < 0 and armorDict[equipmentStatsStrings[i]] > 0) or (stat > 0 and armorDict[equipmentStatsStrings[i]] < 0): #if a postive value becomes negative or vice versa
                 stat.value = 0
         except:
@@ -929,7 +933,7 @@ def generateArmor(level, armorType = None, slot = None):
 if __name__ == '__main__':
     level = 1
     for i in range(10):
-        print(generateMeleeWeapon(level + i * 2))
+        print(generateMeleeWeapon(level + i * 2, i*5))
         print()
 
 
