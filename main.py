@@ -176,6 +176,8 @@ SURPRISE_ATTACK_CRIT = 30
 SPELL_INFO_WIDTH = 60 #Default : 60 / This is actually the width which we pass to textwrap when displaying the spells description (which is useless in normal circumstances), not the actual width of the menubox itself. In other terms, this is the maximum width value that the actual menubox width value can take.  
 TRAIT_INFO_WIDTH = 25
 
+SOUND_ENABLED = True
+
 def getHeroName():
     hiddenPath = findHiddenOptionsPath()
     if not os.path.exists(hiddenPath):
@@ -369,7 +371,7 @@ pathfinder = None
 pathToTargetTile = []
 
 def convertMusics():
-    musicList = ['Bumpy_Roots', 'Dusty_Feelings', 'Hoxton_Princess', 'Sweltering_Battle']
+    musicList = ['Bumpy_Roots', 'Dusty_Feelings', 'Hoxton_Princess', 'Sweltering_Battle', 'hit', 'miss']
     tryPath = os.path.join(absCodePath, 'ffmpeg.exe')
     if os.path.exists(tryPath):
         executablePath = os.path.join(absCodePath, 'ffmpeg.exe')
@@ -379,6 +381,7 @@ def convertMusics():
         mp3Music = music + '.mp3'
         wavMusic = music + '.wav'
         mp3Path = os.path.join(absMusicPath, mp3Music)
+        mp3SoundPath = os.path.join(absSoundPath, mp3Music)
         wavPath = os.path.join(absSoundPath, wavMusic)
         if os.path.exists(wavPath):
             print('MUSIC_CHK : Found {}'.format(wavPath))
@@ -390,6 +393,14 @@ def convertMusics():
                     ff = ffmpy.FFmpeg(inputs = {mp3Path : None}, outputs= {wavPath : None}, executable= executablePath)
                 else:
                     ff = ffmpy.FFmpeg(inputs = {mp3Path : None}, outputs= {wavPath : None})
+                ff.run()
+                print('MUSIC_CONV : Created {}'.format(wavPath))
+            elif os.path.exists(mp3SoundPath):
+                print('MUSIC_CONV : Converting {} to wav'.format(mp3Path))
+                if sys.platform.startswith('win32') or sys.platform.startswith('win64'):
+                    ff = ffmpy.FFmpeg(inputs = {mp3SoundPath : None}, outputs= {wavPath : None}, executable= executablePath)
+                else:
+                    ff = ffmpy.FFmpeg(inputs = {mp3SoundPath : None}, outputs= {wavPath : None})
                 ff.run()
                 print('MUSIC_CONV : Created {}'.format(wavPath))
             else:
@@ -4500,8 +4511,12 @@ class Fighter: #All NPCs, enemies and the player
                     target.Fighter.takeDamage(damageDict, self.owner.name, armored = True, damageTextFunction = dmgTxtFunc)
                     
             self.onAttack(target)
+            if SOUND_ENABLED and self.owner != player and not player.Player.hitThisTurn:
+                playWavSound('hit.wav')
         else:
             self.formatAttackText(target, hit, criticalHit, damageTaken)
+            if SOUND_ENABLED and self.owner == player:
+                playWavSound('miss.wav')
         
         '''
         if self.owner.Player:
@@ -5449,6 +5464,8 @@ class Player:
         self.questList = []
         if DEBUG:
             print('Player component initialized')
+        
+        self.hitThisTurn = False
 
     @property
     def maxWeight(self):
@@ -14417,6 +14434,7 @@ def playGame(noSave = False):
             object.clear()
         
         endedTurn = False
+        player.Player.hitThisTurn = False
         while player.Fighter.actionPoints > 0 and not endedTurn:
             playerAction = getInput()
             if bossTiles:
