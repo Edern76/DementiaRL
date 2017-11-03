@@ -1342,6 +1342,8 @@ def convertRandTemplateToSpell(template = None):
         targetFunction = targetSelf
     elif template.targeting == "Closest":
         targetFunction = closestMonsterWrapper
+    elif template.targeting == "Farthest":
+        targetFunction = farthestMonsterWrapper
     else:
         targetFunction = targetTileWrapper
     
@@ -3515,6 +3517,26 @@ def closestMonster(max_range):
         return closestEnemy
     else:
         return 'cancelled'
+
+def farthestMonster(max_range):
+    farthestEnemy = None
+    farthestDistance = max_range + 1
+    
+    found = False
+    for object in objects:
+        if object.Fighter and not object == player and (object.x, object.y) in visibleTiles:
+            found = True
+            dist = player.distanceTo(object)
+            if dist < farthestDistance:
+                farthestEnemy = object
+                farthestDistance = dist
+    if found:
+        return farthestEnemy
+    else:
+        return 'cancelled'
+
+def farthestMonsterWrapper(caster = None, max_range = 8):
+    return farthestMonster(max_range)
 
 class Nemesis:
     def __init__(self, nemesisObject, branch, level):
