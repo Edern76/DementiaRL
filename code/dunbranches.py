@@ -149,7 +149,7 @@ lustMapTemplate = {'wallFG': colors.grey, 'wallDarkFG': colors.darker_grey, 'wal
                      'doors': True, 'doorChar': '+', 'doorColor': colors.darker_flame, 'doorDarkColor': colors.darker_flame,
                      'fixedMap': None}
 
-lustDungeon = Branch(shortName = "lust", name = "Lust Tunnels", maxDepth = 5, branchesFrom = (mainDungeon, 1), maxRooms = 22, roomMinSize = 5, roomMaxSize = 12, maxTunWidth = 0, sightMalus = 9, mapGeneration = lustMapTemplate)
+lustDungeon = Branch(shortName = "lust", name = "Lust Tunnels", maxDepth = 5, branchesFrom = (mainDungeon, 1), maxRooms = 22, roomMinSize = 5, roomMaxSize = 12, maxTunWidth = 0, sightMalus = 11, mapGeneration = lustMapTemplate)
 
 mainDungeon.branchesTo.append((gluttonyDungeon, 1))
 mainDungeon.branchesTo.append((hiddenTown, 1))

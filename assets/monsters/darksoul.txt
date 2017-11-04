@@ -1,0 +1,55 @@
+darksoul
+d
+(159, 159, 159)
+BasicMonster()
+*
+*
+*
+*
+*
+\
+30
+0
+6
+10
+25
+35
+monsterDeath
+0
+*
+5
+0
+loot			#templates list!
+lootRate		#percentage list
+*
+*
+*
+*
+['head', 'torso', 'left hand', 'right hand', 'legs', 'feet']
+[['darksoul helmet', 'armor', 'leather', 'head', 'darksoulHelmet.xp']]
+*
+*
+A darksoul
+*
+0
+150
+150
+100
+*
+*
+\
+***
+shotRange
+power
+accuracy
+crit
+armorPen
+buffsOnAttack		#list as [[chance, 'name']]
+leechRessource		#default: None, string ('hunger'/'HP'/'MP')
+attackFunctions		#list
+shootMessage		#d: ' shoots {} for '
+projChar		#d: '/'
+projColor
+continues		#d: False
+passesThrough		#d: False
+ghost			#d: False

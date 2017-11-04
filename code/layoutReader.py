@@ -10,6 +10,7 @@ from copy import copy, deepcopy
 from os import makedirs
 from queue import *
 from multiprocessing import freeze_support, current_process
+from code.classes import Tile
 
 
 color_light_wall = colors.white
@@ -300,7 +301,7 @@ def convertColorString(string):
 
 def readMap(mapDir, voidChar = None):
     mapDirPath = os.path.join(absMapsPath, mapDir)
-    createdMap = [[main.Tile(blocked=False, x = x, y = y, block_sight=False, fg = colors.white, bg = colors.black, dark_bg=colors.black, dark_fg=colors.grey) for y in range(MAP_HEIGHT)] for x in range(MAP_WIDTH)]
+    createdMap = [[Tile(blocked=False, x = x, y = y, block_sight=False, fg = colors.white, bg = colors.black, dark_bg=colors.black, dark_fg=colors.grey) for y in range(MAP_HEIGHT)] for x in range(MAP_WIDTH)]
     
     charMapPath = os.path.join(mapDirPath, 'char.txt')
     charMap = open(charMapPath, 'r')

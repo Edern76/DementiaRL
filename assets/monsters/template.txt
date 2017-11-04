@@ -1,0 +1,54 @@
+name
+char
+color
+AI
+flying
+size
+sizeChar		#list of chars
+sizeColor		#list of tuples
+smallChar
+\
+hp
+armor
+power
+accuracy
+evasion
+xp
+deathFunction		#without ()
+mp
+spells			#templates list!
+crit
+armorPen
+loot			#templates list!
+lootRate		#percentage list
+transferDamage		#default: None
+leechRessource		#default: None, string ('hunger'/'HP'/'MP')
+leechAmount		#d: 0
+buffsOnAttack		#list as [[chance, 'name']]
+slots			#d: ['head', 'torso', 'left hand', 'right hand', 'legs', 'feet']
+equipmentList		#template [['name', 'equipmentType', 'type'(, 'slot', 'pic')]]      #list: example: [['darksoul helmet', 'armor', 'leather', 'head', 'darksoulHelmet.xp], ['darksoul knife', 'weapon', 'dagger']]
+attackFunctions		#list
+noDirectDamage		#d: False
+description
+Ranged			#d: None
+stamina
+atkSpeed		#d: 100
+moveSpeed		#d: 100
+rangedSpeed		#d: 100
+resistances		#d: {'physical': 0, 'poison': 0, 'fire': 0, 'cold': 0, 'lightning': 0, 'light': 0, 'dark': 0, 'none': 0}
+atkTypes		#d: {'physical': 100}
+\
+shotRange
+power
+accuracy
+crit
+armorPen
+buffsOnAttack		#list as [[chance, 'name']]
+leechRessource		#default: None, string ('hunger'/'HP'/'MP')
+attackFunctions		#list
+shootMessage		#d: ' shoots {} for '
+projChar		#d: '/'
+projColor
+continues		#d: False
+passesThrough		#d: False
+ghost			#d: False

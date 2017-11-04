@@ -29,6 +29,7 @@ from multiprocessing import freeze_support, current_process
 from code.classes import Tile
 import code.newFullMapGen as mapGen
 import code.itemGen as itemGen
+import code.mobGen as mobGen
 
 from tkinter import *
 from tkinter.messagebox import * #For making obvious freaking error boxes when the console gets too bloated to read anything useful.
@@ -7134,7 +7135,7 @@ def getInput():
         FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'F10' and DEBUG and not tdl.event.isWindowClosed(): #For some reason, Bad Things (tm) happen if you don't perform a tdl.event.isWindowClosed() check here. Yeah, don't ask why.
-        castCreateDarksoul(friendly = True)
+        castCreateDarksoul(friendly = False)
         FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'F11' and DEBUG and not tdl.event.isWindowClosed(): #For some reason, Bad Things (tm) happen if you don't perform a tdl.event.isWindowClosed() check here. Yeah, don't ask why.
@@ -8234,8 +8235,14 @@ def castCreateDarksoul(friendly = False):
     if target == 'cancelled':
         return 'cancelled'
     else:
+        '''
         (x,y) = target
         monster = createDarksoul(x, y, friendly = friendly)
+        objects.append(monster)
+        '''
+        monsTemp = mobGen.generateMonster(totalLevel, player.level, 'darksoul')
+        monster = convertMobTemplate(monsTemp)
+        monster.x, monster.y = target
         objects.append(monster)
 
 def castCreateHiroshiman():
@@ -11391,6 +11398,45 @@ def createSpellbook(x, y):
     spellbook.Item.useText = 'Read'
     return spellbook
 
+def convertMobTemplate(template):
+    rangedComp = None
+    fightComp = None
+    globalDict = globals()
+    if template.Fighter.Ranged:
+        ra = template.Fighter.Ranged
+        rangedComp = RangedNPC(ra.shotRange, ra.power, ra.accuracy, ra.critical, ra.armorPenetration, ra.buffsOnAttack, ra.leechRessource,
+                               ra.attackFunctions, ra.shootMessage, ra.projChar, ra.projColor, ra.continues, ra.passesThrough, ra.ghost)
+        
+    if template.Fighter:
+        fi = template.Fighter
+        ## /!\ deathFunction*, knownSpells*, buffs, attackFunctions, equipmentList*
+        deathFunc = globalDict[fi.deathFunction]
+        knownSpells = [globalDict[name] for name in fi.knownSpells]
+        toEquip = []
+        for eq in fi.equipmentList:
+            if eq[1] == 'armor':
+                eqTemp = itemGen.generateArmor(totalLevel, player.level, eq[2], eq[3])
+                picInd = 4
+            elif eq[1] == 'weapon':
+                eqTemp = itemGen.generateMeleeWeapon(totalLevel, player.level, eq[2])
+                picInd = 3
+            equipment = convertItemTemplate(eqTemp)
+            equipment.trueName = eq[0]
+            try:
+                equipment.Item.pic = eq[picInd]
+            except:
+                pass
+            toEquip.append(equipment)
+        
+        fightComp = Fighter(fi.hp, fi.armor, fi.power, fi.accuracy, fi.evasion, fi.xp, deathFunc, fi.mp, knownSpells, fi.critical,
+                            fi.armorPenetration, fi.lootFunction, fi.lootRate, 0, 0, fi.transferDamage, fi.leechRessource, fi.leechAmount,
+                            fi.buffsOnAttack, fi.slots, [], toEquip, fi.attackFunctions, fi.noDirectDamage, 'ogre.xp', fi.description, 0,
+                            rangedComp, fi.stamina, fi.attackSpeed, fi.moveSpeed, fi.rangedSpeed, fi.resistances, fi.attackTypes)
+    
+    return GameObject(0, 0, template.char, template.name, template.color, blocks = True, Fighter = fightComp, AI = eval(template.AI),
+                      flying = template.flying, size = template.size, sizeChar = template.sizeChar, sizeColor = template.sizeColor,
+                      smallChar = template.smallChar)
+
 def createDarksoul(x, y, friendly = False, corpse = False):
     if x != player.x or y != player.y:
         if not corpse:
@@ -11828,6 +11874,12 @@ def getAllEquipped(object):  #returns a list of equipped items
     if object == player:
         equippedList = []
         for item in equipmentList:
+            if item.Equipment and item.Equipment.isEquipped:
+                equippedList.append(item.Equipment)
+        return equippedList
+    elif object.Fighter:
+        equippedList = []
+        for item in object.Fighter.equipmentList:
             if item.Equipment and item.Equipment.isEquipped:
                 equippedList.append(item.Equipment)
         return equippedList
