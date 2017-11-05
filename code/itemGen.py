@@ -58,20 +58,21 @@ legendary = Rarity('legendary', colors.orange)
 rarity = {junk: 15, common: 50, uncommon: 15, rare: 10, epic: 7, legendary: 3}
 
 def updateRarityChances(level):
-    global rarity
+    rarity = {}
     print('level', level, end = ', ')
-    rarity[common] = round(1 + 147/sqrt(level+8))
+    rarity[common] = round(1 + 147/sqrt(level+7))
     print(common, rarity[common], end = ', ')
-    rarity[uncommon] = round(41/3 + 4/3 * sqrt(level))
+    rarity[uncommon] = round(41/3 + 4/3 * sqrt(level-1))
     print(uncommon, rarity[uncommon], end = ', ')
-    rarity[rare] = round(37/5 + 13/5 * sqrt(level))
+    rarity[rare] = round(37/5 + 13/5 * sqrt(level-1))
     print(rare, rarity[rare], end = ', ')
-    rarity[epic] = round(24/5 + 11/5 * sqrt(level))
+    rarity[epic] = round(24/5 + 11/5 * sqrt(level-1))
     print(epic, rarity[epic], end = ', ')
-    rarity[legendary] = round(1 + 2 * sqrt(level))
+    rarity[legendary] = round(2 * sqrt(level-1))
     print(legendary, rarity[legendary], end = ', ')
     rarity[junk] = 100 - (rarity[common] + rarity[uncommon] + rarity[rare] + rarity[epic] + rarity[legendary])
     print(junk, rarity[junk])
+    return rarity
 
 raritySmallAdd = {'junk': -2, 'common': 0, 'uncommon': 2, 'rare': 3, 'epic': 5, 'legendary': 8}
 rarityBigAdd = {'junk': -10, 'common': 0, 'uncommon': 10, 'rare': 15, 'epic': 20, 'legendary': 30}
@@ -278,7 +279,7 @@ armorAttributes = {'cloth': {'head': {'pic': 'hood.xp', 'ev': 5, 'stealth': 5, '
                              },
                    'leather': {'head': {'pic': 'leatherHood.xp', 'arm': 1, 'stealth': 3, 'weight': 0.5},
                              'legs': {'arm': 3, 'weight': 1.2},
-                             'torso': {'pic': 'tunqiue.xp', 'arm': 5, 'weight': 1.5},
+                             'torso': {'pic': 'tunique.xp', 'arm': 5, 'weight': 1.5},
                              'feet': {'arm': 2, 'weight': 0.9},
                              'hands': {'dex': 4, 'weight': 0.1},
                              'back': {'arm': 3, 'stealth': 7, 'weight': 1.0}
@@ -691,7 +692,7 @@ def randomChoice(chancesDictionnary):
 
 
 def generateMeleeWeapon(level, playerLevel, weaponType = None):
-    updateRarityChances(level)
+    rarity = updateRarityChances(level)
     if weaponType is None:
         weaponType = randItemFrom(weaponTypes)
     

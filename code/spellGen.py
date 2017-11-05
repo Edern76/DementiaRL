@@ -52,9 +52,6 @@ class SpellTemplate:
         
         return text
 
-        
-        
-
 class NumberedEffect:
     def __init__(self, name, amount):
         self.name = name

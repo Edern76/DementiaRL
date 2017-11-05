@@ -26,7 +26,7 @@ from music import playWavSound
 from multiprocessing import freeze_support, current_process
 #import code.chasmGen as chasmGen
 #import code.holeGen as holeGen
-from code.classes import Tile
+from code.classes import Tile, printTileWhenWalked
 import code.newFullMapGen as mapGen
 import code.itemGen as itemGen
 import code.mobGen as mobGen
@@ -70,6 +70,35 @@ sys.excepthook = notCloseImmediatelyAfterCrash #We call the above defined functi
 # myFunction()
 # MyClass
 # Not dramatic if you forget about this (it happens to me too), but it makes reading code easier
+
+def findCurrentDir():
+    if getattr(sys, 'frozen', False):
+        datadir = os.path.dirname(sys.executable)
+    else:
+        datadir = os.path.dirname(__file__)
+    return datadir
+
+curDir = findCurrentDir()
+relDirPath = "save"
+relPath = os.path.join("save", "savegame")
+relPicklePath = os.path.join("save", "equipment")
+relAssetPath = "assets"
+relSoundPath = os.path.join("assets", "sound")
+relAsciiPath = os.path.join("assets", "ascii")
+relMusicPath = os.path.join("assets", "music")
+relMetaPath = os.path.join("metasave", "meta")
+relMetaDirPath = "metasave"
+relCodePath = "code"
+absDirPath = os.path.join(curDir, relDirPath)
+absFilePath = os.path.join(curDir, relPath)
+absPicklePath = os.path.join(curDir, relPicklePath)
+absAssetPath = os.path.join(curDir, relAssetPath)
+absSoundPath = os.path.join(curDir, relSoundPath)
+absMusicPath = os.path.join(curDir, relMusicPath)
+absAsciiPath = os.path.join(curDir, relAsciiPath)
+absMetaPath = os.path.join(curDir, relMetaPath)
+absMetaDirPath = os.path.join(curDir, relMetaDirPath)
+absCodePath = os.path.join(curDir, relCodePath)
 
 class MusicThread(threading.Thread):
     def __init__(self, musicName = 'Bumpy_Roots.wav'):
@@ -200,6 +229,7 @@ def getHeroName():
 if (__name__ == '__main__' or __name__ == 'main__main__') and not consolesDisplayed and current_process().name == 'MainProcess':
     freeze_support()
     print('Displaying consoles because instance is ' + __name__)
+    #tdl.set_font(os.path.join(absAsciiPath, 'terminal16x16_gs_ro.png'), greyscale=True, altLayout=False, columnFirst = False)
     root = tdl.init(WIDTH, HEIGHT, 'Dementia')
     con = NamedConsole('con', WIDTH, HEIGHT)
     panel = NamedConsole('panel', WIDTH, PANEL_HEIGHT)
@@ -327,14 +357,6 @@ branchLevel = 1
 totalLevel = 1
 depthLevel = 1
 
-
-def findCurrentDir():
-    if getattr(sys, 'frozen', False):
-        datadir = os.path.dirname(sys.executable)
-    else:
-        datadir = os.path.dirname(__file__)
-    return datadir
-
 def deleteSaves():
     if not os.path.isdir(absDirPath):
         os.makedirs(absDirPath)
@@ -344,28 +366,6 @@ def deleteSaves():
     for save in saves:
         os.remove(save)
         print("Deleted " + str(save))
-
-curDir = findCurrentDir()
-relDirPath = "save"
-relPath = os.path.join("save", "savegame")
-relPicklePath = os.path.join("save", "equipment")
-relAssetPath = "assets"
-relSoundPath = os.path.join("assets", "sound")
-relAsciiPath = os.path.join("assets", "ascii")
-relMusicPath = os.path.join("assets", "music")
-relMetaPath = os.path.join("metasave", "meta")
-relMetaDirPath = "metasave"
-relCodePath = "code"
-absDirPath = os.path.join(curDir, relDirPath)
-absFilePath = os.path.join(curDir, relPath)
-absPicklePath = os.path.join(curDir, relPicklePath)
-absAssetPath = os.path.join(curDir, relAssetPath)
-absSoundPath = os.path.join(curDir, relSoundPath)
-absMusicPath = os.path.join(curDir, relMusicPath)
-absAsciiPath = os.path.join(curDir, relAsciiPath)
-absMetaPath = os.path.join(curDir, relMetaPath)
-absMetaDirPath = os.path.join(curDir, relMetaDirPath)
-absCodePath = os.path.join(curDir, relCodePath)
 
 stairCooldown = 0
 pathfinder = None
@@ -1864,7 +1864,7 @@ def stealMoneyAndDamage(initiator, target, amount):
         toAdd = round(amountStolen * addCoef)
         print("To add = {} (coef = {})".format(toAdd, addCoef))
         initiator.lootFunction[0].Item.amount += toAdd
-        message("{} has stolen {} of your gold pieces !".format(initiator.owner.name.capitalize(), amountStolen), colors.red)
+        message("{} has stolen {} of your gold coins !".format(initiator.owner.name.capitalize(), amountStolen), colors.red)
     leftToSteal = round(amount)
     if target.Player.money >= leftToSteal:
         actuallySteal(initiator, amount)
@@ -6789,7 +6789,7 @@ class Money(Item):
     def pickUp(self):
         player.Player.money += self.amount
         objects.remove(self.owner)
-        message('You pick up ' + str(self.amount) + ' gold pieces !')
+        message('You pick up ' + str(self.amount) + ' gold coins !')
     
     def use(self):
         raise UnusableMethodException("Cannot 'use' a money item.")
@@ -11404,14 +11404,29 @@ def convertMobTemplate(template):
     globalDict = globals()
     if template.Fighter.Ranged:
         ra = template.Fighter.Ranged
+        attackFunctions = []
+        for string in ra.attackFunctions:
+            if 'lambda' in string:
+                attackFunctions.append(eval(string))
+            else:
+                attackFunctions.append(globalDict[string])
+
         rangedComp = RangedNPC(ra.shotRange, ra.power, ra.accuracy, ra.critical, ra.armorPenetration, ra.buffsOnAttack, ra.leechRessource,
-                               ra.attackFunctions, ra.shootMessage, ra.projChar, ra.projColor, ra.continues, ra.passesThrough, ra.ghost)
+                               attackFunctions, ra.shootMessage, ra.projChar, ra.projColor, ra.continues, ra.passesThrough, ra.ghost)
         
     if template.Fighter:
         fi = template.Fighter
-        ## /!\ deathFunction*, knownSpells*, buffs, attackFunctions, equipmentList*
+        ## /!\ deathFunction*, knownSpells*, buffs, attackFunctions*, equipmentList*
         deathFunc = globalDict[fi.deathFunction]
-        knownSpells = [globalDict[name] for name in fi.knownSpells]
+        knownSpells = []
+        for name in fi.knownSpells:
+            if 'SpellTemplate' in name:
+                knownSpells.append(convertRandTemplateToSpell(eval('spellGen.'+name)))
+            else:
+                try:
+                    knownSpells.append(globalDict[name])
+                except:
+                    raise UnrecognizedElement("Spell of {} is not recognized: \n{}".format(template.name, name))
         toEquip = []
         for eq in fi.equipmentList:
             if eq[1] == 'armor':
@@ -11420,17 +11435,39 @@ def convertMobTemplate(template):
             elif eq[1] == 'weapon':
                 eqTemp = itemGen.generateMeleeWeapon(totalLevel, player.level, eq[2])
                 picInd = 3
-            equipment = convertItemTemplate(eqTemp)
+            try:
+                equipment = convertItemTemplate(eqTemp)
+            except:
+                raise UnrecognizedElement("Equipment of {} is not recognized: \n{}".format(template.name, eq))
             equipment.trueName = eq[0]
             try:
                 equipment.Item.pic = eq[picInd]
             except:
                 pass
             toEquip.append(equipment)
+        lootFunction = []
+        for item in fi.lootFunction:
+            if type(item) == type(1):
+                lootFunction.append(toEquip[item])
+            elif 'GameObjectTemplate' in item:
+                lootFunction.append(convertItemTemplate(eval('itemGen.'+item)))
+            elif 'GameObject' in item:
+                lootFunction.append(eval(item))
+            else:
+                raise UnrecognizedElement("Loot of {} is not recognized: \n{}".format(template.name, item))
+        attackFunctions = []
+        for string in fi.attackFunctions:
+            if 'lambda' in string:
+                attackFunctions.append(eval(string))
+            else:
+                try:
+                    attackFunctions.append(globalDict[string])
+                except:
+                    raise UnrecognizedElement("AttackFunc of {} is not recognized: \n{}".format(template.name, string))
         
         fightComp = Fighter(fi.hp, fi.armor, fi.power, fi.accuracy, fi.evasion, fi.xp, deathFunc, fi.mp, knownSpells, fi.critical,
-                            fi.armorPenetration, fi.lootFunction, fi.lootRate, 0, 0, fi.transferDamage, fi.leechRessource, fi.leechAmount,
-                            fi.buffsOnAttack, fi.slots, [], toEquip, fi.attackFunctions, fi.noDirectDamage, 'ogre.xp', fi.description, 0,
+                            fi.armorPenetration, lootFunction, fi.lootRate, 0, 0, fi.transferDamage, fi.leechRessource, fi.leechAmount,
+                            fi.buffsOnAttack, fi.slots, [], toEquip, attackFunctions, fi.noDirectDamage, 'ogre.xp', fi.description, 0,
                             rangedComp, fi.stamina, fi.attackSpeed, fi.moveSpeed, fi.rangedSpeed, fi.resistances, fi.attackTypes)
     
     return GameObject(0, 0, template.char, template.name, template.color, blocks = True, Fighter = fightComp, AI = eval(template.AI),
@@ -11438,11 +11475,11 @@ def convertMobTemplate(template):
                       smallChar = template.smallChar)
 
 def createDarksoul(x, y, friendly = False, corpse = False):
-    if x != player.x or y != player.y:
+    if (x, y) != (player.x, player.y):
         if not corpse:
             equipmentComponent = Equipment(slot='head', type = 'armor', armorBonus = 2)
             darksoulHelmet = GameObject(x = None, y = None, char = '[', name = 'darksoul helmet', color = colors.silver, Equipment = equipmentComponent, Item = Item(weight = 2.5, pic = 'darksoulHelmet.xp'))
-            money = GameObject(x = None, y = None, char = '$', name = 'gold piece', color = colors.gold, Item=Money(randint(10, 50)), blocks = False, pName = 'gold pieces')
+            money = GameObject(x = None, y = None, char = '$', name = 'gold coin', color = colors.gold, Item=Money(randint(10, 50)), blocks = False, pName = 'gold coins')
             lootOnDeath = [darksoulHelmet, money]
             deathType = monsterDeath
             darksoulName = "darksoul"
@@ -11465,7 +11502,7 @@ def createDarksoul(x, y, friendly = False, corpse = False):
         return 'cancelled'
 
 def createOgre(x, y, friendly = False, corpse = False):
-    if x != player.x or y != player.y:
+    if (x, y) != (player.x, player.y):
         if not corpse:
             equipmentComponent = Equipment(slot = 'two handed', type = 'heavy weapon', powerBonus = 15, accuracyBonus = -20, meleeWeapon=True, slow = True)
             trollMace = GameObject(x, y, '/', 'ogre mace', colors.darker_orange, Equipment=equipmentComponent, Item=Item(weight = 13.0, pic = 'trollMace.xp', description= 'A dumb weapon for dumb people.'))
@@ -11491,12 +11528,12 @@ def createOgre(x, y, friendly = False, corpse = False):
         return 'cancelled'
 
 def createGreedyFiend(x, y, friendly = False, corpse = False):
-    if x != player.x or y != player.y:
+    if (x, y) != (player.x, player.y):
         if not corpse:
             deathType = monsterDeath
             monName = "greedy fiend"
             color = colors.dark_orange
-            money = GameObject(x = None, y = None, char = '$', name = 'gold piece', color = colors.gold, Item=Money(0), blocks = False, pName = 'gold pieces')
+            money = GameObject(x = None, y = None, char = '$', name = 'gold coin', color = colors.gold, Item=Money(0), blocks = False, pName = 'gold coins')
             lootOnDeath = [money]
         else:
             monName = "YOU_SHOULDNT_SEE_THIS"
@@ -11516,7 +11553,7 @@ def createGreedyFiend(x, y, friendly = False, corpse = False):
         return 'cancelled'
     
 def createHiroshiman(x, y):
-    if x != player.x or y != player.y:
+    if (x, y) != (player.x, player.y):
         fighterComponent = Fighter(hp=300, armor=0, power=6, xp = 500, deathFunction = monsterDeath, accuracy = 0, evasion = 1)
         AI_component = SplosionAI()
         monster = GameObject(x, y, char = 'H', color = colors.red, name = 'Hiroshiman', blocks = True, Fighter=fighterComponent, AI = AI_component)
@@ -11525,7 +11562,7 @@ def createHiroshiman(x, y):
         return 'cancelled'
 
 def createCultist(x,y):
-    if x != player.x or y != player.y:
+    if (x, y) != (player.x, player.y):
         robeEquipment = Equipment(slot = 'torso', type = 'light armor', maxHP_Bonus = 5, maxMP_Bonus = 10)
         robe = GameObject(0, 0, '[', 'cultist robe', colors.purple, Equipment = robeEquipment, Item=Item(weight = 1.5, pic = 'cultistRobe.xp'))
         
@@ -11534,7 +11571,7 @@ def createCultist(x,y):
         
         spellbook = GameObject(x, y, '=', 'spellbook of arcane rituals', colors.violet, Item = Item(useFunction = learnSpell, arg1 = darkPact, weight = 1.0, description = "A spellbook full of arcane rituals and occult incantations. Such magic is easy to learn and to use, but comes at a great price.", pic = 'spellbook.xp'), blocks = False)
         
-        money = GameObject(x = None, y = None, char = '$', name = 'gold piece', color = colors.gold, Item=Money(randint(20, 300)), blocks = False, pName = 'gold pieces')
+        money = GameObject(x = None, y = None, char = '$', name = 'gold coin', color = colors.gold, Item=Money(randint(20, 300)), blocks = False, pName = 'gold coins')
         
         fighterComponent = Fighter(hp = 20, armor = 2, power = 6, xp = 30, deathFunction = monsterDeath, accuracy = 18, evasion = 30, lootFunction = [robe, knife, spellbook, money], lootRate = [60, 20, 7, 40])
         AI_component = BasicMonster()
@@ -11544,7 +11581,7 @@ def createCultist(x,y):
         return 'cancelled'
 
 def createHighCultist(x, y):
-    if x != player.x or y != player.y:
+    if (x, y) != (player.x, player.y):
         robeEquipment = Equipment(slot = 'torso', type = 'light armor', maxHP_Bonus = 5, maxMP_Bonus = 25)
         robe = GameObject(0, 0, '[', 'high cultist robe', colors.purple, Equipment = robeEquipment, Item=Item(weight = 1.5, pic = 'cultistRobe.xp'))
         
@@ -11734,7 +11771,7 @@ def placeObjects(room, first = False):
                 item = convertItemTemplate(itemGen.generateArmor(totalLevel, player.level))
                 print("ARM")
             elif itemChoice == 'money':
-                item = GameObject(x, y, char = '$', name = 'gold piece', color = colors.gold, Item=Money(randint(15, 30)), blocks = False, pName = 'gold pieces')
+                item = GameObject(x, y, char = '$', name = 'gold coin', color = colors.gold, Item=Money(randint(15, 30)), blocks = False, pName = 'gold coins')
                 print("MON")
             elif itemChoice == 'shield':
                 equipmentComponent = Equipment(slot = 'one handed', type = 'shield', armorBonus=3)

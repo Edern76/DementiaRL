@@ -9,7 +9,26 @@ import code.experiments.tunneling as tunneling
 import code.chasmGen as chasmGen
 import code.holeGen as holeGen
 from copy import deepcopy
+import os, sys
 
+def findCurrentDir():
+    if getattr(sys, 'frozen', False):
+        datadir = os.path.dirname(sys.executable)
+    else:
+        datadir = os.path.dirname(__file__)
+    listDir = list(datadir)
+    for loop in range(4):
+        del listDir[len(listDir) - 1]
+    print(listDir)
+    dir = ''
+    for loop in range(len(listDir) - 1):
+        dir += listDir[loop]
+    print(dir)
+    return dir
+
+curDir = findCurrentDir()
+relFontPath = "assets\\ascii"
+absFontPath = os.path.join(curDir, relFontPath)
 
 '''
 ROOM_MAX_SIZE = 10
@@ -31,6 +50,8 @@ MID_MAP_WIDTH, MID_MAP_HEIGHT = MAP_WIDTH//2, MAP_HEIGHT//2
 MID_WIDTH, MID_HEIGHT = int(WIDTH/2), int(HEIGHT/2)
 
 if __name__ == '__main__':
+    #tdl.set_font(os.path.join(absFontPath, 'arial12x12.png'), greyscale=True, altLayout=True)
+    #tdl.set_font(os.path.join(absFontPath, 'terminal16x16_gs_ro.png'), greyscale=True, altLayout=False, columnFirst = False)
     root = tdl.init(WIDTH, HEIGHT, 'Dementia')
 
 myMap = []
@@ -275,7 +296,7 @@ def checkStairsRooms(mapToUse, currentBranch, currentLevel, rooms):
         return roomsForStairs
 
 if __name__ == '__main__':
-    myMap, rooms, roomsForStairs = generateMap(dBr.lustDungeon)
+    myMap, rooms, roomsForStairs = generateMap(dBr.temple)
     while not tdl.event.is_window_closed():
         update(myMap)
     

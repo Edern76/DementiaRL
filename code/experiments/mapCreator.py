@@ -51,22 +51,22 @@ def update(showDark = False):
     for x in range(MAP_WIDTH):
         for y in range(MAP_HEIGHT):
             if myMap[x][y] in selectedTiles and not showDark:
-                root.draw_char(x, y, myMap[x][y].character, myMap[x][y].fg, colors.dark_violet)
+                root.draw_char(x, y, myMap[x][y].baseCharacter, myMap[x][y].baseFg, colors.dark_violet)
             elif myMap[x][y] in selectedTiles and showDark:
-                root.draw_char(x, y, myMap[x][y].character, myMap[x][y].dark_fg, colors.dark_violet)
+                root.draw_char(x, y, myMap[x][y].baseCharacter, myMap[x][y].baseDark_fg, colors.dark_violet)
             elif not showDark:
-                root.draw_char(x, y, myMap[x][y].character, myMap[x][y].fg, myMap[x][y].bg)
+                root.draw_char(x, y, myMap[x][y].baseCharacter, myMap[x][y].baseFg, myMap[x][y].baseBg)
             else:
-                root.draw_char(x, y, myMap[x][y].character, myMap[x][y].dark_fg, myMap[x][y].dark_bg)
+                root.draw_char(x, y, myMap[x][y].baseCharacter, myMap[x][y].baseDark_fg, myMap[x][y].baseDark_bg)
     for object in objects:
         if myMap[object.x][object.y] in selectedTiles and not showDark:
             root.draw_char(object.x, object.y, object.char, object.color, colors.dark_violet)
         elif myMap[object.x][object.y] in selectedTiles and showDark:
             root.draw_char(object.x, object.y, object.char, object.color, colors.dark_violet)
         elif not showDark:
-            root.draw_char(object.x, object.y, object.char, object.color, myMap[object.x][object.y].bg)
+            root.draw_char(object.x, object.y, object.char, object.color, myMap[object.x][object.y].baseBg)
         else:
-            root.draw_char(object.x, object.y, object.char, object.color, myMap[object.x][object.y].dark_bg)
+            root.draw_char(object.x, object.y, object.char, object.color, myMap[object.x][object.y].baseDark_bg)
     tdl.flush()
 
 def openDetails(x, y):
@@ -75,12 +75,12 @@ def openDetails(x, y):
     window = tdl.Console(width, height)
     quit = False
     index = 0
-    ascii = ord(tile.character)
-    fg = tile.fg
-    dark_fg = tile.dark_fg
-    bg = tile.bg
-    dark_bg = tile.dark_bg
-    blocked = tile.blocked
+    ascii = ord(tile.baseCharacter)
+    fg = tile.baseFg
+    dark_fg = tile.baseDark_fg
+    bg = tile.baseBg
+    dark_bg = tile.baseDark_bg
+    blocked = tile.baseBlocked
     block_sight = tile.block_sight
     explored = tile.explored
     baseIndex = range(-1, 7)
@@ -170,26 +170,26 @@ def openDetails(x, y):
             if index in baseIndex:
                 quit = True
             elif index == 7:
-                tile.character = chr(ascii)
+                tile.baseCharacter = chr(ascii)
                 index = 0
             elif index in range(8, 11):
                 index = 1
                 fg = Red, Green, Blue
-                tile.fg = fg
+                tile.baseFg = fg
             elif index in range(11, 14):
                 index = 2
                 dark_fg = Red, Green, Blue
-                tile.dark_fg = dark_fg
+                tile.baseDark_fg = dark_fg
             elif index in range(14, 17):
                 index = 3
                 bg = Red, Green, Blue
-                tile.bg = bg
+                tile.baseBg = bg
             elif index in range(17, 20):
                 index = 4
                 dark_bg = Red, Green, Blue
-                tile.dark_bg = dark_bg
+                tile.baseDark_bg = dark_bg
             elif index == 20:
-                tile.blocked = blocked
+                tile.baseBlocked = blocked
                 index = 5
             elif index == 21:
                 tile.block_sight = block_sight
@@ -575,11 +575,11 @@ def createMap():
         for y in range(MAP_HEIGHT):
             line = ''
             for x in range(MAP_WIDTH):
-                if myMap[x][y].blocked and myMap[x][y].block_sight:
+                if myMap[x][y].baseBlocked and myMap[x][y].block_sight:
                     line += '#'
-                elif not myMap[x][y].blocked and not myMap[x][y].block_sight:
+                elif not myMap[x][y].baseBlocked and not myMap[x][y].block_sight:
                     line += '.'
-                elif myMap[x][y].blocked and not myMap[x][y].block_sight:
+                elif myMap[x][y].baseBlocked and not myMap[x][y].block_sight:
                     line += '='
                 else:
                     line += '+'
@@ -593,7 +593,7 @@ def createMap():
         for y in range(MAP_HEIGHT):
             line = ''
             for x in range(MAP_WIDTH):
-                line += myMap[x][y].character
+                line += myMap[x][y].baseCharacter
             line += chr(92)
             line += '\n'
             charMap.write(line)
@@ -618,7 +618,7 @@ def createMap():
         for y in range(MAP_HEIGHT):
             line = ''
             for x in range(MAP_WIDTH):
-                line += str(myMap[x][y].fg)
+                line += str(myMap[x][y].baseFg)
             line += chr(92)
             line += '\n'
             fgMap.write(line)
@@ -629,7 +629,7 @@ def createMap():
         for y in range(MAP_HEIGHT):
             line = ''
             for x in range(MAP_WIDTH):
-                line += str(myMap[x][y].dark_fg)
+                line += str(myMap[x][y].baseDark_fg)
             line += chr(92)
             line += '\n'
             dark_fgMap.write(line)
@@ -640,7 +640,7 @@ def createMap():
         for y in range(MAP_HEIGHT):
             line = ''
             for x in range(MAP_WIDTH):
-                line += str(myMap[x][y].bg)
+                line += str(myMap[x][y].baseBg)
             line += chr(92)
             line += '\n'
             bgMap.write(line)
@@ -651,7 +651,7 @@ def createMap():
         for y in range(MAP_HEIGHT):
             line = ''
             for x in range(MAP_WIDTH):
-                line += str(myMap[x][y].dark_bg)
+                line += str(myMap[x][y].baseDark_bg)
             line += chr(92)
             line += '\n'
             dark_bgMap.write(line)
@@ -772,19 +772,19 @@ if __name__ == '__main__':
                 selectedTiles = [myMap[cursor.x][cursor.y]]
         elif userInput.keychar.upper() == '1' or userInput.keychar.upper() == 'KP1':
             for tile in selectedTiles:
-                tile.character = '#'
-                tile.blocked = True
+                tile.baseCharacter = '#'
+                tile.baseBlocked = True
                 tile.block_sight = True
         elif userInput.keychar.upper() == '2' or userInput.keychar.upper() == 'KP2':
             for tile in selectedTiles:
-                tile.character = '.'
-                tile.blocked = False
+                tile.baseCharacter = '.'
+                tile.baseBlocked = False
                 tile.block_sight = False
         elif userInput.keychar.upper() == '9' or userInput.keychar.upper() == 'KP9':
             showDark = not showDark
         elif userInput.keychar.upper() == '3' or userInput.keychar.upper() == 'KP3':
             for tile in selectedTiles:
-                tile.blocked = not tile.blocked
+                tile.baseBlocked = not tile.baseBlocked
         elif userInput.keychar.upper() == '4' or userInput.keychar.upper() == 'KP4':
             for tile in selectedTiles:
                 tile.block_sight = not tile.block_sight
@@ -814,26 +814,26 @@ if __name__ == '__main__':
         elif userInput.keychar.upper() == 'V':
             if copy is not None:
                 for tile in selectedTiles:
-                    tile.character = copy.character
-                    tile.fg = copy.fg
-                    tile.dark_fg = copy.dark_fg
-                    tile.bg = copy.bg
-                    tile.dark_bg = copy.dark_bg
-                    tile.blocked = copy.blocked
+                    tile.baseCharacter = copy.baseCharacter
+                    tile.baseFg = copy.baseFg
+                    tile.baseDark_fg = copy.baseDark_fg
+                    tile.baseBg = copy.baseBg
+                    tile.baseDark_bg = copy.baseDark_bg
+                    tile.baseBlocked = copy.baseBlocked
                     tile.block_sight = copy.block_sight
                     tile.explored = copy.explored
         elif userInput.keychar.upper() == 'W':
             for x in range(MAP_WIDTH):
                 for y in range(MAP_HEIGHT):
-                    myMap[x][y].character = '#'
-                    myMap[x][y].blocked = True
+                    myMap[x][y].baseCharacter = '#'
+                    myMap[x][y].baseBlocked = True
                     myMap[x][y].block_sight = True
             selectedTiles = [myMap[cursor.x][cursor.y]]
         elif userInput.keychar.upper() == 'G':
             for x in range(MAP_WIDTH):
                 for y in range(MAP_HEIGHT):
-                    myMap[x][y].character = '.'
-                    myMap[x][y].blocked = False
+                    myMap[x][y].baseCharacter = '.'
+                    myMap[x][y].baseBlocked = False
                     myMap[x][y].block_sight = False
             selectedTiles = [myMap[cursor.x][cursor.y]]
         elif userInput.keychar.upper() == 'R':

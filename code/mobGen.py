@@ -137,7 +137,7 @@ class FighterTemplate: #All NPCs, enemies and the player
     
     def __str__(self):
         text =  'A monster with {}, described as {}'.format(self.slots, self.description)
-        text += '\nIt is equipped with {}'.format(self.equipmentList)
+        text += '\nIt is equipped with {} and can loot {}'.format(self.equipmentList, self.lootFunction)
         
         if self.power != 0:
             text += '\n' + str('power:' + str(self.power))
@@ -207,20 +207,27 @@ def convertListString(string):
     text = ''
     usedString = string[1:len(string)-1]
     innerListInd = []
+    inParenthesis = 0
     for i, char in enumerate(usedString):
         if i in innerListInd:
             continue
-        if char in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.':
+        if char in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.$=' or (char in ''','"''' and inParenthesis >= 1):
             text += char
         elif char == ' ' and text != '':
             text += char
-        elif char == ',':
+        elif char == '(':
+            text += char
+            inParenthesis += 1
+        elif char == ')':
+            text += char
+            inParenthesis -= 1
+        elif char == ',' and inParenthesis < 1:
             try:
                 newList.append(int(text))
             except:
                 newList.append(text)
             text = ''
-        elif char == '[':
+        elif char == '[' and inParenthesis < 1:
             revertString = list(copy.copy(usedString))
             revertString.reverse()
             for j, char in enumerate(revertString):

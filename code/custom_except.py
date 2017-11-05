@@ -33,3 +33,11 @@ class InfiniteLoopPrevention(Exception):
             self.message = ''
         finalMessage = warningToPrint + self.message
         return finalMessage
+
+class UnrecognizedElement(Exception):
+    def __init__(self, message):
+        self.message = message
+    def __str__(self):
+        if self.message is None:
+            self.message = ''
+        return self.message

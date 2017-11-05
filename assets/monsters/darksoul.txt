@@ -19,8 +19,8 @@ monsterDeath
 *
 5
 0
-loot			#templates list!
-lootRate		#percentage list
+[0, GameObject(x = None, y = None, char = '$', name = 'gold piece', color = colors.gold, Item=Money(randint(10, 50)), blocks = False, pName = 'gold pieces')]
+[100, 100]
 *
 *
 *

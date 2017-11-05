@@ -482,7 +482,7 @@ def readMap(mapDir, voidChar = None):
 
 if __name__ == '__main__':
     root = tdl.init(150, 80, 'Dementia')
-    myMap, objects = readMap('tutoFloorThree11')
+    myMap, objects = readMap('shrine')
     while not tdl.event.is_window_closed():
         root.clear()
         for x in range(MAP_WIDTH):
