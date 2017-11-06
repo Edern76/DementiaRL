@@ -11668,7 +11668,8 @@ def placeObjects(room, first = False):
         if not isBlocked(x, y) and (x, y) != (player.x, player.y) and not myMap[x][y].chasm:
             monsterChoice = randomChoice(monsterChances)
             if monsterChoice == 'darksoul':
-                monster = createDarksoul(x, y)
+                monster = convertMobTemplate(mobGen.generateMonster(player.level, monsterChoice)) #createDarksoul(x, y)
+                monster.x, monster.y = x, y
 
             elif monsterChoice == 'hiroshiman' and hiroshimanNumber == 0 and branchLevel > 2 and not first:
                 monster = createHiroshiman(x, y)

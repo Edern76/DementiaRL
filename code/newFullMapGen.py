@@ -53,6 +53,7 @@ if __name__ == '__main__':
     #tdl.set_font(os.path.join(absFontPath, 'arial12x12.png'), greyscale=True, altLayout=True)
     #tdl.set_font(os.path.join(absFontPath, 'terminal16x16_gs_ro.png'), greyscale=True, altLayout=False, columnFirst = False)
     root = tdl.init(WIDTH, HEIGHT, 'Dementia')
+    #tdl.set_fullscreen(True)
 
 myMap = []
 caveList = []
