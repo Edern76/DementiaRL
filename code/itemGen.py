@@ -758,6 +758,7 @@ def generateMeleeWeapon(level, playerLevel, weaponType = None):
             if moddedStat == 'HP' or moddedStat == 'MP' or moddedStat == 'stam':
                 dictToUse = rarityBigAdd
             stat.value = weaponDict[equipmentStatsStrings[i]] + randint(-2 + dictToUse[stringRarity], 2 + dictToUse[stringRarity])
+            stat.value += round(sigmoidProgress(weaponLevel) * stat.value)
             if (stat < 0 and weaponDict[equipmentStatsStrings[i]] > 0) or (stat > 0 and weaponDict[equipmentStatsStrings[i]] < 0): #if a positive value becomes negative or vice versa
                 stat.value = 0
         except:
@@ -868,6 +869,7 @@ def generateArmor(level, playerLevel, armorType = None, slot = None):
             if moddedStat == 'HP' or moddedStat == 'MP' or moddedStat == 'stam':
                 dictToUse = rarityBigAdd
             stat.value = armorDict[equipmentStatsStrings[i]] + randint(-2 + dictToUse[stringRarity], 2 + dictToUse[stringRarity])
+            stat.value += round(sigmoidProgress(armorLevel) * stat.value)
             if (stat < 0 and armorDict[equipmentStatsStrings[i]] > 0) or (stat > 0 and armorDict[equipmentStatsStrings[i]] < 0): #if a postive value becomes negative or vice versa
                 stat.value = 0
         except:

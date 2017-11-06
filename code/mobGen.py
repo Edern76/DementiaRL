@@ -329,7 +329,7 @@ def readMobFile(fileName):  #without .txt
             kwargs[gameObjParam[i]] = line
     
     mobObject = GameObjectTemplate(**kwargs)
-    print(mobObject, end = '\n\n')
+    #print(mobObject, end = '\n\n')
     
     fighterParam = ['hp', 'armor', 'power', 'accuracy', 'evasion', 'xp', 'deathFunction', 'mp', 'knownSpells', 'critical', 'armorPenetration', 'lootFunction', 'lootRate', 'transferDamage', 'leechRessource', 'leechAmount', 'buffsOnAttack', 'slots', 'equipmentList', 'attackFunctions', 'noDirectDamage', 'description', 'Ranged', 'stamina', 'attackSpeed', 'moveSpeed', 'rangedSpeed', 'resistances', 'attackTypes']
     kwargs = {'deathFunction': 'monsterDeath', 'knownSpells': [], 'lootFunction': [], 'lootRate': [], 'transferDamage': None, 'leechRessource': None, 'leechAmount': 0, 'buffsOnAttack': [], 'slots': ['head', 'torso', 'left hand', 'right hand', 'legs', 'feet'], 'equipmentList': [], 'attackFunctions': [], 'noDirectDamage': False, 'description': 'Placeholder', 'Ranged': None, 'resistances': {'physical': 0, 'poison': 0, 'fire': 0, 'cold': 0, 'lightning': 0, 'light': 0, 'dark': 0, 'none': 0}, 'attackTypes': {'physical': 100}}
@@ -362,7 +362,7 @@ def readMobFile(fileName):  #without .txt
             kwargs[fighterParam[i-10]] = line
     
     mobFighter = FighterTemplate(**kwargs)
-    print(mobFighter, end = '\n\n')
+    #print(mobFighter, end = '\n\n')
     
     rangedNPCParam = ['shotRange', 'power', 'accuracy', 'critical', 'armorPenetration', 'buffsOnAttack', 'leechRessource', 'attackFunctions', 'shootMessage', 'projChar', 'projColor', 'continues', 'passesThrough', 'ghost']
     kwargs = {'buffsOnAttack': [], 'leechRessource': None, 'attackFunctions': [], 'shootMessage': ' shoots {} for ', 'projChar': '/', 'continues': False, 'passesThrough': False, 'ghost': False}
@@ -402,14 +402,37 @@ def readMobFile(fileName):  #without .txt
         mobRanged = RangedNPCTemplate(**kwargs)
     else:
         mobRanged = None
-    print(mobRanged)
+    #print(mobRanged)
     
     mobObject.Fighter = mobFighter
     mobObject.Ranged = mobRanged
     
     return mobObject
 
-def generateMonster(level, playerLevel, monsterName):
-    return readMobFile(monsterName)
+def progressFormula(level):
+    return sigmoidProgress(level)
 
-readMobFile('darksoul')
+def generateMonster(playerLevel, monsterName):
+    monsterLevel = randint(playerLevel - 2, playerLevel+ + 2)
+    monsterObj = readMobFile(monsterName)
+    monster = monsterObj.Fighter
+    ranged = monster.Ranged
+    
+    monster.hp += round(progressFormula(monsterLevel) * monster.hp)
+    monster.armor += round(progressFormula(monsterLevel) * monster.armor)
+    monster.power += round(progressFormula(monsterLevel) * monster.power)
+    monster.xp += round(progressFormula(monsterLevel) * monster.xp)
+    monster.armorPenetration += round(progressFormula(monsterLevel) * monster.armorPenetration)
+    monster.stamina += round(progressFormula(monsterLevel) * monster.stamina)
+    monster.mp += round(progressFormula(monsterLevel) * monster.mp)
+    
+    if ranged:
+        ranged.power += round(progressFormula(monsterLevel) * ranged.power)
+    
+    return monsterObj
+
+if __name__ == '__main__':
+    for i in range(10):
+        playerLevel = 1 + i*5
+        monster = generateMonster(playerLevel, 'darksoul')
+        print('playerLvl: {}, progress percentage: {}'.format(str(playerLevel), str(progressFormula(playerLevel))), monster, monster.Fighter, monster.Ranged, sep = '\n\n', end = '\n====\n')
