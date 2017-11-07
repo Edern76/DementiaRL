@@ -532,7 +532,7 @@ def drawColorMenuOptions(y, options, window, page, width, height, headerWrapped,
     if not displayItem:
         tdl.flush()
 
-def menu(header, options, width, usedList = None, noItemMessage = None, inGame = True, adjustHeight = True, needsInput = True, displayItem = False, name = 'noName', switchKey = None, switchHeader = None):
+def menu(header, options, width, usedList = None, noItemMessage = None, inGame = True, adjustHeight = True, needsInput = True, displayItem = False, name = 'noName', switchKey = None, switchHeader = None, itemDisplayed = 'item'):
     global menuWindows, FOV_recompute
     hasSwitched = False
     index = 0
@@ -576,8 +576,11 @@ def menu(header, options, width, usedList = None, noItemMessage = None, inGame =
     print('Not loop menu option draw')
     
     if displayItem and usedList:
-        item = usedList[0].Item
-        item.displayItem(posX = MID_WIDTH + width//2 - 15)
+        if itemDisplayed == 'item':
+            item = usedList[0].Item
+            item.displayItem(posX = MID_WIDTH + width//2 - 15)
+        elif itemDisplayed == 'spell':
+            usedList[0].displayInfo(MID_WIDTH + width//2 - 15)
     print('Not loop item disp')
     tdl.flush()
     
@@ -636,8 +639,11 @@ def menu(header, options, width, usedList = None, noItemMessage = None, inGame =
                 index = 0
             
             if displayItem and usedList:
-                item = usedList[index + page * 26].Item
-                item.displayItem(posX = MID_WIDTH + width//2 - 15)
+                if itemDisplayed == 'item':
+                    item = usedList[index + page * 26].Item
+                    item.displayItem(posX = MID_WIDTH + width//2 - 15)
+                elif itemDisplayed == 'spell':
+                    usedList[index + page * 26].displayInfo(MID_WIDTH + width//2 - 15)
             print('Loop item disp')
             
             if not arrow:
@@ -649,11 +655,15 @@ def menu(header, options, width, usedList = None, noItemMessage = None, inGame =
                     if DEBUG:
                         message(keyChar)
                     index = ord(keyChar) - ord('a')
-                    if index >= 0 and index < len(options):
+                    if index >= 0 and index + page * 26 < len(options):
                         if not switchKey:
                             return index + page * 26
                         else:
                             return (index + page * 26, hasSwitched)
+                    elif index + page * 26 < 0:
+                        index = 0
+                    elif index + page * 26 >= len(options):
+                        index = len(options) - 1
                 elif keyChar.upper() == 'ENTER':
                     if menuWindows and inGame:
                         for mWindow in menuWindows:
@@ -796,11 +806,15 @@ def colorMenu(header, options, width, usedList = None, noItemMessage = None, inG
                     if DEBUG:
                         message(keyChar)
                     index = ord(keyChar) - ord('a')
-                    if index >= 0 and index < len(options):
+                    if index >= 0 and index + page * 26 < len(options):
                         if not switchKey:
                             return index + page * 26
                         else:
                             return (index + page * 26, hasSwitched)
+                    elif index + page * 26 < 0:
+                        index = 0
+                    elif index + page * 26 >= len(options):
+                        index = len(options) - 1
                 elif keyChar.upper() == 'ENTER':
                     if menuWindows and inGame:
                         for mWindow in menuWindows:
@@ -1158,7 +1172,7 @@ class Spell:
         except ValueError:
             print('SPELL {} is not in known spell list when trying to set it on cooldown'.format(self.name))
 
-    def displayInfo(self):
+    def displayInfo(self, posX = None):
         global FOV_recompute
         FOV_recompute = True
         if self.template:
@@ -1185,17 +1199,17 @@ class Spell:
             
             if menuWindows:
                 for mWindow in menuWindows:
-                    if not mWindow.name == 'inventory' and not mWindow.type == 'menu':
+                    if not mWindow.name == 'spellMenu' and not mWindow.type == 'menu':
                         mWindow.clear()
                         print('CLEARED {} WINDOW OF TYPE {}'.format(mWindow.name, mWindow.type))
-                        if mWindow.name == 'displayItemInInventory':
+                        if mWindow.name == 'displaySpellInfo':
                             ind = menuWindows.index(mWindow)
                             del menuWindows[ind]
                             print('Deleted')
                     tdl.flush()
             FOV_recompute = True
-            #Update()
-            window = NamedConsole('displayItemInInventory', width, height)
+            Update()
+            window = NamedConsole('displaySpellInfo', width, height)
             print('Created disp window')
             window.clear()
             menuWindows.append(window)
@@ -1230,14 +1244,15 @@ class Spell:
                 if incrementY:
                     Y += 1
                 prevLine = line
-            posX = MID_WIDTH - width // 2
+            if not posX:
+                posX = MID_WIDTH - width // 2
             posY = MID_HEIGHT - height//2
             root.blit(window, posX, posY, width, height, 0, 0)
         
             menuWindows.append(window)
             FOV_recompute = True
             tdl.flush()
-            tdl.event.key_wait()
+            #tdl.event.key_wait()
             
 
 
@@ -1259,7 +1274,7 @@ def rSpellDamage(amount, caster, target, type, dmgTypes = {'physical': 100}):
                 messageColor = colors.green
             else:
                 messageColor = colors.white
-            dmgTxtFunc = lambda damageTaken: target.Fighter.formatRawDamageText(damageTaken, " {} takes {}!", messageColor, '{} is hit by the spell but is insensible to it.', colors.white)
+            dmgTxtFunc = lambda damageTaken: target.Fighter.formatRawDamageText(damageTaken, "{} takes {}!", messageColor, '{} is hit by the spell but is insensible to it.', colors.white)
         else:
             dmgTxtFunc = lambda damageTaken: player.Fighter.formatRawDamageText(damageTaken, "{} take {} damage !", colors.red, '{} are hit by the spell but are insensible to it.', colors.white)
         
@@ -1296,7 +1311,7 @@ def rSpellAttack(amount, type, caster, target):
         message(target.name.capitalize() + " should have had its attack decrease. But the developper was to lazy to implement it in time !") #TO-DO
     '''
     if type == "Buff":
-        enraged = Buff('enraged', colors.dark_red, cooldown = amount, power = 10)
+        enraged = Buff('strengthened', colors.dark_red, cooldown = amount, power = 10)
         enraged.applyBuff(target)
     else:
         enraged = Buff('weakened', colors.light_red, cooldown = amount, power = -10)
@@ -1359,8 +1374,8 @@ def Erwan(*args, **kwargs):
 def createObjectFromCoords(x, y):
     return GameObject(x,y, char=None, name = None)
 
-def targetTileWrapper(caster = None):
-    result = targetTile()
+def targetTileWrapper(caster = None, zone = None):
+    result = targetTile(styleAOE = zone)
     if result != 'cancelled':
         (x,y) = result
         return createObjectFromCoords(x, y)
@@ -1493,7 +1508,10 @@ def rSpellExec(func1 = Erwan, func2 = Erwan, func3 = Erwan, targetFunction = tar
     global FOV_recompute
     if targetFunction.__name__ != 'targetSelf':
         message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
-    chosenTarget = targetFunction(caster)
+    if targetFunction.__name__ == 'targetTileWrapper':
+        chosenTarget = targetFunction(caster, lambda start: zoneFunction(start, 3))
+    else:
+        chosenTarget = targetFunction(caster)
     if chosenTarget != 'cancelled':
         print("FOOOOOOOOOOOOOOOOOOOOUNNNNNNNNNNNNNNNNNNND TARGEEEEEEEEEEEEEEEEEET")
         print("vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv")
@@ -1508,6 +1526,9 @@ def rSpellExec(func1 = Erwan, func2 = Erwan, func3 = Erwan, targetFunction = tar
             print(tilesList)
             for (x,y) in tilesList:
                 if not myMap[x][y].blocked:
+                    explodingTiles.append((x, y))
+            explode(color)
+            '''
                     con.draw_char(x,y, '*', fg = color)
             root.blit(con, 0, 0, WIDTH, HEIGHT, 0, 0)
             tdl.flush()
@@ -1515,6 +1536,7 @@ def rSpellExec(func1 = Erwan, func2 = Erwan, func3 = Erwan, targetFunction = tar
             FOV_recompute = True
             Update()
             tdl.flush()
+            '''
         print("After draw, before process")
         targetList = cleanList(processTiles(tilesList))
         
@@ -1579,11 +1601,11 @@ def convertRandTemplateToSpell(template = None):
             if curEffect.name == "FireDamage":
                 amount = int(curEffect.amount)
                 newFireFunc = functools.partial(rSpellDamage, amount) #Freezes the value of the amount variable into the function
-                toAdd = lambda caster, target : newFireFunc(caster, target, "Fire")
+                toAdd = lambda caster, target : newFireFunc(caster, target, "Fire", dmgTypes={'fire':100})
             elif curEffect.name == "PoisonDamage":
                 amount = int(curEffect.amount)
                 newPoiFunc = functools.partial(rSpellDamage, amount)
-                toAdd = lambda caster, target : newPoiFunc(caster, target, "Poison")
+                toAdd = lambda caster, target : newPoiFunc(caster, target, "Poison", dmgTypes={'poison':100})
             elif curEffect.name == "PhysicalDamage":
                 amount = int(curEffect.amount)
                 newPhyFunc = functools.partial(rSpellDamage, amount)
@@ -1767,7 +1789,7 @@ def castFireball(radius = 3, damage = 24, shotRange = 4, caster = None, monsterT
     if caster is None or caster == player:
         caster = player
         message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
-        target = targetTile(maxRange = shotRange, AOE = True, rangeAOE=radius)
+        target = targetTile(maxRange = shotRange, styleAOE = 'circle', rangeAOE=radius)
     else:
         if caster.distanceTo(monsterTarget) <= shotRange:
             target = (monsterTarget.x, monsterTarget.y)
@@ -6185,7 +6207,7 @@ class Item:
             if equipmentComp.slot is not None:
                 fullDesc.append(equipmentComp.slot.capitalize())
             if equipmentComp.type is not None:
-                fullDesc.append(equipmentComp.type.capitalize())
+                fullDesc.extend(textwrap.wrap(equipmentComp.type.capitalize()))
             if equipmentComp.powerBonus != 0:
                 equipmentStats['Power Bonus'] = str(equipmentComp.powerBonus)
             if equipmentComp.armorBonus != 0:
@@ -7212,7 +7234,7 @@ def getInput():
             return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'Z' and gameState == 'playing':
         try:
-            chosenSpell, switch = spellsMenu('Press the key next to a spell to use it (press ? to switch to info mode)')
+            chosenSpell, switch = spellsMenu('Press the key next to a spell to use it.')# (press ? to switch to info mode)')
         except TypeError:
             traceback.print_exc()
             print(switch)
@@ -8266,7 +8288,7 @@ def castCreateWeapon():
         if weapon is not None:
             objects.append(weapon)
 
-def explode():
+def explode(color = colors.red):
     global gameState
     global explodingTiles
     global FOV_recompute
@@ -8275,7 +8297,7 @@ def explode():
         obj.clear()
     con.clear()
     FOV_recompute = True
-    Update()
+    Update(color)
     tdl.flush()
     time.sleep(.125) #Wait for 0.125 seconds
     explodingTiles = []
@@ -12579,14 +12601,15 @@ def spellsMenu(header):
         except TDLError:
             options = []
             borked = True
-    index, switch = menu(header, options, SPELLS_MENU_WIDTH, noItemMessage="You don't have any spells ready right now", switchKey = "?", switchHeader = "Select a spell to get information on (press ? to switch to cast mode)")
+    index = menu(header, options, SPELLS_MENU_WIDTH, noItemMessage="You don't have any spells ready right now", usedList = player.Fighter.knownSpells, displayItem = True, itemDisplayed = 'spell', name = 'spellMenu')#, switchKey = "?", switchHeader = "Select a spell to get information on (press ? to switch to cast mode)")
+    #add 'switch' after index if needed
     if index is None or len(player.Fighter.knownSpells) == 0 or borked or index == "cancelled":
         global DEBUG
         if DEBUG:
             message('No spell selected in menu', colors.purple)
         return (None, False)
     else:
-        return (player.Fighter.knownSpells[index], switch)
+        return (player.Fighter.knownSpells[index], False) #, switch)
 
 
 def equipmentMenu(header):
@@ -13105,7 +13128,7 @@ def initializeFOV():
     con.clear()
     print("FOV INITIALIZED")
 
-def Update():
+def Update(explodeColor = colors.red):
     global FOV_recompute
     global visibleTiles
     global tilesinPath
@@ -13163,7 +13186,7 @@ def Update():
                 elif gameState == 'exploding':
                     exploded = (x,y) in explodingTiles
                     if exploded:
-                        con.draw_char(x, y, '*', fg=colors.red, bg = None)
+                        con.draw_char(x, y, '*', fg=explodeColor, bg = None)
                 if DEBUG:
                     inPath = (x,y) in tilesinPath
                     if inPath:
@@ -13707,7 +13730,7 @@ def isInTriangle(pointX, point1, point2, point3):
     
     return test1 == test2 and test2 == test3
 
-def targetTile(maxRange = None, showBresenham = False, unlimited = False, AOE = False, rangeAOE = 0, styleAOE = 'circle', melee = False, returnBresenham = False, returnAOE = False):
+def targetTile(maxRange = None, showBresenham = False, unlimited = False, AOE = False, rangeAOE = 0, styleAOE = None, melee = False, returnBresenham = False, returnAOE = False):
     global gameState
     global cursor
     global tilesInRange, showTilesInRange
@@ -13779,7 +13802,7 @@ def targetTile(maxRange = None, showBresenham = False, unlimited = False, AOE = 
                 for dot in dotsAOE:
                     objects.remove(dot)
                 dotsAOE = []
-                if AOE:
+                if styleAOE:
                     if styleAOE == 'circle':
                         for tx in range(cursor.x - rangeAOE - 1, cursor.x + rangeAOE + 1):
                             for ty in range(cursor.y - rangeAOE - 1, cursor.y + rangeAOE + 1):
@@ -13791,6 +13814,7 @@ def targetTile(maxRange = None, showBresenham = False, unlimited = False, AOE = 
                                         dot.sendToBack()
                                 except IndexError:
                                     pass
+                    '''
                     elif styleAOE == 'cardinal cross':
                         for tx in range(cursor.x - rangeAOE, cursor.x + rangeAOE + 1):
                             try:
@@ -13810,7 +13834,8 @@ def targetTile(maxRange = None, showBresenham = False, unlimited = False, AOE = 
                                     dot.sendToBack()
                             except IndexError:
                                     pass
-                    elif styleAOE == 'cone':
+                    '''
+                    if styleAOE == 'cone':
                         if not (cursor.x == player.x and cursor.y == player.y):
                             pointA, pointB = arcCoordinates(player.distanceTo(cursor), cursor.x - player.x, cursor.y - player.y, (cursor.x, cursor.y))
                             xA, yA = pointA
@@ -13860,6 +13885,19 @@ def targetTile(maxRange = None, showBresenham = False, unlimited = False, AOE = 
                                         objects.append(dot)
                                         dotsAOE.append(dot)
                                         dot.sendToBack()
+                    else:
+                        try:
+                            for (x, y) in styleAOE(cursor):
+                                try:
+                                    if not myMap[x][y].blocked:
+                                        dot = GameObject(x = x, y = y, char = '.', name = 'AOE dot', color = colors.yellow, Ghost = True)
+                                        objects.append(dot)
+                                        dotsAOE.append(dot)
+                                        dot.sendToBack()
+                                except IndexError:
+                                        pass
+                        except:
+                            raise UnrecognizedElement('targeting is neither a cone nor a known function')
 
                 Update()
                 tdl.flush()
