@@ -11429,6 +11429,7 @@ def convertMobTemplate(template):
                     raise UnrecognizedElement("Spell of {} is not recognized: \n{}".format(template.name, name))
         toEquip = []
         for eq in fi.equipmentList:
+            print(eq)
             if eq[1] == 'armor':
                 eqTemp = itemGen.generateArmor(totalLevel, player.level, eq[2], eq[3])
                 picInd = 4
@@ -11636,6 +11637,7 @@ def placeObjects(room, first = False):
     potionChances = currentBranch.potionChances
     numMonsters = randint(0, MAX_ROOM_MONSTERS)
     monster = None
+    '''
     if 'ogre' in monsterChances.keys():
         previousTrollChances = int(monsterChances['ogre'])
     if 'hiroshiman' in monsterChances.keys():
@@ -11651,6 +11653,7 @@ def placeObjects(room, first = False):
         if 'ogre' in monsterChances.keys() and not monsterChances['ogre'] < 50:
             monsterChances['ogre'] -= 50
         monsterChances['highCultist'] = 50
+    '''
     
     monCount = 0
     for i in range(numMonsters):
@@ -11667,6 +11670,9 @@ def placeObjects(room, first = False):
         
         if not isBlocked(x, y) and (x, y) != (player.x, player.y) and not myMap[x][y].chasm:
             monsterChoice = randomChoice(monsterChances)
+            monster = convertMobTemplate(mobGen.generateMonster(player.level, monsterChoice))
+            monster.x, monster.y = x, y
+            '''
             if monsterChoice == 'darksoul':
                 monster = convertMobTemplate(mobGen.generateMonster(player.level, monsterChoice)) #createDarksoul(x, y)
                 monster.x, monster.y = x, y
@@ -11732,6 +11738,7 @@ def placeObjects(room, first = False):
                             
             else:
                 monster = None
+            '''
         else:
             if isBlocked(x, y):
                 print("IT IS BLOCKEEED")
@@ -11848,7 +11855,7 @@ def placeObjects(room, first = False):
                 item.x, item.y = x, y
                 objects.append(item)
                 item.sendToBack()
-            
+            '''
             if 'ogre' in monsterChances.keys():
                 print('Reverting ogre chances to previous value (current : {} / previous : {})'.format(monsterChances['ogre'], previousTrollChances))
                 monsterChances['ogre'] = previousTrollChances
@@ -11858,6 +11865,7 @@ def placeObjects(room, first = False):
             if 'highCultist' in monsterChances.keys():
                 print('Reverting high cultist chances to previous value (current : {} / previous : {})'.format(monsterChances['highCultist'], previousHighCultistChances))
                 monsterChances['highCultist'] = previousHighCultistChances 
+            '''
         else:
             print("COULDNT DO ITEM BECAUSE REASONS")
             if isBlocked(x, y):

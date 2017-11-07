@@ -1,0 +1,55 @@
+starveling
+S
+(255, 255, 191)
+BasicMonster()
+*
+*
+*
+*
+*
+\
+45
+0
+10
+40
+30
+50
+monsterDeath
+0
+*
+5
+0
+[GameObject(0, 0, '*', 'minor essence of Gluttony', colors.darker_lime, Essence=Essence('Gluttony', colors.darker_lime, affectedStats=[('vitality', 1), ('slow', 1)]))]
+[100]
+*
+hunger
+25
+*
+*
+*
+*
+*
+A starveling
+*
+0
+100
+50
+100
+*
+*
+\
+***
+shotRange
+power
+accuracy
+crit
+armorPen
+buffsOnAttack		#list as [[chance, 'name']]
+leechRessource		#default: None, string ('hunger'/'HP'/'MP')
+attackFunctions		#list
+shootMessage		#d: ' shoots {} for '
+projChar		#d: '/'
+projColor
+continues		#d: False
+passesThrough		#d: False
+ghost			#d: False

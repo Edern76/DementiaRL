@@ -16,10 +16,10 @@ evasion
 xp
 deathFunction		#without ()
 mp
-spells			#templates list!
+spells			#list of templates (without 'spellGen.') or common name (fireball)
 crit
 armorPen
-loot			#templates list!
+loot			#list of templates, direct expression or index of the item from the equipmentList
 lootRate		#percentage list
 transferDamage		#default: None
 leechRessource		#default: None, string ('hunger'/'HP'/'MP')

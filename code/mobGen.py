@@ -81,6 +81,10 @@ class GameObjectTemplate:
     
     def __str__(self):
         text = '{} ({} {}), of size {}, it is {} flying and has the AI {}'.format(self.name, self.color, self.char, self.size, self.flying, self.AI)
+        if self.Fighter:
+            text += '\n\n' + str(self.Fighter)
+        if self.Ranged:
+            text += '\n\n' + str(self.Ranged)
         return text
 
 #Fighter template: hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0,
@@ -222,19 +226,26 @@ def convertListString(string):
             text += char
             inParenthesis -= 1
         elif char == ',' and inParenthesis < 1:
-            try:
-                newList.append(int(text))
-            except:
-                newList.append(text)
-            text = ''
+            if text != '':
+                try:
+                    newList.append(int(text))
+                except:
+                    newList.append(text)
+                text = ''
         elif char == '[' and inParenthesis < 1:
-            revertString = list(copy.copy(usedString))
-            revertString.reverse()
-            for j, char in enumerate(revertString):
-                if char == ']':
+            openBracketCount = 0
+            closeBracketCount = 0
+            j = i
+            for char in usedString[i:]:
+                if char == '[':
+                    closeBracketCount += 1
+                elif char == ']' and closeBracketCount == openBracketCount+1:
                     break
-            innerListInd = range(i, len(usedString)-j)
-            newList.append(convertListString(usedString[i:len(usedString)-j]))
+                elif char == ']':
+                    closeBracketCount += 1
+                j+=1
+            innerListInd = range(i+1, j+1)
+            newList.append(convertListString(usedString[i:j+1]))
     
     if text != '':
         try:
@@ -434,5 +445,5 @@ def generateMonster(playerLevel, monsterName):
 if __name__ == '__main__':
     for i in range(10):
         playerLevel = 1 + i*5
-        monster = generateMonster(playerLevel, 'darksoul')
-        print('playerLvl: {}, progress percentage: {}'.format(str(playerLevel), str(progressFormula(playerLevel))), monster, monster.Fighter, monster.Ranged, sep = '\n\n', end = '\n====\n')
+        monster = generateMonster(playerLevel, 'cultist')
+        print('playerLvl: {}, progress percentage: {}'.format(str(playerLevel), str(progressFormula(playerLevel))), monster, sep = '\n\n', end = '\n====\n')

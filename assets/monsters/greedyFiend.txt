@@ -1,0 +1,55 @@
+greedy fiend
+f
+(191, 95, 0)
+BasicMonster()
+*
+*
+*
+*
+*
+\
+20
+3
+1
+30
+20
+50
+monsterDeath
+0
+*
+5
+0
+[GameObject(0, 0, '*', 'minor essence of Greed', colors.darker_yellow, Essence=Essence('Greed', colors.darker_yellow, affectedStats=[('vitality', -1), ('dexterity', 1)]))]
+[100]
+*
+*
+*
+*
+*
+*
+[lambda ini, target : stealMoneyAndDamage(ini, target, 300)]
+True
+A starveling
+*
+0
+100
+125
+100
+*
+*
+\
+***
+shotRange
+power
+accuracy
+crit
+armorPen
+buffsOnAttack		#list as [[chance, 'name']]
+leechRessource		#default: None, string ('hunger'/'HP'/'MP')
+attackFunctions		#list
+shootMessage		#d: ' shoots {} for '
+projChar		#d: '/'
+projColor
+continues		#d: False
+passesThrough		#d: False
+ghost			#d: False

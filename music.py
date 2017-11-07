@@ -32,7 +32,10 @@ def playWavSound(sound, forceStop = False):
         sa.stop_all()
     soundPath = os.path.join(absSoundPath, sound)
     waveObj = sa.WaveObject.from_wave_file(soundPath)
-    playObj = waveObj.play()
+    try:
+        playObj = waveObj.play()
+    except SimpleAudioError:
+        pass
     return playObj
 
 def runMusic(musicName):

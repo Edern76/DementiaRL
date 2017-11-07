@@ -1,0 +1,55 @@
+ogre
+O
+(255, 255, 191)
+BasicMonster()
+*
+*
+*
+*
+*
+\
+40
+4
+9
+20
+1
+100
+monsterDeath
+0
+*
+5
+0
+[0]
+[15]
+*
+*
+*
+*
+*
+[['ogre mace', 'weapon', 'mace', 'trollMace'.xp]]
+*
+*
+An ogre
+*
+0
+200
+100
+100
+{'physical': 10, 'poison': 0, 'fire': 0, 'cold': 0, 'lightning': 0, 'light': 0, 'dark': 0, 'none': 0}
+*
+\
+***
+shotRange
+power
+accuracy
+crit
+armorPen
+buffsOnAttack		#list as [[chance, 'name']]
+leechRessource		#default: None, string ('hunger'/'HP'/'MP')
+attackFunctions		#list
+shootMessage		#d: ' shoots {} for '
+projChar		#d: '/'
+projColor
+continues		#d: False
+passesThrough		#d: False
+ghost			#d: False

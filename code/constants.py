@@ -26,3 +26,9 @@ def exponentialProgress(level, levelDivisor=8):
 def sigmoidProgress(level, startSlowness = 50, increaseSlowness = 30):
     c = 100*exp((1-startSlowness)/increaseSlowness)
     return (((100+c)/(1+exp(-(level-startSlowness)/increaseSlowness))) - c)/100
+
+
+
+
+
+

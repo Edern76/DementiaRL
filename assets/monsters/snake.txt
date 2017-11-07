@@ -1,0 +1,55 @@
+snake
+s
+(114, 255, 114)
+BasicMonster()
+*
+*
+*
+*
+*
+\
+10
+0
+4
+30
+65
+10
+monsterDeath
+0
+*
+7
+0
+*
+*
+*
+*
+*
+[[8, 'poisoned']]
+[]
+*
+*
+*
+A snake
+*
+0
+50
+50
+100
+*
+{'physical': 60, 'poison': 40}
+\
+***
+shotRange
+power
+accuracy
+crit
+armorPen
+buffsOnAttack		#list as [[chance, 'name']]
+leechRessource		#default: None, string ('hunger'/'HP'/'MP')
+attackFunctions		#list
+shootMessage		#d: ' shoots {} for '
+projChar		#d: '/'
+projColor
+continues		#d: False
+passesThrough		#d: False
+ghost			#d: False

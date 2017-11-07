@@ -1,0 +1,55 @@
+cultist
+c
+(143, 0, 191)
+BasicMonster()
+*
+*
+*
+*
+*
+\
+20
+0
+2
+20
+10
+40
+monsterDeath
+0
+*
+5
+0
+[0, 1, GameObject(0, 0, '=', 'spellbook of arcane rituals', colors.violet, Item = Item(useFunction = learnSpell, arg1 = darkPact, weight = 1.0, description = "A spellbook full of arcane rituals and occult incantations. Such magic is easy to learn and to use, but comes at a great price.", pic = 'spellbook.xp'), blocks = False), GameObject(x = None, y = None, char = '$', name = 'gold coin', color = colors.gold, Item=Money(randint(20, 300)), blocks = False, pName = 'gold coins')]
+[60, 20, 3, 40]
+*
+*
+*
+*
+*
+[['cultist robe', 'armor', 'cloth', 'torso', 'cultistRobe.xp], ['cultist knife', 'weapon', 'dagger']]
+*
+*
+A cultist
+*
+0
+100
+100
+100
+*
+*
+\
+***
+shotRange
+power
+accuracy
+crit
+armorPen
+buffsOnAttack		#list as [[chance, 'name']]
+leechRessource		#default: None, string ('hunger'/'HP'/'MP')
+attackFunctions		#list
+shootMessage		#d: ' shoots {} for '
+projChar		#d: '/'
+projColor
+continues		#d: False
+passesThrough		#d: False
+ghost			#d: False
