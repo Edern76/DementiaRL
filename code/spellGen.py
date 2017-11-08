@@ -34,21 +34,21 @@ class SpellTemplate:
         self.cost = cost
         self.color = None
         self.ressource = ressourceType
+        self.name = None
     
     def __str__(self):
         text = "Level {} spell costing {} {} \n \n".format(self.level, self.cost, self.ressource)
-        text += "Belongs to {} type \n".format(self.type)
         if self.impure:
-            text += "Is an impure spell (-1 level) \n"
+            text += "Is an impure {} spell (-1 level) \n".format(self.type)
         else:
-            text += "Is a classic spell \n"
-        text += "Targeting type =  {} \n".format(self.targeting)
+            text += "Is a classic {} spell \n".format(self.type)
+        text += "Targeting type: {} \n".format(self.targeting)
         text += "Affects entities in a {} \n \n".format(self.zone)
-        text += "Effect 1 : {} ({}) \n".format(self.eff1.name, self.eff1.amount)
+        text += "Effect 1: {} ({}) \n".format(self.eff1.name, self.eff1.amount)
         if self.eff2 is not None:
-            text += "Effect 2 : {} ({}) \n".format(self.eff2.name, self.eff2.amount)
+            text += "Effect 2: {} ({}) \n".format(self.eff2.name, self.eff2.amount)
         if self.eff3 is not None:
-            text += "Effect 3 : {} ({}) \n".format(self.eff3.name, self.eff3.amount)
+            text += "Effect 3: {} ({}) \n".format(self.eff3.name, self.eff3.amount)
         
         return text
 
@@ -163,33 +163,58 @@ If a spell has an effect that doesn't fit its type (Good effect on attack spell,
 
 '''
 baseTypeList = BetterList("Attack", "Defense")
+nameAOE = {}
+nameAttack = {}
+nameBuff = {}
+nameHeal = {}
 
 targetSelect = WeightedChoice("Select", 25)
 targetSelf = WeightedChoice("Self", 25)
 targetClosest = WeightedChoice("Closest", 25)
 targetFarthest = WeightedChoice("Farthest", 25)
 
-zoneSingle = WeightedChoice("SingleTile", 25)
-zoneCross = WeightedChoice("Cross", 25)
-zoneX = WeightedChoice("X", 25)
-zoneAOE = WeightedChoice("AOE", 25)
+zoneSingle = WeightedChoice("SingleTile", 20)
+zoneCross = WeightedChoice("Cross", 20)
+zoneX = WeightedChoice("X", 20)
+zoneAOE = WeightedChoice("AOE", 20)
+zoneLine = WeightedChoice('Line', 20)
 
-attFire = WeightedChoice("FireDamage", 33)
-attPhy = WeightedChoice("PhysicalDamage", 33)
-attPoi = WeightedChoice("PoisonDamage", 33)
+nameAOE[zoneSingle] = 'bolt'
+nameAOE[zoneCross] = 'cross'
+nameAOE[zoneX] = 'strikes'
+nameAOE[zoneAOE] = 'blast'
+nameAOE[zoneLine] = 'ray'
+
+attFire = WeightedChoice("Fire damage", 33)
+attPhy = WeightedChoice("Physical damage", 33)
+attPoi = WeightedChoice("Poison damage", 33)
+
+nameAttack[attFire.name] = ['fire', 'burning']
+nameAttack[attPhy.name] = ['death', '']
+nameAttack[attPoi.name] = ['poison', 'toxic']
 
 buffHunger = WeightedChoice("Hunger", 25)
-buffAttack = WeightedChoice("AttackStat", 25)
-buffDefense = WeightedChoice("DefenseStat", 25)
+buffAttack = WeightedChoice("Power", 25)
+buffDefense = WeightedChoice("Armor", 25)
 buffSpeed = WeightedChoice("Speed", 25)
 
-healHP = WeightedChoice("HealHP", 25)
-healMP = WeightedChoice("HealMP", 25)
-healFire = WeightedChoice("CureFire", 25)
-healPoison = WeightedChoice("CurePoison", 25)
+nameBuff[buffHunger.name] = ['nourishing', 'hungering']
+nameBuff[buffAttack.name] = ['strengthening', 'weakening']
+nameBuff[buffDefense.name] = ['shielding', 'exposing']
+nameBuff[buffSpeed.name] = ['hastening', 'slowing']
+
+healHP = WeightedChoice("Heal HP", 25)
+healMP = WeightedChoice("Heal MP", 25)
+healFire = WeightedChoice("Cure fire", 25)
+healPoison = WeightedChoice("Cure poison", 25)
+
+nameHeal[healHP.name] = 'health'
+nameHeal[healMP.name] = 'mana'
+nameHeal[healFire.name] = 'fire cure'
+nameHeal[healPoison.name] = 'poison cure'
 
 baseTargetList = EvenBetterList(targetSelect, targetSelf, targetClosest, targetFarthest)
-baseZoneList = EvenBetterList(zoneSingle, zoneCross, zoneX, zoneAOE)
+baseZoneList = EvenBetterList(zoneSingle, zoneCross, zoneX, zoneAOE, zoneLine)
 
 baseAttackList = EvenBetterList(attFire, attPhy, attPoi) #Porbably want to add more stuff here
 baseBuffList = EvenBetterList(buffHunger, buffAttack, buffDefense, buffSpeed) #Common list for buffs/debuffs
@@ -224,6 +249,8 @@ def createSpell():
             raise ValueError("Invalid spell type")
         
         target = targetList.randFrom()
+        if target.name == 'Self':
+            zoneList.removeFrom(zoneLine)
         zone = zoneList.randFrom()
         
         if spellLevel > 3:
@@ -278,10 +305,10 @@ def createSpell():
                     eff = healList.randFrom()
                     healList.removeFrom(eff)
                     effName = eff.name
-                    if effName == "HealHP":
+                    if effName == "Heal HP":
                         noOccult = True
                         healList.removeFrom(healList[0]) #Removes "HealMP" from the list, because spending MP to recover MP is either useless (if you recover less MP than you spend) or gamebreakingly overpowered (if you recover more MP than you spend)
-                    elif effName == "HealMP":
+                    elif effName == "Heal MP":
                         noNormal = True
                         healList.removeFrom(healList[0]) #Removes "HealHP" from the list. Same as above.
                     
@@ -352,9 +379,9 @@ def createSpell():
         if isImpure:
             spellLevel -= 1
         
-        if bestEffect == "FireDamage":
+        if bestEffect == "Fire damage":
             spellColor = colors.red
-        elif bestEffect == "PoisonDamage":
+        elif bestEffect == "Poison damage":
             spellColor = colors.purple
         else:
             spellColor = colors.white
@@ -383,13 +410,52 @@ def createSpell():
             resultSpell.zone = zone.name
             
             resultSpell.color = spellColor
-    
+            
+            name = ''
+            if isImpure:
+                name += 'impure '
+                
+            for eff in effects:
+                try:
+                    ind = 1
+                    if '+' in eff.name:
+                        ind = 0
+                    tempName = copy.copy(eff.name[:len(eff.name)-1])
+                    name += nameBuff[tempName][ind] + ' '
+                except:
+                    pass
+                
+            chosen = []
+            for eff in effects:
+                try:
+                    chosen.append(nameAttack[eff.name])
+                except:
+                    pass
+            if chosen:
+                if len(chosen) > 1:
+                    if chosen[len(chosen)-1][0] == 'pain':
+                        chosen.reverse()
+                    for eff in chosen[:len(chosen)-1]:
+                        if eff[1] != '':
+                            name += eff[1] + ' '
+                name += chosen[len(chosen)-1][0]
+            name += nameAOE[zone] + ' '
+            
+            for eff in effects:
+                try:
+                    name += 'of ' + nameHeal[eff.name] + ' '
+                except:
+                    pass
+            
+            resultSpell.name = name
+            
             return resultSpell
 
 
 if __name__ == '__main__':
     for loop in range(10):
-        print(createSpell())
+        spell = createSpell()
+        print('====  ' + spell.name + '  ====', spell, sep = '\n\n')
         print()
     
         

@@ -1178,6 +1178,7 @@ class Spell:
         if self.template:
             baseWidth = SPELL_INFO_WIDTH
             desc = dial.formatText(str(self.template), baseWidth)
+            header = textwrap.wrap(self.name.capitalize(), baseWidth)
             prevLine = None
             descriptionHeight = 0
             for line in desc:
@@ -1192,6 +1193,9 @@ class Spell:
             
             curMaxWidth = 0
             for line in desc:
+                if len(line) > curMaxWidth:
+                    curMaxWidth = len(line)
+            for line in header:
                 if len(line) > curMaxWidth:
                     curMaxWidth = len(line)
             width = curMaxWidth + 3
@@ -1228,13 +1232,26 @@ class Spell:
                 window.draw_char(m, lMax, chr(196))
             window.draw_char(0, lMax, chr(192))
             window.draw_char(kMax, lMax, chr(217))
-            Y = 3
+            Y = 1
             X = 3
             prevLine = None
-            drawCenteredVariableWidth(window, y=1, text = self.name.capitalize(), fg=colors.amber, width=width)
+            for line in header:
+                drawCenteredVariableWidth(window, y=Y, text = line, fg=colors.amber, width=width)
+                Y+=1
+            Y+=1
             for line in desc:
                 if line != "BREAK":
-                    window.draw_str(1,Y, line)
+                    if 'spell costing' in line:
+                        window.draw_str(1, Y, line[:21])
+                        if 'MP' in line:
+                            color = colors.blue
+                        elif 'HP' in line:
+                            color = colors.dark_red
+                        else:
+                            color = colors.white
+                        window.draw_str(22, Y, line[21:], fg = color)
+                    else:
+                        window.draw_str(1, Y, line)
                     incrementY = True
                 else:
                     if prevLine and prevLine == "BREAK":
@@ -1352,7 +1369,7 @@ def rSpellRemoveBuff(buffToRemove, caster, target):
                 buff.removeBuff()
 
 def targetSelf(caster, zone = None):
-    if displayConfirmSpell(caster, zone):
+    if displayConfirmSpell(caster, caster, zone):
         return caster
     else:
         return 'cancelled'
@@ -1385,10 +1402,10 @@ def targetTileWrapper(caster = None, zone = None):
     else:
         return 'cancelled'
 
-def singleTarget(startPoint, shotRange = 0):
+def singleTarget(startPoint, caster, shotRange = 0):
     return [(startPoint.x, startPoint.y)]
 
-def verticalCross(startPoint, shotRange = 3):
+def verticalCross(startPoint, caster, shotRange = 3):
     affectedTiles = [(startPoint.x, startPoint.y)]
     i = 1
     while i <= shotRange:
@@ -1399,7 +1416,7 @@ def verticalCross(startPoint, shotRange = 3):
         i += 1
     return affectedTiles
 
-def diagonalCross(startPoint, shotRange = 3):
+def diagonalCross(startPoint, caster, shotRange = 3):
     affectedTiles = [(startPoint.x, startPoint.y)]
     i = 1
     while i <= shotRange:
@@ -1410,7 +1427,46 @@ def diagonalCross(startPoint, shotRange = 3):
         i += 1
     return affectedTiles
 
-def areaOfEffect(startPoint, shotRange = 2):
+def raySpell(startPoint, caster, shotRange = None):
+    print(startPoint, caster, shotRange)
+    (sourceX, sourceY) = (caster.x, caster.y)
+    (destX, destY) = (startPoint.x, startPoint.y)
+    line = tdl.map.bresenham(sourceX, sourceY, destX, destY)
+    newLine = []
+    if len(line) > 1:
+        dx = destX - sourceX
+        dy = destY - sourceY
+        (x, y) = line[len(line) - 1]
+        counter = 0
+        while counter < 25:
+            newX = x + dx
+            newY = y + dy
+            tempLine = tdl.map.bresenham(x, y, newX, newY)
+            dx = newX - x
+            dy = newY - y
+            x = newX
+            y = newY
+            counter += 1
+            del tempLine[0]
+            newLine.extend(tempLine)
+            if newX >= MAP_WIDTH or newY >= MAP_HEIGHT or newX <= 0 or newY <= 0:
+                break
+    line.extend(newLine)
+    tempLine = line.copy()
+    for i, (x, y) in enumerate(tempLine):
+        try:
+            if myMap[x][y].blocked:
+                for a in line[i:]:
+                    line.remove(a)
+                break
+        except IndexError:
+            for a in line[i:]:
+                line.remove(a)
+            break
+    line.remove((sourceX, sourceY))
+    return line
+
+def areaOfEffect(startPoint, caster, shotRange = 2):
     '''    
                               X
                     X        XXX 
@@ -1512,7 +1568,7 @@ def rSpellExec(func1 = Erwan, func2 = Erwan, func3 = Erwan, targetFunction = tar
     if targetFunction.__name__ != 'targetSelf':
         message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
     #if targetFunction.__name__ == 'targetTileWrapper':
-    chosenTarget = targetFunction(caster, lambda start: zoneFunction(start, 3))
+    chosenTarget = targetFunction(caster, lambda start, caster: zoneFunction(start, caster, 3))
     #else:
     #    chosenTarget = targetFunction(caster)
     if chosenTarget != 'cancelled':
@@ -1522,7 +1578,7 @@ def rSpellExec(func1 = Erwan, func2 = Erwan, func3 = Erwan, targetFunction = tar
         print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
         
         print("Before Zone")
-        tilesList = zoneFunction(chosenTarget, 3)
+        tilesList = zoneFunction(chosenTarget, caster, 3)
         print("After Zone, before draw")
         if len(tilesList) > 1:
             print("Draw")
@@ -1590,6 +1646,8 @@ def convertRandTemplateToSpell(template = None):
         zoneFunction = verticalCross
     elif template.zone == "X":
         zoneFunction = diagonalCross
+    elif template.zone == 'Line':
+        zoneFunction = raySpell
     else:
         zoneFunction = singleTarget 
     zone = "SingleTile"
@@ -1601,15 +1659,15 @@ def convertRandTemplateToSpell(template = None):
         curEffect = effects[i]
         toAdd = Erwan
         if curEffect is not None:
-            if curEffect.name == "FireDamage":
+            if curEffect.name == "Fire damage":
                 amount = int(curEffect.amount)
                 newFireFunc = functools.partial(rSpellDamage, amount) #Freezes the value of the amount variable into the function
                 toAdd = lambda caster, target : newFireFunc(caster, target, "Fire", dmgTypes={'fire':100})
-            elif curEffect.name == "PoisonDamage":
+            elif curEffect.name == "Poison damage":
                 amount = int(curEffect.amount)
                 newPoiFunc = functools.partial(rSpellDamage, amount)
                 toAdd = lambda caster, target : newPoiFunc(caster, target, "Poison", dmgTypes={'poison':100})
-            elif curEffect.name == "PhysicalDamage":
+            elif curEffect.name == "Physical damage":
                 amount = int(curEffect.amount)
                 newPhyFunc = functools.partial(rSpellDamage, amount)
                 toAdd = lambda caster, target : newPhyFunc(caster, target, "Physical")
@@ -1622,7 +1680,7 @@ def convertRandTemplateToSpell(template = None):
                 amount = int(curEffect.amount)
                 newHungFunc = functools.partial(rSpellHunger, amount, type)
                 toAdd = lambda caster, target : newHungFunc(caster, target)
-            elif curEffect.name.startswith("AttackStat"):
+            elif curEffect.name.startswith("Power"):
                 if curEffect.name.endswith("+"):
                     type = "Buff"
                 else:
@@ -1631,7 +1689,7 @@ def convertRandTemplateToSpell(template = None):
                 amount = int(curEffect.amount)
                 newAttFunc = functools.partial(rSpellAttack, amount, type)
                 toAdd = lambda caster, target : newAttFunc(caster, target)
-            elif curEffect.name.startswith("DefenseStat"):
+            elif curEffect.name.startswith("Armor"):
                 if curEffect.name.endswith("+"):
                     type = "Buff"
                 else:
@@ -1649,18 +1707,18 @@ def convertRandTemplateToSpell(template = None):
                 amount = int(curEffect.amount)
                 newSpeedFunc = functools.partial(rSpellSpeed, amount, type)
                 toAdd = lambda caster, target : newSpeedFunc(caster, target)
-            elif curEffect.name == "HealHP":
+            elif curEffect.name == "Heal HP":
                 amount = int(curEffect.amount)
                 newHPFunc = functools.partial(castHeal, amount)
                 toAdd = lambda caster, target : newHPFunc(caster, target)
-            elif curEffect.name == "HealMP":
+            elif curEffect.name == "Heal MP":
                 amount = int(curEffect.amount)
                 newMPFunc = functools.partial(restoreMana, amount)
                 toAdd = lambda caster, target : newMPFunc(caster, target)
-            elif curEffect.name == "CurePoison":
+            elif curEffect.name == "Cure poison":
                 amount = int(curEffect.amount)
                 toAdd = lambda caster, target : rSpellRemoveBuff("poisoned", caster, target)
-            elif curEffect.name == "CureFire":
+            elif curEffect.name == "Cure fire":
                 amount = int(curEffect.amount)
                 toAdd = lambda caster, target : rSpellRemoveBuff("burning", caster, target)
             else:
@@ -1680,7 +1738,7 @@ def convertRandTemplateToSpell(template = None):
     color = template.color
     
     finalFunction = functools.partial(rSpellExec, effect1, effect2, effect3, targetFunction, zoneFunction, color)
-    return Spell(ressourceCost = template.cost, cooldown = 10, useFunction = finalFunction, ressource = template.ressource, type="Magic", magicLevel=0, name = nameGen.humanLike(), template = template) #TO-DO : Generate values for cooldown and minimum magic level
+    return Spell(ressourceCost = template.cost, cooldown = 10, useFunction = finalFunction, ressource = template.ressource, type="Magic", magicLevel=0, name = template.name, template = template) #TO-DO : Generate values for cooldown and minimum magic level
         
     #TO-DO : Finish this
     
@@ -3742,7 +3800,7 @@ def astarPath(startX, startY, goalX, goalY, flying = False, silent = False, mapT
 def closestMonsterWrapper(caster = None, zone = None, max_range = 8):
     #return closestMonster(max_range)
     monster = closestMonster(max_range)
-    if monster != 'cancelled' and displayConfirmSpell(monster, zone):
+    if monster != 'cancelled' and displayConfirmSpell(monster, caster, zone):
         return monster
     else:
         return 'cancelled'
@@ -3784,7 +3842,7 @@ def farthestMonster(max_range):
 def farthestMonsterWrapper(caster = None, zone = None, max_range = 8):
     #return farthestMonster(max_range)
     monster = farthestMonster(max_range)
-    if monster != 'cancelled' and displayConfirmSpell(monster, zone):
+    if monster != 'cancelled' and displayConfirmSpell(monster, caster, zone):
         return monster
     else:
         return 'cancelled'
@@ -6277,7 +6335,10 @@ class Item:
         print("Pic Height = ", picHeight)
         lData = attributes["layer_data"]
         
-        width = picWidth + 15
+        altWidth = 0
+        if self.owner.Equipment:
+            altWidth = len(self.owner.Equipment.type)+3
+        width = max(picWidth + 15, altWidth)
         if width < len(self.owner.name) + 3:
             width = len(self.owner.name) + 3
         desc, stats = self.fullDescription(width - 2)
@@ -6369,7 +6430,10 @@ class Item:
         print("Pic Height = ", picHeight)
         lData = attributes["layer_data"]
         
-        width = picWidth + 15
+        altWidth = 0
+        if self.owner.Equipment:
+            altWidth = len(self.owner.Equipment.type)+3
+        width = max(picWidth + 15, altWidth)
         desc, stats = self.fullDescription(width - 2)
         headers = self.sortFullDesc(list(stats.keys()))
         descriptionHeight = len(desc) + len(headers)
@@ -13743,11 +13807,11 @@ def isInTriangle(pointX, point1, point2, point3):
     
     return test1 == test2 and test2 == test3
 
-def displayConfirmSpell(start, zone = None):
+def displayConfirmSpell(start, caster, zone = None):
     global myMap, objects, menuWindows, FOV_recompute
     dotsAOE = []
     if zone:
-        for (x, y) in zone(start):
+        for (x, y) in zone(start, caster):
             try:
                 if not myMap[x][y].blocked:
                     dot = GameObject(x = x, y = y, char = '.', name = 'AOE dot', color = colors.yellow, Ghost = True)
@@ -13965,18 +14029,18 @@ def targetTile(maxRange = None, showBresenham = False, unlimited = False, AOE = 
                                         dotsAOE.append(dot)
                                         dot.sendToBack()
                     else:
-                        try:
-                            for (x, y) in styleAOE(cursor):
-                                try:
-                                    if not myMap[x][y].blocked:
-                                        dot = GameObject(x = x, y = y, char = '.', name = 'AOE dot', color = colors.yellow, Ghost = True)
-                                        objects.append(dot)
-                                        dotsAOE.append(dot)
-                                        dot.sendToBack()
-                                except IndexError:
-                                        pass
-                        except:
-                            raise UnrecognizedElement('targeting is neither a cone nor a known function')
+                        #try:
+                        for (x, y) in styleAOE(cursor, player):
+                            try:
+                                if not myMap[x][y].blocked:
+                                    dot = GameObject(x = x, y = y, char = '.', name = 'AOE dot', color = colors.yellow, Ghost = True)
+                                    objects.append(dot)
+                                    dotsAOE.append(dot)
+                                    dot.sendToBack()
+                            except IndexError:
+                                    pass
+                        #except:
+                        #    raise UnrecognizedElement('targeting is neither a cone nor a known function')
 
                 Update()
                 tdl.flush()
