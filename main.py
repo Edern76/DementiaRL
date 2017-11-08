@@ -1351,8 +1351,11 @@ def rSpellRemoveBuff(buffToRemove, caster, target):
             if buff.name == buffToRemove:
                 buff.removeBuff()
 
-def targetSelf(caster):
-    return caster
+def targetSelf(caster, zone = None):
+    if displayConfirmSpell(caster, zone):
+        return caster
+    else:
+        return 'cancelled'
 
 def targetMonster(maxRange = None, melee = False):
     target = targetTile(maxRange, melee = melee)
@@ -1508,10 +1511,10 @@ def rSpellExec(func1 = Erwan, func2 = Erwan, func3 = Erwan, targetFunction = tar
     global FOV_recompute
     if targetFunction.__name__ != 'targetSelf':
         message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
-    if targetFunction.__name__ == 'targetTileWrapper':
-        chosenTarget = targetFunction(caster, lambda start: zoneFunction(start, 3))
-    else:
-        chosenTarget = targetFunction(caster)
+    #if targetFunction.__name__ == 'targetTileWrapper':
+    chosenTarget = targetFunction(caster, lambda start: zoneFunction(start, 3))
+    #else:
+    #    chosenTarget = targetFunction(caster)
     if chosenTarget != 'cancelled':
         print("FOOOOOOOOOOOOOOOOOOOOUNNNNNNNNNNNNNNNNNNND TARGEEEEEEEEEEEEEEEEEET")
         print("vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv")
@@ -3736,8 +3739,13 @@ def astarPath(startX, startY, goalX, goalY, flying = False, silent = False, mapT
         print([(tile.x, tile.y) for tile in path])
     return path
 
-def closestMonsterWrapper(caster = None, max_range = 8):
-    return closestMonster(max_range)
+def closestMonsterWrapper(caster = None, zone = None, max_range = 8):
+    #return closestMonster(max_range)
+    monster = closestMonster(max_range)
+    if monster != 'cancelled' and displayConfirmSpell(monster, zone):
+        return monster
+    else:
+        return 'cancelled'
 
 def closestMonster(max_range):
     closestEnemy = None
@@ -3773,8 +3781,13 @@ def farthestMonster(max_range):
     else:
         return 'cancelled'
 
-def farthestMonsterWrapper(caster = None, max_range = 8):
-    return farthestMonster(max_range)
+def farthestMonsterWrapper(caster = None, zone = None, max_range = 8):
+    #return farthestMonster(max_range)
+    monster = farthestMonster(max_range)
+    if monster != 'cancelled' and displayConfirmSpell(monster, zone):
+        return monster
+    else:
+        return 'cancelled'
 
 class Nemesis:
     def __init__(self, nemesisObject, branch, level):
@@ -13729,6 +13742,72 @@ def isInTriangle(pointX, point1, point2, point3):
     test3 = sign(pointX, point3, point1) < 0
     
     return test1 == test2 and test2 == test3
+
+def displayConfirmSpell(start, zone = None):
+    global myMap, objects, menuWindows, FOV_recompute
+    dotsAOE = []
+    if zone:
+        for (x, y) in zone(start):
+            try:
+                if not myMap[x][y].blocked:
+                    dot = GameObject(x = x, y = y, char = '.', name = 'AOE dot', color = colors.yellow, Ghost = True)
+                    objects.append(dot)
+                    dotsAOE.append(dot)
+                    dot.sendToBack()
+            except IndexError:
+                    pass
+    
+    text = 'Are you sure you want to cast this spell? (Yes: Enter, No: Escape)'
+    width = len(text) + 2
+    height = 3
+    if menuWindows:
+        for mWindow in menuWindows:
+            mWindow.clear()
+            FOV_recompute = True
+            Update()
+            tdl.flush()
+    window = NamedConsole('confirmSpellCasting', width, height)
+    window.clear()
+    menuWindows.append(window)
+    
+    choseOrQuit = False
+    choice = False
+    while not choseOrQuit:
+        choseOrQuit = True
+        for k in range(width):
+            window.draw_char(k, 0, chr(196))
+        window.draw_char(0, 0, chr(218))
+        window.draw_char(k, 0, chr(191))
+        kMax = k
+        for l in range(height):
+            if l > 0:
+                window.draw_char(0, l, chr(179))
+                window.draw_char(kMax, l, chr(179))
+        lMax = l
+        for m in range(width):
+            window.draw_char(m, lMax, chr(196))
+        window.draw_char(0, lMax, chr(192))
+        window.draw_char(kMax, lMax, chr(217))
+        
+        window.draw_str(1, 1, text, fg = colors.white, bg = None)
+
+        posX = MAP_WIDTH//2 - int(width/2)
+        posY = MAP_HEIGHT - 3
+        root.blit(window, posX, posY, width, height, 0, 0)
+    
+        tdl.flush()
+        
+        key = tdl.event.key_wait()
+        keyChar = key.keychar
+        if keyChar.upper() == 'ENTER':
+            choice = True
+        elif keyChar.upper() == "ESCAPE":
+            choice = False
+        else:
+            choseOrQuit = False
+    for dot in dotsAOE:
+        objects.remove(dot)
+    return choice
 
 def targetTile(maxRange = None, showBresenham = False, unlimited = False, AOE = False, rangeAOE = 0, styleAOE = None, melee = False, returnBresenham = False, returnAOE = False):
     global gameState

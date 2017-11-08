@@ -301,7 +301,7 @@ def createSpell():
 
             
             if not isBuff:
-                effAmount = randint(spellLevel, spellLevel * 5)  * randint(2, 3)
+                effAmount = randint(spellLevel, spellLevel * 5)  * randint(2, 3) #should take into account player and/or dungeon level with the sigmoid progression
                 effCounter = effAmount
                 if not curEffectImpure:
                     potential += effAmount
@@ -326,7 +326,7 @@ def createSpell():
                     bonus = 1
                 '''
                 bonus = 1
-                effAmount = (randint(spellLevel, spellLevel * 2) * randint(1, 3) * bonus) + 1
+                effAmount = (randint(spellLevel, spellLevel * 2) * randint(1, 3) * bonus) + 1 #should take into account player and/or dungeon level with the sigmoid progression
                 effCounter = effAmount // 2
                 if not curEffectImpure:
                     potential += (effAmount // BUFF_POTENTIAL_ATTENUATION_COEFFICIENT)
