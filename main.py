@@ -223,6 +223,68 @@ def getHeroName():
         traceback.print_exc()
         return None
 
+def getOptionsFile():
+    hPath = findHiddenOptionsPath()
+    if not os.path.exists(hPath):
+        os.makedirs(hPath)
+    optionsPath = os.path.join(hPath, "OPTIONS")
+    if not os.path.exists(optionsPath):
+        optionsFile = open(optionsPath, "w")
+        optionsFile.write("SOUND_ENABLED:True")
+        optionsFile.close()
+    return optionsPath
+
+def splitLine(line):
+    return line.split(":")[1]
+
+def readOptions():
+    optionsFile = open(getOptionsFile(), "r")
+    try:
+        sndLine = optionsFile.readline()
+        valueStr = splitLine(sndLine)
+        if valueStr == "True":
+            return True
+        else:
+            return False
+    except:
+        optionsFile.close()
+        return "ERROR"
+
+def applyOptions():
+    global SOUND_ENABLED
+    try:
+        SOUND_ENABLED = readOptions()
+        if SOUND_ENABLED == "ERROR":
+            raise ValueError("Error during readOptions. The options file might be corrupted.")
+    except:
+        import tkinter
+        import tkinter.messagebox
+        dummyWindow = tkinter.Tk()
+        dummyWindow.withdraw()
+        toDelete = tkinter.messagebox.askyesno("Error", "There has been an error processing the options file. \n Do you want to reset the options to default ? Choosing No will terminate the program.", icon = ERROR)
+        if toDelete:
+            try:
+                os.remove(getOptionsFile())
+            except Exception as e:
+                tkinter.messagebox.showerror("Critical Error", "Couldn't reset options file. Try closing every running Python process running and try again. \n If that didn't fix the problem, please send a bug report at https://github.com/Edern76/DementiaRL/issues with your system specs and the following error message attached : \n \n {}".format(traceback.format_exc()))
+                quitGame("Closed due to error", noSave = True)
+            try:
+                SOUND_ENABLED = readOptions()
+            except Exception as e:
+                tkinter.messagebox.showerror("Critical Error", "Could still not process options file. \n Please send a bug report at https://github.com/Edern76/DementiaRL/issues with your system specs and the following error message attached : \n \n {}".format(traceback.format_exc()))
+                quitGame("Closed due to error", noSave = True)
+        else:
+            quitGame("Closed due to error", noSave = True)
+
+def writeOptions(toWrite):
+    optionsFile = open(getOptionsFile(), "w")
+    optionsFile.write("SOUND_ENABLED:" + toWrite)
+    optionsFile.close()
+    
+    
+        
+        
+
 # - GUI Constants -
 
 # - Consoles -
@@ -426,20 +488,7 @@ def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxP
     letterIndex = ord('a')
     counter = 0
     pageIndex = 0
-    for k in range(width):
-        window.draw_char(k, 0, chr(196))
-    window.draw_char(0, 0, chr(218))
-    window.draw_char(k, 0, chr(191))
-    kMax = k
-    for l in range(height):
-        if l > 0:
-            window.draw_char(0, l, chr(179))
-            window.draw_char(kMax, l, chr(179))
-    lMax = l
-    for m in range(width):
-        window.draw_char(m, lMax, chr(196))
-    window.draw_char(0, lMax, chr(192))
-    window.draw_char(kMax, lMax, chr(217))
+    drawActualRectangle(window, width, height)
     if (noItemMessage is None or not options or options[0] != str(noItemMessage)):
         if len(options) == 1:
             print(options[0])
@@ -12817,6 +12866,22 @@ def deathMenu():
                 stopProcess()
                 quitGame('Quit game from the death menu.')
 
+def drawActualRectangle(window, width, height):
+        for k in range(width):
+            window.draw_char(k, 0, chr(196))
+        window.draw_char(0, 0, chr(218))
+        window.draw_char(k, 0, chr(191))
+        kMax = k
+        for l in range(height):
+            if l > 0:
+                window.draw_char(0, l, chr(179))
+                window.draw_char(kMax, l, chr(179))
+        lMax = l
+        for m in range(width):
+            window.draw_char(m, lMax, chr(196))
+        window.draw_char(0, lMax, chr(192))
+        window.draw_char(kMax, lMax, chr(217))
+
 def temporaryBox(text, color = colors.white):
     global FOV_recompute
     FOV_recompute = True
@@ -12986,11 +13051,145 @@ def launchTutorial(prologueEsc = True):
     makeTutorialMap(1)
     playTutorial()
 
+def openOptions():
+    width, height = 30, 10
+    window = tdl.Console(width, height)
+    soundState = readOptions()
+    index = 0
+    subIndex = 0
+    isInMainChoice = True
+    SELECTED_COLOR = colors.white
+    UNSELECTED_COLOR = colors.light_gray
+    BASE_X = 2
+    BASE_Y = 2
+    APPLY_Y = 7
+    while True:
+        window.clear()
+        drawActualRectangle(window, width, height)
+
+        if index == 0 and isInMainChoice:
+            window.draw_str(BASE_X, BASE_Y, "Enable SFX :", fg = colors.black, bg = colors.white)
+        else:
+            window.draw_str(BASE_X, BASE_Y, "Enable SFX :")
+        
+        if not isInMainChoice:
+            if subIndex == 0:
+                window.draw_str(BASE_X + 13, BASE_Y, "ON", fg = colors.black, bg= colors.white)
+                if not soundState:
+                    window.draw_str(BASE_X + 16, BASE_Y, "OFF", fg = SELECTED_COLOR)
+                else:
+                    window.draw_str(BASE_X + 16, BASE_Y, "OFF", fg = UNSELECTED_COLOR)
+            else:
+                if soundState:
+                    window.draw_str(BASE_X + 13, BASE_Y, "ON", fg = SELECTED_COLOR)
+                else:
+                    window.draw_str(BASE_X + 13, BASE_Y, "ON", fg = UNSELECTED_COLOR)
+                window.draw_str(BASE_X + 16, BASE_Y, "OFF", fg = colors.black, bg= colors.white)
+        else:
+            if soundState:
+                window.draw_str(BASE_X + 13, BASE_Y, "ON", fg = SELECTED_COLOR)
+                window.draw_str(BASE_X + 16, BASE_Y, "OFF", fg = UNSELECTED_COLOR)
+            else:
+                window.draw_str(BASE_X + 13, BASE_Y, "ON", fg = UNSELECTED_COLOR)
+                window.draw_str(BASE_X + 16, BASE_Y, "OFF", fg = SELECTED_COLOR)
+        
+        if isInMainChoice and index == 1:
+            drawCenteredVariableWidth(window, y = APPLY_Y, text ="Apply changes and quit", fg = colors.black, bg = colors.white, width = width)
+        else:
+            drawCenteredVariableWidth(window, y = APPLY_Y, text ="Apply changes and quit", width = width)
+        
+        if isInMainChoice and index == 2:
+            drawCenteredVariableWidth(window, y = APPLY_Y + 1 , text ="Cancel", fg = colors.black, bg = colors.white, width = width)
+        else:
+            drawCenteredVariableWidth(window, y = APPLY_Y + 1, text ="Cancel", width = width)
+        
+        root.blit(window, (WIDTH - width) // 2, (HEIGHT - height) // 2, width, height)
+        tdl.flush()
+        
+        key = tdl.event.key_wait()
+        if tdl.event.isWindowClosed():
+            quitGame("Closed game", noSave = True)
+        else:
+            keychar = key.keychar.upper()
+            if isInMainChoice:
+                if keychar == "UP":
+                    index -= 1
+                elif keychar == "DOWN":
+                    index += 1
+                
+                if index > 2:
+                    index = 0
+                if index < 0:
+                    index = 2
+                
+                
+                
+                if keychar == "ESCAPE":
+                    break
+                elif keychar == "ENTER":
+                    if index == 0:
+                        isInMainChoice = False
+                        subIndex = 0
+                    elif index == 1:
+                        writeOptions(str(soundState))
+                        applyOptions()
+                        break
+                    elif index == 2:
+                        break
+                elif keychar == "RIGHT":
+                    if index == 0:
+                        isInMainChoice = False
+                        subIndex = 0                        
+            else:
+                if keychar == "RIGHT":
+                    subIndex += 1
+                elif keychar == "LEFT":
+                    subIndex -= 1
+                elif keychar == "UP":
+                    isInMainChoice = True
+                    subIndex = 0
+                    index = 2
+                elif keychar == "DOWN":
+                    isInMainChoice = True
+                    subIndex = 0
+                    index = 1
+                
+                if subIndex > 1:
+                    subIndex = 1
+                if subIndex < 0:
+                    isInMainChoice = True
+                    subIndex = 0
+                    index = 0
+                
+                if keychar == "ENTER":
+                    if subIndex == 0:
+                        soundState = True
+                    else:
+                        soundState = False
+                elif keychar == "ESCAPE":
+                    break
+                
+                
+        
+
 def mainMenu():
     global myMap, player, tutorial
+    def drawLogo():
+        asciiFile = os.path.join(absAsciiPath, 'logo2.xp')
+        xpRawString = gzip.open(asciiFile, "r").read()
+        convertedString = xpRawString
+        attributes = xpL.load_xp_string(convertedString)
+        picHeight = int(attributes["height"])
+        picWidth = int(attributes["width"])
+        lData = attributes["layer_data"]
+        layerInd = int(0)
+        for layerInd in range(len(lData)):
+            xpL.load_layer_to_console(root, lData[layerInd], WIDTH//2 - picWidth//2, 15)
+
+            
     if (__name__ == '__main__' or __name__ == 'main__main__') and root is not None:
         global player, currentMusic, activeProcess
-        choices = ['Tutorial', 'New Game', 'Continue', 'Leaderboard', 'Test Dungeon', 'About', 'Quit']
+        choices = ['Tutorial', 'New Game', 'Continue', 'Leaderboard', 'Test Dungeon', 'About', 'Options', 'Quit']
         index = 0
         currentMusic = str('Dusty_Feelings.wav')
         stopProcess()
@@ -13003,16 +13202,7 @@ def mainMenu():
         
         while True: #not tdl.event.isWindowClosed():
             root.clear()
-            asciiFile = os.path.join(absAsciiPath, 'logo2.xp')
-            xpRawString = gzip.open(asciiFile, "r").read()
-            convertedString = xpRawString
-            attributes = xpL.load_xp_string(convertedString)
-            picHeight = int(attributes["height"])
-            picWidth = int(attributes["width"])
-            lData = attributes["layer_data"]
-            layerInd = int(0)
-            for layerInd in range(len(lData)):
-                xpL.load_layer_to_console(root, lData[layerInd], WIDTH//2 - picWidth//2, 15)
+            drawLogo()
             for tempIndex in range(len(choices)):
                 drawCentered(cons = root, y = 44 + tempIndex, text = choices[tempIndex], fg = colors.white, bg = None)
             drawCentered(cons = root, y = 44 + index, text=choices[index], fg = colors.black, bg = colors.white)
@@ -13075,6 +13265,10 @@ def mainMenu():
                 elif index == 5:
                     gameCredits()
                 elif index == 6:
+                    root.clear()
+                    drawLogo()
+                    openOptions()
+                elif index == 7:
                     stopProcess()
                     raise SystemExit("Chose Quit on the main menu")
             tdl.flush()
@@ -15373,6 +15567,8 @@ if (__name__ == '__main__' or __name__ == 'main__main__') and root is not None:
         launchTutorial(False)
     else:
         heroName = tempName
+        
+    applyOptions()
         
     mainMenu()
 else:
