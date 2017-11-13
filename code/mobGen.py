@@ -34,14 +34,14 @@ def randomChoiceIndex(chances):
         choice += 1
 
 def randomChoice(chancesDictionnary):
-    chances = chancesDictionnary.values()
+    strings = list(chancesDictionnary.keys())
+    chances = [chancesDictionnary[key] for key in strings]
     for value in chances:
         if value < 0:
             print(value)
             print(chancesDictionnary.keys())
             print(chancesDictionnary)
             raise ValueError("Negative value in dict")
-    strings = list(chancesDictionnary.keys())
     return strings[randomChoiceIndex(chances)]
 
 curDir = findCurrentDir()
@@ -429,21 +429,21 @@ def generateMonster(playerLevel, monsterName):
     monster = monsterObj.Fighter
     ranged = monster.Ranged
     
-    monster.hp += round(progressFormula(monsterLevel) * monster.hp)
-    monster.armor += round(progressFormula(monsterLevel) * monster.armor)
-    monster.power += round(progressFormula(monsterLevel) * monster.power)
-    monster.xp += round(progressFormula(monsterLevel) * monster.xp)
-    monster.armorPenetration += round(progressFormula(monsterLevel) * monster.armorPenetration)
-    monster.stamina += round(progressFormula(monsterLevel) * monster.stamina)
-    monster.mp += round(progressFormula(monsterLevel) * monster.mp)
+    monster.hp += round(progressFormula(monsterLevel) * monster.hp * 5)
+    monster.armor += round(progressFormula(monsterLevel) * monster.armor * 5)
+    monster.power += round(progressFormula(monsterLevel) * monster.power * 5)
+    monster.xp += round(progressFormula(monsterLevel) * monster.xp * 5)
+    monster.armorPenetration += round(progressFormula(monsterLevel) * monster.armorPenetration * 5)
+    monster.stamina += round(progressFormula(monsterLevel) * monster.stamina * 5)
+    monster.mp += round(progressFormula(monsterLevel) * monster.mp * 5)
     
     if ranged:
-        ranged.power += round(progressFormula(monsterLevel) * ranged.power)
+        ranged.power += round(progressFormula(monsterLevel) * ranged.power * 5)
     
     return monsterObj
 
 if __name__ == '__main__':
     for i in range(10):
-        playerLevel = 1 + i*5
-        monster = generateMonster(playerLevel, 'cultist')
+        playerLevel = 1 + i*10
+        monster = generateMonster(playerLevel, 'ogre')
         print('playerLvl: {}, progress percentage: {}'.format(str(playerLevel), str(progressFormula(playerLevel))), monster, sep = '\n\n', end = '\n====\n')

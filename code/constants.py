@@ -1,4 +1,5 @@
 from math import *
+from random import randint
 
 alphabet = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", 'x', "y", "z"]
 
@@ -27,6 +28,13 @@ def sigmoidProgress(level, startSlowness = 50, increaseSlowness = 30):
     c = 100*exp((1-startSlowness)/increaseSlowness)
     return (((100+c)/(1+exp(-(level-startSlowness)/increaseSlowness))) - c)/100
 
+if __name__ == '__main__':
+    for i in range(10):
+        level = i*10
+        test = 15 + randint(level//2, level//2 + level)
+        sigmo = sigmoidProgress(level)
+        sigmoTest = test + round(test*sigmo)
+        print(level, test, sigmo, sigmoTest)
 
 
 

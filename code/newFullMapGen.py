@@ -264,16 +264,13 @@ def update(mapToUse = myMap):
     
 def checkStairsRooms(mapToUse, currentBranch, currentLevel, rooms):
     branchesToAdd = []
-    for branch, level in currentBranch.branchesTo:
-        if level == currentLevel:
-            branchesToAdd.append((branch, 'down'))
-    if currentBranch != dBr.mainDungeon or currentLevel > 1:
-        if currentBranch.origBranch:
-            branchesToAdd.append((currentBranch.origBranch, 'up'))
-        else:
-            branchesToAdd.append((currentBranch, 'up'))
-    if currentLevel < currentBranch.maxDepth:
-        branchesToAdd.append((currentBranch, 'down'))
+    #for branch, level in currentBranch.branchesTo:
+        #if level == currentLevel:
+    branchList, origBranch = dBr.getFloorBranches(currentBranch, currentLevel)
+    for branch in branchList:
+        branchesToAdd.append((branch, 'down'))
+    if origBranch:
+        branchesToAdd.append((origBranch, 'up'))
     
     chosenRooms = []
     l = 0

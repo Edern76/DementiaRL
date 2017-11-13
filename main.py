@@ -3903,15 +3903,17 @@ class Nemesis:
         self.level = level
 
 class Stairs:
-    def __init__(self, climb = 'down', branchesFrom = dBr.mainDungeon, branchesTo = dBr.mainDungeon):
+    def __init__(self, climb = 'down', branchesFrom = dBr.mainDungeon, branchesTo = dBr.mainDungeon, changeBranchLevel = 1):
         self.climb = climb
-        self.branchesFrom = branchesFrom
+        self.branchesFrom = branchesFrom                #previous floor, as in the one above
         self.branchesTo = branchesTo
         self.stairsOf = self.branchesTo.shortName
         if self.branchesFrom != self.branchesTo:
             self.changeBranch = self.branchesTo
+            self.changeBranchLevel = changeBranchLevel
         else:
             self.changeBranch = None
+            self.changeBranchLevel = None
     
     def climbStairs(self):
         global stairCooldown, currentBranch, branchLevel, depthLevel
@@ -3924,8 +3926,19 @@ class Stairs:
                     boss = True
                 if DEBUG:
                     message("Stair cooldown set to {}".format(stairCooldown), colors.purple)
-                nextLevel(boss, changeBranch=self.changeBranch, fromStairs=self)
+                nextLevel(boss, changeBranch=self.changeBranch, fromStairs=self, changeBranchLevel = self.changeBranchLevel)
             elif self.climb == 'up':
+                depthLevel -= 1
+                if stairCooldown == 0:
+                    temporaryBox('Loading...')
+                    saveLevel(branchLevel)
+                    stairCooldown = 2
+                    previousLevel(self.changeBranch, fromStairs = None, changeBranchLevel = self.changeBranchLevel)
+                else:
+                    message("You're too tired to climb the stairs right now")
+                        
+                
+                '''
                 if branchLevel > 1 or currentBranch.name != 'Main':
                     depthLevel -= 1
                     print(currentBranch.name)
@@ -3953,6 +3966,7 @@ class Stairs:
                     else:
                         message("You're too tired to climb the stairs right now")
                     return None
+                '''
         else:
             message("You're too tired to climb down the stairs right now")
 
@@ -10309,7 +10323,11 @@ def makeMap(generateChasm = True, generateHole = False, fall = False, temple = F
                 placedPlayer = True
                 char = '<'
                 text = 'stairs from '
-            newStairs = GameObject(x, y, char, text + branch.name, branch.mapGeneration['stairsColor'], alwaysVisible = True, darkColor = branch.mapGeneration['stairsDarkColor'], Stairs=Stairs(way, currentBranch, branch))
+            if branch.name == 'The Shrine' and way == 'down':
+                changeBranchLevel = 5
+            else:
+                changeBranchLevel = None
+            newStairs = GameObject(x, y, char, text + branch.name, branch.mapGeneration['stairsColor'], alwaysVisible = True, darkColor = branch.mapGeneration['stairsDarkColor'], Stairs=Stairs(way, currentBranch, branch, changeBranchLevel))
             objects.append(newStairs)
             newStairs.sendToBack()
             branch.appeared = True
@@ -10592,6 +10610,7 @@ def makeBossLevel(fall = False, generateHole=False, temple = False):
     sX, sY = startTile.x, startTile.y
     
     (new_x, new_y) = bossRoom.center()
+    bigTunnel = randint(0, 4)
     big = bigTunnel == 0 and temple
     createVerticalTunnel(previous_y, new_y, previous_x, big)   
     createHorizontalTunnel(previous_x, new_x, new_y, big)      
@@ -10846,6 +10865,7 @@ def makeTutorialMap(level = 1):
 
 def createEndRooms():
     global rooms, stairs, myMap, objects, numberRooms
+    newRooms = []
     for r in range(4): #final rooms
         w = randint(roomMinSize, roomMaxSize)
         h = randint(roomMinSize, roomMaxSize)
@@ -10859,6 +10879,7 @@ def createEndRooms():
                 break
         if not intersection:
             createRoom(newRoom)
+            newRooms.append(newRoom)
             (new_x, new_y) = newRoom.center()
             (previous_x, previous_y) = rooms[numberRooms-1].center()
             if randint(0, 1):
@@ -10869,6 +10890,11 @@ def createEndRooms():
                 createHorizontalTunnel(previous_x, new_x, new_y)
             rooms.append(newRoom)
             numberRooms += 1
+    
+    branchList, origBranch = dBr.getFloorBranches(currentBranch, branchLevel)
+    for i, branch in enumerate(branchList):
+        x, y = newRooms[i].center()
+        GameObject(new_x, new_y, '<', 'stairs', branch.mapGeneration['stairsColor'], alwaysVisible = True, darkColor = branch.mapGeneration['stairsDarkColor'], Stairs = Stairs(climb='up', branchesFrom=currentBranch, branchesTo=branch))
 
 def makeHiddenTown(fall = False):
     global myMap, objects, upStairs, rooms, numberRooms, bossRoom
@@ -11768,14 +11794,14 @@ def randomChoiceIndex(chances):
         choice += 1
 
 def randomChoice(chancesDictionnary):
-    chances = chancesDictionnary.values()
+    strings = list(chancesDictionnary.keys())
+    chances = [chancesDictionnary[key] for key in strings]
     for value in chances:
         if value < 0:
             print(value)
             print(chancesDictionnary.keys())
             print(chancesDictionnary)
             raise ValueError("Negative value in dict")
-    strings = list(chancesDictionnary.keys())
     return strings[randomChoiceIndex(chances)]
 
 def placeObjects(room, first = False):
@@ -14140,17 +14166,6 @@ def targetTile(maxRange = None, showBresenham = False, unlimited = False, AOE = 
                     objects.remove(dot)
                 dotsAOE = []
                 if styleAOE:
-                    if styleAOE == 'circle':
-                        for tx in range(cursor.x - rangeAOE - 1, cursor.x + rangeAOE + 1):
-                            for ty in range(cursor.y - rangeAOE - 1, cursor.y + rangeAOE + 1):
-                                try:
-                                    if cursor.distanceToCoords(tx, ty) <= rangeAOE and not myMap[tx][ty].blocked:
-                                        dot = GameObject(x = tx, y = ty, char = '.', name = 'AOE dot', color = colors.yellow, Ghost = True)
-                                        objects.append(dot)
-                                        dotsAOE.append(dot)
-                                        dot.sendToBack()
-                                except IndexError:
-                                    pass
                     '''
                     elif styleAOE == 'cardinal cross':
                         for tx in range(cursor.x - rangeAOE, cursor.x + rangeAOE + 1):
@@ -14172,7 +14187,18 @@ def targetTile(maxRange = None, showBresenham = False, unlimited = False, AOE = 
                             except IndexError:
                                     pass
                     '''
-                    if styleAOE == 'cone':
+                    if styleAOE == 'circle':
+                        for tx in range(cursor.x - rangeAOE - 1, cursor.x + rangeAOE + 1):
+                            for ty in range(cursor.y - rangeAOE - 1, cursor.y + rangeAOE + 1):
+                                try:
+                                    if cursor.distanceToCoords(tx, ty) <= rangeAOE and not myMap[tx][ty].blocked:
+                                        dot = GameObject(x = tx, y = ty, char = '.', name = 'AOE dot', color = colors.yellow, Ghost = True)
+                                        objects.append(dot)
+                                        dotsAOE.append(dot)
+                                        dot.sendToBack()
+                                except IndexError:
+                                    pass
+                    elif styleAOE == 'cone':
                         if not (cursor.x == player.x and cursor.y == player.y):
                             pointA, pointB = arcCoordinates(player.distanceTo(cursor), cursor.x - player.x, cursor.y - player.y, (cursor.x, cursor.y))
                             xA, yA = pointA
@@ -14678,7 +14704,7 @@ def loadLevel(level, save = True, branch = currentBranch, fall = False, fromStai
         try:
             saveLevel(branchLevel)
         except:
-            print("Couldn't save level " + branchLevel)
+            print("Couldn't save level " + str(branchLevel))
     mapFilePath = accessMapFile(level, branch.shortName)
     xfile = shelve.open(mapFilePath, "r")
     print(xfile["yunowork"])
@@ -14753,7 +14779,7 @@ def loadLevel(level, save = True, branch = currentBranch, fall = False, fromStai
     objects = newObjects
     initializeFOV()
 
-def nextLevel(boss = False, changeBranch = None, fall = False, fromStairs = None):
+def nextLevel(boss = False, changeBranch = None, fall = False, fromStairs = None, changeBranchLevel = 1):
     global branchLevel, currentBranch, currentMusic, bossTiles, myMap, objects, stairs, player, highCultistHasAppeared, hiroshimanHasAppeared, totalLevel, depthLevel
     if boss:
         currentMusic = 'Hoxton_Princess.wav'
@@ -14779,7 +14805,10 @@ def nextLevel(boss = False, changeBranch = None, fall = False, fromStairs = None
         changeToCurrent = True
     else:
         message('You enter ' + changeBranch.name)
-        branchLevel = 1
+        if changeBranchLevel:
+            branchLevel = changeBranchLevel
+        else:
+            branchLevel = 1
         currentBranch = changeBranch
         if DEBUG:
             print('Changing branch...')
@@ -14820,6 +14849,78 @@ def nextLevel(boss = False, changeBranch = None, fall = False, fromStairs = None
                 raise ValueError('Current branch fixedMap attribute is invalid ({})'.format(currentBranch.fixedMap))
         else:
             makeBossLevel(fall = fall, generateHole = holeGeneration, temple = temple)
+        print("Created a new level")
+    print("After try except block")
+    if hiroshimanNumber == 1 and not hiroshimanHasAppeared:
+        message('You suddenly feel uneasy.', colors.dark_red)
+        hiroshimanHasAppeared = True
+    if highCultistHasAppeared: #It's the exact contrary of the last statement yet it does the exact same thing (aside from the fact that we can have several high cultists)
+        message('You feel like somebody really wants you dead...', colors.dark_red)
+        highCultistHasAppeared = False #Make so more high cultists can spawn at lower levels (still only one by floor though)
+    initializeFOV()
+
+def previousLevel(changeBranch = None, fromStairs = None, changeBranchLevel = None):
+    global branchLevel, currentBranch, currentMusic, bossTiles, myMap, objects, stairs, player, highCultistHasAppeared, hiroshimanHasAppeared, totalLevel, depthLevel
+    if currentMusic != 'Bumpy_Roots.wav':
+        currentMusic = 'Bumpy_Roots.wav'
+        stopProcess()
+        music = multiprocessing.Process(target = mus.runMusic, args = (currentMusic,))
+        music.start()
+        activeProcess.append(music)
+    returned = "borked"
+    changeToCurrent = False
+    while returned != "completed":
+        returned = saveLevel(branchLevel)
+    depthLevel -= 1
+    if changeBranch is None:
+        #message('After a rare moment of peace, you descend deeper into the heart of the dungeon...', colors.red)
+        branchLevel -= 1
+        changeToCurrent = True
+    else:
+        message('You enter ' + changeBranch.name)
+        if not changeBranchLevel or changeBranchLevel == 1:
+            branchLevel = currentBranch.origDepth
+        else:
+            branchLevel = changeBranchLevel
+        currentBranch = changeBranch
+        if DEBUG:
+            print('Changing branch...')
+    if changeToCurrent:
+        changeBranch = currentBranch
+    tempMap = myMap
+    tempObjects = objects
+    tempPlayer = player
+    tempStairs = stairs
+    lvlToLoad = branchLevel
+    #if branchLevel == 1:
+    #    lvlToLoad = currentBranch.origDepth
+    print("Before try/except block")
+    try:
+        loadLevel(lvlToLoad, save = False, branch = changeBranch, fromStairs = fromStairs)
+        print("Loaded existing level {}".format(branchLevel))
+    except Exception as error:
+        if DEBUG:
+            print("===========NO NEXT LEVEL============")
+            print("Loading error : {}".format(type(error)))
+            print("Details : {}".format(error.args))
+            print("Tried to load dungeon level {} of branch {}".format(branchLevel, changeBranch.name))
+            print("====================================")
+        myMap = tempMap
+        objects = tempObjects
+        player = tempPlayer
+        stairs = tempStairs
+        chasmGeneration = False
+        holeGeneration = False
+        temple = False
+        if currentBranch.mapGeneration['fixedMap'] is None:
+            #if currentBranch.genType == 'dungeon':
+            makeMap(generateChasm=chasmGeneration, generateHole=holeGeneration, temple=temple)
+            #elif currentBranch.genType == 'cave':
+            #    generateCaveLevel(fall = fall)
+        elif currentBranch.mapGeneration['fixedMap'] == 'town':
+            makeHiddenTown()
+        else:
+            raise ValueError('Current branch fixedMap attribute is invalid ({})'.format(currentBranch.fixedMap))
         print("Created a new level")
     print("After try except block")
     if hiroshimanNumber == 1 and not hiroshimanHasAppeared:
@@ -15554,6 +15655,7 @@ def playGame(noSave = False):
     quitGame('Window has been closed', noSave = noSave)
     
 if (__name__ == '__main__' or __name__ == 'main__main__') and root is not None:
+    #loadLevel('main5') #only a test
     freeze_support()
     convertMusics()
     '''

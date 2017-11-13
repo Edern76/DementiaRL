@@ -680,14 +680,14 @@ def randomChoiceIndex(chances):
         choice += 1
 
 def randomChoice(chancesDictionnary):
-    chances = chancesDictionnary.values()
+    strings = list(chancesDictionnary.keys())
+    chances = [chancesDictionnary[key] for key in strings]
     for value in chances:
         if value < 0:
             print(value)
             print(chancesDictionnary.keys())
             print(chancesDictionnary)
             raise ValueError("Negative value in dict")
-    strings = list(chancesDictionnary.keys())
     return strings[randomChoiceIndex(chances)]
 
 
@@ -699,6 +699,7 @@ def generateMeleeWeapon(level, playerLevel, weaponType = None):
     weapon = randomChoice(weaponSize[weaponType])
     
     weaponRarity = randomChoice(rarity)
+    print('rarity:', str(weaponRarity))
     stringRarity = str(weaponRarity)
     weaponLevel = playerLevel + randint(-3 + raritySmallAdd[stringRarity]//2, raritySmallAdd[stringRarity]//2)
     
@@ -934,7 +935,7 @@ def generateArmor(level, playerLevel, armorType = None, slot = None):
 if __name__ == '__main__':
     level = 1
     for i in range(10):
-        print(generateMeleeWeapon(level + i * 2, i*5))
+        print(generateMeleeWeapon(level + i * 2, i*10))
         print()
 
 
