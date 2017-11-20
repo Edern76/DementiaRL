@@ -34,7 +34,7 @@ def playWavSound(sound, forceStop = False):
     waveObj = sa.WaveObject.from_wave_file(soundPath)
     try:
         playObj = waveObj.play()
-    except SimpleAudioError:
+    except: #simpleaudio._simpleaudio.SimpleaudioError:
         pass
     return playObj
 

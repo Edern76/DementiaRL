@@ -201,6 +201,8 @@ def getFloorBranches(branch, floor): # !! floor is the one being generated
     if branch != mainDungeon:
         if branch.origBranch and floor == 1:
             origBranch = branch.origBranch
+        else:
+            origBranch = branch
     elif floor == 5:
         origBranch = shrine
     elif floor <= 1:
@@ -211,7 +213,7 @@ def getFloorBranches(branch, floor): # !! floor is the one being generated
 
 if __name__ == '__main__':
     for i in range(15):
-        brList, origBr = getFloorBranches(mainDungeon, i)
+        brList, origBr = getFloorBranches(temple, i)
         try:
             name = origBr.name
         except:

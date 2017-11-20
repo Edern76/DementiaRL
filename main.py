@@ -3933,7 +3933,7 @@ class Stairs:
                     temporaryBox('Loading...')
                     saveLevel(branchLevel)
                     stairCooldown = 2
-                    previousLevel(self.changeBranch, fromStairs = None, changeBranchLevel = self.changeBranchLevel)
+                    previousLevel(self.changeBranch, fromStairs = self, changeBranchLevel = self.changeBranchLevel)
                 else:
                     message("You're too tired to climb the stairs right now")
                         
@@ -10968,7 +10968,27 @@ def makeHiddenTown(fall = False):
             myMap[x][y].unbreakable = True
     myMap = clearanceMap(myMap)
 
+def makeShrineMap():
+    global myMap, objects, upStairs, rooms, numberRooms, bossRoom
+    rooms = []
+    bossRoom = None
+    numberRooms = 0
+    player.x = 69
+    player.y = 11
+    myMap, objectsToCreate = layoutReader.readMap("shrine")
+    objects = [player]
+    for attributeList in objectsToCreate:
+        object = createNPCFromMapReader(attributeList)
+        objects.append(object)
+    upStairs = GameObject(69, 11, '<', 'stairs', currentBranch.mapGeneration['stairsColor'], alwaysVisible = True, darkColor = currentBranch.mapGeneration['stairsDarkColor'], Stairs=Stairs(climb='up', branchesFrom=dBr.temple, branchesTo=dBr.shrine))
+    objects.append(upStairs)
+    upStairs.sendToBack()
     
+    for x in range(MAP_WIDTH):
+        for y in range(MAP_HEIGHT):
+            myMap[x][y].unbreakable = True
+    myMap = clearanceMap(myMap)
+
 #_____________ MAP CREATION __________________
 
 #_____________ BOSS FIGHT __________________
@@ -14733,10 +14753,12 @@ def loadLevel(level, save = True, branch = currentBranch, fall = False, fromStai
     #                player.x, player.y = object.x, object.y
     #if not fall:
     if fromStairs:
+        print('======== searching for stairs============')
         for object in newObjects:
-            print(object.name)
             if object.Stairs is not None:
+                print('stairs found: {}'.format(object.name))
                 if object.Stairs.stairsOf == fromStairs.stairsOf and object.Stairs.climb != fromStairs.climb:
+                    print('these are the corresponding stairs')
                     player.x, player.y = object.x, object.y
     elif not fall:
         player.x = int(tempPlayer.x)
@@ -14845,8 +14867,10 @@ def nextLevel(boss = False, changeBranch = None, fall = False, fromStairs = None
                 #    generateCaveLevel(fall = fall)
             elif currentBranch.mapGeneration['fixedMap'] == 'town':
                 makeHiddenTown(fall = fall)
+            elif currentBranch.mapGeneration['fixedMap'] == 'shrine':
+                makeShrineMap()
             else:
-                raise ValueError('Current branch fixedMap attribute is invalid ({})'.format(currentBranch.fixedMap))
+                raise ValueError('Current branch fixedMap attribute is invalid ({})'.format(currentBranch.mapGeneration['fixedMap']))
         else:
             makeBossLevel(fall = fall, generateHole = holeGeneration, temple = temple)
         print("Created a new level")
@@ -14900,7 +14924,7 @@ def previousLevel(changeBranch = None, fromStairs = None, changeBranchLevel = No
         print("Loaded existing level {}".format(branchLevel))
     except Exception as error:
         if DEBUG:
-            print("===========NO NEXT LEVEL============")
+            print("===========NO PREV LEVEL============")
             print("Loading error : {}".format(type(error)))
             print("Details : {}".format(error.args))
             print("Tried to load dungeon level {} of branch {}".format(branchLevel, changeBranch.name))
