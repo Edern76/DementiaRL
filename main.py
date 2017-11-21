@@ -5250,8 +5250,8 @@ class TargetSelector:
         self.setFuckingTarget(None, [])
         priorityTargetFound = False
         
-        monsterVisibleTiles = self.computeMonsterFOV()
         if self.owner.Fighter.canTakeTurn and monster.distanceTo(player) <= 20:
+            monsterVisibleTiles = self.computeMonsterFOV()
             #print(monster.name + " is less than 15 tiles to player.")
             for object in objects:
                 if (object.x, object.y) in monsterVisibleTiles and (object == player or (object.AI and object.AI.__class__.__name__ == "FriendlyMonster" and object.AI.friendlyTowards == player)):
@@ -5574,10 +5574,10 @@ class Fleeing(BasicMonster):
 
     def flee(self):
         monster = self.owner
-        monsterVisibleTiles = self.computeMonsterFOV()
         bestX = monster.x
         bestY = monster.y
         if self.owner.Fighter.canTakeTurn and monster.distanceTo(player) <= 20:
+            monsterVisibleTiles = self.computeMonsterFOV()
             for x in range(monster.x - SIGHT_RADIUS - 1, monster.x + SIGHT_RADIUS + 1):
                 for y in range(monster.y - SIGHT_RADIUS - 1, monster.y + SIGHT_RADIUS + 1):
                     if (x, y) in monsterVisibleTiles and player.distanceToCoords(x, y) > player.distanceToCoords(bestX, bestY) and not isBlocked(x, y):

@@ -562,7 +562,7 @@ class ItemTemplate:
         return '{} weighing {}, can be used by {} which does {}, it is described as "{}"'.format(self.itemType, str(self.weight), self.useText, str(self.useFunction), self.description)
 
 equipmentStatsStrings = ['pow', 'arm', 'HP', 'acc', 'ev', 'crit', 'MP', 'strength', 'dex', 'vit', 'will', 'rangedPow', 'maxRange', 'ap', 'stam', 'stealth']
-
+toBeBuffedStats = ['pow', 'arm', 'HP', 'MP', 'rangedPow', 'ap', 'stam']
 
 class EquipmentTemplate:
     def __init__(self, slot, type, powerBonus=0, armorBonus=0, maxHP_Bonus=0, accuracyBonus=0, evasionBonus=0, criticalBonus=0, maxMP_Bonus=0,
@@ -759,7 +759,8 @@ def generateMeleeWeapon(level, playerLevel, weaponType = None):
             if moddedStat == 'HP' or moddedStat == 'MP' or moddedStat == 'stam':
                 dictToUse = rarityBigAdd
             stat.value = weaponDict[equipmentStatsStrings[i]] + randint(-2 + dictToUse[stringRarity], 2 + dictToUse[stringRarity])
-            stat.value += round(sigmoidProgress(weaponLevel) * stat.value)
+            if moddedStat in toBeBuffedStats:
+                stat.value += round(sigmoidProgress(weaponLevel) * stat.value)
             if (stat < 0 and weaponDict[equipmentStatsStrings[i]] > 0) or (stat > 0 and weaponDict[equipmentStatsStrings[i]] < 0): #if a positive value becomes negative or vice versa
                 stat.value = 0
         except:
@@ -870,7 +871,8 @@ def generateArmor(level, playerLevel, armorType = None, slot = None):
             if moddedStat == 'HP' or moddedStat == 'MP' or moddedStat == 'stam':
                 dictToUse = rarityBigAdd
             stat.value = armorDict[equipmentStatsStrings[i]] + randint(-2 + dictToUse[stringRarity], 2 + dictToUse[stringRarity])
-            stat.value += round(sigmoidProgress(armorLevel) * stat.value)
+            if moddedStat in toBeBuffedStats:
+                stat.value += round(sigmoidProgress(armorLevel) * stat.value)
             if (stat < 0 and armorDict[equipmentStatsStrings[i]] > 0) or (stat > 0 and armorDict[equipmentStatsStrings[i]] < 0): #if a postive value becomes negative or vice versa
                 stat.value = 0
         except:
