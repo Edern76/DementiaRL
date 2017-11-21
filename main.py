@@ -2412,7 +2412,7 @@ def castAstarPath(caster = None, monsterTarget = None):
 def castTeleportTo(caster = None, monsterTarget = None):
     global FOV_recompute
     goalTile = targetAnyTile(startX = player.x, startY = player.y)
-    if goalTile == 'cancelled':
+    if goalTile == ('cancelled', 'cancelled'):
         return 'cancelled'
     else:
         (goalX, goalY) = goalTile
@@ -4696,10 +4696,13 @@ class Fighter: #All NPCs, enemies and the player
         keyList = list(damageDict.keys())
         for key in keyList:
             if key == 'physical' and armored:
+                print('damage is armored: {} - {} + {}'.format(str(damageDict['physical']), str(self.armor), str(armorPenetration)))
                 physDamage = damageDict['physical'] - (self.armor - armorPenetration)
-                damageTaken[key] = damageDict[key] - round((self.resistances[key] * physDamage)/100)
+                damageTaken[key] = physDamage - round((self.resistances[key] * physDamage)/100)
             else:
                 damageTaken[key] = damageDict[key] - round((self.resistances[key] * damageDict[key])/100)
+            if damageTaken[key] < 0:
+                damageTaken[key] = 0
         
         damageList = [damageTaken[key] for key in keyList]
         print('damageList:', damageList)
@@ -4900,8 +4903,9 @@ class Fighter: #All NPCs, enemies and the player
             message(noDmgText.format(targetText), noDmgColor)
     
     def attack(self, target):
+        global detectedPlayerThisTurn
         hit, criticalHit = self.toHit(target)
-        damageTaken = 0
+        hitDamage = {'none': 0}
         if hit:
             if not self.noDirectDamage:
                 if criticalHit:
@@ -4920,13 +4924,21 @@ class Fighter: #All NPCs, enemies and the player
                 if self.canTakeTurn:
                     dmgTxtFunc = lambda damageTaken: self.formatAttackText(target, hit, criticalHit, damageTaken)
                     
-                    target.Fighter.takeDamage(damageDict, self.owner.name, armored = True, damageTextFunction = dmgTxtFunc)
+                    hitDamage = target.Fighter.takeDamage(damageDict, self.owner.name, armored = True, damageTextFunction = dmgTxtFunc)
                     
             self.onAttack(target)
-            if SOUND_ENABLED and self.owner != player and not player.Player.hitThisTurn:
+            if SOUND_ENABLED and self.owner != player and not player.Player.hitThisTurn and sum([hitDamage[key] for key in hitDamage.keys()]) > 0:
+                player.Player.hitThisTurn = True
                 playWavSound('hit.wav')
+            elif self.owner == player and target.AI:
+                try:
+                    if not target.AI.detectedPlayer:
+                        target.AI.detectedPlayer = True
+                        detectedPlayerThisTurn.append(target)
+                except AttributeError:
+                    print('target has no detection needed')
         else:
-            self.formatAttackText(target, hit, criticalHit, damageTaken)
+            self.formatAttackText(target, hit, criticalHit, 0)
             if SOUND_ENABLED and self.owner == player:
                 playWavSound('miss.wav')
         
@@ -5200,7 +5212,7 @@ class TargetSelector:
         global detectedPlayerThisTurn
         dice = randint(1, 100)
         playerStealth = player.Player.stealthValue(self.owner)
-        if dice >= playerStealth:
+        if dice >= playerStealth or dice >= 96:
             if not self.detectedPlayer:
                 detectedPlayerThisTurn.append(self.owner)
                 #message('{} detects you!'.format(self.owner.name.capitalize()), self.owner.color)

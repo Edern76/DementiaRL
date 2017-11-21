@@ -421,7 +421,8 @@ def readMobFile(fileName):  #without .txt
     return mobObject
 
 def progressFormula(level):
-    return sigmoidProgress(level)
+    #return sigmoidProgress(level)
+    return 0
 
 def generateMonster(playerLevel, monsterName):
     monsterLevel = randint(playerLevel - 2, playerLevel+ + 2)
