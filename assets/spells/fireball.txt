@@ -1,0 +1,12 @@
+fireball
+(255, 63, 0)
+1
+MP
+10
+Attack
+False
+Select
+AOE
+Fire damage,10
+*
+*

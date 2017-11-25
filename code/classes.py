@@ -2,6 +2,7 @@ import code.dunbranches as dBr
 import colors, copy, pdb, traceback, os, sys, time, math
 from random import randint
 import code.constants as constants
+import tdlib as tdl
 
 color_dark_wall = dBr.mainDungeon.mapGeneration['wallDarkFG']
 color_light_wall = dBr.mainDungeon.mapGeneration['wallFG']
@@ -375,3 +376,11 @@ class Rectangle:
             if tile in caveTiles:
                 return False
         return True
+
+class NamedConsole(tdl.Console):
+    def __init__(self, name, width, height, type = 'noType'):
+        self.name = name
+        self.type = type
+        tdl.Console.__init__(self, width, height)
+
+

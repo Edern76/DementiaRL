@@ -26,7 +26,7 @@ from music import playWavSound
 from multiprocessing import freeze_support, current_process
 #import code.chasmGen as chasmGen
 #import code.holeGen as holeGen
-from code.classes import Tile, printTileWhenWalked
+from code.classes import Tile, printTileWhenWalked, NamedConsole
 import code.newFullMapGen as mapGen
 import code.itemGen as itemGen
 import code.mobGen as mobGen
@@ -118,12 +118,13 @@ def runMusic(musicName):
     while True:
         if playObj is None or not playObj.is_playing():
             playObj = playWavSound(musicName, forceStop=True)
-            
+'''            
 class NamedConsole(tdl.Console):
     def __init__(self, name, width, height, type = 'noType'):
         self.name = name
         self.type = type
         tdl.Console.__init__(self, width, height)
+'''
 #_____________ CONSTANTS __________________
 MOVEMENT_KEYS = {
                  #Standard arrows
@@ -1045,21 +1046,22 @@ class Buff: #also (and mainly) used for debuffs
         Method allowing to apply the buff to target creature
         '''
         print(self.name, target.name)
-        self.owner = target 
-        if not self.name in convertBuffsToNames(target.Fighter): #If target is not already under effect of the buff
-            self.curCooldown = self.baseCooldown #Initialization of the buff cooldown
-            if self.showBuff:
-                message(self.owner.name.capitalize() + ' is now ' + self.name + '!', self.color) #If it is necessary, inform the player of the buff
-            if self.applyFunction is not None:
-                self.applyFunction(self.owner.Fighter) #If the applyFunction method exists, execute it
-            self.owner.Fighter.buffList.append(self) #Add the buff to target's buffs list
-            
-            self.owner.Fighter.hp += self.maxHP
-            self.owner.Fighter.MP += self.maxMP
-            
-        else: #If target is already under effect of the buff
-            bIndex = convertBuffsToNames(self.owner.Fighter).index(self.name)
-            target.Fighter.buffList[bIndex].curCooldown += self.baseCooldown #Extend duration of the buff
+        self.owner = target
+        if self.owner.Fighter:
+            if not self.name in convertBuffsToNames(target.Fighter): #If target is not already under effect of the buff
+                self.curCooldown = self.baseCooldown #Initialization of the buff cooldown
+                if self.showBuff:
+                    message(self.owner.name.capitalize() + ' is now ' + self.name + '!', self.color) #If it is necessary, inform the player of the buff
+                if self.applyFunction is not None:
+                    self.applyFunction(self.owner.Fighter) #If the applyFunction method exists, execute it
+                self.owner.Fighter.buffList.append(self) #Add the buff to target's buffs list
+                
+                self.owner.Fighter.hp += self.maxHP
+                self.owner.Fighter.MP += self.maxMP
+                
+            else: #If target is already under effect of the buff
+                bIndex = convertBuffsToNames(self.owner.Fighter).index(self.name)
+                target.Fighter.buffList[bIndex].curCooldown += self.baseCooldown #Extend duration of the buff
     
     def removeBuff(self):
         '''
@@ -1437,7 +1439,7 @@ def targetMonsterWrapper(caster = None):
     target = targetMonster()
     return target
 
-def Erwan(*args, **kwargs):
+def doNothing(*args, **kwargs):
     pass
 
 def createObjectFromCoords(x, y):
@@ -1612,7 +1614,7 @@ def processTiles(tileList, targetDead = False):
             targetList.append(object)
     return targetList
 
-def rSpellExec(func1 = Erwan, func2 = Erwan, func3 = Erwan, targetFunction = targetMonsterWrapper, zoneFunction = singleTarget, color = colors.white, caster = None, target = None):
+def rSpellExec(func1 = doNothing, func2 = doNothing, func3 = doNothing, targetFunction = targetMonsterWrapper, zoneFunction = singleTarget, color = colors.white, caster = None, target = None):
     global FOV_recompute
     if targetFunction.__name__ != 'targetSelf':
         message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
@@ -1702,11 +1704,11 @@ def convertRandTemplateToSpell(template = None):
     zone = "SingleTile"
     #TO-DO : Implement the other zones, targeting options
     effects = [template.eff1, template.eff2, template.eff3]
-    funcs = [Erwan, Erwan, Erwan]
+    funcs = [doNothing, doNothing, doNothing]
     for i in range(len(effects)):
         #WARNING : Bad code incoming. There is probably a cleaner way to do this, but I don't see it.
         curEffect = effects[i]
-        toAdd = Erwan
+        toAdd = doNothing
         if curEffect is not None:
             if curEffect.name == "Fire damage":
                 amount = int(curEffect.amount)
@@ -1773,11 +1775,11 @@ def convertRandTemplateToSpell(template = None):
             else:
                 if DEBUG:
                     message("ERROR : CANNOT CONVERT EFFECT {}".format(curEffect.name), colors.red)
-                toAdd = Erwan
+                toAdd = doNothing
         else:
             if DEBUG:
                 message("Effect number {} is None".format(i + 1))
-            toAdd = Erwan    
+            toAdd = doNothing    
         funcs[i] = toAdd
             
         
@@ -2078,6 +2080,42 @@ def castEnvenom(caster = None, monsterTarget = None):
         if equipment.Equipment.meleeWeapon or equipment.Equipment.ranged:
             equipment.Equipment.enchant = Enchantment('envenomed', buffOnTarget=[poisoned])
 
+def knockBack(origX, origY, target, KBrange=1, stun=True, stunCD = 2):
+    destX, destY = target.x, target.y
+    line = tdl.map.bresenham(origX, origY, destX, destY)
+    newLine = []
+    del line[0]
+    KBrange+=1
+    if 1 <= len(line) < KBrange:
+        dx = destX - origX
+        dy = destY - origY
+        (x, y) = line[len(line) - 1]
+        while len(newLine) < KBrange:
+            newX = x + dx
+            newY = y + dy
+            tempLine = tdl.map.bresenham(x, y, newX, newY)
+            dx = newX - x
+            dy = newY - y
+            x = newX
+            y = newY
+            del tempLine[0]
+            newLine.extend(tempLine)
+            if newX >= MAP_WIDTH or newY >= MAP_HEIGHT or newX <= 0 or newY <= 0:
+                break
+    line.extend(newLine)
+    while len(line) > KBrange:
+        del line[len(line)-1]
+    
+    print('Knockback:', 'origin:', origX, origY, 'target:', target.x, target.y, line)
+    for (x, y) in line:
+        dx = x - target.x
+        dy = y - target.y
+        target.move(dx, dy)
+    if stun:
+        stunned = Buff('stunned', colors.yellow, cooldown = stunCD)
+        stunned.applyBuff(target)
+    
+
 def castKnockback(caster = None, monsterTarget = None, abilityRange = 1, KBrange = 1, damage = randint(2, 7)):
     if caster is None or caster == player:
         caster = player
@@ -2088,12 +2126,11 @@ def castKnockback(caster = None, monsterTarget = None, abilityRange = 1, KBrange
     if target:
         dmgTxtFunc = lambda damageTaken: target.Fighter.formatRawDamageText(damageTaken, 'You ram into {} for {}!', colors.yellow, 'You ram into {} for no damage.', colors.grey)
         target.Fighter.takeDamage({'physical': damage}, 'player', armored = True, damageTextFunction = dmgTxtFunc)
-        dx = target.x - caster.x
-        dy = target.y - caster.y
-        for kb in range(KBrange):
-            target.move(dx, dy)
-        stunned = Buff('stunned', colors.yellow, cooldown = 2)
-        stunned.applyBuff(target)
+        #dx = target.x - caster.x
+        #dy = target.y - caster.y
+        #for kb in range(KBrange):
+        #    target.move(dx, dy)
+        knockBack(caster.x, caster.y, target, KBrange)
         return
     else:
         return 'cancelled'
@@ -2346,7 +2383,6 @@ def castShadowStep(caster, monsterTarget, rangeTP = 10):
     else:
         message("You can't use Shadow step when detected!", colors.red)
         return 'didnt-take-turn'
-        
 
 flurry = Spell(ressourceCost=15, cooldown=50, useFunction=castMultipleAttacks, name = 'Flurry', ressource = 'Stamina', type = 'Skill')
 seismic = Spell(ressourceCost=20, cooldown=60, useFunction=castSeismicSlam, name='Seismic slam', ressource='Stamina', type='Skill')
@@ -2741,13 +2777,14 @@ spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressur
 createdCharacter = {'power': 0, 'acc': 20, 'ev': 0, 'arm': 0, 'hp': 0, 'mp': 0, 'crit': 0, 'stren': 0, 'dex': 0, 'vit': 0, 'will': 0, 'ap': 0, 
                     'powLvl': 0, 'accLvl': 0, 'evLvl': 0, 'armLvl': 0, 'hpLvl': 0, 'mpLvl': 0, 'critLvl': 0, 'strLvl': 0, 'dexLvl': 0, 'vitLvl': 0, 'willLvl': 0, 'apLvl': 0,
                     'spells': [], 'load': 45.0, 'stealth': 0, 'stamina': 0, 'stamLvl': 0,
-                    'dmgTypes': {'physical': 100}, 'resistances': {'physical': 0, 'poison': 0, 'fire': 0, 'cold': 0, 'lightning': 0, 'light': 0, 'dark': 0, 'none': 0}}
+                    'dmgTypes': {'physical': 100}, 'resistances': {'physical': 0, 'poison': 0, 'fire': 0, 'cold': 0, 'lightning': 0, 'light': 0, 'dark': 0, 'none': 0},
+                    'attackFuncs': []}
 
 class Trait():
     '''
     Actually used for everything in the character creation, from race to skills etc
     '''
-    def __init__(self, name, description, type, x = 0, y = 0, underCursor = False, selectable = True, selected = False, allowsSelection = [], amount = 0, maxAmount = 1, tier = 1, power = (0, 0), acc = (0, 0), ev = (0, 0), arm = (0, 0), hp = (0, 0), mp = (0, 0), crit = (0, 0), stren = (0, 0), dex = (0, 0), vit = (0, 0), will = (0, 0), spells = None, load = 0, ap = (0, 0), stealth = 0, stam = (0, 0), bonusSkill = [], dmgTypes = {}, resistances = {}, critMult = 0):
+    def __init__(self, name, description, type, x = 0, y = 0, underCursor = False, selectable = True, selected = False, allowsSelection = [], amount = 0, maxAmount = 1, tier = 1, power = (0, 0), acc = (0, 0), ev = (0, 0), arm = (0, 0), hp = (0, 0), mp = (0, 0), crit = (0, 0), stren = (0, 0), dex = (0, 0), vit = (0, 0), will = (0, 0), spells = None, load = 0, ap = (0, 0), stealth = 0, stam = (0, 0), bonusSkill = [], dmgTypes = {}, resistances = {}, critMult = 0, attackFuncs = []):
         self.name = name
         self.desc = description
         self.type = type
@@ -2785,6 +2822,7 @@ class Trait():
         self.dmgTypes = dmgTypes
         self.resistances = resistances
         self.critMult = critMult
+        self.attackFuncs = attackFuncs
     
     def description(self):
         wrappedText = textwrap.wrap(self.desc, 25)
@@ -2841,6 +2879,8 @@ class Trait():
                         types[key] = (types[key] + self.dmgTypes[key])//2
                     else:
                         types[key] = self.dmgTypes[key]//2
+                
+                createdCharacter['attackFuncs'].extend(self.attackFuncs)
                 
                 self.amount += 1
                 self.selected = True
@@ -2908,6 +2948,8 @@ class Trait():
                     types[key] = (types[key] + self.dmgTypes[key])//2
                 else:
                     types[key] = self.dmgTypes[key]//2
+            
+            player.Fighter.attackFunctions.extend(self.attackFuncs)
 
             self.amount += 1
             if self.spells is not None:
@@ -2967,6 +3009,12 @@ class Trait():
                     types[key] = (types[key] - self.dmgTypes[key]//2)*2
                     #else:
                     #    types[key] = self.dmgTypes[key]//2
+                
+                for func in self.attackFuncs:
+                    try:
+                        createdCharacter['attackFuncs'].remove(func)
+                    except:
+                        print('could not remove function from created char template:', func)
                 
                 self.amount -= 1
                 if self.amount <= 0:
@@ -3042,6 +3090,12 @@ class Trait():
                 types[key] = (types[key] - self.dmgTypes[key]//2)*2
                 #else:
                 #    types[key] = self.dmgTypes[key]//2
+                
+            for func in self.attackFuncs:
+                try:
+                    player.Fighter.attackFunctions.remove(func)
+                except:
+                    print('could not remove function from created char template:', func)
                 
             self.amount -= 1
             player.Player.baseMaxWeight -= self.load
@@ -3226,9 +3280,9 @@ class UnlockableTrait(Trait):
                  amount = 0, maxAmount = 1, tier = 1, power = (0, 0), acc = (0, 0), ev = (0, 0), arm = (0, 0), hp = (0, 0), mp = (0, 0), crit = (0, 0),
                   stren = (0, 0), dex = (0, 0), vit = (0, 0), will = (0, 0), spells = None, load = 0, ap = (0, 0), stealth = 0, stam = (0, 0),
                   bonusSkill = [], dmgTypes = {}, resistances = {}, critMult = 0,
-                  requiredTraits = {}): #requiredTraits = {'player level': 5, 'Light weapons': 4}
+                  requiredTraits = {}, attackFuncs = []): #requiredTraits = {'player level': 5, 'Light weapons': 4}
         
-        Trait.__init__(self, name, description, type, x, y, underCursor, selectable, selected, allowsSelection, amount, maxAmount, tier, power, acc, ev, arm, hp, mp, crit, stren, dex, vit, will, spells, load, ap, stealth, stam, bonusSkill, dmgTypes, resistances, critMult)
+        Trait.__init__(self, name, description, type, x, y, underCursor, selectable, selected, allowsSelection, amount, maxAmount, tier, power, acc, ev, arm, hp, mp, crit, stren, dex, vit, will, spells, load, ap, stealth, stam, bonusSkill, dmgTypes, resistances, critMult, attackFuncs)
         self.requiredTraits = requiredTraits
     
     def checkForRequirements(self):
@@ -3237,10 +3291,11 @@ class UnlockableTrait(Trait):
             required = list(self.requiredTraits.keys())
             
             for trait in required:
+                print(trait)
                 if trait == 'player level':
                     if player.level >= self.requiredTraits[trait]:
                         unlocked += 1
-                elif player.Player.getTrait(name = trait).amount >= self.requiredTraits[trait]:
+                elif player.Player.getTrait('skill', trait) != 'not found' and player.Player.getTrait('skill', trait).amount >= self.requiredTraits[trait]:
                     unlocked += 1
                 elif player.Player.race == required:
                     unlocked += 1
@@ -3317,24 +3372,26 @@ def initializeTraits():
     
     light = Trait('Light weapons', '+20% damage per skillpoints with light weapons', type = 'skill', selectable = False, tier = 3, maxAmount=10)
     heavy = Trait('Heavy weapons', '+20% damage per skillpoints with heavy weapons', type = 'skill', selectable = False, tier = 3, maxAmount=10)
-    missile = Trait('Missile weapons', '+20% damage per skillpoints with missile weapons', type = 'skill', selectable = False, tier = 3, maxAmount=10)
+    lightMissile = Trait('Light missile weapons', '+20% damage per skillpoints with light missile weapons', type = 'skill', selectable = False, tier = 3, maxAmount=10)
+    heavyMissile = Trait('Heavy missile weapons', '+20% damage per skillpoints with heavy missile weapons', type = 'skill', selectable = False, tier = 3, maxAmount=10)
     shield = Trait('Shield mastery', 'You trained to master shield wielding.', type = 'skill', selectable = False, tier = 3, maxAmount=10)
     armorEff = Trait('Armor efficiency', 'You know very well how to maximize the protection brought by your armor', type = 'skill', selectable = False, tier = 3, maxAmount=10)
+    brawl = Trait('Brawling', 'Your consistent participation in tavern brawls have made you pretty used to unarmed combat', type = 'skill', selectable = False, tier = 3, maxAmount=10)
     dexterity = Trait('Dexterity', 'You are Dexter.', type = 'skill', selectable = False, dex=(1, 0), tier = 3, maxAmount=10)
     critical = Trait('Critical', 'You know every weaknesses of your enemies.', type = 'skill', selectable = False, crit=(3, 0), tier = 3, maxAmount=10)
-    constitution = Trait('Constitution', 'You are a sturdy person', type = 'skill', hp = (5, 0), vit = (1, 0), selectable = False, tier = 3, maxAmount=10)
+    constitution = Trait('Constitution', 'You are a sturdy person', type = 'skill', hp = (15, 0), vit = (1, 0), selectable = False, tier = 3, maxAmount=10)
     hunger = Trait('Hunger management', 'You are used to starve and are now resilient to hunger.', type = 'skill', selectable=False, tier = 3, maxAmount=10)
-    fireSkill = Trait('Fire', 'You master fire magic.', type = 'skill', selectable=False, tier = 3, spells = [fireball], maxAmount=10, resistances = {'fire': 10})
-    iceSkill = Trait('Water', 'You master ice magic.', type = 'skill', selectable=False, tier = 3, spells = [ice], maxAmount=10, resistances = {'cold': 10})
-    airSkill = Trait('Air', 'You master air magic.', type = 'skill', selectable=False, tier = 3, spells = [fireball], maxAmount=10, resistances = {'fire': 10})
-    earthSkill = Trait('Earth', 'You master earth magic.', type = 'skill', selectable=False, tier = 3, spells = [ice], maxAmount=10, resistances = {'cold': 10})
-    thirdTierSkills = [light, heavy, missile, armorEff, shield, hunger, constitution, dexterity, critical, fireSkill, iceSkill, airSkill, earthSkill]
+    fireSkill = Trait('Fire', 'You master fire magic.', type = 'skill', selectable=False, tier = 3, spells = [fireball], maxAmount=10, resistances = {'fire': 5})
+    iceSkill = Trait('Water', 'You master ice magic.', type = 'skill', selectable=False, tier = 3, spells = [ice], maxAmount=10, resistances = {'cold': 5})
+    airSkill = Trait('Air', 'You master air magic.', type = 'skill', selectable=False, tier = 3, spells = [], maxAmount=10, resistances = {'lightning': 5})
+    earthSkill = Trait('Earth', 'You master earth magic.', type = 'skill', selectable=False, tier = 3, spells = [], maxAmount=10, resistances = {'poison': 5})
+    thirdTierSkills = [light, heavy, lightMissile, heavyMissile, armorEff, shield, brawl, hunger, constitution, dexterity, critical, fireSkill, iceSkill, airSkill, earthSkill]
 
     melee = Trait('Melee weaponry', 'You are trained to wreck your enemies at close range.', type = 'skill', selectable = False, tier = 2, allowsSelection=[light, heavy], maxAmount=10)
-    ranged = Trait('Ranged weaponry', 'You shoot people in the knees.', type = 'skill', selectable = False, tier = 2, allowsSelection=[missile], maxAmount=10)
+    ranged = Trait('Ranged weaponry', 'You shoot people in the knees.', type = 'skill', selectable = False, tier = 2, allowsSelection=[lightMissile, heavyMissile], maxAmount=10)
     armorW = Trait('Armor wearing', 'You are trained to wear several types of armor.', type = 'skill', selectable = False, tier = 2, allowsSelection=[armorEff, shield], maxAmount=10)
-    endurance = Trait('Endurance', 'You are used to live in harsh conditions', type = 'skill', selectable = False, tier = 2, allowsSelection=[hunger, constitution], maxAmount=10)
-    strength = Trait('Strength', 'You are as strong as a bear', type = 'skill', stren=(1, 0), selectable = False, tier = 2, maxAmount=10)
+    endurance = Trait('Endurance', 'You are used to live in harsh conditions', type = 'skill', selectable = False, tier = 2, allowsSelection=[hunger, constitution], maxAmount=10, resistances = {'physical': 2})
+    strength = Trait('Strength', 'You are as strong as a bear', type = 'skill', stren=(1, 0), selectable = False, tier = 2, maxAmount=10, allowsSelection=[brawl])
     willpower = Trait('Power of will', 'Your will is very strong', type = 'skill', mp=(5, 0), will = (1, 0), selectable = False, tier = 2, maxAmount=10)
     cunning = Trait('Cunning', 'You are cunning, and can use this to hide in the shadows in order to deliver sly but deadly attacks.', type = 'skill', selectable = False, tier = 2, allowsSelection=[dexterity, critical], maxAmount=10, stealth = 5)
     elemental = Trait('Elemental magic', 'You master the power of the four elements.', type = 'skill', selectable=False, tier = 2, allowsSelection=[fireSkill, iceSkill, airSkill, earthSkill], maxAmount=10)
@@ -3343,7 +3400,7 @@ def initializeTraits():
     secondTierSkills = [melee, ranged, armorW, strength, endurance, cunning, willpower, elemental, occult]
 
     martial = Trait('Martial training', 'You are trained to use a wide variety of weapons', type = 'skill', acc=(10, 0), allowsSelection=[melee, ranged, armorW], maxAmount=10)
-    physical = Trait('Physical training', 'You are muscular and are used to physical efforts', type = 'skill', allowsSelection=[strength, endurance, cunning], maxAmount=10, resistances = {'physical': 5, 'poison': 5, 'fire': 5, 'cold': 5, 'lightning': 5})
+    physical = Trait('Physical training', 'You are muscular and are used to physical efforts', type = 'skill', allowsSelection=[strength, endurance, cunning], maxAmount=10, stam=(10, 0))
     mental = Trait('Mental training', 'Your mind is as fast as an arrow and as sharp as a scalpel', type = 'skill', allowsSelection=[willpower, elemental, occult], maxAmount=10)
     basicSkills = [martial, physical, mental]
     
@@ -3428,19 +3485,46 @@ def initializeTraits():
                 caster.Player.shapeshift = 'wolf'
                 buff.removeBuff()
                 return
+    
+    def autoKB(caster = None, target = None, fromTrait = 'Strength'): #caster is a fighter comp
+        baseChance = 20
+        traitAmount = player.Player.getTrait('skill', fromTrait).amount
+        chance = baseChance + (traitAmount-4) * 5
+        dice = randint(1, 100)
+        print('KNOCKBACK:', dice, chance)
+        if dice <= chance:
+            message('{} is pushed back!'.format(target.name.capitalize()), colors.green)
+            knockBack(player.x, player.y, target, traitAmount-3, True, 2 + (traitAmount-3)//2)
         
     shapeshift = Spell(ressourceCost=10, cooldown = 100, useFunction=castShapeshift, name = 'Shapeshift', ressource='MP', type = 'racial')
+    
+    ###  race  ###
     controllableWerewolf = UnlockableTrait('Shape control', 'You are able to shapeshift at will.', type = 'trait', spells = [shapeshift], requiredTraits={'player level': 5, 'Werewolf': 1})
+    
+    ###  martial  ###
+    ## melee
+    # light
     flurryTrait = UnlockableTrait('Flurry', 'You unleash three deadly attacks on the target.', 'trait', requiredTraits={'Light weapons': 7}, spells = [flurry])
     dual = UnlockableTrait('Dual wield', 'Allows to wield two lights weapons at the same time.', 'trait', requiredTraits={'Light weapons': 4})
-    aware = UnlockableTrait('Self aware', 'Allows to see the buffs and debuffs cooldowns.', 'trait', requiredTraits={'Power of will': 4})
+    # heavy
     seismicTrait = UnlockableTrait('Seismic slam', 'You hit the floor in front of you, creating a shockwave in a cone.', 'trait', requiredTraits={'Heavy weapons': 7}, spells = [seismic])
     ignoreSlow = UnlockableTrait('Easy blows', 'You are used to the weight of heavy weapons and thus can strike with them at a fast speed.', 'trait', requiredTraits={'Heavy weapons': 10})
+    
+    ###  mental  ###
+    ## will
+    aware = UnlockableTrait('Self aware', 'Allows to see the buffs and debuffs cooldowns.', 'trait', requiredTraits={'Power of will': 4})
+    
+    ###  physical  ###
+    ## cunning
     shadowstepTrait = UnlockableTrait('Shadow step', 'When concealed, you can move through the shadows at incredible speed.', 'trait', requiredTraits={'Cunning': 7}, spells = [shadowStep])
     shadowCrit = UnlockableTrait('Surprise attack', 'When concealed, you have a greater chance to inflinct critical damage.', 'trait', requiredTraits = {'Cunning': 4})
-    greaterCrit = UnlockableTrait('Mighty criticals', 'Your hits are so precise they can eviscerate your victim in one strike.', 'trait', requiredTraits = {'Critical': 4}, critMult = 1)
+    # crit
+    greaterCrit = UnlockableTrait('Fatal precision', 'Your hits are so precise they can eviscerate your victim in one strike.', 'trait', requiredTraits = {'Critical': 4}, critMult = 1)
+    ## strength
+    meleeKB = UnlockableTrait('Mighty strikes', 'You smash so hard you can sometimes push back enemies', 'trait', requiredTraits = {'Strength': 4}, attackFuncs = [autoKB])
     
-    unlockableTraits.extend([controllableWerewolf, dual, aware, flurryTrait, seismicTrait, ignoreSlow, shadowstepTrait, shadowCrit, greaterCrit])
+    
+    unlockableTraits.extend([controllableWerewolf, dual, aware, flurryTrait, seismicTrait, ignoreSlow, shadowstepTrait, shadowCrit, greaterCrit, meleeKB])
     
     for skill in skills:
         for unlock in unlockableTraits:
@@ -3455,7 +3539,8 @@ def characterCreation():
     createdCharacter = {'power': 0, 'acc': 20, 'ev': 0, 'arm': 0, 'hp': 0, 'mp': 0, 'crit': 0, 'stren': 0, 'dex': 0, 'vit': 0, 'will': 0, 'ap': 0, 
                     'powLvl': 0, 'accLvl': 0, 'evLvl': 0, 'armLvl': 0, 'hpLvl': 0, 'mpLvl': 0, 'critLvl': 0, 'strLvl': 0, 'dexLvl': 0, 'vitLvl': 0, 'willLvl': 0, 'apLvl': 0,
                     'spells': [], 'load': 45.0, 'stealth': 0, 'stamina': 0, 'stamLvl': 0,
-                    'dmgTypes': {'physical': 100}, 'resistances': {'physical': 0, 'poison': 0, 'fire': 0, 'cold': 0, 'lightning': 0, 'light': 0, 'dark': 0, 'none': 0}}
+                    'dmgTypes': {'physical': 100}, 'resistances': {'physical': 0, 'poison': 0, 'fire': 0, 'cold': 0, 'lightning': 0, 'light': 0, 'dark': 0, 'none': 0},
+                    'attackFuncs': []}
     #allTraits = []
     #leftTraits = []
     #rightTraits = []
@@ -6669,12 +6754,10 @@ class Equipment:
 
     @property
     def powerBonus(self):
-        if self.type == 'light weapon' and self.owner in equipmentList:
+        if 'light' in self.type and self.owner in equipmentList:
             bonus = (10 * player.Player.getTrait('skill', 'Light weapons').amount) / 100
-        elif self.type == 'heavy weapon' and self.owner in equipmentList:
+        elif 'heavy' in self.type and self.owner in equipmentList:
             bonus = (10 * player.Player.getTrait('skill', 'Heavy weapons').amount) / 100
-        elif self.type == 'throwing weapon' and self.owner in equipmentList:
-            bonus = (10 * player.Player.getTrait('skill', 'Throwing weapons').amount) / 100
         else:
             bonus = 0
         if self.enchant:
@@ -6684,14 +6767,14 @@ class Equipment:
     
     @property
     def rangedPower(self):
-        if self.type == 'missile weapon' and self.owner in equipmentList:
-            bonus = (10 * player.Player.getTrait('skill', 'Missile weapons').amount) / 100
+        if 'light' in self.type and self.owner in equipmentList:
+            bonus = (10 * player.Player.getTrait('skill', 'Light missile weapons').amount) / 100
             if self.enchant:
                 return round(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.dexterity + self.enchant.power)
             else:
                 return round(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.dexterity)
-        elif self.type == 'throwing weapon' and self.owner in equipmentList:
-            bonus = (10 * player.Player.getTrait('skill', 'Throwing weapons').amount) / 100
+        elif 'heavy' in self.type and self.owner in equipmentList:
+            bonus = (10 * player.Player.getTrait('skill', 'Heavy missile weapons').amount) / 100
             if self.enchant:
                 return round(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.strength + self.enchant.power)
             else:
@@ -7149,8 +7232,8 @@ class Quest:
         self.rewardList = rewardList
         self.rewardXP = rewardXP
         self.validateFunction = validateFunction
-        self.onValid = Erwan
-        self.onValid2 = Erwan
+        self.onValid = doNothing
+        self.onValid2 = doNothing
     
     def valid(self):
         self.onValid()
@@ -7178,7 +7261,7 @@ class FetchQuest(Quest):
         self.itemName = itemName
         self.amountWanted = amountWanted
         Quest.__init__(self, name, choiceGive, choiceCompleted, screenGive, screenCompleted, rewardList, rewardXP, validateFunction)
-        self.onValid = Erwan #TEMPORARY
+        self.onValid = doNothing #TEMPORARY
         self.onValid2 = self.removeObjects
         
     def removeObjects(self):

@@ -3,9 +3,29 @@ import code.custom_except
 from random import randint
 from code.constants import *
 import colors
+import os, sys
+
+def findCurrentDir():
+    if getattr(sys, 'frozen', False):
+        datadir = os.path.dirname(sys.executable)
+    else:
+        datadir = os.path.dirname(__file__)
+    listDir = list(datadir)
+    for loop in range(4):
+        del listDir[len(listDir) - 1]
+    print(listDir)
+    dir = ''
+    for loop in range(len(listDir) - 1):
+        dir += listDir[loop]
+    print(dir)
+    return dir
 
 SPELL_GEN_DEBUG = False
 BUFF_POTENTIAL_ATTENUATION_COEFFICIENT = 2
+
+curDir = findCurrentDir()
+relSpellsPath = "assets\\spells"
+absSpellsPath = os.path.join(curDir, relSpellsPath)
 
 class WeightedChoice:
     def __init__(self, name, prob):
@@ -451,13 +471,61 @@ def createSpell():
             
             return resultSpell
 
+def convertColorString(string):
+    color = {'r': '', 'g': '', 'b': ''}
+    currentColor = 'r'
+    for char in string:
+        if char in '0123456789':
+            color[currentColor] += char
+        elif char == ',':
+            if currentColor == 'r':
+                currentColor = 'g'
+            elif currentColor == 'g':
+                currentColor = 'b'
+        elif char == ')':
+            return (int(color['r']), int(color['g']), int(color['b']))
+
+def readSpellFile(fileName):  #without .txt
+    file = open(os.path.join(absSpellsPath, fileName+'.txt'), 'r')
+    file = [line[:len(line)-1] for line in file]
+    print(file)
+    template = SpellTemplate()
+    
+    template.name = file[0]
+    template.color = convertColorString(file[1])
+    template.level = int(file[2])
+    template.ressource = file[3]
+    template.cost = file[4]
+    template.type = file[5]
+    if file[6] == 'True':
+        template.impure = True
+    else:
+        template.impure = False
+    template.targeting = file[7]
+    template.zone = file[8]
+    
+    for i in range(3):
+        if file[9+i] != 'None' and file[9+i] != '*' and file[9+i] != '':
+            textList = file[9+i].split(',')
+            effect = NumberedEffect(textList[0], str(textList[1]))
+        else:
+            effect = None
+        
+        if i == 0:
+            template.eff1 = effect
+        elif i == 1:
+            template.eff2 = effect
+        else:
+            template.eff3 = effect
+    
+    return template
 
 if __name__ == '__main__':
     for loop in range(10):
         spell = createSpell()
         print('====  ' + spell.name + '  ====', spell, sep = '\n\n')
         print()
-    
+    print(readSpellFile('fireball'))
         
         
     

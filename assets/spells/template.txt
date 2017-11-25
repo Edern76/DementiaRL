@@ -1,0 +1,12 @@
+name
+color (tuple)
+level (int)
+ressource (MP/HP/stamina)
+ressourceCost (int)
+type (Attack/Defense)
+impure (True/False)
+targeting (Select/Self/Closest/Farthest)
+zone (SingleTile, Cross, X, AOE, Line)
+eff1,amount1  (string, int) WITHOUT SPACE
+eff2,amount2	default: None or *
+eff3,amount3	default: None or *
