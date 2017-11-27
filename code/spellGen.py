@@ -205,13 +205,17 @@ nameAOE[zoneX] = 'strikes'
 nameAOE[zoneAOE] = 'blast'
 nameAOE[zoneLine] = 'ray'
 
-attFire = WeightedChoice("Fire damage", 33)
-attPhy = WeightedChoice("Physical damage", 33)
-attPoi = WeightedChoice("Poison damage", 33)
+attFire = WeightedChoice("Fire damage", 20)
+attPhy = WeightedChoice("Physical damage", 20)
+attPoi = WeightedChoice("Poison damage", 20)
+attIce = WeightedChoice('Ice damage', 20)
+attElec = WeightedChoice('Lightning damage', 20)
 
 nameAttack[attFire.name] = ['fire', 'burning']
 nameAttack[attPhy.name] = ['death', '']
 nameAttack[attPoi.name] = ['poison', 'toxic']
+nameAttack[attIce.name] = ['frost', 'cold']
+nameAttack[attElec.name] = ['lightning', 'electric']
 
 buffHunger = WeightedChoice("Hunger", 25)
 buffAttack = WeightedChoice("Power", 25)
@@ -236,7 +240,7 @@ nameHeal[healPoison.name] = 'poison cure'
 baseTargetList = EvenBetterList(targetSelect, targetSelf, targetClosest, targetFarthest)
 baseZoneList = EvenBetterList(zoneSingle, zoneCross, zoneX, zoneAOE, zoneLine)
 
-baseAttackList = EvenBetterList(attFire, attPhy, attPoi) #Porbably want to add more stuff here
+baseAttackList = EvenBetterList(attFire, attPhy, attPoi, attIce, attElec) #Porbably want to add more stuff here
 baseBuffList = EvenBetterList(buffHunger, buffAttack, buffDefense, buffSpeed) #Common list for buffs/debuffs
 baseHealList = EvenBetterList(healHP, healMP , healFire , healPoison)
 
@@ -403,6 +407,10 @@ def createSpell():
             spellColor = colors.red
         elif bestEffect == "Poison damage":
             spellColor = colors.purple
+        elif bestEffect == 'Ice damage':
+            spellColor = colors.light_cyan
+        elif bestEffect == 'Lightning damage':
+            spellColor = colors.light_yellow
         else:
             spellColor = colors.white
         
@@ -453,7 +461,7 @@ def createSpell():
                     pass
             if chosen:
                 if len(chosen) > 1:
-                    if chosen[len(chosen)-1][0] == 'pain':
+                    if chosen[len(chosen)-1][0] == 'death':
                         chosen.reverse()
                     for eff in chosen[:len(chosen)-1]:
                         if eff[1] != '':
@@ -521,11 +529,14 @@ def readSpellFile(fileName):  #without .txt
     return template
 
 if __name__ == '__main__':
+    templates = ['fireball']
     for loop in range(10):
         spell = createSpell()
         print('====  ' + spell.name + '  ====', spell, sep = '\n\n')
         print()
-    print(readSpellFile('fireball'))
+    for name in templates:
+        print('====  ' + name + '  ====')
+        print(readSpellFile(name))
         
         
     

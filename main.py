@@ -1349,12 +1349,18 @@ def rSpellDamage(amount, caster, target, type, dmgTypes = {'physical': 100}):
         target.Fighter.takeDamage(damageDict, "A spell", damageTextFunction = dmgTxtFunc)
         
         if target is not None and target.Fighter is not None and target.Fighter.hp > 0:
-            if type == "Fire" and randint(1,10) < 7:
+            if type == "Fire" and randint(1, 100) <= 70:
                 burning = Buff('burning', colors.flame, cooldown= randint(3, 6), continuousFunction=lambda fighter: randomDamage('fire', fighter, chance = 100, minDamage=1, maxDamage=3, dmgMessage = 'You take {} damage from burning !'))
                 burning.applyBuff(target)
-            elif type == "Poison" and randint(1,10) < 7:
+            elif type == "Poison" and randint(1, 100) <= 70:
                 poisoned = Buff('poisoned', colors.purple, owner = None, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10, dmgType = {'poison': 100}))
                 poisoned.applyBuff(target)
+            elif type == "Ice" and randint(1, 100) <= 70:
+                frozen = Buff('frozen', colors.light_violet, cooldown = 4)
+                frozen.applyBuff(target)
+            elif type == "Lightning" and randint(1, 100) <= 70:
+                stunned = Buff('stunned', colors.light_yellow, cooldown = 4)
+                stunned.applyBuff(target)
         else:
             if DEBUG:
                 message("Your enemy died on the spot !")
@@ -1722,6 +1728,14 @@ def convertRandTemplateToSpell(template = None):
                 amount = int(curEffect.amount)
                 newPhyFunc = functools.partial(rSpellDamage, amount)
                 toAdd = lambda caster, target : newPhyFunc(caster, target, "Physical")
+            elif curEffect.name == "Ice damage":
+                amount = int(curEffect.amount)
+                newIceFunc = functools.partial(rSpellDamage, amount) #Freezes the value of the amount variable into the function
+                toAdd = lambda caster, target : newIceFunc(caster, target, "Ice", dmgTypes={'cold':100})
+            elif curEffect.name == "Lightning damage":
+                amount = int(curEffect.amount)
+                newElecFunc = functools.partial(rSpellDamage, amount)
+                toAdd = lambda caster, target : newElecFunc(caster, target, "Lightning", dmgTypes={'lightning':100})
             elif curEffect.name.startswith("Hunger"):
                 if curEffect.name.endswith("+"):
                     type = "Buff"
@@ -2344,7 +2358,7 @@ def castMultipleAttacks(caster = None, monsterTarget = None, attacksNum = 3):
     else:
         target = monsterTarget
     for attack in range(attacksNum):
-        caster.Fighter.attack(target)
+        caster.Fighter.attack(target, fromFreeAtk = True)
     return
 
 def castSeismicSlam(caster, monsterTarget, AOErange = 6, damage = 10, stunCooldown = 4):
@@ -3504,8 +3518,9 @@ def initializeTraits():
     ###  martial  ###
     ## melee
     # light
+    freeAtk = UnlockableTrait('Blade storm', 'You are so used to light weaponry you can sometimes attack twice in rapid succession.', 'trait', requiredTraits={'Light weapons': 4}) #, attackFuncs = [autoFreeAttack])
     flurryTrait = UnlockableTrait('Flurry', 'You unleash three deadly attacks on the target.', 'trait', requiredTraits={'Light weapons': 7}, spells = [flurry])
-    dual = UnlockableTrait('Dual wield', 'Allows to wield two lights weapons at the same time.', 'trait', requiredTraits={'Light weapons': 4})
+    dual = UnlockableTrait('Dual wield', 'Allows to wield two lights weapons at the same time.', 'trait', requiredTraits={'Light weapons': 10})
     # heavy
     seismicTrait = UnlockableTrait('Seismic slam', 'You hit the floor in front of you, creating a shockwave in a cone.', 'trait', requiredTraits={'Heavy weapons': 7}, spells = [seismic])
     ignoreSlow = UnlockableTrait('Easy blows', 'You are used to the weight of heavy weapons and thus can strike with them at a fast speed.', 'trait', requiredTraits={'Heavy weapons': 10})
@@ -3524,7 +3539,7 @@ def initializeTraits():
     meleeKB = UnlockableTrait('Mighty strikes', 'You smash so hard you can sometimes push back enemies', 'trait', requiredTraits = {'Strength': 4}, attackFuncs = [autoKB])
     
     
-    unlockableTraits.extend([controllableWerewolf, dual, aware, flurryTrait, seismicTrait, ignoreSlow, shadowstepTrait, shadowCrit, greaterCrit, meleeKB])
+    unlockableTraits.extend([controllableWerewolf, dual, aware, flurryTrait, seismicTrait, ignoreSlow, shadowstepTrait, shadowCrit, greaterCrit, meleeKB, freeAtk])
     
     for skill in skills:
         for unlock in unlockableTraits:
@@ -3946,9 +3961,9 @@ def closestMonster(max_range):
     found = False
     for object in objects:
         if object.Fighter and not object == player and (object.x, object.y) in visibleTiles:
-            found = True
             dist = player.distanceTo(object)
             if dist < closestDistance:
+                found = True
                 closestEnemy = object
                 closestDistance = dist
     if found:
@@ -4645,10 +4660,26 @@ class Fighter: #All NPCs, enemies and the player
         return self.baseMaxHP + bonus + buffBonus
 
     @property
-    def accuracy(self):
+    def accuracy(self, melee = False, ranged = False):
         bonus = sum(equipment.accuracyBonus for equipment in getAllEquipped(self.owner))
-        buffBonus = sum(buff.accuracy for buff in self.buffList)
-        return self.baseAccuracy + bonus + buffBonus
+        bonus += sum(buff.accuracy for buff in self.buffList)
+        return self.baseAccuracy + bonus
+    
+    @property
+    def meleeAccuracy(self):
+        baseAcc = self.accuracy
+        bonus = 0
+        if self.owner == player:
+            bonus = player.Player.getTrait('skill', 'Melee weaponry').amount * 2
+        return baseAcc + bonus
+    
+    @property
+    def rangedAccuracy(self):
+        baseAcc = self.accuracy
+        bonus = 0
+        if self.owner == player:
+            bonus = player.Player.getTrait('skill', 'Ranged weaponry').amount * 2
+        return baseAcc + bonus
 
     @property
     def evasion(self):
@@ -4854,12 +4885,18 @@ class Fighter: #All NPCs, enemies and the player
                         print('equipment has buff:', buff.name, 'on :', target.name)
                         buff.applyBuff(target)
 
-    def toHit(self, target):
+    def toHit(self, target, melee = False, ranged = False):
         attack = randint(1, 100)
         hit = False
         criticalHit = False
         
-        hitRatio = BASE_HIT_CHANCE + self.accuracy - target.Fighter.evasion
+        statToUse = self.accuracy
+        if melee:
+            statToUse = self.meleeAccuracy
+        elif ranged:
+            statToUse = self.rangedAccuracy
+        
+        hitRatio = BASE_HIT_CHANCE + statToUse - target.Fighter.evasion
         if hitRatio <= 0:
             hitRatio = 1
         if hitRatio >= 96:
@@ -4876,6 +4913,10 @@ class Fighter: #All NPCs, enemies and the player
             if crit <= self.critical:
                 criticalHit = True
         return hit, criticalHit
+    
+    #def parry(self, attacker):
+        #dice = randint(1, 100)
+        #if self.owner == player and player.Player.getTrait('trait', )
     
     def formatAttackText(self, target, hit, crit, damageTaken, baseText = '{} {} hit{} {} for {}!', baseNoDmgText = '{} attack{} {} but it has no effect.'):
         textColor = {'dark_green': True, 'orange':False, 'darker_green':False, 'dark_orange':False}
@@ -4987,9 +5028,9 @@ class Fighter: #All NPCs, enemies and the player
         else:
             message(noDmgText.format(targetText), noDmgColor)
     
-    def attack(self, target):
+    def attack(self, target, fromFreeAtk = False):
         global detectedPlayerThisTurn
-        hit, criticalHit = self.toHit(target)
+        hit, criticalHit = self.toHit(target, melee = True)
         hitDamage = {'none': 0}
         if hit:
             if not self.noDirectDamage:
@@ -5027,19 +5068,17 @@ class Fighter: #All NPCs, enemies and the player
             if SOUND_ENABLED and self.owner == player:
                 playWavSound('miss.wav')
         
-        '''
-        if self.owner.Player:
-            #if getEquippedInHands() is not None:
-                #print('found weapons')
-            print('player attacked')
-            if player.Player.getTrait('trait', 'Easy blows') == 'not found':
-                for weapon in equipmentList: #getEquippedInHands():
-                    print(weapon.name)
-                    if weapon.Equipment.slow:
-                        print('found slow weapon')
-                        player.Player.attackedSlowly = True
-                        player.Player.slowAttackCooldown = 1
-        '''
+        if not fromFreeAtk and self.owner == player and player.Player.getTrait('trait', 'Blade storm') != 'not found':
+            traitAmount = player.Player.getTrait('skill', 'Light weapons').amount
+            dice = randint(1, 100)
+            onlyLight = True
+            chancePerLvl = 3
+            for eq in getEquippedInHands():
+                if 'heavy' in eq.Equipment.type and not eq.Equipment.ranged:
+                    onlyLight = False
+            if dice <= (traitAmount-3)*chancePerLvl and onlyLight:
+                message('You gain a free attack!', colors.green)
+                castMultipleAttacks(player, None, attacksNum = 1)
             
     def heal(self, amount):
         self.hp += amount
@@ -5217,12 +5256,18 @@ class RangedNPC:
             for func in self.attackFunctions:
                 func(self, target)
 
-    def toHit(self, target):
+    def toHit(self, target, melee = False, ranged = False):
         attack = randint(1, 100)
         hit = False
         criticalHit = False
         
-        hitRatio = BASE_HIT_CHANCE + self.accuracy - target.Fighter.evasion
+        statToUse = self.accuracy
+        if melee:
+            statToUse = self.meleeAccuracy
+        elif ranged:
+            statToUse = self.rangedAccuracy
+        
+        hitRatio = BASE_HIT_CHANCE + statToUse - target.Fighter.evasion
         if hitRatio <= 0:
             hitRatio = 1
         if hitRatio >= 96:
@@ -5242,7 +5287,7 @@ class RangedNPC:
 
     def shoot(self, target):
         global FOV_recompute
-        [hit, criticalHit] = self.toHit(target)
+        [hit, criticalHit] = self.toHit(target, ranged = True)
         projectile(self.owner.owner.x, self.owner.owner.y, target.x, target.y, self.projChar, self.projColor, self.continues, self.passesThrough, self.ghost)
         FOV_recompute = True
         damageTaken = 0
@@ -6069,6 +6114,75 @@ class Player:
                 if trait.name == name:
                     return trait
         return 'not found'
+    
+    '''
+    def freeAttack(self):
+        global FOV_recompute, gameState
+        FOV_recompute = True
+        quitAtk = False
+        while not quitAtk:
+            quitAtk = True
+            Update()
+            userInput = tdl.event.key_wait()
+            if tdl.event.isWindowClosed() or (userInput.keychar.upper() == 'ESCAPE' and gameState != 'looking'):
+                quitGame("Closed Game")
+            if userInput.keychar.upper() in MOVEMENT_KEYS:
+                keyX, keyY = MOVEMENT_KEYS[userInput.keychar.upper()]
+                for object in objects:
+                    if (object.x, object.y) == (player.x + keyX, player.y + keyY) and object.Fighter:
+                        moveOrAttack(keyX, keyY)
+                        FOV_recompute = True
+                        return
+            elif userInput.keychar == 'l' and gameState == 'playing':
+                gameState = 'looking'
+                if DEBUG == True:
+                    message('Look mode', colors.purple)
+                lookCursor = GameObject(x = player.x, y = player.y, char = 'X', name = 'cursor', color = colors.yellow, Ghost = True, alwaysAlwaysVisible= True, darkColor=colors.darker_yellow)
+                objects.append(lookCursor)
+                FOV_recompute = True
+                quitAtk = False
+            elif userInput.keychar.upper() == "W" or userInput.keychar.upper() == 'KP5':                 
+                FOV_recompute = True
+                return
+
+            elif gameState == 'looking':
+                quitAtk = False
+                if userInput.keychar.upper() == 'ESCAPE':
+                    gameState = 'playing'
+                    objects.remove(lookCursor)
+                    del lookCursor
+                    message('Exited look mode', colors.purple)
+                    FOV_recompute = True
+                elif userInput.keychar.upper() in MOVEMENT_KEYS:
+                    dx, dy = MOVEMENT_KEYS[userInput.keychar.upper()]
+                    lookCursor.move(dx, dy)
+                    print(lookCursor.x, lookCursor.y, sep=";")
+                    FOV_recompute = True
+                elif userInput.keychar.upper() == 'ENTER':
+                    for object in objects:
+                        if object != lookCursor and object.x == lookCursor.x and object.y == lookCursor.y:
+                            print('found item under lookCursor')
+                            if object.Item:
+                                quit = False
+                                while not quit:
+                                    #root.clear()
+                                    object.Item.displayItem(MID_HEIGHT)
+                                    lookInput = tdl.event.key_wait()
+                                    if lookInput.keychar.upper() == 'ESCAPE':
+                                        quit = True
+                                    #tdl.flush()
+                            if object.Fighter:
+                                quit = False
+                                while not quit:
+                                    #root.clear()
+                                    object.Fighter.displayFighter(MID_HEIGHT)
+                                    lookInput = tdl.event.key_wait()
+                                    if lookInput.keychar.upper() == 'ESCAPE':
+                                        quit = True
+                                    #tdl.flush()
+            else:
+                return
+    '''
 
 def drawHeaderAndValue(cons, x, y, header, value, headerColor = colors.amber, valueColor = colors.white, underline = True):
     cons.draw_str(x, y, header + ':', headerColor)
@@ -7443,7 +7557,7 @@ def getInput():
         FOV_recompute = True
         return 'end turn' 
     elif userInput.keychar == 'A' and gameState == 'playing' and DEBUG and not tdl.event.isWindowClosed():
-        castArmageddon()         
+        castArmageddon()
     elif userInput.keychar == 'l' and gameState == 'playing':
         gameState = 'looking'
         if DEBUG == True:
@@ -7454,8 +7568,8 @@ def getInput():
         return 'didnt-take-turn'
     elif userInput.keychar == 'L':
         displayLog(50)
-    elif userInput.keychar == 'M':
-        displayMap()
+    #elif userInput.keychar == 'M':
+    #    displayMap()
     elif userInput.keychar == 'C':
         displayCharacter()
     elif userInput.keychar == 's':
@@ -7856,7 +7970,7 @@ def checkDiagonals(monster, target):
             break
     return None
 
-def moveOrAttack(dx, dy):
+def moveOrAttack(dx, dy, spendAtkPoints = True):
     if not 'confused' in convertBuffsToNames(player.Fighter):
         x = player.x + dx
         y = player.y + dy
@@ -7888,7 +8002,8 @@ def moveOrAttack(dx, dy):
             else:
                 player.Player.takeControl(target)
         else:
-            player.Fighter.actionPoints -= player.Fighter.attackSpeed
+            if spendAtkPoints:
+                player.Fighter.actionPoints -= player.Fighter.attackSpeed
             player.Fighter.attack(target)
     else:
         if not 'burdened' in convertBuffsToNames(player.Fighter):
@@ -7932,7 +8047,7 @@ def shoot():
                                             monsterTarget = thing
                                             break
                                     if monsterTarget:
-                                        [hit, criticalHit] = player.Fighter.toHit(monsterTarget)
+                                        [hit, criticalHit] = player.Fighter.toHit(monsterTarget, ranged = True)
                                         dmgTxtFunc = lambda damageTaken: player.Fighter.formatAttackText(monsterTarget, hit, criticalHit, damageTaken, baseText = '{} {} shoot{} {} for {}!', baseNoDmgText = '{} shoot{} {} but it has no effect.')
                                         if hit:
                                             if player.Player.getTrait('trait', 'Aggressive').selected:
@@ -7977,7 +8092,7 @@ def shoot():
                                     monsterTarget = thing
                                     break
                             if monsterTarget:
-                                [hit, criticalHit] = player.Fighter.toHit(monsterTarget)
+                                [hit, criticalHit] = player.Fighter.toHit(monsterTarget, ranged = True)
                                 dmgTxtFunc = lambda damageTaken: player.Fighter.formatAttackText(monsterTarget, hit, criticalHit, damageTaken, baseText = '{} {} shoot{} {} for {}!', baseNoDmgText = '{} shoot{} {} but it has no effect.')
                                 if hit:
                                     if player.Player.getTrait('trait', 'Aggressive').selected:
@@ -15454,7 +15569,7 @@ def playGame(noSave = False):
     activeProcess.append(music)
     #actions = 1
     while True:
-        checkLevelUp()
+        #checkLevelUp()
         for trait in player.Player.unlockableTraits:
             trait.checkForRequirements()
         Update()
@@ -15512,6 +15627,7 @@ def playGame(noSave = False):
                 if playerAction == 'exit':
                     quitGame('Player pressed escape', True, noSave)
         '''
+        checkLevelUp()
         FOV_recompute = True #So as to avoid the blackscreen bug no matter which key we press
         if gameState == 'playing' and playerAction != 'didnt-take-turn':
             global mobsToCalculate

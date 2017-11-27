@@ -10,3 +10,4 @@ zone (SingleTile, Cross, X, AOE, Line)
 eff1,amount1  (string, int) WITHOUT SPACE
 eff2,amount2	default: None or *
 eff3,amount3	default: None or *
+#always keep this line filled
