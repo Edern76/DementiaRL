@@ -471,7 +471,7 @@ def convertMusics():
                 print('MUSIC_CONV_ERR : Path {} doesnt exists, skipping...'.format(mp3Path))
         print()
         
-def animStep(waitTime = .125, doUpdate = True):
+def animStep(waitTime = .01, doUpdate = True):
     global FOV_recompute
     FOV_recompute = True
     if doUpdate:
@@ -1147,8 +1147,8 @@ class Spell:
     def cast(self, caster = player, target = player):
         global FOV_recompute
 
-        if caster == player:
-            self.updateSpellStats()
+        #if caster == player:
+        #    self.updateSpellStats()
         if self.ressource == 'MP' and caster.Fighter.MP < self.ressourceCost:
             FOV_recompute = True
             message(caster.name.capitalize() + ' does not have enough MP to cast ' + self.name +'.')
@@ -1648,7 +1648,7 @@ def rSpellExec(func1 = doNothing, func2 = doNothing, func3 = doNothing, targetFu
                     con.draw_char(x,y, '*', fg = color)
             root.blit(con, 0, 0, WIDTH, HEIGHT, 0, 0)
             tdl.flush()
-            time.sleep(2) #Set to .125 once testing done
+            time.sleep(2) #Set to .01 once testing done
             FOV_recompute = True
             Update()
             tdl.flush()
@@ -2094,9 +2094,91 @@ def castEnvenom(caster = None, monsterTarget = None):
         if equipment.Equipment.meleeWeapon or equipment.Equipment.ranged:
             equipment.Equipment.enchant = Enchantment('envenomed', buffOnTarget=[poisoned])
 
-def knockBack(origX, origY, target, KBrange=1, stun=True, stunCD = 2):
+def bump(x, y, monster, damage = 0, moveContactedMob = False, destroyContactedWall = False):
+    inclX = x - monster.x
+    inclY = y - monster.y
+    incl = (inclX, inclY)
+    
+    continueMovement = False
+    
+    if not myMap[x][y].blocked:                     #if the contact is made with a mob and not a wall
+        if incl == (1, 0) or incl == (-1, 0):
+            possibleKnock = [[0, -1], [0, 1]]
+        elif incl == (0, 1) or incl == (0, -1):
+            possibleKnock = [[1, 0], [-1, 0]]
+        elif incl == (1, -1) or incl == (-1, 1):
+            possibleKnock = [[-1, -1], [1, 1]]
+        else:
+            possibleKnock = [[1, -1], [-1, 1]]
+        for object in objects:
+            if object.x == x and object.y == y and object.Fighter:
+                contactedMobDamageBonus = 0
+                if moveContactedMob:
+                    continueMovement = True
+                    choice = randint(0, 1)
+                    newX = x + possibleKnock[choice][0]
+                    newY = y + possibleKnock[choice][1]
+                    otherX = x + possibleKnock[(choice-1) ** 2][0]
+                    otherY = y + possibleKnock[(choice-1) ** 2][1]
+                    if not isBlocked(newX, newY):
+                        object.x = newX
+                        object.y = newY
+                    elif not isBlocked(otherX, otherY):
+                        object.x = otherX
+                        object.y = otherY
+                    elif myMap[newX][newY].blocked:
+                        myMap[newX][newY].baseBlocked = False
+                        myMap[newX][newY].block_sight = False
+                        myMap[newX][newY].baseCharacter = None
+                        myMap[newX][newY].wall = False
+                        for cx in range(newX - 1, newX + 1):
+                            for cy in range(newY -1, newY + 1):
+                                myMap[cx][cy].clearance = checkTileClearance(myMap, cx, cy)
+                        object.x = newX
+                        object.y = newY
+                        contactedMobDamageBonus = randint(object.Fighter.basePower, object.Fighter.basePower*2)
+                    else:
+                        myMap[otherX][otherY].baseBlocked = False
+                        myMap[otherX][otherY].block_sight = False
+                        myMap[otherX][otherY].baseCharacter = None
+                        myMap[otherX][otherY].wall = False
+                        for cx in range(otherX - 1, otherX + 1):
+                            for cy in range(otherY -1, otherY + 1):
+                                myMap[cx][cy].clearance = checkTileClearance(myMap, cx, cy)
+                        object.x = otherX
+                        object.y = otherY
+                        contactedMobDamageBonus = randint(object.Fighter.basePower, object.Fighter.basePower*2)
+                
+                #contacted mob damage
+                damageDict = {'physical': damage + randint(monster.Fighter.basePower, monster.Fighter.basePower+5) + contactedMobDamageBonus}
+                dmgTxtFunc = lambda damageTaken: object.Fighter.formatRawDamageText(damageTaken, '{} slammed by ' + monster.name + ' for {}!', colors.red, '', colors.white, True)
+                object.Fighter.takeDamage(damageDict, "{}'s contact".format(monster.name), damageTextFunction = dmgTxtFunc)
+                
+                #bumping mob damage
+                damageDict = {'physical': damage + randint(monster.Fighter.basePower, monster.Fighter.basePower+5)} #here weight (and thus damage) is treated as being equal to the monster's power
+                dmgTxtFunc = lambda damageTaken: monster.Fighter.formatRawDamageText(damageTaken, '{} slammed into ' + object.name + ' for {}!', colors.red, '', colors.white, True)
+                monster.Fighter.takeDamage(damageDict, "{}'s contact".format(object.name), damageTextFunction = dmgTxtFunc)
+                break
+    else:
+        if destroyContactedWall:
+            myMap[x][y].baseBlocked = False
+            myMap[x][y].block_sight = False
+            myMap[x][y].baseCharacter = None
+            myMap[x][y].wall = False
+            monster.x = x
+            monster.y = y
+                
+        #bumping mob damage
+        damageDict = {'physical': damage + randint(monster.Fighter.basePower, monster.Fighter.basePower*2)}
+        dmgTxtFunc = lambda damageTaken: monster.Fighter.formatRawDamageText(damageTaken, '{} slammed into the wall for {}!', colors.red, '', colors.white, True)
+        monster.Fighter.takeDamage(damageDict, "wall contact".format(monster.name), damageTextFunction = dmgTxtFunc)
+        
+    return continueMovement
+
+def knockBack(origX, origY, target, KBrange=1, stun=True, stunCD = 2, damage = 0, moveContactedMob = False, destroyContactedWall = False):
     destX, destY = target.x, target.y
-    line = tdl.map.bresenham(origX, origY, destX, destY)
+    dx, dy = destX - origX, destY - origY
+    line = tdl.map.bresenham(destX, destY, destX + dx, destY + dy)
     newLine = []
     del line[0]
     KBrange+=1
@@ -2124,7 +2206,10 @@ def knockBack(origX, origY, target, KBrange=1, stun=True, stunCD = 2):
     for (x, y) in line:
         dx = x - target.x
         dy = y - target.y
+        if isBlocked(x, y) and not bump(x, y, target, damage, moveContactedMob, destroyContactedWall):
+            break
         target.move(dx, dy)
+        animStep(.01)
     if stun:
         stunned = Buff('stunned', colors.yellow, cooldown = stunCD)
         stunned.applyBuff(target)
@@ -2161,7 +2246,7 @@ def castMovement(caster = None, monsterTarget = None, tileRange = 4, ignoresChas
             caster.baseFlying = True
         for (nextX, nextY) in line:
             caster.moveTo(nextX, nextY)
-            animStep(0.05)
+            animStep(0.01)
             if isBlocked(nextX, nextY):
                 break
         caster.baseFlying = formerFlight
@@ -2367,12 +2452,12 @@ def castSeismicSlam(caster, monsterTarget, AOErange = 6, damage = 10, stunCooldo
         targetZone = targetTile(SIGHT_RADIUS, AOE = True, rangeAOE = AOErange, styleAOE = 'cone', returnAOE = True)
         if targetZone != 'cancelled':
             affectedMonsters = []
+            
             for object in objects:
                 if (object.x, object.y) in targetZone and object.Fighter and object != caster:
                     affectedMonsters.append(object)
             for monster in affectedMonsters:
-                stunned = Buff('stunned', colors.yellow, cooldown = stunCooldown)
-                stunned.applyBuff(monster)
+                knockBack(caster.x, caster.y, monster, KBrange=2, stun=True, stunCD = stunCooldown)
                 monster.Fighter.takeDamage({'physical': damage}, armored = True, damageSource = 'player')
         else:
             return 'didnt-take-turn'
@@ -2398,9 +2483,32 @@ def castShadowStep(caster, monsterTarget, rangeTP = 10):
         message("You can't use Shadow step when detected!", colors.red)
         return 'didnt-take-turn'
 
+def castThrowEnemy(caster, monsterTarget, rangeThrow = 6):
+    if caster is None or caster == player:
+        caster = player
+        targetCoords = targetTile(1, melee = True)
+        if targetCoords != 'cancelled':
+            for object in objects:
+                if (object.x, object.y) == targetCoords and object.Fighter:
+                    target = object
+                    break
+            else:
+                return 'didnt-take-turn'
+        else: return 'didnt-take-turn'
+        
+        throwCoords = targetTile(rangeThrow, showBresenham = True, returnBresenham = True)
+        if throwCoords == 'cancelled':
+            return 'didnt-take-turn'
+        for (x, y) in throwCoords:
+            if isBlocked(x, y) and not bump(x, y, target, caster.Fighter.basePower):
+                break
+            target.x, target.y = x, y
+            animStep()
+
 flurry = Spell(ressourceCost=15, cooldown=50, useFunction=castMultipleAttacks, name = 'Flurry', ressource = 'Stamina', type = 'Skill')
 seismic = Spell(ressourceCost=20, cooldown=60, useFunction=castSeismicSlam, name='Seismic slam', ressource='Stamina', type='Skill')
 shadowStep = Spell(ressourceCost = 12, cooldown = 70, useFunction = castShadowStep, name = 'Shadow step', ressource = 'MP', type = 'Skill')
+throwEnemy = Spell(ressourceCost=23, cooldown = 40, useFunction = castThrowEnemy, name = 'Throw enemy', ressource = 'Stamina', type = 'Skill')
 
 ### TRAITS UNLOCKABLE SPELLS ###
 ### DEBUG SPELLS ###
@@ -2784,7 +2892,7 @@ drawRect = Spell(ressourceCost = 0, cooldown = 1, useFunction=castDrawRectangle,
 
 ### DEBUG SPELLS ###
 
-spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport, djik, dispDjik, djikProf, detDjik, yellowify, ram, leap, expandRootsDmg, expandRootsDummy, expandRootsRegen, insectFly, demonForm, spawnProj, placeIceWall, testCone, flurry, seismic, shadowStep])
+spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport, djik, dispDjik, djikProf, detDjik, yellowify, ram, leap, expandRootsDmg, expandRootsDummy, expandRootsRegen, insectFly, demonForm, spawnProj, placeIceWall, testCone, flurry, seismic, shadowStep, throwEnemy])
 #_____________SPELLS_____________
 
 #______________CHARACTER GENERATION____________
@@ -2792,13 +2900,13 @@ createdCharacter = {'power': 0, 'acc': 20, 'ev': 0, 'arm': 0, 'hp': 0, 'mp': 0, 
                     'powLvl': 0, 'accLvl': 0, 'evLvl': 0, 'armLvl': 0, 'hpLvl': 0, 'mpLvl': 0, 'critLvl': 0, 'strLvl': 0, 'dexLvl': 0, 'vitLvl': 0, 'willLvl': 0, 'apLvl': 0,
                     'spells': [], 'load': 45.0, 'stealth': 0, 'stamina': 0, 'stamLvl': 0,
                     'dmgTypes': {'physical': 100}, 'resistances': {'physical': 0, 'poison': 0, 'fire': 0, 'cold': 0, 'lightning': 0, 'light': 0, 'dark': 0, 'none': 0},
-                    'attackFuncs': []}
+                    'attackFuncs': [], 'buffsOnAttack': []}
 
 class Trait():
     '''
     Actually used for everything in the character creation, from race to skills etc
     '''
-    def __init__(self, name, description, type, x = 0, y = 0, underCursor = False, selectable = True, selected = False, allowsSelection = [], amount = 0, maxAmount = 1, tier = 1, power = (0, 0), acc = (0, 0), ev = (0, 0), arm = (0, 0), hp = (0, 0), mp = (0, 0), crit = (0, 0), stren = (0, 0), dex = (0, 0), vit = (0, 0), will = (0, 0), spells = None, load = 0, ap = (0, 0), stealth = 0, stam = (0, 0), bonusSkill = [], dmgTypes = {}, resistances = {}, critMult = 0, attackFuncs = []):
+    def __init__(self, name, description, type, x = 0, y = 0, underCursor = False, selectable = True, selected = False, allowsSelection = [], amount = 0, maxAmount = 1, tier = 1, power = (0, 0), acc = (0, 0), ev = (0, 0), arm = (0, 0), hp = (0, 0), mp = (0, 0), crit = (0, 0), stren = (0, 0), dex = (0, 0), vit = (0, 0), will = (0, 0), spells = None, load = 0, ap = (0, 0), stealth = 0, stam = (0, 0), bonusSkill = [], dmgTypes = {}, resistances = {}, critMult = 0, attackFuncs = [], buffsOnAttack = []):
         self.name = name
         self.desc = description
         self.type = type
@@ -2837,6 +2945,7 @@ class Trait():
         self.resistances = resistances
         self.critMult = critMult
         self.attackFuncs = attackFuncs
+        self.buffsOnAttack = buffsOnAttack #[[chance, name]]
     
     def description(self):
         wrappedText = textwrap.wrap(self.desc, 25)
@@ -2895,6 +3004,7 @@ class Trait():
                         types[key] = self.dmgTypes[key]//2
                 
                 createdCharacter['attackFuncs'].extend(self.attackFuncs)
+                createdCharacter['buffsOnAttack'].extend(self.buffsOnAttack)
                 
                 self.amount += 1
                 self.selected = True
@@ -2964,6 +3074,7 @@ class Trait():
                     types[key] = self.dmgTypes[key]//2
             
             player.Fighter.attackFunctions.extend(self.attackFuncs)
+            player.Fighter.buffsOnAttack.extend(self.buffsOnAttack)
 
             self.amount += 1
             if self.spells is not None:
@@ -3029,6 +3140,11 @@ class Trait():
                         createdCharacter['attackFuncs'].remove(func)
                     except:
                         print('could not remove function from created char template:', func)
+                for buff in self.buffsOnAttack:
+                    try:
+                        createdCharacter['buffsOnAttack'].remove(buff)
+                    except:
+                        print('could not remove buff on atk from created char template:', func)
                 
                 self.amount -= 1
                 if self.amount <= 0:
@@ -3110,6 +3226,11 @@ class Trait():
                     player.Fighter.attackFunctions.remove(func)
                 except:
                     print('could not remove function from created char template:', func)
+            for buff in self.buffsOnAttack:
+                try:
+                    player.Fighter.attackFunctions.remove(buff)
+                except:
+                    print('could not remove buff from created char template:', buff)
                 
             self.amount -= 1
             player.Player.baseMaxWeight -= self.load
@@ -3294,9 +3415,9 @@ class UnlockableTrait(Trait):
                  amount = 0, maxAmount = 1, tier = 1, power = (0, 0), acc = (0, 0), ev = (0, 0), arm = (0, 0), hp = (0, 0), mp = (0, 0), crit = (0, 0),
                   stren = (0, 0), dex = (0, 0), vit = (0, 0), will = (0, 0), spells = None, load = 0, ap = (0, 0), stealth = 0, stam = (0, 0),
                   bonusSkill = [], dmgTypes = {}, resistances = {}, critMult = 0,
-                  requiredTraits = {}, attackFuncs = []): #requiredTraits = {'player level': 5, 'Light weapons': 4}
+                  requiredTraits = {}, attackFuncs = [], buffsOnAttack = []): #requiredTraits = {'player level': 5, 'Light weapons': 4}
         
-        Trait.__init__(self, name, description, type, x, y, underCursor, selectable, selected, allowsSelection, amount, maxAmount, tier, power, acc, ev, arm, hp, mp, crit, stren, dex, vit, will, spells, load, ap, stealth, stam, bonusSkill, dmgTypes, resistances, critMult, attackFuncs)
+        Trait.__init__(self, name, description, type, x, y, underCursor, selectable, selected, allowsSelection, amount, maxAmount, tier, power, acc, ev, arm, hp, mp, crit, stren, dex, vit, will, spells, load, ap, stealth, stam, bonusSkill, dmgTypes, resistances, critMult, attackFuncs, buffsOnAttack)
         self.requiredTraits = requiredTraits
     
     def checkForRequirements(self):
@@ -3501,14 +3622,25 @@ def initializeTraits():
                 return
     
     def autoKB(caster = None, target = None, fromTrait = 'Strength'): #caster is a fighter comp
-        baseChance = 20
+        baseChance = 12
         traitAmount = player.Player.getTrait('skill', fromTrait).amount
-        chance = baseChance + (traitAmount-4) * 5
+        chance = baseChance + (traitAmount-3) * 3
         dice = randint(1, 100)
         print('KNOCKBACK:', dice, chance)
         if dice <= chance:
             message('{} is pushed back!'.format(target.name.capitalize()), colors.green)
-            knockBack(player.x, player.y, target, traitAmount-3, True, 2 + (traitAmount-3)//2)
+            knockBack(player.x, player.y, target, 1 + (traitAmount-3)//2, True, 2 + (traitAmount-3)//2)
+    
+    def autoStun(caster = None, target = None, fromTrait = 'Heavy weapons'): #caster is a fighter comp
+        baseChance = 12
+        traitAmount = player.Player.getTrait('skill', fromTrait).amount
+        chance = baseChance + (traitAmount-3) * 3
+        dice = randint(1, 100)
+        print('STUN:', dice, chance)
+        if dice <= chance:
+            stunned = Buff('stunned', colors.light_yellow, cooldown = 4)
+            stunned.applyBuff(target)
+            
         
     shapeshift = Spell(ressourceCost=10, cooldown = 100, useFunction=castShapeshift, name = 'Shapeshift', ressource='MP', type = 'racial')
     
@@ -3522,6 +3654,7 @@ def initializeTraits():
     flurryTrait = UnlockableTrait('Flurry', 'You unleash three deadly attacks on the target.', 'trait', requiredTraits={'Light weapons': 7}, spells = [flurry])
     dual = UnlockableTrait('Dual wield', 'Allows to wield two lights weapons at the same time.', 'trait', requiredTraits={'Light weapons': 10})
     # heavy
+    autoStun = UnlockableTrait('Stunning strikes', 'You hit so hard you can stun your enemies.', 'trait', requiredTraits = {'Heavy weapons': 4}, attackFuncs = [autoStun])
     seismicTrait = UnlockableTrait('Seismic slam', 'You hit the floor in front of you, creating a shockwave in a cone.', 'trait', requiredTraits={'Heavy weapons': 7}, spells = [seismic])
     ignoreSlow = UnlockableTrait('Easy blows', 'You are used to the weight of heavy weapons and thus can strike with them at a fast speed.', 'trait', requiredTraits={'Heavy weapons': 10})
     
@@ -3537,9 +3670,11 @@ def initializeTraits():
     greaterCrit = UnlockableTrait('Fatal precision', 'Your hits are so precise they can eviscerate your victim in one strike.', 'trait', requiredTraits = {'Critical': 4}, critMult = 1)
     ## strength
     meleeKB = UnlockableTrait('Mighty strikes', 'You smash so hard you can sometimes push back enemies', 'trait', requiredTraits = {'Strength': 4}, attackFuncs = [autoKB])
+    # brawl
+    glovesDmg = UnlockableTrait('Fist fighter', 'You know very well how to use your hands in a fight.', 'trait', requiredTraits = {'Brawling': 4})
+    throwEnemySkill = UnlockableTrait('Throw enemy', 'You can grab an enemy and throw it across rooms, sometimes into his fellow companions.', 'trait', requiredTraits = {'Brawling': 7}, spells = [throwEnemy])
     
-    
-    unlockableTraits.extend([controllableWerewolf, dual, aware, flurryTrait, seismicTrait, ignoreSlow, shadowstepTrait, shadowCrit, greaterCrit, meleeKB, freeAtk])
+    unlockableTraits.extend([controllableWerewolf, dual, aware, flurryTrait, seismicTrait, ignoreSlow, shadowstepTrait, shadowCrit, greaterCrit, meleeKB, freeAtk, glovesDmg])
     
     for skill in skills:
         for unlock in unlockableTraits:
@@ -3555,7 +3690,7 @@ def characterCreation():
                     'powLvl': 0, 'accLvl': 0, 'evLvl': 0, 'armLvl': 0, 'hpLvl': 0, 'mpLvl': 0, 'critLvl': 0, 'strLvl': 0, 'dexLvl': 0, 'vitLvl': 0, 'willLvl': 0, 'apLvl': 0,
                     'spells': [], 'load': 45.0, 'stealth': 0, 'stamina': 0, 'stamLvl': 0,
                     'dmgTypes': {'physical': 100}, 'resistances': {'physical': 0, 'poison': 0, 'fire': 0, 'cold': 0, 'lightning': 0, 'light': 0, 'dark': 0, 'none': 0},
-                    'attackFuncs': []}
+                    'attackFuncs': [], 'buffsOnAttack': []}
     #allTraits = []
     #leftTraits = []
     #rightTraits = []
@@ -4451,7 +4586,7 @@ class Projectile:
             if self.path:
                 (x, y) = self.path.pop(0)
                 proj.x, proj.y = x, y
-                animStep(.025)
+                animStep(.01)
                 if isBlocked(x, y) and (not self.passesThrough or myMap[x][y].blocked) and not self.ghost:
                     objects.remove(proj)
                     del proj
@@ -4471,7 +4606,7 @@ class Projectile:
                 self.generateNewPath()
                 (x, y) = self.path.pop(0)
                 proj.x, proj.y = x, y
-                animStep(.025)
+                animStep(.01)
                 if isBlocked(x, y) and (not self.passesThrough or myMap[x][y].blocked) and not self.ghost:
                     objects.remove(proj)
                     del proj
@@ -4492,7 +4627,7 @@ def createNPCFromMapReader(attributeList):
     return GameObject(int(attributeList[0]), int(attributeList[1]), attributeList[2], attributeList[3], attributeList[4], blocks = True, socialComp = getattr(dial, attributeList[5]), shopComp = shop)
 
 class Fighter: #All NPCs, enemies and the player
-    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = [0], shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = None, slots = ['head', 'torso', 'left hand', 'right hand', 'legs', 'feet'], equipmentList = [], toEquip = [], attackFunctions = [], noDirectDamage = False, pic = 'ogre.xp', description = 'Placeholder', rangedPower = 0, Ranged = None, stamina = 0, attackSpeed = 100, moveSpeed = 100, rangedSpeed = 100, resistances = {'physical': 0, 'poison': 0, 'fire': 0, 'cold': 0, 'lightning': 0, 'light': 0, 'dark': 0, 'none': 0}, attackTypes = {'physical': 100}):
+    def __init__(self, hp, armor, power, accuracy, evasion, xp, deathFunction=None, maxMP = 0, knownSpells = None, critical = 5, armorPenetration = 0, lootFunction = None, lootRate = [0], shootCooldown = 0, landCooldown = 0, transferDamage = None, leechRessource = None, leechAmount = 0, buffsOnAttack = [], slots = ['head', 'torso', 'left hand', 'right hand', 'legs', 'feet'], equipmentList = [], toEquip = [], attackFunctions = [], noDirectDamage = False, pic = 'ogre.xp', description = 'Placeholder', rangedPower = 0, Ranged = None, stamina = 0, attackSpeed = 100, moveSpeed = 100, rangedSpeed = 100, resistances = {'physical': 0, 'poison': 0, 'fire': 0, 'cold': 0, 'lightning': 0, 'light': 0, 'dark': 0, 'none': 0}, attackTypes = {'physical': 100}):
         self.noVitHP = hp
         self.BASE_MAX_HP = hp
         self.hp = hp
@@ -5663,7 +5798,7 @@ class Charger:
                 monster.x, monster.y = x, y
                 if dragging:
                     dragged.x, dragged.y = pinnedX, pinnedY
-                animStep(.050)
+                animStep(.01)
             else:
                 if dragging:
                     print(x, y)
@@ -6868,6 +7003,9 @@ class Equipment:
 
     @property
     def powerBonus(self):
+        multiplier = 1
+        if 'gloves' in self.type and player.Player.getTrait('trait', 'Fist fighter') != 'not found':
+            multiplier = 2
         if 'light' in self.type and self.owner in equipmentList:
             bonus = (10 * player.Player.getTrait('skill', 'Light weapons').amount) / 100
         elif 'heavy' in self.type and self.owner in equipmentList:
@@ -6875,9 +7013,9 @@ class Equipment:
         else:
             bonus = 0
         if self.enchant:
-            return round(self.basePowerBonus * bonus + self.basePowerBonus + self.enchant.power)
+            return round((self.basePowerBonus * bonus + self.basePowerBonus + self.enchant.power)*multiplier)
         else:
-            return round(self.basePowerBonus * bonus + self.basePowerBonus)
+            return round((self.basePowerBonus * bonus + self.basePowerBonus) * multiplier)
     
     @property
     def rangedPower(self):
@@ -7916,7 +8054,7 @@ def projectile(sourceX, sourceY, destX, destY, char, color, continues = False, p
         for loop in range(len(line)):
             (x, y) = line.pop(0)
             proj.x, proj.y = x, y
-            animStep(.050)
+            animStep(.01)
             if isBlocked(x, y) and (not passesThrough or myMap[x][y].blocked) and not ghost:
                 objects.remove(proj)
                 return (x,y)
@@ -7934,7 +8072,7 @@ def projectile(sourceX, sourceY, destX, destY, char, color, continues = False, p
                 for r in range(len(line)):
                     (x, y) = line.pop(0)
                     proj.x, proj.y = x, y
-                    animStep(.050)
+                    animStep(.01)
                     if isBlocked(x, y):
                         objects.remove(proj)
                         return (x,y)
@@ -8649,7 +8787,7 @@ def explode(color = colors.red):
     FOV_recompute = True
     Update(color)
     tdl.flush()
-    time.sleep(.125) #Wait for 0.125 seconds
+    time.sleep(.1) #Wait for 0.125 seconds
     explodingTiles = []
     FOV_recompute = True
     if player.Fighter.hp > 0:
