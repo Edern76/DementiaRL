@@ -118,9 +118,9 @@ weaponAttributes = {'dagger': {'type': 'light', 'slot': 'one handed', 'pic': 'da
                     'warhammer': {'type': 'heavy', 'slot': 'one handed', 'pic': 'hammer.xp', 'pow': 13, 'crit': 3, 'weight': 1.5, 'atkSpeed': 50},
                     'maul': {'type': 'heavy', 'slot': 'two handed', 'pic': 'greatHammer.xp', 'pow': 19, 'crit': 6, 'weight': 5.7, 'atkSpeed': 100},
                     
-                    'cestus': {'type': 'light', 'slot': 'two handed', 'pic': 'mace.xp', 'pow': 7, 'acc': 15, 'ev': 20, 'crit': -5, 'arm': 2, 'weight': 0.3, 'atkSpeed': -25},
-                    'knuckles': {'type': 'light', 'slot': 'two handed', 'pic': 'mace.xp', 'pow': 13, 'acc': 10, 'ev': 15, 'crit': 2, 'weight': 0.7, 'atkSpeed': -25},
-                    'fighting claws': {'type': 'light', 'slot': 'two handed', 'pic': 'mace.xp', 'pow': 16, 'acc': 10, 'ev': 25, 'crit': 5, 'weight': 0.6},
+                    'cestus': {'type': 'light', 'slot': 'two handed', 'pic': 'cestus.xp', 'pow': 7, 'acc': 15, 'ev': 20, 'crit': -5, 'arm': 2, 'weight': 0.3, 'atkSpeed': -25},
+                    'knuckles': {'type': 'light', 'slot': 'two handed', 'pic': 'knuckles.xp', 'pow': 13, 'acc': 10, 'ev': 15, 'crit': 2, 'weight': 0.7, 'atkSpeed': -25},
+                    'fighting claws': {'type': 'light', 'slot': 'two handed', 'pic': 'fightingClaws.xp', 'pow': 16, 'acc': 10, 'ev': 25, 'crit': 5, 'weight': 0.6},
                     
                     'pike': {'type': 'light', 'slot': 'one handed', 'pic': 'spear.xp', 'pow': 8, 'acc': 10, 'ev': 10, 'weight': 3.1},
                     'halberd': {'type': 'heavy', 'slot': 'two handed', 'pic': 'halberd.xp', 'pow': 14, 'ap': 2, 'acc': 5, 'weight': 3.9, 'atkSpeed': 100}
@@ -273,33 +273,33 @@ armorNames = {'head': {'cloth': 'hood', 'leather': 'hood', 'chainmail': 'coif', 
 armorAttributes = {'cloth': {'head': {'pic': 'hood.xp', 'ev': 5, 'stealth': 5, 'weight': 0.1}, #TO-DO add pics
                              'legs': {'ev': 10, 'stealth': 10, 'weight': 0.3}, 
                              'torso': {'pic': 'shirt.xp', 'ev': 15, 'stealth': 10, 'weight': 0.5},
-                             'feet': {'stealth': 5, 'weight': 0.2},
+                             'feet': {'pic': 'shoes.xp', 'stealth': 5, 'weight': 0.2},
                              'hands': {'stealth': 5, 'dex': 5, 'weight': 0.1},
                              'back': {'stealth': 20, 'ev': 10, 'weight': 0.6}
                              },
                    'leather': {'head': {'pic': 'leatherHood.xp', 'arm': 1, 'stealth': 3, 'weight': 0.5},
                              'legs': {'arm': 3, 'weight': 1.2},
                              'torso': {'pic': 'tunique.xp', 'arm': 5, 'weight': 1.5},
-                             'feet': {'arm': 2, 'weight': 0.9},
+                             'feet': {'pic': 'leatherBoots.xp', 'arm': 2, 'weight': 0.9},
                              'hands': {'dex': 4, 'weight': 0.1},
                              'back': {'arm': 3, 'stealth': 7, 'weight': 1.0}
                              },
                    'chainmail': {'head': {'pic': 'coif.xp', 'arm': 5, 'dex': -2, 'weight': 1.2},
                                  'legs': {'arm': 7, 'ev': -7, 'weight': 1.9},
                                  'torso': {'pic': 'mailHauberk.xp', 'arm': 10, 'ev': -10, 'weight': 2.4},
-                                 'feet': {'arm': 3, 'ev': -5, 'weight': 1.3},
+                                 'feet': {'pic': 'chainBoots.xp', 'arm': 3, 'ev': -5, 'weight': 1.3},
                                  'hands': {'arm': 3, 'dex': 3, 'weight': 1.0}
                                  },
                    'scale': {'head': {'pic': 'aventail.xp', 'arm': 8, 'dex': -4, 'weight': 2.1},
                              'legs': {'arm': 10, 'ev': -10, 'weight': 2.7},
                              'torso': {'pic': 'scaleHauberk.xp', 'arm': 13, 'ev': -15, 'weight': 3.4},
-                             'feet': {'arm': 7, 'ev': -7, 'weight': 2.4},
+                             'feet': {'pic': 'scaleBoots.xp', 'arm': 7, 'ev': -7, 'weight': 2.4},
                              'hands': {'arm': 5, 'dex': 2, 'weight': 1.9}
                              },
                    'plate': {'head': {'pic': 'greatHelm.xp', 'arm': 12, 'dex': -6, 'weight': 3.5},
                              'legs': {'arm': 14, 'ev': -15, 'weight': 4.1},
                              'torso': {'pic': 'breastplate.xp', 'arm': 17, 'ev': -25, 'weight': 5.4},
-                             'feet': {'arm': 11, 'ev': -10, 'weight': 3.0},
+                             'feet': {'pic': 'plateBoots.xp', 'arm': 11, 'ev': -10, 'weight': 3.0},
                              'hands': {'arm': 9, 'dex': 2, 'weight': 2.1}
                              }
                    }

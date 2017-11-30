@@ -176,7 +176,7 @@ LOOK_X = MAP_WIDTH - LOOK_WIDTH + 1
 SIDE_PANEL_WIDTH = WIDTH - MAP_WIDTH #Default: WIDTH - PANEL_WIDTH
 SIDE_PANEL_X = MAP_WIDTH
 SIDE_PANEL_Y = 0
-SIDE_PANEL_MODES = ['enemies', 'items', 'inventory', 'equipment', 'spells', 'buffs', 'stealth']
+SIDE_PANEL_MODES = ['enemies', 'items', 'inventory', 'equipment', 'spells', 'stealth'] #, 'buffs']
 currentSidepanelMode = 0
 SIDE_PANEL_TEXT_WIDTH = SIDE_PANEL_WIDTH - 5
 SIDE_PANEL_INFO_Y = 4 #Default: 5
@@ -3674,7 +3674,7 @@ def initializeTraits():
     glovesDmg = UnlockableTrait('Fist fighter', 'You know very well how to use your hands in a fight.', 'trait', requiredTraits = {'Brawling': 4})
     throwEnemySkill = UnlockableTrait('Throw enemy', 'You can grab an enemy and throw it across rooms, sometimes into his fellow companions.', 'trait', requiredTraits = {'Brawling': 7}, spells = [throwEnemy])
     
-    unlockableTraits.extend([controllableWerewolf, dual, aware, flurryTrait, seismicTrait, ignoreSlow, shadowstepTrait, shadowCrit, greaterCrit, meleeKB, freeAtk, glovesDmg])
+    unlockableTraits.extend([controllableWerewolf, dual, aware, flurryTrait, seismicTrait, ignoreSlow, shadowstepTrait, shadowCrit, greaterCrit, meleeKB, freeAtk, glovesDmg, throwEnemySkill])
     
     for skill in skills:
         for unlock in unlockableTraits:
@@ -5611,7 +5611,7 @@ class BasicMonster(TargetSelector): #Basic monsters' AI
                     print("SELECTED TARGET IS NOT NONE")
                     for mons in monsters:
                         dx, dy = mons.x - monster.x, mons.y - monster.y
-                        fx, fy = self.futureCoords
+                        fx, fy = monster.x, monster.y #self.futureCoords
                         if self.selectedTarget.distanceToCoords(fx+dx, fy+dy) < 2:
                             mons.Fighter.attack(self.selectedTarget)
                             monster.Fighter.actionPoints -= monster.Fighter.attackSpeed
@@ -6733,7 +6733,7 @@ class Item:
             newList.remove(stat)
         return newList
         
-    def displayItem(self, posX = 0):
+    def displayItem(self, posX = 0, posY = 0, headerFormat = '{}:', capitalizing = True, fromWindow = None):
         global FOV_recompute, menuWindows
         asciiFile = os.path.join(absAsciiPath, self.pic)
         xpRawString = gzip.open(asciiFile, "r").read()
@@ -6759,7 +6759,7 @@ class Item:
         
         if menuWindows:
             for mWindow in menuWindows:
-                if not mWindow.name == 'inventory' and not mWindow.type == 'menu':
+                if not mWindow.name == 'inventory' and not mWindow.type == 'menu' and mWindow != fromWindow:
                     mWindow.clear()
                     print('CLEARED {} WINDOW OF TYPE {}'.format(mWindow.name, mWindow.type))
                     if mWindow.name == 'displayItemInInventory':
@@ -6815,20 +6815,25 @@ class Item:
             elif 'legendary' in self.owner.Equipment.type:
                 headerColor = itemGen.legendary.color
         
-        window.draw_str(1, 1, self.owner.name.capitalize() + ':', fg = headerColor, bg = None)
+        if capitalizing:
+            name = self.owner.name.capitalize()
+        else:
+            name = self.owner.name
+        window.draw_str(1, 1, headerFormat.format(name), fg = headerColor, bg = None)
         for i, line in enumerate(desc):
             window.draw_str(1, int(picHeight) + 5 + i, desc[i], fg = colors.white)
         finalI = i
         for i, header in enumerate(headers):
             drawHeaderAndValue(window, 1, int(picHeight) + 6 + finalI + i, header, stats[header], underline = False)
-        posY = MID_HEIGHT - height//2
+        if posY == 0:
+            posY = MID_HEIGHT - height//2
         root.blit(window, posX, posY, width, height, 0, 0)
         
         menuWindows.append(window)
         FOV_recompute = True
         tdl.flush()
     
-    def display(self, options):
+    def display(self, options): #after being selected in the menu
         global menuWindows, FOV_recompute
         asciiFile = os.path.join(absAsciiPath, self.pic)
         xpRawString = gzip.open(asciiFile, "r").read()
@@ -6859,7 +6864,13 @@ class Item:
         window.clear()
         menuWindows.append(window)
         
+        willReplaceEq = False
+        if self.owner.Equipment and not self.owner.Equipment.isEquipped and not 'handed' in self.owner.Equipment.slot:
+            toBeReplacedEq = getEquippedInSlot(self.owner.Equipment.slot)
+            willReplaceEq = True
+        
         choseOrQuit = False
+        index = 0
         while not choseOrQuit:
             choseOrQuit = True
             for k in range(width):
@@ -6915,24 +6926,49 @@ class Item:
             for optionText in options:
                 text = '(' + chr(letterIndex) + ') ' + optionText
                 letterIndex += 1
-                window.draw_str(1, y, text, bg=None)
+                if counter == index:
+                    window.draw_str(1, y, text, fg = colors.black, bg = colors.white)
+                else:
+                    window.draw_str(1, y, text, fg = colors.white, bg=colors.black)
                 y += 1
                 counter += 1
-
+            
+            #if not willReplaceEq:
             posX = MID_WIDTH - int(width/2)
+            #else:
+            #    posX = MID_WIDTH - 2*int(width/3)
             posY = MID_HEIGHT - int(height/2)
-            root.blit(window, posX, posY, width, height, 0, 0)
+            #root.blit(window, posX, posY, width, height, 0, 0)
         
+            #tdl.flush()
+            
+            if willReplaceEq:
+                toBeReplacedEq.owner.Item.displayItem(MID_WIDTH + int(width/2) + width%2, posY, headerFormat = 'Replacing {}:', capitalizing = False, fromWindow = window)
+            root.blit(window, posX, posY, width, height, 0, 0)
+            
             tdl.flush()
+            #Update()
             
             key = tdl.event.key_wait()
             keyChar = key.keychar
             if keyChar in 'abcdefghijklmnopqrstuvwsyz':
-                index = ord(keyChar) - ord('a')
-                if index >= 0 and index < len(options):
-                    return index
+                ind = ord(keyChar) - ord('a')
+                if ind >= 0 and ind < len(options):
+                    return ind
             elif keyChar.upper() == "ESCAPE":
                 return "cancelled"
+            elif keyChar.upper() == 'DOWN':
+                choseOrQuit = False
+                index += 1
+                if index >= len(options):
+                    index = 0
+            elif keyChar.upper() == 'UP':
+                choseOrQuit = False
+                index -= 1
+                if index < 0:
+                    index = len(options) - 1
+            elif keyChar.upper() == 'ENTER':
+                return index
             else:
                 choseOrQuit = False
         return None
@@ -7610,8 +7646,9 @@ def getInput():
             quitGame('Whatever you did, it went horribly wrong (DEBUG took an unexpected value)')    
         FOV_recompute= True
     elif userInput.keychar.upper() == 'F4' and DEBUG and not tdl.event.isWindowClosed(): #For some reason, Bad Things (tm) happen if you don't perform a tdl.event.isWindowClosed() check here. Yeah, don't ask why.
-        global dispClearance
-        dispClearance = not dispClearance
+        #global dispClearance
+        #dispClearance = not dispClearance
+        castCreateArmor()
         FOV_recompute = True
         return 'didnt-take-turn'
     elif userInput.keychar.upper() == 'F5' and DEBUG and not tdl.event.isWindowClosed(): #Don't know if tdl.event.isWindowClosed() is necessary here but added it just to be sure
@@ -8772,6 +8809,18 @@ def castCreateWeapon():
         (x,y) = target
         #weapon = createWeapon(x=x, y=y)
         weapon = convertItemTemplate(itemGen.generateMeleeWeapon(depthLevel, player.level))
+        weapon.x, weapon.y = x, y
+        if weapon is not None:
+            objects.append(weapon)
+
+def castCreateArmor():
+    target = targetTile()
+    if target == 'cancelled':
+        return 'cancelled'
+    else:
+        (x,y) = target
+        #weapon = createWeapon(x=x, y=y)
+        weapon = convertItemTemplate(itemGen.generateArmor(depthLevel, player.level))
         weapon.x, weapon.y = x, y
         if weapon is not None:
             objects.append(weapon)
@@ -12473,6 +12522,10 @@ def getAllEquipped(object):  #returns a list of equipped items
         return equippedList
     else:
         return []
+
+#def equipMenu(equipment):
+    
+
 #_____________ EQUIPMENT ________________
 #EQUIPMENT CLASS WAS HERE, CUT PASTE AT THIS LINE IN CASE OF PROBLM
 
@@ -13945,7 +13998,10 @@ def Update(explodeColor = colors.red):
     con.draw_char(WIDTH - 1, PANEL_Y - 1, chr(254), colors.amber)
     
     con.draw_str(MSG_X + MSG_WIDTH//2 - 2, PANEL_Y - 1, 'LOG', colors.darker_amber, colors.amber)
-    con.draw_str(LOOK_X + LOOK_WIDTH//2 - 2, PANEL_Y - 1, 'LOOK', colors.darker_amber, colors.amber)
+    if gameState == 'looking':
+        con.draw_str(LOOK_X + LOOK_WIDTH//2 - 2, PANEL_Y - 1, 'LOOK', colors.darker_amber, colors.amber)
+    else:
+        con.draw_str(LOOK_X + LOOK_WIDTH//2 - 3, PANEL_Y - 1, 'BUFFS', colors.darker_amber, colors.amber)
     con.draw_str(MSG_X//2 - 4, PANEL_Y - 1, 'STATUS', colors.darker_amber, colors.amber)
     
     for py in range(PANEL_HEIGHT):
@@ -14044,6 +14100,21 @@ def Update(explodeColor = colors.red):
         for line in text:
             lookPanel.draw_str(1, 1 + ly, line, colors.white)
             ly += 1
+    else:
+        panelY = 1
+        selfAware = player.Player.getTrait('trait', 'Self aware') != 'not found'
+        for buff in player.Fighter.buffList:
+            if buff.showBuff:
+                if selfAware and buff.showCooldown:
+                    buffText = buff.name.capitalize() + ' (' + str(buff.curCooldown) + ')'
+                else:
+                    buffText = buff.name.capitalize()
+                text = textwrap.wrap(buffText, LOOK_WIDTH - 1)
+                if not panelY + len(text) >= HEIGHT:
+                    for line in text:
+                        lookPanel.draw_str(2, panelY, line, buff.color)
+                        panelY += 1
+                    panelY += 1
     
     
     #side panel modes
@@ -14069,6 +14140,7 @@ def Update(explodeColor = colors.red):
                     sidePanel.draw_str(4, panelY, line, fg = colors.white)
                     panelY += 1
                 panelY += 1
+    '''
     if mode == 'buffs':
         panelY = 6
         selfAware = player.Player.getTrait('trait', 'Self aware') != 'not found'
@@ -14084,6 +14156,7 @@ def Update(explodeColor = colors.red):
                         sidePanel.draw_str(2, panelY, line, buff.color)
                         panelY += 1
                     panelY += 1
+    '''
     if mode == 'inventory':
         panelY = 6
         for item in inventory:
