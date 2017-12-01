@@ -480,7 +480,7 @@ def animStep(waitTime = .01, doUpdate = True):
     time.sleep(waitTime)
 
 #_____________MENU_______________
-def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp, selectedIndex, noItemMessage = None, displayItem = False):
+def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp, selectedIndex, noItemMessage = None, displayItem = False, posX = None):
     window.clear()
     for i, line in enumerate(headerWrapped):
         window.draw_str(1, 1+i, headerWrapped[i], fg = colors.amber)
@@ -507,9 +507,11 @@ def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxP
             counter += 1
     else:
         window.draw_str(1, y, options[0], bg = None, fg = colors.red)
-    if displayItem:
+    if displayItem and not posX:
         print('displaying item')
         x = MID_WIDTH - int(width/2) - 15
+    elif posX:
+        x = posX
     else:
         print('not displaying item')
         x = MID_WIDTH - int(width/2)
@@ -519,7 +521,7 @@ def drawMenuOptions(y, options, window, page, width, height, headerWrapped, maxP
     if not displayItem:
         tdl.flush()
         
-def drawColorMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp, selectedIndex, noItemMessage = None, displayItem = False):
+def drawColorMenuOptions(y, options, window, page, width, height, headerWrapped, maxPages, pagesDisp, selectedIndex, noItemMessage = None, displayItem = False, posX = None):
     window.clear()
     for i, line in enumerate(headerWrapped):
         window.draw_str(1, 1+i, headerWrapped[i], fg = colors.amber)
@@ -570,9 +572,11 @@ def drawColorMenuOptions(y, options, window, page, width, height, headerWrapped,
             counter += 1
     else:
         window.draw_str(1, y, options[0], bg = None, fg = colors.red) #Draw the no item message, which is the first element of the array options
-    if displayItem:
+    if displayItem and not posX:
         print('displaying item')
         x = MID_WIDTH - int(width/2) - 15
+    elif posX:
+        x = posX
     else:
         print('not displaying item')
         x = MID_WIDTH - int(width/2)
@@ -582,7 +586,7 @@ def drawColorMenuOptions(y, options, window, page, width, height, headerWrapped,
     if not displayItem:
         tdl.flush()
 
-def menu(header, options, width, usedList = None, noItemMessage = None, inGame = True, adjustHeight = True, needsInput = True, displayItem = False, name = 'noName', switchKey = None, switchHeader = None, itemDisplayed = 'item'):
+def menu(header, options, width, usedList = None, noItemMessage = None, inGame = True, adjustHeight = True, needsInput = True, displayItem = False, name = 'noName', switchKey = None, switchHeader = None, itemDisplayed = 'item', posX = None):
     global menuWindows, FOV_recompute
     hasSwitched = False
     index = 0
@@ -622,7 +626,7 @@ def menu(header, options, width, usedList = None, noItemMessage = None, inGame =
     else:
         y = switchHeaderHeight + 2 + pagesDispHeight
         headerToDraw = switchHeaderWrapped
-    drawMenuOptions(y, options, window, page, width, height, headerToDraw, maxPages, pagesDisp, index, noItemMessage, displayItem)
+    drawMenuOptions(y, options, window, page, width, height, headerToDraw, maxPages, pagesDisp, index, noItemMessage, displayItem, posX = posX)
     print('Not loop menu option draw')
     
     if displayItem and usedList:
@@ -631,6 +635,8 @@ def menu(header, options, width, usedList = None, noItemMessage = None, inGame =
             item.displayItem(posX = MID_WIDTH + width//2 - 15)
         elif itemDisplayed == 'spell':
             usedList[0].displayInfo(MID_WIDTH + width//2 - 15)
+        elif itemDisplayed == 'weapon':
+            usedList[0].Item.displayItem(posX = MID_WIDTH + width//2 - 15)
     print('Not loop item disp')
     tdl.flush()
     
@@ -651,7 +657,7 @@ def menu(header, options, width, usedList = None, noItemMessage = None, inGame =
                 maxIndex = 25
             #choseOrQuit = True
             arrow = False
-            drawMenuOptions(y, options, window, page, width, height, headerToDraw, maxPages, pagesDisp, index, noItemMessage, displayItem)
+            drawMenuOptions(y, options, window, page, width, height, headerToDraw, maxPages, pagesDisp, index, noItemMessage, displayItem, posX = posX)
             tdl.flush()
             print('Loop menu option disp')
             key = tdl.event.key_wait_no_shift()
@@ -694,6 +700,11 @@ def menu(header, options, width, usedList = None, noItemMessage = None, inGame =
                     item.displayItem(posX = MID_WIDTH + width//2 - 15)
                 elif itemDisplayed == 'spell':
                     usedList[index + page * 26].displayInfo(MID_WIDTH + width//2 - 15)
+                elif itemDisplayed == 'weapon':
+                    try:
+                        usedList[index + page*26].Item.displayItem(posX = MID_WIDTH + width//2 - 15)
+                    except:
+                        usedList[0+page*26].Item.displayItem(posX = MID_WIDTH + width//2 - 15)
             print('Loop item disp')
             
             if not arrow:
@@ -6733,7 +6744,7 @@ class Item:
             newList.remove(stat)
         return newList
         
-    def displayItem(self, posX = 0, posY = 0, headerFormat = '{}:', capitalizing = True, fromWindow = None):
+    def displayItem(self, posX = 0, posY = 0, headerFormat = '{}:', capitalizing = True, highlightTitle = False, fromWindow = None):
         global FOV_recompute, menuWindows
         asciiFile = os.path.join(absAsciiPath, self.pic)
         xpRawString = gzip.open(asciiFile, "r").read()
@@ -6759,7 +6770,7 @@ class Item:
         
         if menuWindows:
             for mWindow in menuWindows:
-                if not mWindow.name == 'inventory' and not mWindow.type == 'menu' and mWindow != fromWindow:
+                if not mWindow.name == 'inventory' and not mWindow.type == 'menu' and mWindow != fromWindow and mWindow.name != 'displayItemSelected':
                     mWindow.clear()
                     print('CLEARED {} WINDOW OF TYPE {}'.format(mWindow.name, mWindow.type))
                     if mWindow.name == 'displayItemInInventory':
@@ -6819,7 +6830,10 @@ class Item:
             name = self.owner.name.capitalize()
         else:
             name = self.owner.name
-        window.draw_str(1, 1, headerFormat.format(name), fg = headerColor, bg = None)
+        if not highlightTitle:
+            window.draw_str(1, 1, headerFormat.format(name), fg = headerColor, bg = None)
+        else:
+            window.draw_str(1, 1, headerFormat.format(name), fg = colors.black, bg = headerColor)
         for i, line in enumerate(desc):
             window.draw_str(1, int(picHeight) + 5 + i, desc[i], fg = colors.white)
         finalI = i
@@ -6866,8 +6880,10 @@ class Item:
         
         willReplaceEq = False
         if self.owner.Equipment and not self.owner.Equipment.isEquipped and not 'handed' in self.owner.Equipment.slot:
-            toBeReplacedEq = getEquippedInSlot(self.owner.Equipment.slot)
-            willReplaceEq = True
+                toBeReplacedEq = getEquippedInSlot(self.owner.Equipment.slot).owner
+                if toBeReplacedEq:
+                    willReplaceEq = True
+                    
         
         choseOrQuit = False
         index = 0
@@ -6943,7 +6959,7 @@ class Item:
             #tdl.flush()
             
             if willReplaceEq:
-                toBeReplacedEq.owner.Item.displayItem(MID_WIDTH + int(width/2) + width%2, posY, headerFormat = 'Replacing {}:', capitalizing = False, fromWindow = window)
+                toBeReplacedEq.Item.displayItem(MID_WIDTH + int(width/2) + width%2, posY, headerFormat = 'Replacing {}:', capitalizing = False, fromWindow = window)
             root.blit(window, posX, posY, width, height, 0, 0)
             
             tdl.flush()
@@ -7181,6 +7197,8 @@ class Equipment:
             equipping = self.equip()
             if equipping == 'didnt-take-turn':
                 return 'didnt-take-turn'
+            elif equipping == 'back':
+                return 'back'
         return
 
     def equip(self, fighter = None, silent = False):
@@ -7191,6 +7209,17 @@ class Equipment:
         handSlot = None
         oldEquipment = None
         global FOV_recompute
+        
+        if menuWindows:
+            for mWindow in menuWindows:
+                if not mWindow.name == 'inventory' and not mWindow.type == 'menu':
+                    mWindow.clear()
+                    print('CLEARED {} WINDOW OF TYPE {}'.format(mWindow.name, mWindow.type))
+                    if mWindow.name == 'displayItemInInventory':
+                        ind = menuWindows.index(mWindow)
+                        del menuWindows[ind]
+                        print('Deleted')
+                tdl.flush()
         
         handed = self.slot == 'one handed' or self.slot == 'two handed'
         extra = 'extra limb' in fighter.slots
@@ -7213,19 +7242,39 @@ class Equipment:
                     if extra and object.Equipment.curSlot == 'extra limb':
                         extraText = extraText + ' (' + object.name + ')'
                 if extra:
-                    handList = [rightText, leftText, extraText]
+                    handList = [rightText, leftText, extraText, 'back']
                 else:
-                    handList = [rightText, leftText]
-                handIndex = menu('What slot do you want to equip this ' + self.owner.name + ' in?', handList, 60)
+                    handList = [rightText, leftText, 'back']
+                handIndex = menu('What slot do you want to equip this ' + self.owner.name + ' in?', handList, 40, usedList = inHands, displayItem = True, itemDisplayed = 'weapon')
                 if handIndex == 0:
                     handSlot = 'right hand'
                 elif handIndex == 1:
                     handSlot = 'left hand'
                 elif extra and handIndex == 2:
                     handSlot = 'extra limb'
+                elif handIndex == 2 or handIndex == 3:
+                    print('back from equipping prompt')
+                    return 'back'
                 else:
                     return 'didnt-take-turn'
             elif self.slot == 'two handed':
+                inHands = getEquippedInHands()
+                rightText = "right hand"
+                leftText = "left hand"
+                for object in equipmentList:
+                    if object.Equipment.curSlot == "right hand":
+                        rightText = rightText + " (" + object.name + ")"
+                    if object.Equipment.curSlot == "left hand":
+                        leftText = leftText + " (" + object.name + ")"
+                    if object.Equipment.curSlot == 'both hands':
+                        rightText = rightText + " (" + object.name + ")"
+                        leftText = leftText + " (" + object.name + ")"
+                handList = [rightText, leftText, 'back']
+                handIndex = menu('Equipping this ' + self.owner.name + ' will unequip these items.', handList, 40, usedList = inHands, displayItem = True, itemDisplayed = 'weapon')
+                if handIndex == 2:
+                    return 'back'
+                elif handIndex != 0 and handIndex != 1:
+                    return 'didnt-take-turn'
                 handSlot = 'both hands'
     
             rightEquipment = None
@@ -7252,7 +7301,7 @@ class Equipment:
                     possible = False
                 else:
                     if self.type == 'light weapon':
-                        if rightIsWeapon and not rightEquipment.type == 'light weapon' or leftIsWeapon and not leftEquipment.type == 'light weapon' or rightIsWeapon and not rightEquipment.type == 'light weapon':
+                        if rightIsWeapon and not 'light' in rightEquipment.type or leftIsWeapon and not 'light' in leftEquipment.type or rightIsWeapon and not 'light' in rightEquipment.type:
                             message('You can only wield several light weapons.', colors.yellow)
                             possible = False
             if possible:
@@ -7997,9 +8046,12 @@ def getInput():
                     usage = chosenItem.display([chosenItem.useText, 'Drop', 'Back'])
                     if usage == 0:
                         using = chosenItem.use()
+                        print('using:', using)
                         if using == 'cancelled' or using == 'didnt-take-turn':
                             FOV_recompute = True
                             return 'didnt-take-turn'
+                        elif using == 'back':
+                            choseOrQuit = False
                         else:
                             return chosenItem.useText
                     elif usage == 1:
