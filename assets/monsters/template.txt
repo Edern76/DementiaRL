@@ -26,7 +26,7 @@ leechRessource		#default: None, string ('hunger'/'HP'/'MP')
 leechAmount		#d: 0
 buffsOnAttack		#list as [[chance, 'name']]
 slots			#d: ['head', 'torso', 'left hand', 'right hand', 'legs', 'feet']
-equipmentList		#template [['name', 'equipmentType', 'type'(, 'slot', 'pic')]]      #list: example: [['darksoul helmet', 'armor', 'leather', 'head', 'darksoulHelmet.xp], ['darksoul knife', 'weapon', 'dagger']]
+equipmentList		#template [['name', 'equipmentType', 'type'(, 'slot' #if armor)(, 'pic')(, 'weapon' #if weapon (optional))]]      #list: example: [['darksoul helmet', 'armor', 'leather', 'head', 'darksoulHelmet.xp], ['darksoul knife', 'weapon', 'dagger']]
 attackFunctions		#list
 noDirectDamage		#d: False
 description

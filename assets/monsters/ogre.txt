@@ -26,7 +26,7 @@ monsterDeath
 *
 *
 *
-[['ogre mace', 'weapon', 'mace', 'trollMace'.xp]]
+[['ogre mace', 'weapon', 'mace', 'trollMace'.xp, 'great mace']]
 *
 *
 An ogre

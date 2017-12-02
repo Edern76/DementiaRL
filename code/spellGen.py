@@ -408,9 +408,9 @@ def createSpell():
         elif bestEffect == "Poison damage":
             spellColor = colors.purple
         elif bestEffect == 'Ice damage':
-            spellColor = colors.light_cyan
+            spellColor = colors.light_violet
         elif bestEffect == 'Lightning damage':
-            spellColor = colors.light_yellow
+            spellColor = colors.light_cyan
         else:
             spellColor = colors.white
         
@@ -422,8 +422,8 @@ def createSpell():
            
         else:
             cost = (potential // 4 + randint(2, 10)) * spellLevel
-            dice = randint(0, 10)
-            if (dice < 8 or noOccult) and not noNormal:
+            dice = randint(1, 100)
+            if (dice <= 80 or noOccult) and not noNormal:
                 ressource = "MP"
             else:
                 ressource = "HP"

@@ -691,12 +691,13 @@ def randomChoice(chancesDictionnary):
     return strings[randomChoiceIndex(chances)]
 
 
-def generateMeleeWeapon(level, playerLevel, weaponType = None):
+def generateMeleeWeapon(level, playerLevel, weaponType = None, weapon = None):
     rarity = updateRarityChances(level)
     if weaponType is None:
         weaponType = randItemFrom(weaponTypes)
     
-    weapon = randomChoice(weaponSize[weaponType])
+    if weapon is None:
+        weapon = randomChoice(weaponSize[weaponType])
     
     weaponRarity = randomChoice(rarity)
     print('rarity:', str(weaponRarity))

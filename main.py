@@ -1098,7 +1098,7 @@ class Buff: #also (and mainly) used for debuffs
                 self.continuousFunction(self.owner.Fighter)
 
 class TileBuff:
-    def __init__(self, name, fg = None, bg = None, char = None, owner = None, cooldown = 20, blocksTile = False, buffsWhenWalked=[], addMoveCost = 0):
+    def __init__(self, name, fg = None, bg = None, char = None, owner = None, cooldown = 20, blocksTile = False, buffsWhenWalked=[], addMoveCost = 0, continuousFunc = []):
         self.name = name
         self.fg = fg
         self.bg = bg
@@ -1109,6 +1109,7 @@ class TileBuff:
         self.blocksTile = blocksTile
         self.buffsWhenWalked = buffsWhenWalked
         self.addMoveCost = addMoveCost
+        self.continuousFunc = continuousFunc
     
     def applyTileBuff(self, x, y):
         global myMap
@@ -1122,6 +1123,9 @@ class TileBuff:
         self.curCooldown -= 1
         if self.curCooldown <= 0:
             self.owner.buffList.remove(self)
+        elif self.continuousFunc:
+            for func in self.continuousFunc:
+                func(self.owner)
         
 #_________ BUFFS ___________
 
@@ -1565,11 +1569,16 @@ While x-k >= 0:
 
 Then find everything in affected tiles, fill in the targets list and return said list
     '''
-   
     startX, startY = startPoint.x, startPoint.y
     bottomY = startY - shotRange
     affectedTiles = [(startX, bottomY)]
     curY = bottomY
+    
+    for x in range(startX - shotRange - 2, startX + shotRange + 2):
+        for y in range(startY - shotRange - 2, startY + shotRange + 2):
+            if tileDistance(x, y, startX, startY) <= shotRange:
+                affectedTiles.append((x, y))
+    '''
     i = 1
     counter = 0
     while i <= shotRange: #Using while instead of for so as to avoid range() shenanigans
@@ -1605,7 +1614,7 @@ Then find everything in affected tiles, fill in the targets list and return said
             affectedTiles.append((startX - moveCounter, curY))
             affectedTiles.append((startX + moveCounter, curY))
         k += 1
-    
+    '''
     return affectedTiles
 
 def cleanList(entryList):
@@ -1962,6 +1971,26 @@ def castFireball(radius = 3, damage = 24, shotRange = 4, caster = None, monsterT
                     explodingTiles.append((x,y))
         explode()
 
+def castFlamethrower(caster = None, monsterTarget = None, shotRange = 4, damage = 8):
+    if caster is None or caster == player:
+        caster = player
+        targetZone = targetTile(SIGHT_RADIUS, AOE = True, rangeAOE = shotRange, styleAOE = 'cone', returnAOE = True)
+        if targetZone != 'cancelled':
+            affectedMonsters = []
+            
+            for object in objects:
+                if (object.x, object.y) in targetZone and object.Fighter and object != caster:
+                    affectedMonsters.append(object)
+            for monster in affectedMonsters:
+                damageDict = {'fire': damage}
+                dmgTxtFunc = lambda damageTaken: object.Fighter.formatRawDamageText(damageTaken, '{} is burnt for {}!', colors.red, '', colors.orange, True)
+                monster.Fighter.takeDamage(damageDict, "{}'s flamethrower".format(player.name), damageTextFunction = dmgTxtFunc)
+                applyBurn(monster, 100)
+            explodingTiles.extend(targetZone)
+            explode(colors.flame)
+        else:
+            return 'didnt-take-turn'
+
 def castArmageddon(radius = 4, damage = 80, caster = None, monsterTarget = None):
     global FOV_recompute
     if caster is None or caster == player:
@@ -2042,6 +2071,30 @@ def castPlaceIceWall(caster = None, monsterTarget = None):
             iceWall = TileBuff('ice wall', fg = colors.lighter_azure, bg = colors.lighter_sky, char = '#', cooldown = 10, blocksTile = True)
             iceWall.applyTileBuff(goalX, goalY)
 
+def castBlizzard(caster = None, monsterTarget = None, shotRange = 10, tileBuffCD = 20):
+    def continuousFreeze(tile, chance = 60):
+        for object in objects:
+            if object != player and (object.x, object.y) == (tile.x, tile.y) and object.Fighter:
+                if randint(1, 100) <= chance:
+                    frozen = Buff('frozen', colors.light_violet, cooldown = 4)
+                    frozen.applyBuff(object)
+                else:
+                    slowed = Buff('slowed', colors.light_violet, cooldown = 3, moveSpeed = 50)
+                    slowed.applyBuff(object)
+    
+    if caster is None or caster == player:
+        caster = player
+        orig = targetSelf(caster, lambda caster, target: areaOfEffect(caster, target, shotRange))
+        if orig == 'cancelled':
+            return 'didnt-take-turn'
+        for (x, y) in areaOfEffect(orig, caster, shotRange):
+            blizz = TileBuff('blizzard', colors.light_cyan, colors.light_violet, chr(176), cooldown = tileBuffCD, continuousFunc = [continuousFreeze])
+            try:
+                if not myMap[x][y].wall and not myMap[x][y].door and not myMap[x][y].chasm:
+                    blizz.applyTileBuff(x, y)
+            except IndexError:
+                print('tile is out of map')
+
 placeIceWall = Spell(ressourceCost=0, cooldown=0, useFunction=castPlaceIceWall, name = 'Place ice wall') 
 fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 1, arg2 = 12, arg3 = 4)
 heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 20)
@@ -2049,6 +2102,8 @@ darkPact = Spell(ressourceCost = DARK_PACT_DAMAGE, cooldown = 8, useFunction = c
 lightning = Spell(ressourceCost = 10, cooldown = 7, useFunction = castLightning, name = 'Lightning bolt', ressource = 'MP', type = 'Magic', magicLevel = 3)
 confuse = Spell(ressourceCost = 5, cooldown = 4, useFunction = castConfuse, name = 'Confusion', ressource = 'MP', type = 'Magic', magicLevel = 1)
 ice = Spell(ressourceCost = 9, cooldown = 5, useFunction = castFreeze, name = 'Ice bolt', ressource = 'MP', type = 'Magic', magicLevel = 2)
+blizzard = Spell(ressourceCost = 40, cooldown = 80, useFunction = castBlizzard, name = 'Blizzard', ressource = 'MP', type = 'Ice')
+flamethrower = Spell(ressourceCost = 5, cooldown = 20, useFunction = castFlamethrower, name = 'Flamethrower', ressource  ='MP', type = 'Fire')
 
 ### GENERIC SPELLS ###
 ### CLASS SPECIFIC SPELLS ###
@@ -2903,7 +2958,7 @@ drawRect = Spell(ressourceCost = 0, cooldown = 1, useFunction=castDrawRectangle,
 
 ### DEBUG SPELLS ###
 
-spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport, djik, dispDjik, djikProf, detDjik, yellowify, ram, leap, expandRootsDmg, expandRootsDummy, expandRootsRegen, insectFly, demonForm, spawnProj, placeIceWall, testCone, flurry, seismic, shadowStep, throwEnemy])
+spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport, djik, dispDjik, djikProf, detDjik, yellowify, ram, leap, expandRootsDmg, expandRootsDummy, expandRootsRegen, insectFly, demonForm, spawnProj, placeIceWall, testCone, flurry, seismic, shadowStep, throwEnemy, blizzard, flamethrower])
 #_____________SPELLS_____________
 
 #______________CHARACTER GENERATION____________
@@ -6609,6 +6664,8 @@ class Item:
             equipping = self.owner.Equipment.toggleEquip()
             if equipping == 'didnt-take-turn' or equipping == 'cancelled':
                 return 'didnt-take-turn'
+            elif equipping == 'back':
+                return 'back'
             else:
                 self.identify()
                 return 'Equip'
@@ -8781,7 +8838,7 @@ def castPlaceBoss():
             return 'cancelled'
 
 def applyBurn(target, chance = 70):
-    burning = Buff('burning', colors.flame, cooldown= randint(3, 6), continuousFunction=lambda fighter: randomDamage('fire', fighter, chance = 100, minDamage=1, maxDamage=3, dmgMessage = 'You take {} damage from burning !'))
+    burning = Buff('burning', colors.flame, cooldown= randint(3, 9), continuousFunction=lambda fighter: randomDamage('fire', fighter, chance = 100, minDamage=1, maxDamage=3, dmgMessage = 'You take {} damage from burning !'))
     if target.Fighter and randint(1, 100) <= chance and not 'burning' in convertBuffsToNames(target.Fighter):
         if not 'frozen' in convertBuffsToNames(target.Fighter):
             burning.applyBuff(target)
@@ -12077,7 +12134,11 @@ def convertMobTemplate(template):
                 eqTemp = itemGen.generateArmor(totalLevel, player.level, eq[2], eq[3])
                 picInd = 4
             elif eq[1] == 'weapon':
-                eqTemp = itemGen.generateMeleeWeapon(totalLevel, player.level, eq[2])
+                try:
+                    weapon = eq[4]
+                except IndexError:
+                    weapon = None
+                eqTemp = itemGen.generateMeleeWeapon(totalLevel, player.level, eq[2], weapon)
                 picInd = 3
             try:
                 equipment = convertItemTemplate(eqTemp)
@@ -14541,8 +14602,12 @@ def displayConfirmSpell(start, caster, zone = None):
         for mWindow in menuWindows:
             mWindow.clear()
             FOV_recompute = True
-            Update()
+            if mWindow.name == 'spellMenu' and mWindow.type == 'menu':
+                ind = menuWindows.index(mWindow)
+                del menuWindows[ind]
+                print('Deleted')
             tdl.flush()
+    Update()
     window = NamedConsole('confirmSpellCasting', width, height)
     window.clear()
     menuWindows.append(window)
