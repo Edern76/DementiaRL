@@ -246,8 +246,99 @@ adjActive = {'regular': {'name': 'none'},
               'spiked': {'name': ' of pain'}}
 ### weapons ###
 
-rangedWeaponTypes = ['bow', 'crossbow', 'throwing axe', 'throwing knife', 'pistol', 'rifle', 'javelin']
+### weapons ###
+rangedWeaponTypes = ['bow', 'crossbow', 'throwing weapon', 'pistol', 'rifle', 'missile weapon']
 
+rangedWeaponSize = {'bow': {'shortbow': 40, 'longbow': 35, 'flatbow': 25},
+                    'crossbow': {'pistol crossbow': 35, 'crossbow': 45, 'arbalest': 20},
+                    'throwing weapon': {'throwing axe': 30, 'throwing knife': 45, 'shuriken': 10, 'javelin': 15},
+                    'pistol': {'flintlock pistol': 70, 'hand cannon': 30},
+                    'rifle': {'musket': 45, 'arquebus': 45, 'culverin': 10},
+                    'missile weapon': {'blowgun': 25, 'slingshot': 60, 'woomera': 15}}
+
+#weaponDictTemplate = ['pow', 'arm', 'HP', 'acc', 'ev', 'crit', 'MP', 'strength', 'dex', 'vit', 'will', 'ap', 'slow', 'stam', 'stealth', 'dmgTypes', 'res', 'atkSpeed', 'meleePow', 'ammo', 'range' (default:20)]
+
+rangedWeaponAttributes = {'shortbow': {'type': 'light', 'slot': 'two handed', 'pic': 'bow.xp', 'pow': 10, 'acc': 10, 'weight': 0.8, 'atkSpeed': 25, 'ammo': 'arrow'},
+                          'longbow': {'type': 'light', 'slot': 'two handed', 'pic': 'bow.xp', 'pow': 14, 'acc': 5, 'weight': 1.1, 'atkSpeed': 25, 'ammo': 'arrow'},
+                          'flatbow': {'type': 'light', 'slot': 'two handed', 'pic': 'bow.xp', 'pow': 12, 'acc': 15, 'weight': 1.0, 'atkSpeed': 25, 'ammo': 'arrow'},
+                    
+                          'pistol crossbow': {'type': 'heavy', 'slot': 'one handed', 'pic': 'shortSword.xp', 'pow': 11, 'ap': 3, 'weight': 1.2, 'atkSpeed': 50, 'ammo': 'quarrel'},
+                          'crossbow': {'type': 'heavy', 'slot': 'two handed', 'pic': 'longSword.xp', 'pow': 16, 'ap': 5, 'weight': 1.9, 'atkSpeed': 100, 'ammo': 'quarrel'},
+                          'arbalest': {'type': 'heavy', 'slot': 'two handed', 'pic': 'katana.xp', 'pow': 19, 'ap': 7, 'weight': 2.5, 'atkSpeed': 100, 'ammo': 'quarrel'},
+                    
+                          'throwing axe': {'type': 'heavy', 'slot': 'one handed', 'pic': 'axe.xp', 'pow': 9, 'ap': 2, 'weight': 0.6, 'meleePow': 8, 'atkSpeed': 25},
+                          'throwing knife': {'type': 'light', 'slot': 'one handed', 'pic': 'dagger.xp', 'pow': 8, 'acc': 10, 'weight': 0.2, 'meleePow': 5, 'atkSpeed': -50},
+                          'shuriken': {'type': 'light', 'slot': 'one handed', 'pic': 'flail.xp', 'pow': 8, 'crit': 5, 'weight': 0.1, 'atkSpeed': -50},
+                          'javelin': {'type': 'light', 'slot': 'one handed', 'pic': 'pike.xp', 'pow': 15, 'weight': 0.9, 'meleePow': 12},
+                    
+                          'flintlock pistol': {'type': 'light', 'slot': 'one handed', 'pic': 'mace.xp', 'pow': 13, 'acc': -5, 'ap': 2, 'weight': 1.3, 'atkSpeed': 50, 'ammo': 'pellet'},
+                          'hand cannon': {'type': 'light', 'slot': 'one handed', 'pic': 'morningStar.xp', 'pow': 14, 'acc': -15, 'ap': 7, 'weight': 2.1, 'atkSpeed': 75, 'ammo': 'pellet', 'range': 11},
+                    
+                          'musket': {'type': 'heavy', 'slot': 'two handed', 'pic': 'musket.xp', 'pow': 17, 'acc': -10, 'ap': 4, 'weight': 2.3, 'atkSpeed': 100, 'ammo': 'pellet'},
+                          'arquebus': {'type': 'heavy', 'slot': 'two handed', 'pic': 'arquebus.xp', 'pow': 19, 'acc': -15, 'ap': 6, 'weight': 2.9, 'atkSpeed': 100, 'ammo': 'pellet', 'range': 4},
+                          'culverin': {'type': 'heavy', 'slot': 'two handed', 'pic': 'culverin.xp', 'pow': 23, 'acc': -20, 'ap': 8, 'weight': 3.7, 'atkSpeed': 150, 'ammo': 'pellet', 'range': 7},
+                          
+                          'blowgun': {'type': 'light', 'slot': 'two handed', 'pic': 'knuckles.xp', 'pow': 11, 'acc': 20, 'ev': 15, 'weight': 0.7, 'atkSpeed': -25, 'ammo': 'dart', 'dmgTypes': {'physical': 50, 'poison': 50}},
+                          'slingshot': {'type': 'light', 'slot': 'one handed', 'pic': 'fightingClaws.xp', 'pow': 15, 'acc': 5, 'crit': 5, 'weight': 0.4, 'atkSpeed': -25, 'ammo': 'rock'},
+                          'woomera': {'type': 'heavy', 'slot': 'two handed', 'pic': 'halberd.xp', 'pow': 17, 'ap': 2, 'weight': 1.2, 'ammo': 'javelin'}
+                          }
+
+weaponAdj = {'dagger': {'junk': {'regular': 50, 'rusty': 50},
+                        'common': {'regular': 80, 'rusty': 10, 'fast': 5, 'sharp': 5},
+                        'uncommon': {'regular': 71, 'rusty': 5, 'fast': 12, 'sharp': 12},
+                        'rare': {'regular': 50, 'rusty': 2, 'precise': 12, 'fast': 12, 'sharp': 12, 'discrete': 12}, 
+                        'epic': {'precise': 13, 'fast': 13, 'sharp': 13, 'poisoned': 12, 'burning': 12, 'frost': 12, 'electric': 12, 'discrete': 13},
+                        'legendary': {'deadly': 10, 'precise': 10, 'fast': 10, 'sharp': 10, 'poisoned': 10, 'leech': 10, 'burning': 10, 'frost': 10, 'electric': 10, 'discrete': 10}},
+             
+             'sword': {'junk': {'regular': 50, 'rusty': 50},
+                        'common': {'regular': 80, 'rusty': 10, 'fast': 5, 'sharp': 5},
+                        'uncommon': {'regular': 71, 'rusty': 5, 'fast': 12, 'sharp': 12},
+                        'rare': {'regular': 50, 'rusty': 2, 'precise': 12, 'fast': 12, 'sharp': 12, 'mighty': 12}, 
+                        'epic': {'precise': 13, 'fast': 13, 'sharp': 13, 'poisoned': 12, 'burning': 12, 'frost': 12, 'electric': 12, 'mighty': 13},
+                        'legendary': {'splash': 10, 'precise': 10, 'fast': 10, 'sharp': 10, 'poisoned': 10, 'leech': 10, 'burning': 10, 'frost': 10, 'electric': 10, 'mighty': 10}},
+             
+             'axe': {'junk': {'regular': 50, 'rusty': 50},
+                        'common': {'regular': 80, 'rusty': 10, 'fast': 5, 'sharp': 5},
+                        'uncommon': {'regular': 71, 'rusty': 5, 'fast': 12, 'sharp': 12},
+                        'rare': {'regular': 50, 'rusty': 2, 'precise': 12, 'fast': 12, 'sharp': 12, 'mighty': 12}, 
+                        'epic': {'precise': 13, 'fast': 13, 'sharp': 13, 'poisoned': 12, 'burning': 12, 'frost': 12, 'electric': 12, 'mighty': 13},
+                        'legendary': {'splash': 10, 'precise': 10, 'fast': 10, 'sharp': 10, 'poisoned': 10, 'leech': 10, 'burning': 10, 'frost': 10, 'electric': 10, 'mighty': 10}},
+             
+             'flail': {'junk': {'regular': 50, 'rusty': 50},
+                        'common': {'regular': 80, 'rusty': 10, 'fast': 5, 'weighed': 5},
+                        'uncommon': {'regular': 71, 'rusty': 5, 'fast': 12, 'weighed': 12},
+                        'rare': {'regular': 50, 'rusty': 2, 'two-headed': 12, 'fast': 12, 'weighed': 12, 'mighty': 12}, 
+                        'epic': {'two-headed': 13, 'fast': 13, 'weighed': 13, 'poisoned': 12, 'burning': 12, 'frost': 12, 'electric': 12, 'mighty': 13},
+                        'legendary': {'splash': 9, 'two-headed': 9, 'fast': 9, 'weighed': 9, 'poisoned': 9, 'stunning': 9, 'burning': 9, 'frost': 9, 'electric': 9, 'mighty': 9, 'three-headed': 9}},
+             
+             'mace': {'junk': {'regular': 50, 'rusty': 50},
+                        'common': {'regular': 80, 'rusty': 10, 'fast': 5, 'weighed': 5},
+                        'uncommon': {'regular': 71, 'rusty': 5, 'fast': 12, 'weighed': 12},
+                        'rare': {'regular': 50, 'rusty': 2, 'precise': 12, 'fast': 12, 'weighed': 12, 'mighty': 12}, 
+                        'epic': {'precise': 13, 'fast': 13, 'weighed': 13, 'poisoned': 12, 'burning': 12, 'frost': 12, 'electric': 12, 'mighty': 13},
+                        'legendary': {'splash': 10, 'precise': 10, 'fast': 10, 'weighed': 10, 'poisoned': 10, 'stunning': 10, 'burning': 10, 'frost': 10, 'electric': 10, 'mighty': 10}},
+             
+             'hammer': {'junk': {'regular': 50, 'rusty': 50},
+                        'common': {'regular': 80, 'rusty': 10, 'fast': 5, 'weighed': 5},
+                        'uncommon': {'regular': 71, 'rusty': 5, 'fast': 12, 'weighed': 12},
+                        'rare': {'regular': 50, 'rusty': 2, 'spiked': 12, 'fast': 12, 'weighed': 12, 'mighty': 12}, 
+                        'epic': {'spiked': 13, 'fast': 13, 'weighed': 13, 'poisoned': 12, 'burning': 12, 'frost': 12, 'electric': 12, 'mighty': 13},
+                        'legendary': {'splash': 10, 'spiked': 10, 'fast': 10, 'weighed': 10, 'poisoned': 10, 'stunning': 10, 'burning': 10, 'frost': 10, 'electric': 10, 'mighty': 10}},
+             
+             'gloves': {'junk': {'regular': 50, 'rusty': 50},
+                        'common': {'regular': 80, 'rusty': 10, 'fast': 5, 'weighed': 5},
+                        'uncommon': {'regular': 71, 'rusty': 5, 'fast': 12, 'weighed': 12},
+                        'rare': {'regular': 50, 'rusty': 2, 'precise': 12, 'fast': 12, 'weighed': 12, 'mighty': 12}, 
+                        'epic': {'precise': 13, 'fast': 13, 'weighed': 13, 'poisoned': 12, 'burning': 12, 'frost': 12, 'electric': 12, 'mighty': 13},
+                        'legendary': {'splash': 10, 'precise': 10, 'fast': 10, 'weighed': 10, 'poisoned': 10, 'leech': 10, 'burning': 10, 'frost': 10, 'electric': 10, 'mighty': 10}},
+             
+             'spear': {'junk': {'regular': 50, 'rusty': 50},
+                        'common': {'regular': 80, 'rusty': 10, 'fast': 5, 'sharp': 5},
+                        'uncommon': {'regular': 71, 'rusty': 5, 'fast': 12, 'sharp': 12},
+                        'rare': {'regular': 50, 'rusty': 2, 'precise': 12, 'fast': 12, 'sharp': 12, 'mighty': 12}, 
+                        'epic': {'precise': 13, 'fast': 13, 'sharp': 13, 'poisoned': 12, 'burning': 12, 'frost': 12, 'electric': 12, 'mighty': 13},
+                        'legendary': {'deadly': 10, 'precise': 10, 'fast': 10, 'sharp': 10, 'poisoned': 10, 'leech': 10, 'burning': 10, 'frost': 10, 'electric': 10, 'mighty': 10}}}
+### ranged weapons ###
 
 ### armors ###
 armorTypes = ['cloth', 'leather', 'chainmail', 'scale', 'plate']
@@ -823,6 +914,142 @@ def generateMeleeWeapon(level, playerLevel, weaponType = None, weapon = None):
     weaponObject = GameObjectTemplate(char, addToName + weapon + endName, weaponRarity.color, Item = weaponItem, Equipment = weaponEquipment)
     return weaponObject
 
+def generateRangedWeapon(level, playerLevel, weaponType = None, weapon = None):
+    rarity = updateRarityChances(level)
+    if weaponType is None:
+        weaponType = randItemFrom(rangedWeaponTypes)
+    
+    if weapon is None:
+        weapon = randomChoice(rangedWeaponSize[weaponType])
+    
+    weaponRarity = randomChoice(rarity)
+    print('rarity:', str(weaponRarity))
+    stringRarity = str(weaponRarity)
+    weaponLevel = playerLevel + randint(-3 + raritySmallAdd[stringRarity]//2, raritySmallAdd[stringRarity]//2)
+    
+    weaponDict = rangedWeaponAttributes[weapon]
+    try:
+        maxRange = weaponDict['range']
+    except KeyError:
+        maxRange = 20
+    try:
+        ammo = weaponDict['ammo']
+    except KeyError:
+        ammo = None
+    weaponEquipment = EquipmentTemplate(weaponDict['slot'], stringRarity + ' level ' + str(weaponLevel) + ' ' + weaponDict['type'] + ' ' + weaponType, ranged=True, maxRange = maxRange, ammo = ammo)
+    
+    try:
+        weaponEquipment.atkSpeed = weaponDict['atkSpeed']
+    except:
+        pass
+    
+    adj = []
+    passiveNumber = 1
+    active = False
+    '''
+    try:
+        rareCombo = randomChoice(rarityCombo[stringRarity])
+    except:
+        rareCombo = 'none'
+    
+    if '2 passive' in rareCombo:
+        passiveNumber = 2
+    if '3 passive' in rareCombo:
+        passiveNumber = 3
+    if 'active' in rareCombo:
+        active = True
+    
+    adjDict = weaponAdj[weaponType][stringRarity]
+    for i in range(passiveNumber):
+        bonus = randomChoice(adjDict)
+        while bonus in adj or (bonus == 'fast' and weaponEquipment.slow) or (bonus == 'frost' and 'burning' in adj) or (bonus == 'burning' and 'frost' in adj) or ('headed' in bonus and 'headed' in adj):
+            bonus = randomChoice(adjDict)
+        adj.append(bonus)
+    '''
+    
+    if active:
+        activeAdj = randItemFrom(adj)
+        i = 0
+        weaponAbility = adjActive[activeAdj]['name']
+        while 'headed' in activeAdj and i <= 10:
+            weaponAbility = adjActive[activeAdj]['name']
+            i += 1
+    addToName = ''
+    for adjective in adj:
+        if adjective != 'regular':
+            addToName += adjective + ' '
+    
+    endName = ''
+    if active:
+        if weaponAbility != 'none':
+            endName = weaponAbility
+    i = 0
+    for stat in weaponEquipment.stats:
+        moddedStat = equipmentStatsStrings[i]
+        try:
+            dictToUse = raritySmallAdd
+            if moddedStat == 'HP' or moddedStat == 'MP' or moddedStat == 'stam':
+                dictToUse = rarityBigAdd
+            stat.value = weaponDict[equipmentStatsStrings[i]] + randint(-2 + dictToUse[stringRarity], 2 + dictToUse[stringRarity])
+            if moddedStat in toBeBuffedStats:
+                stat.value += round(sigmoidProgress(weaponLevel) * stat.value)
+            if (stat < 0 and weaponDict[equipmentStatsStrings[i]] > 0) or (stat > 0 and weaponDict[equipmentStatsStrings[i]] < 0): #if a positive value becomes negative or vice versa
+                stat.value = 0
+        except:
+            pass
+        i += 1
+    
+    tempWeight = weaponDict['weight']
+    
+    i = 0
+    for stat in weaponEquipment.stats:
+        for adjective in adj:
+            dictToUse = raritySmallAdd
+            moddedStat = equipmentStatsStrings[i]
+            if moddedStat == 'HP' or moddedStat == 'MP' or moddedStat == 'stam':
+                dictToUse = rarityBigAdd
+            try:
+                bonus = adjEffects[adjective][equipmentStatsStrings[i]]
+                toAdd = randint(0, dictToUse[stringRarity]//2)
+                if bonus < 0 and bonus + toAdd > 0:
+                    toAdd = -bonus
+                stat += bonus + toAdd
+            except:
+                pass
+        i += 1
+    
+    for adjective in adj:
+        try:
+            tempWeight += adjEffects[adjective]['weight']
+            if 'headed' in adjective and 'heavy' in weaponEquipment.type:
+                tempWeight += adjEffects[adjective]['weight']
+        except:
+            pass
+        
+        try:
+            weaponEquipment.dmgType = adjEffects[adjective]['dmgType'].copy()
+        except:
+            pass
+        
+        try:
+            weaponEquipment.atkSpeed += adjEffects[adjective]['atkSpeed']
+        except:
+            pass
+    
+    weaponItem = ItemTemplate('Equip', weight = round(tempWeight, 1), itemtype = 'weapon', useText = 'Equip')
+
+    try:
+        weaponItem.description = weaponDict['desc']
+    except:
+        pass
+    try:
+        weaponItem.pic = weaponDict['pic']
+    except:
+        pass
+    
+    weaponObject = GameObjectTemplate('(', addToName + weapon + endName, weaponRarity.color, Item = weaponItem, Equipment = weaponEquipment)
+    return weaponObject
+
 def generateArmor(level, playerLevel, armorType = None, slot = None):
     updateRarityChances(level)
     armorRarity = randomChoice(rarity)
@@ -938,7 +1165,7 @@ def generateArmor(level, playerLevel, armorType = None, slot = None):
 if __name__ == '__main__':
     level = 1
     for i in range(10):
-        print(generateMeleeWeapon(level + i * 2, i*10))
+        print(generateRangedWeapon(level + i * 2, i*10))
         print()
 
 
