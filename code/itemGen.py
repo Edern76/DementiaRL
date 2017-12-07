@@ -203,6 +203,13 @@ adjEffects = {'regular': {},
               'stunning': {}, #add stun chance
               'spiked': {'ap': 2},
               
+              'old': {'pow': -2, 'ap': -2, 'crit': -2, 'rangedPow': -2},
+              'strong': {'rangedPow': 2},
+              'sharpened': {'pow': 2, 'rangedPow': 2},
+              'piercing': {'ap': 2},
+              'repeating': {}, #add chance to gain multiple attacks
+              'explosive': {'crit': 3}, #add AOE dmg
+              
               'tattered': {'stealth': -2},
               'dark': {'stealth': 5},
               'lightweight': {'ev': 5, 'weight': -0.3},
@@ -243,10 +250,17 @@ adjActive = {'regular': {'name': 'none'},
               'two-headed': {'name': 'none'},
               'three-headed': {'name': 'none'},
               'stunning': {'name': ' of dazing'},
-              'spiked': {'name': ' of pain'}}
+              'spiked': {'name': ' of pain'},
+              
+              'old': {'name': 'none'},
+              'strong': {'name': ' of force'},
+              'sharpened': {'name': ' of bite'}, #same as sharp?
+              'piercing': {'name': ' of pain'}, #same as spiked?
+              'repeating': {'name': ' of barrage'},
+              'explosive': {'name': ' of burst'}}
 ### weapons ###
 
-### weapons ###
+### ranged weapons ###
 rangedWeaponTypes = ['bow', 'crossbow', 'throwing weapon', 'pistol', 'rifle', 'missile weapon']
 
 rangedWeaponSize = {'bow': {'shortbow': 40, 'longbow': 35, 'flatbow': 25},
@@ -258,86 +272,72 @@ rangedWeaponSize = {'bow': {'shortbow': 40, 'longbow': 35, 'flatbow': 25},
 
 #weaponDictTemplate = ['pow', 'arm', 'HP', 'acc', 'ev', 'crit', 'MP', 'strength', 'dex', 'vit', 'will', 'ap', 'slow', 'stam', 'stealth', 'dmgTypes', 'res', 'atkSpeed', 'meleePow', 'ammo', 'range' (default:20)]
 
-rangedWeaponAttributes = {'shortbow': {'type': 'light', 'slot': 'two handed', 'pic': 'bow.xp', 'pow': 10, 'acc': 10, 'weight': 0.8, 'atkSpeed': 25, 'ammo': 'arrow'},
-                          'longbow': {'type': 'light', 'slot': 'two handed', 'pic': 'bow.xp', 'pow': 14, 'acc': 5, 'weight': 1.1, 'atkSpeed': 25, 'ammo': 'arrow'},
-                          'flatbow': {'type': 'light', 'slot': 'two handed', 'pic': 'bow.xp', 'pow': 12, 'acc': 15, 'weight': 1.0, 'atkSpeed': 25, 'ammo': 'arrow'},
+rangedWeaponAttributes = {'shortbow': {'type': 'light', 'slot': 'two handed', 'pic': 'bow.xp', 'rangedPow': 10, 'acc': 10, 'weight': 0.8, 'atkSpeed': 25, 'ammo': 'arrow'},
+                          'longbow': {'type': 'light', 'slot': 'two handed', 'pic': 'bow.xp', 'rangedPow': 14, 'acc': 5, 'weight': 1.1, 'atkSpeed': 25, 'ammo': 'arrow'},
+                          'flatbow': {'type': 'light', 'slot': 'two handed', 'pic': 'bow.xp', 'rangedPow': 12, 'acc': 15, 'weight': 1.0, 'atkSpeed': 25, 'ammo': 'arrow'},
                     
-                          'pistol crossbow': {'type': 'heavy', 'slot': 'one handed', 'pic': 'shortSword.xp', 'pow': 11, 'ap': 3, 'weight': 1.2, 'atkSpeed': 50, 'ammo': 'quarrel'},
-                          'crossbow': {'type': 'heavy', 'slot': 'two handed', 'pic': 'longSword.xp', 'pow': 16, 'ap': 5, 'weight': 1.9, 'atkSpeed': 100, 'ammo': 'quarrel'},
-                          'arbalest': {'type': 'heavy', 'slot': 'two handed', 'pic': 'katana.xp', 'pow': 19, 'ap': 7, 'weight': 2.5, 'atkSpeed': 100, 'ammo': 'quarrel'},
+                          'pistol crossbow': {'type': 'heavy', 'slot': 'one handed', 'pic': 'shortSword.xp', 'rangedPow': 11, 'ap': 3, 'weight': 1.2, 'atkSpeed': 50, 'ammo': 'quarrel'},
+                          'crossbow': {'type': 'heavy', 'slot': 'two handed', 'pic': 'longSword.xp', 'rangedPow': 16, 'ap': 5, 'weight': 1.9, 'atkSpeed': 100, 'ammo': 'quarrel'},
+                          'arbalest': {'type': 'heavy', 'slot': 'two handed', 'pic': 'katana.xp', 'rangedPow': 19, 'ap': 7, 'weight': 2.5, 'atkSpeed': 100, 'ammo': 'quarrel'},
                     
-                          'throwing axe': {'type': 'heavy', 'slot': 'one handed', 'pic': 'axe.xp', 'pow': 9, 'ap': 2, 'weight': 0.6, 'meleePow': 8, 'atkSpeed': 25},
-                          'throwing knife': {'type': 'light', 'slot': 'one handed', 'pic': 'dagger.xp', 'pow': 8, 'acc': 10, 'weight': 0.2, 'meleePow': 5, 'atkSpeed': -50},
-                          'shuriken': {'type': 'light', 'slot': 'one handed', 'pic': 'flail.xp', 'pow': 8, 'crit': 5, 'weight': 0.1, 'atkSpeed': -50},
-                          'javelin': {'type': 'light', 'slot': 'one handed', 'pic': 'pike.xp', 'pow': 15, 'weight': 0.9, 'meleePow': 12},
+                          'throwing axe': {'type': 'heavy', 'slot': 'one handed', 'pic': 'axe.xp', 'rangedPow': 9, 'ap': 2, 'weight': 0.6, 'meleePow': 8, 'atkSpeed': 25},
+                          'throwing knife': {'type': 'light', 'slot': 'one handed', 'pic': 'dagger.xp', 'rangedPow': 8, 'acc': 10, 'weight': 0.2, 'meleePow': 5, 'atkSpeed': -50},
+                          'shuriken': {'type': 'light', 'slot': 'one handed', 'pic': 'flail.xp', 'rangedPow': 8, 'crit': 5, 'weight': 0.1, 'atkSpeed': -50},
+                          'javelin': {'type': 'light', 'slot': 'one handed', 'pic': 'pike.xp', 'rangedPow': 15, 'weight': 0.9, 'meleePow': 12},
                     
-                          'flintlock pistol': {'type': 'light', 'slot': 'one handed', 'pic': 'mace.xp', 'pow': 13, 'acc': -5, 'ap': 2, 'weight': 1.3, 'atkSpeed': 50, 'ammo': 'pellet'},
-                          'hand cannon': {'type': 'light', 'slot': 'one handed', 'pic': 'morningStar.xp', 'pow': 14, 'acc': -15, 'ap': 7, 'weight': 2.1, 'atkSpeed': 75, 'ammo': 'pellet', 'range': 11},
+                          'flintlock pistol': {'type': 'light', 'slot': 'one handed', 'pic': 'mace.xp', 'rangedPow': 13, 'acc': -5, 'ap': 2, 'weight': 1.3, 'atkSpeed': 50, 'ammo': 'pellet'},
+                          'hand cannon': {'type': 'light', 'slot': 'one handed', 'pic': 'morningStar.xp', 'rangedPow': 14, 'acc': -15, 'ap': 7, 'weight': 2.1, 'atkSpeed': 75, 'ammo': 'pellet', 'range': 11},
                     
-                          'musket': {'type': 'heavy', 'slot': 'two handed', 'pic': 'musket.xp', 'pow': 17, 'acc': -10, 'ap': 4, 'weight': 2.3, 'atkSpeed': 100, 'ammo': 'pellet'},
-                          'arquebus': {'type': 'heavy', 'slot': 'two handed', 'pic': 'arquebus.xp', 'pow': 19, 'acc': -15, 'ap': 6, 'weight': 2.9, 'atkSpeed': 100, 'ammo': 'pellet', 'range': 4},
-                          'culverin': {'type': 'heavy', 'slot': 'two handed', 'pic': 'culverin.xp', 'pow': 23, 'acc': -20, 'ap': 8, 'weight': 3.7, 'atkSpeed': 150, 'ammo': 'pellet', 'range': 7},
+                          'musket': {'type': 'heavy', 'slot': 'two handed', 'pic': 'musket.xp', 'rangedPow': 17, 'acc': -10, 'ap': 4, 'weight': 2.3, 'atkSpeed': 100, 'ammo': 'pellet'},
+                          'arquebus': {'type': 'heavy', 'slot': 'two handed', 'pic': 'arquebus.xp', 'rangedPow': 19, 'acc': -15, 'ap': 6, 'weight': 2.9, 'atkSpeed': 100, 'ammo': 'pellet', 'range': 4},
+                          'culverin': {'type': 'heavy', 'slot': 'two handed', 'pic': 'culverin.xp', 'rangedPow': 23, 'acc': -20, 'ap': 8, 'weight': 3.7, 'atkSpeed': 150, 'ammo': 'pellet', 'range': 7},
                           
-                          'blowgun': {'type': 'light', 'slot': 'two handed', 'pic': 'knuckles.xp', 'pow': 11, 'acc': 20, 'ev': 15, 'weight': 0.7, 'atkSpeed': -25, 'ammo': 'dart', 'dmgTypes': {'physical': 50, 'poison': 50}},
-                          'slingshot': {'type': 'light', 'slot': 'one handed', 'pic': 'fightingClaws.xp', 'pow': 15, 'acc': 5, 'crit': 5, 'weight': 0.4, 'atkSpeed': -25, 'ammo': 'rock'},
-                          'woomera': {'type': 'heavy', 'slot': 'two handed', 'pic': 'halberd.xp', 'pow': 17, 'ap': 2, 'weight': 1.2, 'ammo': 'javelin'}
+                          'blowgun': {'type': 'light', 'slot': 'two handed', 'pic': 'knuckles.xp', 'rangedPow': 11, 'acc': 20, 'ev': 15, 'weight': 0.7, 'atkSpeed': -25, 'ammo': 'dart', 'dmgTypes': {'physical': 50, 'poison': 50}},
+                          'slingshot': {'type': 'light', 'slot': 'one handed', 'pic': 'fightingClaws.xp', 'rangedPow': 15, 'acc': 5, 'crit': 5, 'weight': 0.4, 'atkSpeed': -25, 'ammo': 'rock'},
+                          'woomera': {'type': 'heavy', 'slot': 'two handed', 'pic': 'halberd.xp', 'rangedPow': 17, 'ap': 2, 'weight': 1.2, 'ammo': 'javelin'}
                           }
 
-weaponAdj = {'dagger': {'junk': {'regular': 50, 'rusty': 50},
-                        'common': {'regular': 80, 'rusty': 10, 'fast': 5, 'sharp': 5},
-                        'uncommon': {'regular': 71, 'rusty': 5, 'fast': 12, 'sharp': 12},
-                        'rare': {'regular': 50, 'rusty': 2, 'precise': 12, 'fast': 12, 'sharp': 12, 'discrete': 12}, 
-                        'epic': {'precise': 13, 'fast': 13, 'sharp': 13, 'poisoned': 12, 'burning': 12, 'frost': 12, 'electric': 12, 'discrete': 13},
-                        'legendary': {'deadly': 10, 'precise': 10, 'fast': 10, 'sharp': 10, 'poisoned': 10, 'leech': 10, 'burning': 10, 'frost': 10, 'electric': 10, 'discrete': 10}},
+rangedWeaponAdj = { 'bow': {'junk': {'regular': 50, 'old': 50},
+                            'common': {'regular': 80, 'old': 10, 'fast': 5, 'strong': 5},
+                            'uncommon': {'regular': 71, 'old': 5, 'fast': 12, 'strong': 12},
+                            'rare': {'regular': 50, 'old': 2, 'precise': 12, 'fast': 12, 'strong': 12, 'discrete': 12}, 
+                            'epic': {'precise': 13, 'fast': 13, 'strong': 13, 'poisoned': 12, 'burning': 12, 'frost': 12, 'electric': 12, 'discrete': 13},
+                            'legendary': {'deadly': 10, 'precise': 10, 'fast': 10, 'strong': 10, 'poisoned': 10, 'leech': 10, 'burning': 10, 'frost': 10, 'electric': 10, 'discrete': 10}},
              
-             'sword': {'junk': {'regular': 50, 'rusty': 50},
-                        'common': {'regular': 80, 'rusty': 10, 'fast': 5, 'sharp': 5},
-                        'uncommon': {'regular': 71, 'rusty': 5, 'fast': 12, 'sharp': 12},
-                        'rare': {'regular': 50, 'rusty': 2, 'precise': 12, 'fast': 12, 'sharp': 12, 'mighty': 12}, 
-                        'epic': {'precise': 13, 'fast': 13, 'sharp': 13, 'poisoned': 12, 'burning': 12, 'frost': 12, 'electric': 12, 'mighty': 13},
-                        'legendary': {'splash': 10, 'precise': 10, 'fast': 10, 'sharp': 10, 'poisoned': 10, 'leech': 10, 'burning': 10, 'frost': 10, 'electric': 10, 'mighty': 10}},
+                    'crossbow': {'junk': {'regular': 50, 'old': 50},
+                                 'common': {'regular': 80, 'old': 10, 'fast': 5, 'strong': 5},
+                                 'uncommon': {'regular': 71, 'old': 5, 'fast': 12, 'strong': 12},
+                                 'rare': {'regular': 50, 'old': 2, 'precise': 12, 'fast': 12, 'strong': 12, 'piercing': 12}, 
+                                 'epic': {'precise': 13, 'fast': 13, 'strong': 13, 'poisoned': 12, 'burning': 12, 'frost': 12, 'electric': 12, 'piercing': 13},
+                                 'legendary': {'repeating': 10, 'precise': 10, 'fast': 10, 'sharp': 10, 'poisoned': 10, 'leech': 10, 'burning': 10, 'frost': 10, 'electric': 10, 'piercing': 10}},
              
-             'axe': {'junk': {'regular': 50, 'rusty': 50},
-                        'common': {'regular': 80, 'rusty': 10, 'fast': 5, 'sharp': 5},
-                        'uncommon': {'regular': 71, 'rusty': 5, 'fast': 12, 'sharp': 12},
-                        'rare': {'regular': 50, 'rusty': 2, 'precise': 12, 'fast': 12, 'sharp': 12, 'mighty': 12}, 
-                        'epic': {'precise': 13, 'fast': 13, 'sharp': 13, 'poisoned': 12, 'burning': 12, 'frost': 12, 'electric': 12, 'mighty': 13},
-                        'legendary': {'splash': 10, 'precise': 10, 'fast': 10, 'sharp': 10, 'poisoned': 10, 'leech': 10, 'burning': 10, 'frost': 10, 'electric': 10, 'mighty': 10}},
+                    'throwing weapon': {'junk': {'regular': 50, 'old': 50},
+                                        'common': {'regular': 80, 'old': 10, 'fast': 5, 'sharpened': 5},
+                                        'uncommon': {'regular': 71, 'old': 5, 'fast': 12, 'sharpened': 12},
+                                        'rare': {'regular': 50, 'old': 2, 'precise': 12, 'fast': 12, 'sharpened': 12, 'piercing': 12}, 
+                                        'epic': {'precise': 13, 'fast': 13, 'sharpened': 13, 'poisoned': 12, 'burning': 12, 'frost': 12, 'electric': 12, 'piercing': 13},
+                                        'legendary': {'deadly': 10, 'precise': 10, 'fast': 10, 'sharpened': 10, 'poisoned': 10, 'leech': 10, 'burning': 10, 'frost': 10, 'electric': 10, 'piercing': 10}},
              
-             'flail': {'junk': {'regular': 50, 'rusty': 50},
-                        'common': {'regular': 80, 'rusty': 10, 'fast': 5, 'weighed': 5},
-                        'uncommon': {'regular': 71, 'rusty': 5, 'fast': 12, 'weighed': 12},
-                        'rare': {'regular': 50, 'rusty': 2, 'two-headed': 12, 'fast': 12, 'weighed': 12, 'mighty': 12}, 
-                        'epic': {'two-headed': 13, 'fast': 13, 'weighed': 13, 'poisoned': 12, 'burning': 12, 'frost': 12, 'electric': 12, 'mighty': 13},
-                        'legendary': {'splash': 9, 'two-headed': 9, 'fast': 9, 'weighed': 9, 'poisoned': 9, 'stunning': 9, 'burning': 9, 'frost': 9, 'electric': 9, 'mighty': 9, 'three-headed': 9}},
+                    'pistol': {'junk': {'regular': 50, 'old': 50},
+                               'common': {'regular': 80, 'old': 10, 'fast': 5, 'strong': 5},
+                               'uncommon': {'regular': 71, 'old': 5, 'fast': 12, 'strong': 12},
+                               'rare': {'regular': 50, 'old': 2, 'precise': 12, 'fast': 12, 'strong': 12, 'piercing': 12}, 
+                               'epic': {'precise': 13, 'fast': 13, 'strong': 13, 'poisoned': 12, 'burning': 12, 'frost': 12, 'electric': 12, 'piercing': 13},
+                               'legendary': {'repeating': 10, 'precise': 10, 'fast': 10, 'strong': 10, 'poisoned': 10, 'burning': 10, 'frost': 10, 'electric': 10, 'piercing': 10, 'leech': 10}},
              
-             'mace': {'junk': {'regular': 50, 'rusty': 50},
-                        'common': {'regular': 80, 'rusty': 10, 'fast': 5, 'weighed': 5},
-                        'uncommon': {'regular': 71, 'rusty': 5, 'fast': 12, 'weighed': 12},
-                        'rare': {'regular': 50, 'rusty': 2, 'precise': 12, 'fast': 12, 'weighed': 12, 'mighty': 12}, 
-                        'epic': {'precise': 13, 'fast': 13, 'weighed': 13, 'poisoned': 12, 'burning': 12, 'frost': 12, 'electric': 12, 'mighty': 13},
-                        'legendary': {'splash': 10, 'precise': 10, 'fast': 10, 'weighed': 10, 'poisoned': 10, 'stunning': 10, 'burning': 10, 'frost': 10, 'electric': 10, 'mighty': 10}},
+                    'rifle': {'junk': {'regular': 50, 'old': 50},
+                              'common': {'regular': 80, 'old': 10, 'fast': 5, 'strong': 5},
+                              'uncommon': {'regular': 71, 'old': 5, 'fast': 12, 'strong': 12},
+                              'rare': {'regular': 50, 'old': 2, 'explosive': 12, 'fast': 12, 'strong': 12, 'piercing': 12}, 
+                              'epic': {'explosive': 13, 'fast': 13, 'strong': 13, 'poisoned': 12, 'burning': 12, 'frost': 12, 'electric': 12, 'piercing': 13},
+                              'legendary': {'repeating': 10, 'explosive': 10, 'fast': 10, 'strong': 10, 'poisoned': 10, 'leech': 10, 'burning': 10, 'frost': 10, 'electric': 10, 'piercing': 10}},
              
-             'hammer': {'junk': {'regular': 50, 'rusty': 50},
-                        'common': {'regular': 80, 'rusty': 10, 'fast': 5, 'weighed': 5},
-                        'uncommon': {'regular': 71, 'rusty': 5, 'fast': 12, 'weighed': 12},
-                        'rare': {'regular': 50, 'rusty': 2, 'spiked': 12, 'fast': 12, 'weighed': 12, 'mighty': 12}, 
-                        'epic': {'spiked': 13, 'fast': 13, 'weighed': 13, 'poisoned': 12, 'burning': 12, 'frost': 12, 'electric': 12, 'mighty': 13},
-                        'legendary': {'splash': 10, 'spiked': 10, 'fast': 10, 'weighed': 10, 'poisoned': 10, 'stunning': 10, 'burning': 10, 'frost': 10, 'electric': 10, 'mighty': 10}},
-             
-             'gloves': {'junk': {'regular': 50, 'rusty': 50},
-                        'common': {'regular': 80, 'rusty': 10, 'fast': 5, 'weighed': 5},
-                        'uncommon': {'regular': 71, 'rusty': 5, 'fast': 12, 'weighed': 12},
-                        'rare': {'regular': 50, 'rusty': 2, 'precise': 12, 'fast': 12, 'weighed': 12, 'mighty': 12}, 
-                        'epic': {'precise': 13, 'fast': 13, 'weighed': 13, 'poisoned': 12, 'burning': 12, 'frost': 12, 'electric': 12, 'mighty': 13},
-                        'legendary': {'splash': 10, 'precise': 10, 'fast': 10, 'weighed': 10, 'poisoned': 10, 'leech': 10, 'burning': 10, 'frost': 10, 'electric': 10, 'mighty': 10}},
-             
-             'spear': {'junk': {'regular': 50, 'rusty': 50},
-                        'common': {'regular': 80, 'rusty': 10, 'fast': 5, 'sharp': 5},
-                        'uncommon': {'regular': 71, 'rusty': 5, 'fast': 12, 'sharp': 12},
-                        'rare': {'regular': 50, 'rusty': 2, 'precise': 12, 'fast': 12, 'sharp': 12, 'mighty': 12}, 
-                        'epic': {'precise': 13, 'fast': 13, 'sharp': 13, 'poisoned': 12, 'burning': 12, 'frost': 12, 'electric': 12, 'mighty': 13},
-                        'legendary': {'deadly': 10, 'precise': 10, 'fast': 10, 'sharp': 10, 'poisoned': 10, 'leech': 10, 'burning': 10, 'frost': 10, 'electric': 10, 'mighty': 10}}}
+                    'missile weapon': {'junk': {'regular': 50, 'old': 50},
+                                       'common': {'regular': 80, 'old': 10, 'fast': 5, 'strong': 5},
+                                       'uncommon': {'regular': 71, 'old': 5, 'fast': 12, 'strong': 12},
+                                       'rare': {'regular': 50, 'old': 2, 'precise': 12, 'fast': 12, 'strong': 12, 'piercing': 12}, 
+                                       'epic': {'precise': 13, 'fast': 13, 'strong': 13, 'poisoned': 12, 'burning': 12, 'frost': 12, 'electric': 12, 'piercing': 13},
+                                       'legendary': {'deadly': 10, 'precise': 10, 'fast': 10, 'strong': 10, 'poisoned': 10, 'leech': 10, 'burning': 10, 'frost': 10, 'electric': 10, 'piercing': 10}}}
 ### ranged weapons ###
 
 ### armors ###
@@ -946,7 +946,6 @@ def generateRangedWeapon(level, playerLevel, weaponType = None, weapon = None):
     adj = []
     passiveNumber = 1
     active = False
-    '''
     try:
         rareCombo = randomChoice(rarityCombo[stringRarity])
     except:
@@ -959,21 +958,20 @@ def generateRangedWeapon(level, playerLevel, weaponType = None, weapon = None):
     if 'active' in rareCombo:
         active = True
     
-    adjDict = weaponAdj[weaponType][stringRarity]
+    adjDict = rangedWeaponAdj[weaponType][stringRarity]
     for i in range(passiveNumber):
         bonus = randomChoice(adjDict)
-        while bonus in adj or (bonus == 'fast' and weaponEquipment.slow) or (bonus == 'frost' and 'burning' in adj) or (bonus == 'burning' and 'frost' in adj) or ('headed' in bonus and 'headed' in adj):
+        while bonus in adj or (bonus == 'fast' and weaponEquipment.slow) or (bonus == 'frost' and 'burning' in adj) or (bonus == 'burning' and 'frost' in adj):
             bonus = randomChoice(adjDict)
         adj.append(bonus)
-    '''
     
     if active:
         activeAdj = randItemFrom(adj)
         i = 0
         weaponAbility = adjActive[activeAdj]['name']
-        while 'headed' in activeAdj and i <= 10:
-            weaponAbility = adjActive[activeAdj]['name']
-            i += 1
+        #while 'headed' in activeAdj and i <= 10:
+        #    weaponAbility = adjActive[activeAdj]['name']
+        #    i += 1
     addToName = ''
     for adjective in adj:
         if adjective != 'regular':
