@@ -936,7 +936,15 @@ def generateRangedWeapon(level, playerLevel, weaponType = None, weapon = None):
         ammo = weaponDict['ammo']
     except KeyError:
         ammo = None
-    weaponEquipment = EquipmentTemplate(weaponDict['slot'], stringRarity + ' level ' + str(weaponLevel) + ' ' + weaponDict['type'] + ' ' + weaponType, ranged=True, maxRange = maxRange, ammo = ammo)
+    
+    try:
+        if weaponDict['pow'] > 0:
+            melee = True
+        else:
+            melee = False
+    except KeyError:
+        melee = False
+    weaponEquipment = EquipmentTemplate(weaponDict['slot'], stringRarity + ' level ' + str(weaponLevel) + ' ' + weaponDict['type'] + ' ' + weaponType, ranged=True, maxRange = maxRange, ammo = ammo, meleeWeapon = melee)
     
     try:
         weaponEquipment.atkSpeed = weaponDict['atkSpeed']

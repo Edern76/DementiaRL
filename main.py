@@ -207,6 +207,9 @@ SURPRISE_ATTACK_CRIT = 30
 SPELL_INFO_WIDTH = 60 #Default : 60 / This is actually the width which we pass to textwrap when displaying the spells description (which is useless in normal circumstances), not the actual width of the menubox itself. In other terms, this is the maximum width value that the actual menubox width value can take.  
 TRAIT_INFO_WIDTH = 25
 
+CLASS_LEVEL_WIDTH = 100
+CLASS_LEVEL_HEIGHT = 60
+
 SOUND_ENABLED = True
 
 def getHeroName():
@@ -3504,6 +3507,152 @@ class UnlockableTrait(Trait):
             if unlocked == len(required):
                 self.addTraitToPlayer()
                 message('You gain the trait {}!'.format(self.name), colors.green)
+
+class PlayerClass(Trait):
+    def __init__(self, name, description, type, x = 0, y = 0, underCursor = False, selectable = False, selected = False, allowsSelection = [],
+                 amount = 0, maxAmount = 1, tier = 1, power = (0, 0), acc = (0, 0), ev = (0, 0), arm = (0, 0), hp = (0, 0), mp = (0, 0), crit = (0, 0),
+                  stren = (0, 0), dex = (0, 0), vit = (0, 0), will = (0, 0), spells = None, load = 0, ap = (0, 0), stealth = 0, stam = (0, 0),
+                  bonusSkill = [], dmgTypes = {}, resistances = {}, critMult = 0, attackFuncs = [], buffsOnAttack = [],
+                  trees = {}): #trees = {'class': {level: trait, etc}, 'subclass1': {level: trait, etc}, etc}
+        
+        Trait.__init__(self, name, description, type, x, y, underCursor, selectable, selected, allowsSelection, amount, maxAmount, tier, power, acc, ev, arm, hp, mp, crit, stren, dex, vit, will, spells, load, ap, stealth, stam, bonusSkill, dmgTypes, resistances, critMult, attackFuncs, buffsOnAttack)
+        self.trees = trees
+        names = self.trees.keys()
+        
+        self.sublcass1Name = None
+        i = 0
+        while not self.subclass1Name and i < len(names):
+            newName = names[i]
+            if newName != self.name:
+                self.subclass1Name = newName
+            i += 1
+        
+        self.sublcass2Name = None
+        i = 0
+        while not self.subclass2Name and i < len(names):
+            newName = names[i]
+            if newName != self.name and newName != self.subclass1Name:
+                self.subclass2Name = newName
+            i += 1
+        
+        self.chosenSubclass = None #will become the chosen subclass name once chosen
+        
+        self.uppableLevels = []
+        for name in names:
+            for lvl in self.tress[name].keys():
+                if lvl not in self.uppableLevels:
+                    self.uppableLevels.append(lvl)
+        self.uppableLevels.sort()
+        
+        self.initTreesTraits()
+    
+    def initTreesTraits(self):
+        names = self.trees.keys()
+        maxLvl = 0
+        for name in names:
+            levels = self.trees[name].keys()
+            innerMax = max(levels)
+            if innerMax > maxLvl:
+                maxLvl = innerMax
+        
+        width, height = CLASS_LEVEL_WIDTH, CLASS_LEVEL_HEIGHT
+        xBetween = width//(len(names)+1)
+        yBetween = height//(maxLvl+2)
+        self.xBetween = xBetween
+        self.yBetween = yBetween
+        
+        subclasses = [self.name, self.subclass1Name, self.subclass2Name]
+        for i in range(3):
+            levels = self.trees[subclasses[i]].values().sort()
+            for k in range(len(levels)):
+                trait = self.trees[subclasses[i]][levels[k]]
+                trait.x = (1+i)*xBetween
+                trait.y = (2+k)*yBetween
+                if levels[k] != 1:
+                    trait.selectable = False
+    
+    def levelUpClass(self):
+        if not player.level in self.uppableLevels:
+            return
+        
+        width, height = CLASS_LEVEL_WIDTH, CLASS_LEVEL_HEIGHT
+        window = NamedConsole('classLevelUp', width, height)
+        window.draw_rect(0, 0, width, height, None, fg=colors.white, bg=None)
+        window.clear()
+        
+        chosen = False
+        line = 0
+        column = 1
+        currentTrait = None
+        selected = []
+        while not chosen:
+            drawActualRectangle(window, width, height)
+            
+            names = [self.subclass1Name, self.name, self.subclass2Name]
+            i = 0
+            for name in names:
+                color = colors.white
+                if self.chosenSubclass and (name != self.chosenSubclass and name != self.name):
+                    color = colors.grey
+                window.draw_str(self.xBetween * (1+i) - len(name)//2, self.yBetween, name, color)
+                
+                j = 0
+                for lvl in self.uppableLevels:
+                    trait = self.trees[name][lvl]
+                    color = colors.grey
+                    if lvl == player.level:
+                        color = colors.white
+                    if trait in selected:
+                        color = colors.yellow
+                    if trait.selected:
+                        color = colors.dark_red
+                    if i == column and j == line:
+                        currentTrait = trait
+                        window.draw_str(self.xBetween*(1+i)-len(trait.name)//2, self.yBetween*(j+2), trait.name, fg = colors.black, bg = color)
+                    else:
+                        window.draw_str(self.xBetween*(1+i)-len(trait.name)//2, self.yBetween*(j+2), trait.name, fg = color)
+                    
+                    j+= 1
+                
+                i += 1
+            
+            x = MID_WIDTH - int(width/2)
+            y = MID_HEIGHT - int(height/2)
+            root.blit(window, x, y, width, height, 0, 0)
+            tdl.flush()
+            
+            key = tdl.event.key_wait()
+            if tdl.event.isWindowClosed():
+                quitGame("Closed game")
+            elif key.keychar.upper() == 'RIGHT':
+                column += 1
+                if column > 2:
+                    column = 0
+            elif key.keychar.upper() == 'LEFT':
+                column -= 1
+                if column < 0:
+                    column = 2
+            elif key.keychar.upper() == 'UP':
+                line += 1
+                if line >= len(self.uppableLevels):
+                    column = 0
+            elif key.keychar.upper() == 'LEFT':
+                line -= 1
+                if line < 0:
+                    column = len(self.uppableLevels)-1
+            elif key.keychar.upper() == 'ENTER':
+                if currentTrait not in selected:
+                    selected.append(currentTrait)
+            elif key.keychar.upper() == 'BACKSPACE':
+                try:
+                    selected.remove(currentTrait)
+                except:
+                    pass
+            elif key.keychar.upper() == 'ESCAPE':
+                if selected:
+                    for trait in selected:
+                        trait.applyBonus()
+                    chosen = True
 
 def initializeTraits():
     allTraits = []
