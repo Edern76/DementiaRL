@@ -270,7 +270,7 @@ rangedWeaponSize = {'bow': {'shortbow': 40, 'longbow': 35, 'flatbow': 25},
                     'rifle': {'musket': 45, 'arquebus': 45, 'culverin': 10},
                     'missile weapon': {'blowgun': 25, 'slingshot': 60, 'woomera': 15}}
 
-#weaponDictTemplate = ['pow', 'arm', 'HP', 'acc', 'ev', 'crit', 'MP', 'strength', 'dex', 'vit', 'will', 'ap', 'slow', 'stam', 'stealth', 'dmgTypes', 'res', 'atkSpeed', 'meleePow', 'ammo', 'range' (default:20)]
+#weaponDictTemplate = ['pow', 'arm', 'HP', 'acc', 'ev', 'crit', 'MP', 'strength', 'dex', 'vit', 'will', 'ap', 'slow', 'stam', 'stealth', 'dmgTypes', 'res', 'atkSpeed', 'ammo', 'range' (default:20)]
 
 rangedWeaponAttributes = {'shortbow': {'type': 'light', 'slot': 'two handed', 'pic': 'bow.xp', 'rangedPow': 10, 'acc': 10, 'weight': 0.8, 'atkSpeed': 25, 'ammo': 'arrow'},
                           'longbow': {'type': 'light', 'slot': 'two handed', 'pic': 'bow.xp', 'rangedPow': 14, 'acc': 5, 'weight': 1.1, 'atkSpeed': 25, 'ammo': 'arrow'},
@@ -280,10 +280,10 @@ rangedWeaponAttributes = {'shortbow': {'type': 'light', 'slot': 'two handed', 'p
                           'crossbow': {'type': 'heavy', 'slot': 'two handed', 'pic': 'longSword.xp', 'rangedPow': 16, 'ap': 5, 'weight': 1.9, 'atkSpeed': 100, 'ammo': 'quarrel'},
                           'arbalest': {'type': 'heavy', 'slot': 'two handed', 'pic': 'katana.xp', 'rangedPow': 19, 'ap': 7, 'weight': 2.5, 'atkSpeed': 100, 'ammo': 'quarrel'},
                     
-                          'throwing axe': {'type': 'heavy', 'slot': 'one handed', 'pic': 'axe.xp', 'rangedPow': 9, 'ap': 2, 'weight': 0.6, 'meleePow': 8, 'atkSpeed': 25},
-                          'throwing knife': {'type': 'light', 'slot': 'one handed', 'pic': 'dagger.xp', 'rangedPow': 8, 'acc': 10, 'weight': 0.2, 'meleePow': 5, 'atkSpeed': -50},
-                          'shuriken': {'type': 'light', 'slot': 'one handed', 'pic': 'flail.xp', 'rangedPow': 8, 'crit': 5, 'weight': 0.1, 'atkSpeed': -50},
-                          'javelin': {'type': 'light', 'slot': 'one handed', 'pic': 'pike.xp', 'rangedPow': 15, 'weight': 0.9, 'meleePow': 12},
+                          'throwing axe': {'type': 'heavy', 'slot': 'one handed', 'pic': 'axe.xp', 'rangedPow': 9, 'ap': 2, 'weight': 0.6, 'pow': 8, 'atkSpeed': 25, 'ammo': 'none'},
+                          'throwing knife': {'type': 'light', 'slot': 'one handed', 'pic': 'dagger.xp', 'rangedPow': 8, 'acc': 10, 'weight': 0.2, 'pow': 5, 'atkSpeed': -50, 'ammo': 'none'},
+                          'shuriken': {'type': 'light', 'slot': 'one handed', 'pic': 'flail.xp', 'rangedPow': 8, 'crit': 5, 'weight': 0.1, 'atkSpeed': -50, 'ammo': 'none'},
+                          'javelin': {'type': 'light', 'slot': 'one handed', 'pic': 'pike.xp', 'rangedPow': 15, 'weight': 0.9, 'pow': 12, 'ammo': 'none'},
                     
                           'flintlock pistol': {'type': 'light', 'slot': 'one handed', 'pic': 'mace.xp', 'rangedPow': 13, 'acc': -5, 'ap': 2, 'weight': 1.3, 'atkSpeed': 50, 'ammo': 'pellet'},
                           'hand cannon': {'type': 'light', 'slot': 'one handed', 'pic': 'morningStar.xp', 'rangedPow': 14, 'acc': -15, 'ap': 7, 'weight': 2.1, 'atkSpeed': 75, 'ammo': 'pellet', 'range': 11},

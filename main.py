@@ -1136,7 +1136,7 @@ class TileBuff:
 
 class Spell:
     "Class used by all active abilites (not just spells)"
-    def __init__(self,  ressourceCost, cooldown, useFunction, name, ressource = 'MP', type = 'Magic', magicLevel = 0, arg1 = None, arg2 = None, arg3 = None, hiddenName = None, onRecoverLearn = [], castSpeed = 100, template = None):
+    def __init__(self,  ressourceCost, cooldown, useFunction, name, ressource = 'MP', type = 'Magic', magicLevel = 0, arg1 = None, arg2 = None, arg3 = None, hiddenName = None, onRecoverLearn = [], castSpeed = 100, template = None, requirements = {}):
         self.ressource = ressource
         self.ressourceCost = ressourceCost
         self.maxCooldown = cooldown
@@ -1155,17 +1155,32 @@ class Spell:
         self.onRecoverLearn = onRecoverLearn
         self.castSpeed = castSpeed
         self.template = template
+        self.requirements = requirements
 
     def updateSpellStats(self):
         if self.name == 'Fireball':
             self.arg1 = FIREBALL_SPELL_BASE_RADIUS + player.Player.getTrait('skill', 'Magic ').amount
             self.arg2 = FIREBALL_SPELL_BASE_DAMAGE * player.Player.getTrait('skill', 'Magic ').amount
             self.arg3 = FIREBALL_SPELL_BASE_RANGE + player.Player.getTrait('skill', 'Magic ').amount
-
+    
+    def checkCast(self):
+        if not self.requirements:
+            return False
+        for skill in self.requirements.keys():
+            if player.Player.getTrait('skill', skill).amount < self.requirements[skill]:
+                cannotCast = True
+                break
+        else:
+            cannotCast = True
+        return cannotCast
+    
     def cast(self, caster = player, target = player):
         global FOV_recompute
 
-        #if caster == player:
+        if caster == player:
+            if self.checkCast():
+                message('You are not skilled enough to cast {}.'.format(self.name))
+                return 'cancelled'
         #    self.updateSpellStats()
         if self.ressource == 'MP' and caster.Fighter.MP < self.ressourceCost:
             FOV_recompute = True
@@ -1732,6 +1747,7 @@ def convertRandTemplateToSpell(template = None):
         zoneFunction = singleTarget 
     zone = "SingleTile"
     #TO-DO : Implement the other zones, targeting options
+    requirements = {}
     effects = [template.eff1, template.eff2, template.eff3]
     funcs = [doNothing, doNothing, doNothing]
     for i in range(len(effects)):
@@ -1782,8 +1798,6 @@ def convertRandTemplateToSpell(template = None):
                     type = "Buff"
                 else:
                     type = "Debuff"
-                
-                
                 amount = int(curEffect.amount)
                 newDefFunc = functools.partial(rSpellDefense, amount, type)
                 toAdd = lambda caster, target : newDefFunc(caster, target)
@@ -7579,6 +7593,112 @@ class Equipment:
             player.Fighter.hp -= self.maxHP_Bonus
         if self.maxMP_Bonus != 0:
             player.Fighter.MP -= self.maxMP_Bonus
+    
+    def shoot(self):
+        global FOV_recompute, explodingTiles
+        if not self.ranged:
+            return 'didnt-take-turn'
+        ammo = self.ammo
+        weapon = self.owner
+        hit = False
+        if ammo:
+            foundAmmo = False
+            for object in inventory:
+                print(object.name)
+                if object.name == ammo:
+                    foundAmmo = True
+                    ammoObj = object
+            itemComponent = Item(stackable = True, amount = 1)
+            newAmmo = GameObject(0, 0, '^', ammo, colors.light_orange, Item = itemComponent)
+        else:
+            foundAmmo = True
+        
+        if foundAmmo:
+            message('Choose a target for your ' + weapon.name + '.', colors.cyan)
+            line = targetTile(self.maxRange, showBresenham=True, returnBresenham = True)
+            line.remove((player.x, player.y))
+            if line == "cancelled":
+                FOV_recompute = True
+                message('Invalid target.')
+                return 'didnt-take-turn'
+            else:
+                player.Fighter.actionPoints -= player.Fighter.rangedSpeed
+                #(targetX, targetY) = projectile(player.x, player.y, aimX, aimY, '/', colors.light_orange, continues=True)
+                monsterTarget = None
+                for object in objects:
+                    if object.Fighter and (object.x, object.y) in line:
+                        monsterTarget = object
+                        break
+                
+                if monsterTarget:
+                    [hit, criticalHit] = player.Fighter.toHit(monsterTarget, ranged = True)
+                    dmgTxtFunc = lambda damageTaken: player.Fighter.formatAttackText(monsterTarget, hit, criticalHit, damageTaken, baseText = '{} {}shoot{} {} for {}!', baseNoDmgText = '{} shoot{} {} but it has no effect.')
+                    if hit:
+                        if player.Player.getTrait('trait', 'Aggressive').selected:
+                            damage = randint(self.rangedPower - 2, self.rangedPower + 2) + 4
+                        else:
+                            damage = randint(self.rangedPower - 2, self.rangedPower + 2)
+
+                        if criticalHit:
+                            damage = damage * player.Fighter.critMultiplier
+                        
+                        monsterTarget.Fighter.lootFunction.append(newAmmo)
+                        monsterTarget.Fighter.lootRate.append(100)
+                
+                        damageDict = player.Fighter.computeDamageDict(damage)
+                        monsterTarget.Fighter.takeDamage(damageDict, player.name, armored = True, damageTextFunction = dmgTxtFunc)
+                    else:
+                        possibleDeviations = [(1, 0), (1, 1), (1, -1),
+                                              (-1, 0), (-1, 1), (-1, -1),
+                                              (0, 1), (0, -1),]
+                        deviationCoords = (monsterTarget.x, monsterTarget.y)
+                        while deviationCoords in line and len(possibleDeviations) > 0:
+                            deviationInd = randint(0, len(possibleDeviations)-1)
+                            devX, devY = possibleDeviations[deviationInd]
+                            deviationCoords = (monsterTarget.x + devX, monsterTarget.y + devY)
+                            possibleDeviations.remove((devX, devY))
+                        x, y = deviationCoords
+                        line = tdl.map.bresenham(player.x, player.y, x, y)
+                        line.remove((player.x, player.y))
+                        message("Your shot didn't hit anything", colors.grey)
+                else:
+                    message("Your shot didn't hit anything", colors.grey)
+                ammoObj.Item.amount -= 1
+                foundAmmo = True
+                if ammoObj.Item.amount <= 0:
+                    inventory.remove(ammoObj)
+
+            lastX, lastY = line[len(line)-1]
+            dropX, dropY = projectile(player.x, player.y, lastX, lastY, '/', colors.light_orange, line = line)
+            '''
+            shot = False
+            i = 0
+            while not shot and i < len(objects):
+                obj = objects[i]
+                if obj.Fighter and obj.x == dropX and obj.y == dropY:
+                    shot = True
+                    monsterTarget = obj
+                i+=1
+            if shot:
+                [hit, criticalHit] = player.Fighter.toHit(monsterTarget, ranged = True)
+                dmgTxtFunc = lambda damageTaken: player.Fighter.formatAttackText(monsterTarget, True, criticalHit, damageTaken, baseText = '{} {} shoot{} {} for {}!', baseNoDmgText = '{} shoot{} {} but it has no effect.')
+                if player.Player.getTrait('trait', 'Aggressive').selected: #the deviation shot automatically hits
+                    damage = randint(self.rangedPower - 2, self.rangedPower + 2) + 4
+                else:
+                    damage = randint(self.rangedPower - 2, self.rangedPower + 2)
+
+                if criticalHit:
+                    damage = damage * player.Fighter.critMultiplier
+                damageDict = player.Fighter.computeDamageDict(damage)
+                monsterTarget.Fighter.takeDamage(damageDict, player.name, armored = True, damageTextFunction = dmgTxtFunc)
+            '''
+            if ammo and not hit:
+                newAmmo.x, newAmmo.y = dropX, dropY
+                objects.append(newAmmo)
+                newAmmo.sendToBack()
+        else:
+            message('You have no ammunition for your ' + weapon.name + '!', colors.red)
+            return 'didnt-take-turn'
 
 class Money(Item):
     def __init__(self, moneyAmount):
@@ -8052,11 +8172,17 @@ def getInput():
                 chosenSpell.displayInfo()
     elif userInput.keychar.upper() == 'X':
         print('SHOOTING')
-        shooting = shoot()
-        if shooting == 'didnt-take-turn':
-            return 'didnt-take-turn'
+        #shooting = shoot()
+        #if shooting == 'didnt-take-turn':
+        #    return 'didnt-take-turn'
+        #else:
+        #    return
+        for obj in getEquippedInHands():
+            if obj.Equipment.shoot() != 'didnt-take-turn':
+                break
         else:
-            return
+            return 'didnt-take-turn'
+        return
     
     elif userInput.keychar.upper() == 'TAB':
         currentSidepanelMode += 1
@@ -8322,10 +8448,11 @@ def getInput():
             return 'didnt-take-turn'
     FOV_recompute = True
 
-def projectile(sourceX, sourceY, destX, destY, char, color, continues = False, passesThrough = False, ghost = False):
-    line = tdl.map.bresenham(sourceX, sourceY, destX, destY)
+def projectile(sourceX, sourceY, destX, destY, char, color, continues = False, passesThrough = False, ghost = False, line = None, maxRange = None):
+    if not line:
+        line = tdl.map.bresenham(sourceX, sourceY, destX, destY).remove((sourceX, sourceY))
     if len(line) > 1:
-        (firstX, firstY)= line[1]
+        (firstX, firstY)= line[0]
         inclX = firstX - sourceX
         inclY = firstY - sourceY
         incl = (inclX, inclY)
@@ -8345,11 +8472,12 @@ def projectile(sourceX, sourceY, destX, destY, char, color, continues = False, p
             actualChar = char
         proj = GameObject(0, 0, actualChar, 'proj', color)
         objects.append(proj)
-        line.pop(0)
+        travelledDist = 0
         for loop in range(len(line)):
             (x, y) = line.pop(0)
             proj.x, proj.y = x, y
             animStep(.01)
+            travelledDist += 1
             if isBlocked(x, y) and (not passesThrough or myMap[x][y].blocked) and not ghost:
                 objects.remove(proj)
                 return (x,y)
@@ -8368,7 +8496,8 @@ def projectile(sourceX, sourceY, destX, destY, char, color, continues = False, p
                     (x, y) = line.pop(0)
                     proj.x, proj.y = x, y
                     animStep(.01)
-                    if isBlocked(x, y):
+                    travelledDist += 1
+                    if isBlocked(x, y) or (maxRange and travelledDist >= maxRange):
                         objects.remove(proj)
                         return (x,y)
                         break
@@ -9083,7 +9212,7 @@ def castCreateArmor():
         if weapon is not None:
             objects.append(weapon)
 
-def explode(color = colors.red):
+def explode(color = colors.red, char = '*'):
     global gameState
     global explodingTiles
     global FOV_recompute
@@ -9092,7 +9221,7 @@ def explode(color = colors.red):
         obj.clear()
     con.clear()
     FOV_recompute = True
-    Update(color)
+    Update(color, char)
     tdl.flush()
     time.sleep(.1) #Wait for 0.125 seconds
     explodingTiles = []
@@ -12613,6 +12742,7 @@ def placeObjects(room, first = False):
             print("ITEM ROOM IS CAVE")
         item = None
         if not isBlocked(x, y) and not myMap[x][y].chasm:
+            ammo = None
             itemChoice = randomChoice(itemChances)
             print("DONE RANDOM")
             if itemChoice == 'potion':
@@ -12628,6 +12758,14 @@ def placeObjects(room, first = False):
                 #item = createWeapon(x, y)
                 item = convertItemTemplate(itemGen.generateMeleeWeapon(totalLevel, player.level))
                 print("WEP")
+            elif itemChoice == 'rangedWeapon':
+                item = convertItemTemplate(itemGen.generateRangedWeapon(totalLevel, player.level))
+                ammoName = item.Equipment.ammo
+                if ammoName != 'none':
+                    itemComponent = Item(stackable = True, amount = 30)
+                    ammo = GameObject(x, y, '^', ammoName, colors.light_orange, Item = itemComponent)
+                    objects.append(ammo)
+                print("RANGED WEP")
             elif itemChoice == 'armor':
                 item = convertItemTemplate(itemGen.generateArmor(totalLevel, player.level))
                 print("ARM")
@@ -12708,6 +12846,8 @@ def placeObjects(room, first = False):
                 item.x, item.y = x, y
                 objects.append(item)
                 item.sendToBack()
+                if ammo is not None:
+                    ammo.sendToBack()
             '''
             if 'ogre' in monsterChances.keys():
                 print('Reverting ogre chances to previous value (current : {} / previous : {})'.format(monsterChances['ogre'], previousTrollChances))
@@ -14108,7 +14248,7 @@ def initializeFOV():
     con.clear()
     print("FOV INITIALIZED")
 
-def Update(explodeColor = colors.red):
+def Update(explodeColor = colors.red, char = '*'):
     global FOV_recompute
     global visibleTiles
     global tilesinPath
@@ -14166,7 +14306,7 @@ def Update(explodeColor = colors.red):
                 elif gameState == 'exploding':
                     exploded = (x,y) in explodingTiles
                     if exploded:
-                        con.draw_char(x, y, '*', fg=explodeColor, bg = None)
+                        con.draw_char(x, y, char, fg=explodeColor, bg = None)
                 if DEBUG:
                     inPath = (x,y) in tilesinPath
                     if inPath:
