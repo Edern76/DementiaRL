@@ -1399,6 +1399,8 @@ def rSpellDamage(amount, caster, target, type, dmgTypes = {'physical': 100}):
                 message("Your enemy died on the spot !")
 
 def rSpellHunger(amount, type, caster, target):
+    ### HUNGER REMOVED ###
+    '''
     if target == player:
         if type == "Buff":
             player.Player.hunger += amount
@@ -1409,6 +1411,8 @@ def rSpellHunger(amount, type, caster, target):
             player.Player.hunger = int(BASE_HUNGER)
         if player.Player.hunger < 0:
             player.Player.hunger = 0
+    '''
+    pass
 
 def rSpellAttack(amount, type, caster, target):
     '''
@@ -1775,7 +1779,7 @@ def convertRandTemplateToSpell(template = None):
                 amount = int(curEffect.amount)
                 newElecFunc = functools.partial(rSpellDamage, amount)
                 toAdd = lambda caster, target : newElecFunc(caster, target, "Lightning", dmgTypes={'lightning':100})
-            elif curEffect.name.startswith("Hunger"):
+            elif curEffect.name.startswith("Hunger"): #SHOULD BE REMOVED
                 if curEffect.name.endswith("+"):
                     type = "Buff"
                 else:
@@ -5223,11 +5227,11 @@ class Fighter: #All NPCs, enemies and the player
                         poisoned = Buff('poisoned', colors.purple, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10, dmgType={'poison': 100}))
                         poisoned.applyBuff(target)
         if self.leechRessource is not None:
-            hunger = self.leechRessource == 'hunger'
+            #hunger = self.leechRessource == 'hunger'
             HP = self.leechRessource == 'HP'
             MP = self.leechRessource == 'MP'
-            if hunger and target == player:
-                player.Player.hunger -= self.leechAmount
+            #if hunger and target == player:
+                #player.Player.hunger -= self.leechAmount
             if HP:
                 target.Fighter.hp -= self.leechAmount
                 self.heal(self.leechAmount//2)
@@ -5282,7 +5286,7 @@ class Fighter: #All NPCs, enemies and the player
         #dice = randint(1, 100)
         #if self.owner == player and player.Player.getTrait('trait', )
     
-    def formatAttackText(self, target, hit, crit, damageTaken, baseText = '{} {} hit{} {} for {}!', baseNoDmgText = '{} attack{} {} but it has no effect.'):
+    def formatAttackText(self, target, hit, crit, damageTaken, baseText = '{} {}hit{} {} for {}!', baseNoDmgText = '{} attack{} {} but it has no effect.'):
         textColor = {'dark_green': True, 'orange':False, 'darker_green':False, 'dark_orange':False}
         if self.owner == player:
             attackerText = 'You'
@@ -5296,7 +5300,7 @@ class Fighter: #All NPCs, enemies and the player
             textColor['orange'] = True
             textColor['dark_green'] = False
         if crit:
-            critText = 'critically'
+            critText = 'critically '
             if textColor['orange']:
                 textColor['dark_orange'] = True
                 textColor['orange'] = False
@@ -5605,11 +5609,11 @@ class RangedNPC:
                         poisoned = Buff('poisoned', colors.purple, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10, dmgType={'poison': 100}))
                         poisoned.applyBuff(target)
         if self.leechRessource is not None:
-            hunger = self.leechRessource == 'hunger'
+            #hunger = self.leechRessource == 'hunger'
             HP = self.leechRessource == 'HP'
             MP = self.leechRessource == 'MP'
-            if hunger and target == player:
-                player.Player.hunger -= self.leechAmount
+            #if hunger and target == player:
+                #player.Player.hunger -= self.leechAmount
             if HP:
                 target.Fighter.hp -= self.leechAmount
                 self.owner.heal(self.leechAmount//2)
@@ -5665,11 +5669,11 @@ class RangedNPC:
                 damage = randint(self.power - 2, self.power + 2)
             if self.owner.canTakeTurn:
                 damageDict = self.owner.computeDamageDict(damage)
-                dmgTxtFunc = lambda damageTaken: self.owner.formatAttackText(target, hit, criticalHit, damageTaken, baseText = '{} {} shoot{} {} for {}!', baseNoDmgText = '{} shoot{} {} but it has no effect.')
+                dmgTxtFunc = lambda damageTaken: self.owner.formatAttackText(target, hit, criticalHit, damageTaken, baseText = '{} {}shoot{} {} for {}!', baseNoDmgText = '{} shoot{} {} but it has no effect.')
                 target.Fighter.takeDamage(damageDict, self.owner.owner.name, armored = True, damageTextFunction = dmgTxtFunc)
             self.onAttack(target)
         else:
-            self.owner.formatAttackText(target, hit, criticalHit, damageTaken, baseText = '{} {} shoot{} {} for {}!', baseNoDmgText = '{} shoot{} {} but it has no effect.')
+            self.owner.formatAttackText(target, hit, criticalHit, damageTaken, baseText = '{} {}shoot{} {} for {}!', baseNoDmgText = '{} shoot{} {} but it has no effect.')
         
 class Pathfinder(threading.Thread):
     def __init__(self, mob, goalX, goalY, mapToUse = None):
@@ -6318,8 +6322,8 @@ class Player:
         self.classes = classes
         self.allTraits = allTraits
         self.levelUpStats = levelUpStats
-        self.hunger = baseHunger
-        self.hungerStatus = "full"
+        #self.hunger = baseHunger
+        #self.hungerStatus = "full"
         self.attackedSlowly = False
         self.slowAttackCooldown = 0
         self.speed = speed #or 'slow' or 'fast'
@@ -6585,7 +6589,7 @@ def displayCharacter():
             window.draw_str(5, 1, player.Player.race + ' ' + player.Player.classes, fg = colors.amber)
             window.draw_str(width - 1, 1, chr(26), fg = colors.black, bg = colors.amber)
             renderBar(window, 1, 3, BAR_WIDTH, 'EXP', player.Fighter.xp, levelUp_xp, colors.desaturated_cyan, colors.dark_gray)
-            renderBar(window, 1, 5, BAR_WIDTH, 'Hunger', player.Player.hunger, BASE_HUNGER, colors.desaturated_lime, colors.dark_gray)
+            #renderBar(window, 1, 5, BAR_WIDTH, 'Hunger', player.Player.hunger, BASE_HUNGER, colors.desaturated_lime, colors.dark_gray)
             
             drawHeaderAndValue(window, 1, 7, 'HP', str(player.Fighter.hp) +'/'+ str(player.Fighter.maxHP), underline = False)
             drawHeaderAndValue(window, 20, 7, 'MP', str(player.Fighter.MP) +'/'+ str(player.Fighter.maxMP), underline = False)
@@ -7690,7 +7694,7 @@ class Equipment:
                 i+=1
             if shot:
                 [hit, criticalHit] = player.Fighter.toHit(monsterTarget, ranged = True)
-                dmgTxtFunc = lambda damageTaken: player.Fighter.formatAttackText(monsterTarget, True, criticalHit, damageTaken, baseText = '{} {} shoot{} {} for {}!', baseNoDmgText = '{} shoot{} {} but it has no effect.')
+                dmgTxtFunc = lambda damageTaken: player.Fighter.formatAttackText(monsterTarget, True, criticalHit, damageTaken, baseText = '{} {}shoot{} {} for {}!', baseNoDmgText = '{} shoot{} {} but it has no effect.')
                 if player.Player.getTrait('trait', 'Aggressive').selected: #the deviation shot automatically hits
                     damage = randint(self.rangedPower - 2, self.rangedPower + 2) + 4
                 else:
@@ -7857,10 +7861,14 @@ class Shop:
                 state = self.choicesList[selectedIndex].buy()
 
 def vomit(amount = 30):
+    ### HUNGER REMOVED ###
+    '''
     message('You throw up !', colors.darker_lime)
     player.Player.hunger -= amount
     if player.Player.hunger < 0:
         player.Player.hunger = 0
+    '''
+    pass
 
 #ISN project
 def badPieEffect(): #Presentation de l'initialisation d'un buff (poison)
@@ -8519,11 +8527,15 @@ def projectile(sourceX, sourceY, destX, destY, char, color, continues = False, p
         return(sourceX, sourceY)
         
 def satiateHunger(amount, name = None):
+    ### HUNGER REMOVED ###
+    '''
     player.Player.hunger += amount
     if player.Player.hunger > BASE_HUNGER:
         player.Player.hunger = BASE_HUNGER
     if name:
         message("You eat " + name +".")
+    '''
+    pass
 
 def checkDiagonals(monster, target):
     diagonals = [(1,1), (1, -1), (-1, 1), (-1, -1)]
@@ -8619,7 +8631,7 @@ def shoot():
                                             break
                                     if monsterTarget:
                                         [hit, criticalHit] = player.Fighter.toHit(monsterTarget, ranged = True)
-                                        dmgTxtFunc = lambda damageTaken: player.Fighter.formatAttackText(monsterTarget, hit, criticalHit, damageTaken, baseText = '{} {} shoot{} {} for {}!', baseNoDmgText = '{} shoot{} {} but it has no effect.')
+                                        dmgTxtFunc = lambda damageTaken: player.Fighter.formatAttackText(monsterTarget, hit, criticalHit, damageTaken, baseText = '{} {}shoot{} {} for {}!', baseNoDmgText = '{} shoot{} {} but it has no effect.')
                                         if hit:
                                             if player.Player.getTrait('trait', 'Aggressive').selected:
                                                 damage = randint(weapon.Equipment.rangedPower - 2, weapon.Equipment.rangedPower + 2) + 4
@@ -8664,7 +8676,7 @@ def shoot():
                                     break
                             if monsterTarget:
                                 [hit, criticalHit] = player.Fighter.toHit(monsterTarget, ranged = True)
-                                dmgTxtFunc = lambda damageTaken: player.Fighter.formatAttackText(monsterTarget, hit, criticalHit, damageTaken, baseText = '{} {} shoot{} {} for {}!', baseNoDmgText = '{} shoot{} {} but it has no effect.')
+                                dmgTxtFunc = lambda damageTaken: player.Fighter.formatAttackText(monsterTarget, hit, criticalHit, damageTaken, baseText = '{} {}shoot{} {} for {}!', baseNoDmgText = '{} shoot{} {} but it has no effect.')
                                 if hit:
                                     if player.Player.getTrait('trait', 'Aggressive').selected:
                                         damage = randint(weapon.Equipment.rangedPower - 2, weapon.Equipment.rangedPower + 2) + 4
@@ -16068,7 +16080,7 @@ def playTutorial():
                             if monster.Fighter and not monster == player and (monster.x, monster.y) in visibleTiles:
                                 monsterInSight = True
                                 break
-                        if not 'burning' in convertBuffsToNames(player.Fighter) and not 'frozen' in convertBuffsToNames(player.Fighter) and player.Fighter.hp != player.Fighter.maxHP and not monsterInSight and not player.Player.hungerStatus == 'starving' and not 'poisoned' in convertBuffsToNames(player.Fighter) and not 'stunned' in convertBuffsToNames(player.Fighter):
+                        if not 'burning' in convertBuffsToNames(player.Fighter) and not 'frozen' in convertBuffsToNames(player.Fighter) and player.Fighter.hp != player.Fighter.maxHP and not monsterInSight and not 'poisoned' in convertBuffsToNames(player.Fighter) and not 'stunned' in convertBuffsToNames(player.Fighter): #and not player.Player.hungerStatus == 'starving' 
                             player.Fighter.healCountdown -= 1
                             if player.Fighter.healCountdown < 0:
                                 player.Fighter.healCountdown = 0
@@ -16130,7 +16142,9 @@ def playTutorial():
                     message("You're no longer tired", colors.purple)
             if stairCooldown < 0:
                 stairCooldown = 0
-            
+                
+            ### HUNGER REMOVED ###
+            '''
             player.Player.hunger -= 1
             if player.Player.hunger > BASE_HUNGER:
                 player.Player.hunger = BASE_HUNGER
@@ -16164,6 +16178,7 @@ def playTutorial():
                     for buff in player.Fighter.buffList:
                         if buff.name == 'starving':
                             buff.removeBuff()
+            '''
 
     DEBUG = False
     #quitGame('Window has been closed')
@@ -16358,7 +16373,7 @@ def playGame(noSave = False):
                             if monster.Fighter and not monster == player and (monster.x, monster.y) in visibleTiles:
                                 monsterInSight = True
                                 break
-                        if not 'burning' in convertBuffsToNames(player.Fighter) and not 'frozen' in convertBuffsToNames(player.Fighter) and player.Fighter.hp != player.Fighter.maxHP and not monsterInSight and not player.Player.hungerStatus == 'starving' and not 'poisoned' in convertBuffsToNames(player.Fighter):
+                        if not 'burning' in convertBuffsToNames(player.Fighter) and not 'frozen' in convertBuffsToNames(player.Fighter) and player.Fighter.hp != player.Fighter.maxHP and not monsterInSight and not 'poisoned' in convertBuffsToNames(player.Fighter): #and not player.Player.hungerStatus == 'starving' 
                             player.Fighter.healCountdown -= 1
                             if player.Fighter.healCountdown < 0:
                                 player.Fighter.healCountdown = 0
@@ -16464,6 +16479,8 @@ def playGame(noSave = False):
             if stairCooldown < 0:
                 stairCooldown = 0
             
+            ### HUNGER REMOVED ###
+            '''
             player.Player.hunger -= 1
             if player.Player.hunger > BASE_HUNGER:
                 player.Player.hunger = BASE_HUNGER
@@ -16493,7 +16510,8 @@ def playGame(noSave = False):
                 player.Player.hungerStatus = "full"
                 if prevStatus != "full":
                     message("You feel way less hungry")        
-        
+            '''
+
         ratioHP = round((player.Fighter.hp / player.Fighter.maxHP) * 100)
         for trait in player.Player.allTraits:
             if trait.name == 'Rage' and trait.selected:
