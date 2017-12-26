@@ -7601,19 +7601,22 @@ class Equipment:
         ammo = self.ammo
         weapon = self.owner
         hit = False
-        if ammo:
+        if ammo != 'none':
             foundAmmo = False
             for object in inventory:
                 print(object.name)
                 if object.name == ammo:
                     foundAmmo = True
                     ammoObj = object
-            itemComponent = Item(stackable = True, amount = 1)
-            newAmmo = GameObject(0, 0, '^', ammo, colors.light_orange, Item = itemComponent)
+                    break
         else:
             foundAmmo = True
+            ammoObj = self.owner
         
         if foundAmmo:
+            itemComponent = Item(stackable = True, amount = 1)
+            newAmmo = GameObject(0, 0, ammoObj.char, ammoObj.name, ammoObj.color, Item = itemComponent)
+            
             message('Choose a target for your ' + weapon.name + '.', colors.cyan)
             line = targetTile(self.maxRange, showBresenham=True, returnBresenham = True)
             line.remove((player.x, player.y))
@@ -7666,7 +7669,13 @@ class Equipment:
                 ammoObj.Item.amount -= 1
                 foundAmmo = True
                 if ammoObj.Item.amount <= 0:
-                    inventory.remove(ammoObj)
+                    if ammoObj.Equipment:
+                        equipmentList.remove(ammoObj)
+                    message('You have no more {}!'.format(ammoObj.name))
+                    try:
+                        inventory.remove(ammoObj)
+                    except:
+                        pass
 
             lastX, lastY = line[len(line)-1]
             dropX, dropY = projectile(player.x, player.y, lastX, lastY, '/', colors.light_orange, line = line)
@@ -7692,7 +7701,7 @@ class Equipment:
                 damageDict = player.Fighter.computeDamageDict(damage)
                 monsterTarget.Fighter.takeDamage(damageDict, player.name, armored = True, damageTextFunction = dmgTxtFunc)
             '''
-            if ammo and not hit:
+            if not hit:
                 newAmmo.x, newAmmo.y = dropX, dropY
                 objects.append(newAmmo)
                 newAmmo.sendToBack()
@@ -12096,7 +12105,11 @@ def convertItemTemplate(template):
         
         useFunc = None
         
-        itemComp = Item(useFunc, it.arg1, it.arg2, it.arg3, it.stackable, it.amount, it.weight, it.description, it.pic, it.itemType, it.useText)
+        amount = it.amount
+        if eq.ammo and eq.ammo == 'none': #if it is a throwing weapon
+            amount = 30
+        
+        itemComp = Item(useFunc, it.arg1, it.arg2, it.arg3, it.stackable, amount, it.weight, it.description, it.pic, it.itemType, it.useText)
     
     return GameObject(0, 0, template.char, template.name, template.color, Item = itemComp, Equipment = equipmentComp, pName = template.pName)
 
