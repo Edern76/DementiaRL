@@ -947,9 +947,36 @@ def message(newMsg, color = colors.white):
     for line in newMsgLines:
         if len(gameMsgs) == MSG_HEIGHT:
             del gameMsgs[0] #Deletes the oldest message if the log is full
-    
-        gameMsgs.append((line, color))
-        logMsgs.append((line, color))
+
+        gameMsgs.append([(line, color)])
+        logMsgs.append([(line, color)])
+
+def fancyMessage(messages = ['This is a', ' test', ' message.'], color = [colors.white, colors.green, colors.white]):
+    '''
+    @ATTENTION: You MUST type in the whitespaces or everything will crash
+    @ATTENTION: Because of how the algorithm works, entering 'this' and then 'is' as separate colors will make 'is' the same color as 'this'. Thus prefer entering 'that'
+    '''
+    text = ''
+    for txt in messages:
+        text += txt
+    print(messages, text, color)
+    lines = textwrap.wrap(text, MSG_WIDTH)
+    for line in lines:
+        if len(gameMsgs) == MSG_HEIGHT:
+            del gameMsgs[0] #Deletes the oldest message if the log is full
+        newLine = []
+        splitted = line.split()
+        for word in splitted:
+            i = 0
+            while word not in messages[i]:
+                i += 1
+            
+            if word != splitted[0]:
+                word = ' ' + word
+            newLine.append((word, color[i]))
+        gameMsgs.append(newLine)
+        logMsgs.append(newLine)
+
 #_____________MENU_______________
 
 #_________ BUFFS ___________
@@ -8025,6 +8052,7 @@ def getInput():
         if not DEBUG:
             print('Monster turn debug is now on')
             message("This is a very long message just to test Python 3 built-in textwrap function, which allows us to do great things such as splitting very long texts into multiple lines, so as it don't overflow outside of the console. Oh and, debug mode has been activated", colors.purple)
+            fancyMessage(['That', ' is', ' the', ' fabulous', ' test', ' message.'], [colors.red, colors.orange, colors.yellow, colors.green, colors.blue, colors.violet])
             DEBUG = True
             FOV_recompute = True
             return 'didnt-take-turn'
@@ -13349,9 +13377,14 @@ def displayLog(height):
             y = 1
             print('curStartIndex at displaying : ' + str(curStartIndex))
             for curIndex in range(curStartIndex, lastDisplayedMessage + 1):
-                (line, color) = logMsgs[curIndex]
-                window.draw_str(1, y, line, fg = color, bg = Ellipsis)
+                msgX = 1
+                for (text, color) in logMsgs[curIndex]:
+                    window.draw_str(msgX, y, text, bg=None, fg = color)
+                    msgX += len(text)
                 y += 1
+                #(line, color) = logMsgs[curIndex]
+                #window.draw_str(1, y, line, fg = color, bg = Ellipsis)
+                #y += 1
             
             if curStartIndex > 0:
                 window.draw_char(kMax, 1, chr(24), fg = colors.black, bg = colors.amber)
@@ -14470,11 +14503,20 @@ def Update(explodeColor = colors.red, char = '*'):
     
     root.blit(con, 0, 0, WIDTH, HEIGHT, 0, 0)
     # Draw log
-    
     msgY = 1
-    for (line, color) in gameMsgs:
-        panel.draw_str(MSG_X, msgY, line, bg=None, fg = color)
+    for line in gameMsgs:   #gameMsgs = [[(txt, clr), (txt, clr), ...], [(txt, clr), ...]]
+        msgX = MSG_X
+        for (text, color) in line:
+            print(text, color)
+            panel.draw_str(msgX, msgY, text, bg=None, fg = color)
+            msgX += len(text)
         msgY += 1
+    
+    #msgY = 1
+    #for (line, color) in gameMsgs:
+    #    panel.draw_str(MSG_X, msgY, line, bg=None, fg = color)
+    #    msgY += 1
+    
     # Draw GUI
     #panel.draw_str(1, 3, 'Dungeon level: ' + str(branchLevel), colors.white)
     lvlHeaderColor = colors.amber
