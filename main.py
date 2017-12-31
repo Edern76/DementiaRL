@@ -2560,6 +2560,30 @@ def castMultipleAttacks(caster = None, monsterTarget = None, attacksNum = 3):
         caster.Fighter.attack(target, fromFreeAtk = True)
     return
 
+def castMultipleShots(caster = None, monsterTarget = None, attacksNum = 3):
+    if caster is None or caster == player:
+        caster = player
+        weapon = None
+        for wep in getEquippedInHands():
+            if wep.Equipment.ranged and 'light' in wep.Equipment.type:
+                weapon = wep.Equipment
+                break
+        if weapon:
+            line = targetTile(weapon.maxRange, showBresenham=True, returnBresenham = True)
+            if line == 'cancelled':
+                return 'didnt-take-turn'
+        else:
+            message('You have no weapons able to shoot volleys.')
+            return 'didnt-take-turn'
+        for attack in range(attacksNum):
+            weapon.shoot(line)
+            
+    elif caster.Ranged:
+        for attack in range(attacksNum):
+            caster.Ranged.shoot(monsterTarget)
+    return
+    
+
 def castSeismicSlam(caster, monsterTarget, AOErange = 6, damage = 10, stunCooldown = 4):
     if caster is None or caster == player:
         caster = player
@@ -2623,6 +2647,7 @@ flurry = Spell(ressourceCost=15, cooldown=50, useFunction=castMultipleAttacks, n
 seismic = Spell(ressourceCost=20, cooldown=60, useFunction=castSeismicSlam, name='Seismic slam', ressource='Stamina', type='Skill')
 shadowStep = Spell(ressourceCost = 12, cooldown = 70, useFunction = castShadowStep, name = 'Shadow step', ressource = 'MP', type = 'Skill')
 throwEnemy = Spell(ressourceCost=23, cooldown = 40, useFunction = castThrowEnemy, name = 'Throw enemy', ressource = 'Stamina', type = 'Skill')
+volley = Spell(ressourceCost=20, cooldown = 50, useFunction = castMultipleShots, name = 'Volley', ressource = 'Stamina', type = 'Skill')
 
 ### TRAITS UNLOCKABLE SPELLS ###
 ### DEBUG SPELLS ###
@@ -3006,7 +3031,9 @@ drawRect = Spell(ressourceCost = 0, cooldown = 1, useFunction=castDrawRectangle,
 
 ### DEBUG SPELLS ###
 
-spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport, djik, dispDjik, djikProf, detDjik, yellowify, ram, leap, expandRootsDmg, expandRootsDummy, expandRootsRegen, insectFly, demonForm, spawnProj, placeIceWall, testCone, flurry, seismic, shadowStep, throwEnemy, blizzard, flamethrower])
+spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport, djik, dispDjik, djikProf,
+               detDjik, yellowify, ram, leap, expandRootsDmg, expandRootsDummy, expandRootsRegen, insectFly, demonForm, spawnProj, placeIceWall, testCone,
+               flurry, seismic, shadowStep, throwEnemy, blizzard, flamethrower, volley])
 #_____________SPELLS_____________
 
 #______________CHARACTER GENERATION____________
@@ -3767,8 +3794,8 @@ def initializeTraits():
     
     light = Trait('Light weapons', '+20% damage per skillpoints with light weapons', type = 'skill', selectable = False, tier = 3, maxAmount=10)
     heavy = Trait('Heavy weapons', '+20% damage per skillpoints with heavy weapons', type = 'skill', selectable = False, tier = 3, maxAmount=10)
-    lightMissile = Trait('Light missile weapons', '+20% damage per skillpoints with light missile weapons', type = 'skill', selectable = False, tier = 3, maxAmount=10)
-    heavyMissile = Trait('Heavy missile weapons', '+20% damage per skillpoints with heavy missile weapons', type = 'skill', selectable = False, tier = 3, maxAmount=10)
+    lightMissile = Trait('Light ranged weapons', '+20% damage per skillpoints with light ranged weapons', type = 'skill', selectable = False, tier = 3, maxAmount=10)
+    heavyMissile = Trait('Heavy ranged weapons', '+20% damage per skillpoints with heavy ranged weapons', type = 'skill', selectable = False, tier = 3, maxAmount=10)
     shield = Trait('Shield mastery', 'You trained to master shield wielding.', type = 'skill', selectable = False, tier = 3, maxAmount=10)
     armorEff = Trait('Armor efficiency', 'You know very well how to maximize the protection brought by your armor', type = 'skill', selectable = False, tier = 3, maxAmount=10)
     brawl = Trait('Brawling', 'Your consistent participation in tavern brawls have made you pretty used to unarmed combat', type = 'skill', selectable = False, tier = 3, maxAmount=10)
@@ -3917,6 +3944,9 @@ def initializeTraits():
     autoStun = UnlockableTrait('Stunning strikes', 'You hit so hard you can stun your enemies.', 'trait', requiredTraits = {'Heavy weapons': 4}, attackFuncs = [autoStun])
     seismicTrait = UnlockableTrait('Seismic slam', 'You hit the floor in front of you, creating a shockwave in a cone.', 'trait', requiredTraits={'Heavy weapons': 7}, spells = [seismic])
     ignoreSlow = UnlockableTrait('Easy blows', 'You are used to the weight of heavy weapons and thus can strike with them at a fast speed.', 'trait', requiredTraits={'Heavy weapons': 10})
+    ## ranged
+    # light
+    volleySkill = UnlockableTrait('Volley', 'You shoot three times in a row.', 'trait', requiredTraits = {'Light ranged weapons': 7}, spells = [volley])
     
     ###  mental  ###
     ## will
@@ -3934,7 +3964,8 @@ def initializeTraits():
     glovesDmg = UnlockableTrait('Fist fighter', 'You know very well how to use your hands in a fight.', 'trait', requiredTraits = {'Brawling': 4})
     throwEnemySkill = UnlockableTrait('Throw enemy', 'You can grab an enemy and throw it across rooms, sometimes into his fellow companions.', 'trait', requiredTraits = {'Brawling': 7}, spells = [throwEnemy])
     
-    unlockableTraits.extend([controllableWerewolf, dual, aware, flurryTrait, seismicTrait, ignoreSlow, shadowstepTrait, shadowCrit, greaterCrit, meleeKB, freeAtk, glovesDmg, throwEnemySkill])
+    unlockableTraits.extend([controllableWerewolf, dual, aware, flurryTrait, seismicTrait, ignoreSlow, shadowstepTrait, shadowCrit, greaterCrit, meleeKB,
+                             freeAtk, glovesDmg, throwEnemySkill, volleySkill])
     
     for skill in skills:
         for unlock in unlockableTraits:
@@ -6816,6 +6847,14 @@ class Item:
                     equipment.equip(player.Fighter, silent)
         else:
             itemFound = False
+            if inObjects:
+                toRemove = []
+                for obj in objects:
+                    if obj != self.owner and obj.x == self.owner.x and obj.y == self.owner.y and obj.name == self.owner.name:
+                        self.amount += obj.Item.amount
+                        toRemove.append(obj)
+                for obj in toRemove:
+                    objects.remove(obj)
             for item in inventory:
                 if item.name == self.owner.name:
                     if not silent:
@@ -7323,13 +7362,13 @@ class Equipment:
     @property
     def rangedPower(self):
         if 'light' in self.type and self.owner in equipmentList:
-            bonus = (10 * player.Player.getTrait('skill', 'Light missile weapons').amount) / 100
+            bonus = (10 * player.Player.getTrait('skill', 'Light ranged weapons').amount) / 100
             if self.enchant:
                 return round(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.dexterity + self.enchant.power)
             else:
                 return round(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.dexterity)
         elif 'heavy' in self.type and self.owner in equipmentList:
-            bonus = (10 * player.Player.getTrait('skill', 'Heavy missile weapons').amount) / 100
+            bonus = (10 * player.Player.getTrait('skill', 'Heavy ranged weapons').amount) / 100
             if self.enchant:
                 return round(self.baseRangedPower * bonus + self.baseRangedPower + player.Player.strength + self.enchant.power)
             else:
@@ -7625,7 +7664,10 @@ class Equipment:
         if self.maxMP_Bonus != 0:
             player.Fighter.MP -= self.maxMP_Bonus
     
-    def shoot(self):
+    def shoot(self, line = None):
+        '''
+        @param: if precised, line must contain player's coords
+        '''
         global FOV_recompute, explodingTiles
         if not self.ranged:
             return 'didnt-take-turn'
@@ -7648,14 +7690,15 @@ class Equipment:
             itemComponent = Item(stackable = True, amount = 1)
             newAmmo = GameObject(0, 0, ammoObj.char, ammoObj.name, ammoObj.color, Item = itemComponent)
             
-            message('Choose a target for your ' + weapon.name + '.', colors.cyan)
-            line = targetTile(self.maxRange, showBresenham=True, returnBresenham = True)
-            line.remove((player.x, player.y))
+            if not line:
+                message('Choose a target for your ' + weapon.name + '.', colors.cyan)
+                line = targetTile(self.maxRange, showBresenham=True, returnBresenham = True)
             if line == "cancelled":
                 FOV_recompute = True
                 message('Invalid target.')
                 return 'didnt-take-turn'
             else:
+                line.remove((player.x, player.y))
                 player.Fighter.actionPoints -= player.Fighter.rangedSpeed
                 #(targetX, targetY) = projectile(player.x, player.y, aimX, aimY, '/', colors.light_orange, continues=True)
                 monsterTarget = None
@@ -8518,15 +8561,18 @@ def projectile(sourceX, sourceY, destX, destY, char, color, continues = False, p
         proj = GameObject(0, 0, actualChar, 'proj', color)
         objects.append(proj)
         travelledDist = 0
+        x, y = firstX, firstY
         for loop in range(len(line)):
+            prevX, prevY = x, y
             (x, y) = line.pop(0)
             proj.x, proj.y = x, y
             animStep(.01)
             travelledDist += 1
             if isBlocked(x, y) and (not passesThrough or myMap[x][y].blocked) and not ghost:
                 objects.remove(proj)
+                if myMap[x][y].blocked:
+                    return (prevX, prevY)
                 return (x,y)
-                break
         if not continues:
             objects.remove(proj)
             return (x,y)
@@ -8538,14 +8584,16 @@ def projectile(sourceX, sourceY, destX, destY, char, color, continues = False, p
                 startY = y
                 line = tdl.map.bresenham(x, y, newX, newY)
                 for r in range(len(line)):
+                    prevX, prevY = x, y
                     (x, y) = line.pop(0)
                     proj.x, proj.y = x, y
                     animStep(.01)
                     travelledDist += 1
                     if isBlocked(x, y) or (maxRange and travelledDist >= maxRange):
                         objects.remove(proj)
+                        if myMap[x][y].blocked:
+                            return (prevX, prevY)
                         return (x,y)
-                        break
                 dx = newX - startX
                 dy = newY - startY
             print("Projectile out of shotRange")
