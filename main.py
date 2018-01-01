@@ -1042,7 +1042,7 @@ class Buff: #also (and mainly) used for debuffs
                  strength = 0, dexterity = 0, constitution = 0, willpower = 0, hp = 0, armor = 0, power = 0, accuracy = 0, evasion = 0, maxMP = 0,
                  critical = 0, armorPenetration = 0, rangedPower = 0, stamina = 0, stealth = 0, attackSpeed = 0, moveSpeed = 0, rangedSpeed = 0,
                  resistances = {'physical': 0, 'poison': 0, 'fire': 0, 'cold': 0, 'lightning': 0, 'light': 0, 'dark': 0, 'none': 0},
-                 attackTypes = {}, flight = None):
+                 attackTypes = {}, flight = None, resistible = True):
         '''
         Function used to initialize a new instance of the Buff class
         '''
@@ -1078,6 +1078,7 @@ class Buff: #also (and mainly) used for debuffs
         self.resistances = resistances
         self.attackTypes = attackTypes
         self.flight = flight
+        self.resistible = resistible
         
         self.hpDiff = 0
         self.mpDiff = 0
@@ -1088,6 +1089,11 @@ class Buff: #also (and mainly) used for debuffs
         '''
         print(self.name, target.name)
         self.owner = target
+        if target == player and player.Player.getTrait('trait', 'Physical withstandingness') != 'not found':
+            dice = randint(1, 100)
+            if dice <= player.Player.getTrait('skill', 'Endurance').amount * 5:
+                message('You resist the {} condition!'.format(self.name), self.color)
+                return
         if self.owner.Fighter:
             if not self.name in convertBuffsToNames(target.Fighter): #If target is not already under effect of the buff
                 self.curCooldown = self.baseCooldown #Initialization of the buff cooldown
@@ -1404,7 +1410,7 @@ def rSpellDamage(amount, caster, target, type, dmgTypes = {'physical': 100}):
                 messageColor = colors.white
             dmgTxtFunc = lambda damageTaken: target.Fighter.formatRawDamageText(damageTaken, "{} takes {}!", messageColor, '{} is hit by the spell but is insensible to it.', colors.white)
         else:
-            dmgTxtFunc = lambda damageTaken: player.Fighter.formatRawDamageText(damageTaken, "{} take {} damage !", colors.red, '{} are hit by the spell but are insensible to it.', colors.white)
+            dmgTxtFunc = lambda damageTaken: player.Fighter.formatRawDamageText(damageTaken, "{} take {}!", colors.red, '{} are hit by the spell but are insensible to it.', colors.white)
         
         target.Fighter.takeDamage(damageDict, "A spell", damageTextFunction = dmgTxtFunc)
         
@@ -1449,7 +1455,7 @@ def rSpellAttack(amount, type, caster, target):
         message(target.name.capitalize() + " should have had its attack decrease. But the developper was to lazy to implement it in time !") #TO-DO
     '''
     if type == "Buff":
-        enraged = Buff('strengthened', colors.dark_red, cooldown = amount, power = 10)
+        enraged = Buff('strengthened', colors.dark_red, cooldown = amount, power = 10, resistible = False)
         enraged.applyBuff(target)
     else:
         enraged = Buff('weakened', colors.light_red, cooldown = amount, power = -10)
@@ -1463,7 +1469,7 @@ def rSpellDefense(amount, type, caster, target):
         message(target.name.capitalize() + " should have had its defense decrease. But the developper was to lazy to implement it in time !") #TO-DO
     '''
     if type == "Buff":
-        armor = Buff('invigorated', colors.cyan, cooldown = amount, armor = 10)
+        armor = Buff('invigorated', colors.cyan, cooldown = amount, armor = 10, resistible = False)
         armor.applyBuff(target)
     else:
         armor = Buff('vulnerable', colors.dark_cyan, cooldown = amount, armor = -10)
@@ -2159,7 +2165,7 @@ flamethrower = Spell(ressourceCost = 5, cooldown = 20, useFunction = castFlameth
 def castEnrage(enrageTurns, caster = None, monsterTarget = None):
     if caster is None or caster == player:
         caster = player
-    enraged = Buff('enraged', colors.dark_red, cooldown = enrageTurns, power = 10)
+    enraged = Buff('enraged', colors.dark_red, cooldown = enrageTurns, power = 10, resistible = False)
     enraged.applyBuff(caster)
 
 def castRessurect(shotRange = 4, caster = None, monsterTarget = None):
@@ -2414,7 +2420,7 @@ def castFly(caster=None, monsterTarget=None, ressources = {'stamina': 1}, cooldo
                 break
     
     flying = Buff('flying', colors.light_azure, cooldown = cooldown, showCooldown=False, evasion = evasionBonus, flight = True,
-                  removeFunction = lambda fighter : removeFlightBuff(fighter, spellHiddenName))
+                  removeFunction = lambda fighter : removeFlightBuff(fighter, spellHiddenName), resistible = False)
     flying.continuousFunction = lambda fighter: consumeRessource(fighter, buff = flying, ressources = ressources)
     flying.applyBuff(caster)
     return
@@ -2423,7 +2429,7 @@ def castExpandRoots(caster = None, monsterTarget = None, mode = 'AOE', AOERange 
     global FOV_recompute, myMap
     rootedTiles = []
     rootedTilesChar = []
-    rooted = Buff('rooted', colors.dark_sepia, cooldown = cooldown + 3)
+    rooted = Buff('rooted', colors.dark_sepia, cooldown = cooldown + 3, resistible = False)
     if caster is None or caster == player:
         caster = player
         rooted.applyBuff(caster)
@@ -2528,7 +2534,7 @@ def castDemonForm(caster=None, monsterTarget=None, ressources = {'stamina': 2, '
                 caster.Fighter.hiddenSpells.append(spell)
                 break
     
-    demon = Buff('in Demon form', colors.dark_flame, cooldown = cooldown, showCooldown=False, power = powerBonus, armor = armorBonus, accuracy = accuracyBonus, evasion = evasionBonus, flight = True, removeFunction = lambda fighter : removeDemonBuff(fighter, spellHiddenName))
+    demon = Buff('in Demon form', colors.dark_flame, cooldown = cooldown, showCooldown=False, power = powerBonus, armor = armorBonus, accuracy = accuracyBonus, evasion = evasionBonus, flight = True, removeFunction = lambda fighter : removeDemonBuff(fighter, spellHiddenName), resistible = False)
     demon.continuousFunction = lambda fighter: consumeRessource(fighter, buff = demon, ressources = ressources)
     demon.applyBuff(caster)
     return
@@ -2576,7 +2582,8 @@ def castMultipleShots(caster = None, monsterTarget = None, attacksNum = 3):
             message('You have no weapons able to shoot volleys.')
             return 'didnt-take-turn'
         for attack in range(attacksNum):
-            weapon.shoot(line)
+            newLine = copy(line)
+            weapon.shoot(newLine, False)
             
     elif caster.Ranged:
         for attack in range(attacksNum):
@@ -3963,9 +3970,11 @@ def initializeTraits():
     # brawl
     glovesDmg = UnlockableTrait('Fist fighter', 'You know very well how to use your hands in a fight.', 'trait', requiredTraits = {'Brawling': 4})
     throwEnemySkill = UnlockableTrait('Throw enemy', 'You can grab an enemy and throw it across rooms, sometimes into his fellow companions.', 'trait', requiredTraits = {'Brawling': 7}, spells = [throwEnemy])
+    ## endurance
+    resistDebuff = UnlockableTrait('Physical withstandingness', 'You are used to facing harsh physical conditions and can easily resist them.', 'trait', requiredTraits = {'Endurance': 4})
     
     unlockableTraits.extend([controllableWerewolf, dual, aware, flurryTrait, seismicTrait, ignoreSlow, shadowstepTrait, shadowCrit, greaterCrit, meleeKB,
-                             freeAtk, glovesDmg, throwEnemySkill, volleySkill])
+                             freeAtk, glovesDmg, throwEnemySkill, volleySkill, resistDebuff])
     
     for skill in skills:
         for unlock in unlockableTraits:
@@ -7664,7 +7673,7 @@ class Equipment:
         if self.maxMP_Bonus != 0:
             player.Fighter.MP -= self.maxMP_Bonus
     
-    def shoot(self, line = None):
+    def shoot(self, line = None, spendAtkPoints = True):
         '''
         @param: if precised, line must contain player's coords
         '''
@@ -7698,8 +7707,12 @@ class Equipment:
                 message('Invalid target.')
                 return 'didnt-take-turn'
             else:
-                line.remove((player.x, player.y))
-                player.Fighter.actionPoints -= player.Fighter.rangedSpeed
+                try:
+                    line.remove((player.x, player.y))
+                except:
+                    print('player coords not in shooting line')
+                if spendAtkPoints:
+                    player.Fighter.actionPoints -= player.Fighter.rangedSpeed
                 #(targetX, targetY) = projectile(player.x, player.y, aimX, aimY, '/', colors.light_orange, continues=True)
                 monsterTarget = None
                 for object in objects:
@@ -13048,7 +13061,7 @@ def getAllWeights(object):
 def checkLoad():
     load = getAllWeights(player)
     if load > player.Player.maxWeight:
-        burdened = Buff('burdened', colors.yellow, 99999, showCooldown=False)
+        burdened = Buff('burdened', colors.yellow, 99999, showCooldown=False, resistible = False)
         burdened.applyBuff(player)
     if load <= player.Player.maxWeight and 'burdened' in convertBuffsToNames(player.Fighter):
         for buff in player.Fighter.buffList:
@@ -14555,7 +14568,6 @@ def Update(explodeColor = colors.red, char = '*'):
     for line in gameMsgs:   #gameMsgs = [[(txt, clr), (txt, clr), ...], [(txt, clr), ...]]
         msgX = MSG_X
         for (text, color) in line:
-            print(text, color)
             panel.draw_str(msgX, msgY, text, bg=None, fg = color)
             msgX += len(text)
         msgY += 1
@@ -16495,8 +16507,8 @@ def playGame(noSave = False):
                         #    dexBonus += randint(-2, 2)
                         #    vitBonus += randint(-3, 3)
                         #    willMalus += randint(-2, 2)
-                        human = Buff('human', colors.lightest_yellow, cooldown = humanCooldown, showBuff = False, removeFunction = lambda fighter: shapeshift(fighter))
-                        wolf = Buff('in wolf form', colors.amber, cooldown = wolfCooldown, strength = strenBonus, dexterity = dexBonus, constitution = vitBonus, willpower = willMalus, removeFunction = lambda fighter: shapeshift(fighter, fromHuman=False, fromWolf=True))
+                        human = Buff('human', colors.lightest_yellow, cooldown = humanCooldown, showBuff = False, removeFunction = lambda fighter: shapeshift(fighter), resitible = False)
+                        wolf = Buff('in wolf form', colors.amber, cooldown = wolfCooldown, strength = strenBonus, dexterity = dexBonus, constitution = vitBonus, willpower = willMalus, removeFunction = lambda fighter: shapeshift(fighter, fromHuman=False, fromWolf=True), resitible = False)
                         if object.Player.shapeshift == 'wolf':
                             message('You feel your wild instincts overwhelming you! You have turned into your wolf form!', colors.amber)
                             wolf.applyBuff(player)
@@ -16606,7 +16618,7 @@ def playGame(noSave = False):
         for trait in player.Player.allTraits:
             if trait.name == 'Rage' and trait.selected:
                 if ratioHP <= 25 and not 'enraged' in convertBuffsToNames(player.Fighter):
-                    enraged = Buff('uncontrollable', colors.dark_red, cooldown = 99999, power = 10)
+                    enraged = Buff('uncontrollable', colors.dark_red, cooldown = 99999, power = 10, resitible = False)
                     enraged.applyBuff(player)
                 break
         
