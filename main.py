@@ -1011,6 +1011,25 @@ def consumeRessource(fighter, buff, ressources = {'stamina': 1}):
                 fighter.hp = 0
                 buff.removeBuff()
 
+def regenRessource(fighter, ressources = {'stamina': 1}):
+    ressourcelist = list(ressources.keys())
+    for ressource in ressourcelist:
+        if ressource == 'stamina':
+            fighter.stamina += ressources[ressource]
+            if fighter.stamina > fighter.maxStamina:
+                fighter.stamina = fighter.maxStamina
+                #buff.removeBuff()
+        if ressource == 'MP':
+            fighter.MP += ressources[ressource]
+            if fighter.MP > fighter.maxMP:
+                fighter.MP = fighter.maxMP
+                #buff.removeBuff()
+        if ressource == 'HP':
+            fighter.hp += ressources[ressource]
+            if fighter.hp > fighter.maxHP:
+                fighter.hp = fighter.maxHP
+                #buff.removeBuff()
+
 def randomDamage(name, fighter = None, chance = 33, minDamage = 1, maxDamage = 1, dmgMessage = None, dmgColor = colors.red, msgPlayerOnly = True, dmgType = {'fire': 100}):
     dice = randint(1, 100)
     if dice <= chance:
@@ -3934,9 +3953,23 @@ def initializeTraits():
         if dice <= chance:
             stunned = Buff('stunned', colors.light_yellow, cooldown = 4)
             stunned.applyBuff(target)
+    
+    def regen(caster = None, target = None, fromTrait = 'Constitution', ressources = ['HP'], name = 'regenerating', color = colors.green):
+        #stamina without capitalization
+        if caster is None:
+            caster = player
+        traitAmount = player.Player.getTrait('skill', fromTrait).amount
+        dict = {}
+        for res in ressources:
+            dict[res] = 10 + (traitAmount-7)*5 #lvl7: 10, lvl8: 15, lvl9: 20, lvl10: 25
+        buff = Buff(name, color, cooldown = 6, continuousFunction = lambda fighter: regenRessource(fighter, dict))
+        buff.applyBuff(caster)
             
         
     shapeshift = Spell(ressourceCost=10, cooldown = 100, useFunction=castShapeshift, name = 'Shapeshift', ressource='MP', type = 'racial')
+    spellRegenStam = Spell(ressourceCost = 0, cooldown = 100, useFunction = lambda caster, target: regen(caster, target, 'Physical training', ['stamina'], 'gathering forces', colors.lighter_yellow), name = 'Gather forces', ressource = 'Stamina', type = 'trait')
+    spellRegenMP = Spell(ressourceCost = 0, cooldown = 100, useFunction = lambda caster, target: regen(caster, target, 'Power of will', ['MP'], 'meditating', colors.blue), name = 'Meditate', ressource = 'MP', type = 'trait')
+    spellRegenHP = Spell(ressourceCost = 0, cooldown = 100, useFunction = regen, name = 'Regenerate', ressource = 'HP', type = 'trait')
     
     ###  race  ###
     controllableWerewolf = UnlockableTrait('Shape control', 'You are able to shapeshift at will.', type = 'trait', spells = [shapeshift], requiredTraits={'player level': 5, 'Werewolf': 1})
@@ -3958,8 +3991,10 @@ def initializeTraits():
     ###  mental  ###
     ## will
     aware = UnlockableTrait('Self aware', 'Allows to see the buffs and debuffs cooldowns.', 'trait', requiredTraits={'Power of will': 4})
+    regenMP = UnlockableTrait('Meditate', 'Your mental energy regenerates extremely rapidly', 'trait', requiredTraits = {'Power of will': 7}, spells = [spellRegenMP])
     
     ###  physical  ###
+    regenStam = UnlockableTrait('Gather forces', 'Your stamina regenerates extremely rapidly', 'trait', requiredTraits = {'Physical training': 7}, spells = [spellRegenStam])
     ## cunning
     shadowstepTrait = UnlockableTrait('Shadow step', 'When concealed, you can move through the shadows at incredible speed.', 'trait', requiredTraits={'Cunning': 7}, spells = [shadowStep])
     shadowCrit = UnlockableTrait('Surprise attack', 'When concealed, you have a greater chance to inflinct critical damage.', 'trait', requiredTraits = {'Cunning': 4})
@@ -3972,9 +4007,11 @@ def initializeTraits():
     throwEnemySkill = UnlockableTrait('Throw enemy', 'You can grab an enemy and throw it across rooms, sometimes into his fellow companions.', 'trait', requiredTraits = {'Brawling': 7}, spells = [throwEnemy])
     ## endurance
     resistDebuff = UnlockableTrait('Physical withstandingness', 'You are used to facing harsh physical conditions and can easily resist them.', 'trait', requiredTraits = {'Endurance': 4})
-    
+    # const
+    regenHP = UnlockableTrait('Regenerate', 'Your health regenerates extremely rapidly', 'trait', requiredTraits = {'Constitution': 7}, spells = [spellRegenHP])
+
     unlockableTraits.extend([controllableWerewolf, dual, aware, flurryTrait, seismicTrait, ignoreSlow, shadowstepTrait, shadowCrit, greaterCrit, meleeKB,
-                             freeAtk, glovesDmg, throwEnemySkill, volleySkill, resistDebuff])
+                             freeAtk, glovesDmg, throwEnemySkill, volleySkill, resistDebuff, regenStam, regenHP, regenMP])
     
     for skill in skills:
         for unlock in unlockableTraits:
