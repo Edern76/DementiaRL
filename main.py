@@ -4002,6 +4002,7 @@ def initializeTraits():
     greaterCrit = UnlockableTrait('Fatal precision', 'Your hits are so precise they can eviscerate your victim in one strike.', 'trait', requiredTraits = {'Critical': 4}, critMult = 1)
     ## strength
     meleeKB = UnlockableTrait('Mighty strikes', 'You smash so hard you can sometimes push back enemies', 'trait', requiredTraits = {'Strength': 4}, attackFuncs = [autoKB])
+    ignoreTwoHanded = UnlockableTrait('Firm grip', 'You are so strong you can wield two handed weapons in only one hand.', 'trait', requiredTraits = {'Strength': 10})
     # brawl
     glovesDmg = UnlockableTrait('Fist fighter', 'You know very well how to use your hands in a fight.', 'trait', requiredTraits = {'Brawling': 4})
     throwEnemySkill = UnlockableTrait('Throw enemy', 'You can grab an enemy and throw it across rooms, sometimes into his fellow companions.', 'trait', requiredTraits = {'Brawling': 7}, spells = [throwEnemy])
@@ -4011,7 +4012,7 @@ def initializeTraits():
     regenHP = UnlockableTrait('Regenerate', 'Your health regenerates extremely rapidly', 'trait', requiredTraits = {'Constitution': 7}, spells = [spellRegenHP])
 
     unlockableTraits.extend([controllableWerewolf, dual, aware, flurryTrait, seismicTrait, ignoreSlow, shadowstepTrait, shadowCrit, greaterCrit, meleeKB,
-                             freeAtk, glovesDmg, throwEnemySkill, volleySkill, resistDebuff, regenStam, regenHP, regenMP])
+                             freeAtk, glovesDmg, throwEnemySkill, volleySkill, resistDebuff, regenStam, regenHP, regenMP, ignoreTwoHanded])
     
     for skill in skills:
         for unlock in unlockableTraits:
@@ -7350,7 +7351,7 @@ class Enchantment:
     
 class Equipment:
     def __init__(self, slot, type, powerBonus=0, armorBonus=0, maxHP_Bonus=0, accuracyBonus=0, evasionBonus=0, criticalBonus = 0, maxMP_Bonus = 0, strengthBonus = 0, dexterityBonus = 0, vitalityBonus = 0, willpowerBonus = 0, ranged = False, rangedPower = 0, maxRange = 0, ammo = None, meleeWeapon = False, armorPenetrationBonus = 0, slow = False, enchant = None, staminaBonus = 0, stealthBonus = 0, attackSpeed = 0, damageTypes = {'physical': 100}, resistances = {'physical': 0, 'poison': 0, 'fire': 0, 'cold': 0, 'lightning': 0, 'light': 0, 'dark': 0, 'none': 0}):
-        self.slot = slot
+        self.baseSlot = slot
         self.type = type
         self.basePowerBonus = powerBonus
         self.baseArmorBonus = armorBonus
@@ -7388,7 +7389,13 @@ class Equipment:
         else:
             print("NOT EQUIPPED")
             self.isEquipped = False
-
+    
+    @property
+    def slot(self):
+        if self.baseSlot == 'two handed' and player.Player.getTrait('trait', 'Firm grip') != 'not found':
+            return 'one handed'
+        return self.baseSlot
+    
     @property
     def powerBonus(self):
         multiplier = 1
