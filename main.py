@@ -1122,8 +1122,12 @@ class Buff: #also (and mainly) used for debuffs
                     self.applyFunction(self.owner.Fighter) #If the applyFunction method exists, execute it
                 self.owner.Fighter.buffList.append(self) #Add the buff to target's buffs list
                 
-                self.owner.Fighter.hp += self.maxHP
-                self.owner.Fighter.MP += self.maxMP
+                if self.owner.Player:
+                    hpBonus = 5 * self.constitution
+                    mpBonus = 5 * self.willpower
+                self.owner.Fighter.hp += self.maxHP + hpBonus
+                self.owner.Fighter.MP += self.maxMP + mpBonus
+                self.owner.Fighter.stamina += self.stamina + hpBonus
                 
             else: #If target is already under effect of the buff
                 bIndex = convertBuffsToNames(self.owner.Fighter).index(self.name)
@@ -1140,6 +1144,13 @@ class Buff: #also (and mainly) used for debuffs
             self.owner.Fighter.buffList = []
         if self.showBuff:
             message(self.owner.name.capitalize() + ' is no longer ' + self.name + '.', self.color) #Inform the player
+        
+        if self.owner.Player:
+            hpBonus = 5 * self.constitution
+            mpBonus = 5 * self.willpower
+        self.owner.Fighter.hp -= self.maxHP + hpBonus
+        self.owner.Fighter.MP -= self.maxMP + mpBonus
+        self.owner.Fighter.stamina -= self.stamina + hpBonus
     
     def passTurn(self):
         '''
@@ -14411,7 +14422,7 @@ def initializeFOV():
     con.clear()
     print("FOV INITIALIZED")
 
-def Update(explodeColor = colors.red, char = '*'):
+def Update(explodeColor = colors.red, explodeChar = '*'):
     global FOV_recompute
     global visibleTiles
     global tilesinPath
@@ -14469,7 +14480,7 @@ def Update(explodeColor = colors.red, char = '*'):
                 elif gameState == 'exploding':
                     exploded = (x,y) in explodingTiles
                     if exploded:
-                        con.draw_char(x, y, char, fg=explodeColor, bg = None)
+                        con.draw_char(x, y, explodeChar, fg=explodeColor, bg = None)
                 if DEBUG:
                     inPath = (x,y) in tilesinPath
                     if inPath:
@@ -16551,8 +16562,8 @@ def playGame(noSave = False):
                         #    dexBonus += randint(-2, 2)
                         #    vitBonus += randint(-3, 3)
                         #    willMalus += randint(-2, 2)
-                        human = Buff('human', colors.lightest_yellow, cooldown = humanCooldown, showBuff = False, removeFunction = lambda fighter: shapeshift(fighter), resitible = False)
-                        wolf = Buff('in wolf form', colors.amber, cooldown = wolfCooldown, strength = strenBonus, dexterity = dexBonus, constitution = vitBonus, willpower = willMalus, removeFunction = lambda fighter: shapeshift(fighter, fromHuman=False, fromWolf=True), resitible = False)
+                        human = Buff('human', colors.lightest_yellow, cooldown = humanCooldown, showBuff = False, removeFunction = lambda fighter: shapeshift(fighter), resistible = False)
+                        wolf = Buff('in wolf form', colors.amber, cooldown = wolfCooldown, strength = strenBonus, dexterity = dexBonus, constitution = vitBonus, willpower = willMalus, removeFunction = lambda fighter: shapeshift(fighter, fromHuman=False, fromWolf=True), resistible = False)
                         if object.Player.shapeshift == 'wolf':
                             message('You feel your wild instincts overwhelming you! You have turned into your wolf form!', colors.amber)
                             wolf.applyBuff(player)
@@ -16662,7 +16673,7 @@ def playGame(noSave = False):
         for trait in player.Player.allTraits:
             if trait.name == 'Rage' and trait.selected:
                 if ratioHP <= 25 and not 'enraged' in convertBuffsToNames(player.Fighter):
-                    enraged = Buff('uncontrollable', colors.dark_red, cooldown = 99999, power = 10, resitible = False)
+                    enraged = Buff('uncontrollable', colors.dark_red, cooldown = 99999, power = 10, resistible = False)
                     enraged.applyBuff(player)
                 break
         

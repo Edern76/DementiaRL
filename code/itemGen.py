@@ -283,9 +283,9 @@ rangedWeaponAttributes = {'shortbow': {'type': 'light', 'slot': 'two handed', 'p
                           'throwing axe': {'type': 'heavy', 'slot': 'one handed', 'pic': 'axe.xp', 'rangedPow': 9, 'ap': 2, 'weight': 0.6, 'pow': 8, 'atkSpeed': 25, 'ammo': 'none'},
                           'throwing knife': {'type': 'light', 'slot': 'one handed', 'pic': 'dagger.xp', 'rangedPow': 8, 'acc': 10, 'weight': 0.2, 'pow': 5, 'atkSpeed': -50, 'ammo': 'none'},
                           'shuriken': {'type': 'light', 'slot': 'one handed', 'pic': 'flail.xp', 'rangedPow': 8, 'crit': 5, 'weight': 0.1, 'atkSpeed': -50, 'ammo': 'none'},
-                          'javelin': {'type': 'light', 'slot': 'one handed', 'pic': 'pike.xp', 'rangedPow': 15, 'weight': 0.9, 'pow': 12, 'ammo': 'none'},
+                          'javelin': {'type': 'light', 'slot': 'one handed', 'pic': 'spear.xp', 'rangedPow': 15, 'weight': 0.9, 'pow': 12, 'ammo': 'none'},
                     
-                          'flintlock pistol': {'type': 'light', 'slot': 'one handed', 'pic': 'mace.xp', 'rangedPow': 13, 'acc': -5, 'ap': 2, 'weight': 1.3, 'atkSpeed': 50, 'ammo': 'pellet'},
+                          'flintlock pistol': {'type': 'light', 'slot': 'one handed', 'pic': 'pistol.xp', 'rangedPow': 13, 'acc': -5, 'ap': 2, 'weight': 1.3, 'atkSpeed': 50, 'ammo': 'pellet'},
                           'hand cannon': {'type': 'light', 'slot': 'one handed', 'pic': 'morningStar.xp', 'rangedPow': 14, 'acc': -15, 'ap': 7, 'weight': 2.1, 'atkSpeed': 75, 'ammo': 'pellet', 'range': 11},
                     
                           'musket': {'type': 'heavy', 'slot': 'two handed', 'pic': 'musket.xp', 'rangedPow': 17, 'acc': -10, 'ap': 4, 'weight': 2.3, 'atkSpeed': 100, 'ammo': 'pellet'},
