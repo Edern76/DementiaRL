@@ -1171,7 +1171,7 @@ def generateArmor(level, playerLevel, armorType = None, slot = None):
 if __name__ == '__main__':
     level = 1
     for i in range(10):
-        print(generateRangedWeapon(level + i * 2, i*10))
+        print(generateArmor(level + i * 2, i*10))
         print()
 
 

@@ -1122,6 +1122,8 @@ class Buff: #also (and mainly) used for debuffs
                     self.applyFunction(self.owner.Fighter) #If the applyFunction method exists, execute it
                 self.owner.Fighter.buffList.append(self) #Add the buff to target's buffs list
                 
+                hpBonus = 0
+                mpBonus = 0
                 if self.owner.Player:
                     hpBonus = 5 * self.constitution
                     mpBonus = 5 * self.willpower
@@ -1145,6 +1147,8 @@ class Buff: #also (and mainly) used for debuffs
         if self.showBuff:
             message(self.owner.name.capitalize() + ' is no longer ' + self.name + '.', self.color) #Inform the player
         
+        hpBonus = 0
+        mpBonus = 0
         if self.owner.Player:
             hpBonus = 5 * self.constitution
             mpBonus = 5 * self.willpower
@@ -1239,17 +1243,22 @@ class Spell:
     
     def cast(self, caster = player, target = player):
         global FOV_recompute
-
+        
+        ressourceCost = self.ressourceCost
+        maxCooldown = self.maxCooldown
         if caster == player:
             if self.checkCast():
                 message('You are not skilled enough to cast {}.'.format(self.name))
                 return 'cancelled'
+            if self.type == 'martial' and player.Player.getTrait('trait', 'Combat knowledge') != 'not found':
+                ressourceCost = ressourceCost//2
+                maxCooldown = maxCooldown//2
         #    self.updateSpellStats()
-        if self.ressource == 'MP' and caster.Fighter.MP < self.ressourceCost:
+        if self.ressource == 'MP' and caster.Fighter.MP < ressourceCost:
             FOV_recompute = True
             message(caster.name.capitalize() + ' does not have enough MP to cast ' + self.name +'.')
             return 'cancelled'
-        if self.ressource == 'Stamina' and caster.Fighter.stamina < self.ressourceCost:
+        if self.ressource == 'Stamina' and caster.Fighter.stamina < ressourceCost:
             FOV_recompute = True
             message(caster.name.capitalize() + ' does not have enough stamina to cast ' + self.name +'.')
             return 'cancelled'
@@ -1258,13 +1267,13 @@ class Spell:
             if self.useFunction(caster, target) != 'cancelled':
                 caster.Fighter.actionPoints -= self.castSpeed
                 FOV_recompute = True
-                self.setOnCooldown(caster.Fighter)
+                self.setOnCooldown(caster.Fighter, maxCooldown)
                 if self.ressource == 'MP':
-                    caster.Fighter.MP -= self.ressourceCost
+                    caster.Fighter.MP -= ressourceCost
                 elif self.ressource == 'HP':
-                    caster.Fighter.takeDamage({'none': self.ressourceCost}, 'your spell')
+                    caster.Fighter.takeDamage({'none': ressourceCost}, 'your spell')
                 elif self.ressource == 'Stamina':
-                    caster.Fighter.stamina -= self.ressourceCost
+                    caster.Fighter.stamina -= ressourceCost
                 return 'used'
             else:
                 return 'cancelled'
@@ -1272,13 +1281,13 @@ class Spell:
             if self.useFunction(self.arg1, caster, target) != 'cancelled':
                 caster.Fighter.actionPoints -= self.castSpeed
                 FOV_recompute = True
-                self.setOnCooldown(caster.Fighter)
+                self.setOnCooldown(caster.Fighter, maxCooldown)
                 if self.ressource == 'MP':
-                    caster.Fighter.MP -= self.ressourceCost
+                    caster.Fighter.MP -= ressourceCost
                 elif self.ressource == 'HP':
-                    caster.Fighter.takeDamage({'none': self.ressourceCost}, 'your spell')
+                    caster.Fighter.takeDamage({'none': ressourceCost}, 'your spell')
                 elif self.ressource == 'Stamina':
-                    caster.Fighter.stamina -= self.ressourceCost
+                    caster.Fighter.stamina -= ressourceCost
                 return 'used'
             else:
                 return 'cancelled'
@@ -1286,13 +1295,13 @@ class Spell:
             if self.useFunction(self.arg1, self.arg2, caster, target) != 'cancelled':
                 caster.Fighter.actionPoints -= self.castSpeed
                 FOV_recompute = True
-                self.setOnCooldown(caster.Fighter)
+                self.setOnCooldown(caster.Fighter, maxCooldown)
                 if self.ressource == 'MP':
-                    caster.Fighter.MP -= self.ressourceCost
+                    caster.Fighter.MP -= ressourceCost
                 elif self.ressource == 'HP':
-                    caster.Fighter.takeDamage({'none': self.ressourceCost}, 'your spell')
+                    caster.Fighter.takeDamage({'none': ressourceCost}, 'your spell')
                 elif self.ressource == 'Stamina':
-                    caster.Fighter.stamina -= self.ressourceCost
+                    caster.Fighter.stamina -= ressourceCost
                 return 'used'
             else:
                 return 'cancelled'
@@ -1300,21 +1309,23 @@ class Spell:
             if self.useFunction(self.arg1, self.arg2, self.arg3, caster, target) != 'cancelled':
                 caster.Fighter.actionPoints -= self.castSpeed
                 FOV_recompute = True
-                self.setOnCooldown(caster.Fighter)
+                self.setOnCooldown(caster.Fighter, maxCooldown)
                 if self.ressource == 'MP':
-                    caster.Fighter.MP -= self.ressourceCost
+                    caster.Fighter.MP -= ressourceCost
                 elif self.ressource == 'HP':
-                    caster.Fighter.takeDamage({'none': self.ressourceCost}, 'your spell')
+                    caster.Fighter.takeDamage({'none': ressourceCost}, 'your spell')
                 elif self.ressource == 'Stamina':
-                    caster.Fighter.stamina -= self.ressourceCost
+                    caster.Fighter.stamina -= ressourceCost
                 return 'used'
             else:
                 return 'cancelled'
     
-    def setOnCooldown(self, fighter):
+    def setOnCooldown(self, fighter, cooldown = -1):
+        if cooldown < 0:
+            cooldown = self.maxCooldown
         try:
             fighter.knownSpells.remove(self)
-            self.curCooldown = self.maxCooldown
+            self.curCooldown = cooldown
             fighter.spellsOnCooldown.append(self)
         except ValueError:
             print('SPELL {} is not in known spell list when trying to set it on cooldown'.format(self.name))
@@ -1940,6 +1951,11 @@ def unlearnSpell(spell, silent = False):
     return 'cancelled'
                 
 ### GENERIC SPELLS ###
+
+def castApplyBuff(buff, caster = None, target = None):
+    if caster is None:
+        caster = player
+    buff.applyBuff(caster)
 
 def castRegenMana(regenAmount, caster = None, target = None):
     if caster is None or caster == player:
@@ -2680,11 +2696,11 @@ def castThrowEnemy(caster, monsterTarget, rangeThrow = 6):
             target.x, target.y = x, y
             animStep()
 
-flurry = Spell(ressourceCost=15, cooldown=50, useFunction=castMultipleAttacks, name = 'Flurry', ressource = 'Stamina', type = 'Skill')
-seismic = Spell(ressourceCost=20, cooldown=60, useFunction=castSeismicSlam, name='Seismic slam', ressource='Stamina', type='Skill')
-shadowStep = Spell(ressourceCost = 12, cooldown = 70, useFunction = castShadowStep, name = 'Shadow step', ressource = 'MP', type = 'Skill')
-throwEnemy = Spell(ressourceCost=23, cooldown = 40, useFunction = castThrowEnemy, name = 'Throw enemy', ressource = 'Stamina', type = 'Skill')
-volley = Spell(ressourceCost=20, cooldown = 50, useFunction = castMultipleShots, name = 'Volley', ressource = 'Stamina', type = 'Skill')
+flurry = Spell(ressourceCost=15, cooldown=50, useFunction=castMultipleAttacks, name = 'Flurry', ressource = 'Stamina', type = 'martial')
+seismic = Spell(ressourceCost=20, cooldown=60, useFunction=castSeismicSlam, name='Seismic slam', ressource='Stamina', type='martial')
+shadowStep = Spell(ressourceCost = 12, cooldown = 70, useFunction = castShadowStep, name = 'Shadow step', ressource = 'MP', type = 'physical')
+throwEnemy = Spell(ressourceCost=23, cooldown = 40, useFunction = castThrowEnemy, name = 'Throw enemy', ressource = 'Stamina', type = 'physical')
+volley = Spell(ressourceCost=20, cooldown = 50, useFunction = castMultipleShots, name = 'Volley', ressource = 'Stamina', type = 'martial')
 
 ### TRAITS UNLOCKABLE SPELLS ###
 ### DEBUG SPELLS ###
@@ -3975,17 +3991,30 @@ def initializeTraits():
             dict[res] = 10 + (traitAmount-7)*5 #lvl7: 10, lvl8: 15, lvl9: 20, lvl10: 25
         buff = Buff(name, color, cooldown = 6, continuousFunction = lambda fighter: regenRessource(fighter, dict))
         buff.applyBuff(caster)
-            
+    
+    def combatFocus(caster = None, target = None):
+        if caster is None:
+            caster = player
+        traitAmount = player.Player.getTrait('skill', 'Martial training')
+        bonus = 5 * (traitAmount - 6)
+        buff = Buff('focused', colors.white, cooldown = 16, accuracy = bonus)
+        buff.applyBuff(caster)
+    
+    #def powerShot(caster = None, target = None):
         
+    
     shapeshift = Spell(ressourceCost=10, cooldown = 100, useFunction=castShapeshift, name = 'Shapeshift', ressource='MP', type = 'racial')
     spellRegenStam = Spell(ressourceCost = 0, cooldown = 100, useFunction = lambda caster, target: regen(caster, target, 'Physical training', ['stamina'], 'gathering forces', colors.lighter_yellow), name = 'Gather forces', ressource = 'Stamina', type = 'trait')
     spellRegenMP = Spell(ressourceCost = 0, cooldown = 100, useFunction = lambda caster, target: regen(caster, target, 'Power of will', ['MP'], 'meditating', colors.blue), name = 'Meditate', ressource = 'MP', type = 'trait')
     spellRegenHP = Spell(ressourceCost = 0, cooldown = 100, useFunction = regen, name = 'Regenerate', ressource = 'HP', type = 'trait')
+    castCombatFocus = Spell(ressourceCost = 10, cooldown = 80, useFunction = combatFocus, name = 'Combat focus', ressource = 'Stamina', type = 'martial')
     
     ###  race  ###
     controllableWerewolf = UnlockableTrait('Shape control', 'You are able to shapeshift at will.', type = 'trait', spells = [shapeshift], requiredTraits={'player level': 5, 'Werewolf': 1})
     
     ###  martial  ###
+    combatFocusTrait = UnlockableTrait('Combat focus', 'You can focus extremely well on your fights for small amounts of time.', 'trait', requiredTraits = {'Martial training': 7}, spells = [castCombatFocus])
+    combatKnowledge = UnlockableTrait('Combat knowledge', 'You are so efficient when fighting that you can better use your abilities', 'trait', requiredTraits = {'Martial training': 10})
     ## melee
     # light
     freeAtk = UnlockableTrait('Blade storm', 'You are so used to light weaponry you can sometimes attack twice in rapid succession.', 'trait', requiredTraits={'Light weapons': 4}) #, attackFuncs = [autoFreeAttack])
@@ -3998,6 +4027,9 @@ def initializeTraits():
     ## ranged
     # light
     volleySkill = UnlockableTrait('Volley', 'You shoot three times in a row.', 'trait', requiredTraits = {'Light ranged weapons': 7}, spells = [volley])
+    ## armor wearing
+    heavyDef = UnlockableTrait('Heavy defense', 'You can wear a light chest armor under a heavy one for maximum protection.', 'trait', requiredTraits = {'Armor wearing': 10})
+    
     
     ###  mental  ###
     ## will
@@ -4023,7 +4055,8 @@ def initializeTraits():
     regenHP = UnlockableTrait('Regenerate', 'Your health regenerates extremely rapidly', 'trait', requiredTraits = {'Constitution': 7}, spells = [spellRegenHP])
 
     unlockableTraits.extend([controllableWerewolf, dual, aware, flurryTrait, seismicTrait, ignoreSlow, shadowstepTrait, shadowCrit, greaterCrit, meleeKB,
-                             freeAtk, glovesDmg, throwEnemySkill, volleySkill, resistDebuff, regenStam, regenHP, regenMP, ignoreTwoHanded])
+                             freeAtk, glovesDmg, throwEnemySkill, volleySkill, resistDebuff, regenStam, regenHP, regenMP, ignoreTwoHanded, combatFocusTrait,
+                             combatKnowledge, heavyDef])
     
     for skill in skills:
         for unlock in unlockableTraits:
@@ -6855,7 +6888,7 @@ class Item:
         self.arg3 = arg3
         self.stackable = stackable
         self.amount = amount
-        self.weight = weight
+        self.baseWeight = weight
         self.desc = description
         self.pic = pic
         self.type = itemtype
@@ -6871,6 +6904,14 @@ class Item:
             return self.desc
         else:
             return self.unIDdesc
+    
+    @property
+    def weight(self):
+        weight = self.baseWeight
+        if self.owner.Equipment and 'armor' in self.owner.Equipment.type:
+            traitAmount = player.Player.getTrait('skill', 'Armor wearing').amount
+            weight -= weight*5*traitAmount/100
+        return weight
     
     def identify(self):
         global identifiedItems
@@ -7228,9 +7269,21 @@ class Item:
         
         willReplaceEq = False
         if self.owner.Equipment and not self.owner.Equipment.isEquipped and not 'handed' in self.owner.Equipment.slot:
-                toBeReplacedEq = getEquippedInSlot(self.owner.Equipment.slot).owner
+            needSpecialTorso = self.owner.Equipment.slot == 'torso' and player.Player.getTrait('trait', 'Heavy defense') != 'not found'
+            if needSpecialTorso:
+                newLight = 'cloth armor' in self.owner.Equipment.type or 'leather armor' in self.owner.Equipment.type
+                
+                toBeReplacedEq = None
+                for obj in equipmentList:
+                    if obj.Equipment and obj.Equipment.slot == 'torso' and ('cloth armor' in obj.Equipment.type or 'leather armor' in obj.Equipment.type) == newLight:
+                        toBeReplacedEq = obj
+                        willReplaceEq = True
+            
+            else:
+                toBeReplacedEq = getEquippedInSlot(self.owner.Equipment.slot)
                 if toBeReplacedEq:
                     willReplaceEq = True
+                    toBeReplacedEq = toBeReplacedEq.owner
                     
         
         choseOrQuit = False
@@ -7462,7 +7515,7 @@ class Equipment:
         bonus = 0
         if self.type == 'shield' and self.owner in equipmentList:
             bonus = (10 * player.Player.getTrait('skill', 'Shield mastery').amount) / 100
-        elif (self.type == 'light armor' or self.type == 'heavy armor' or self.type == 'armor') and self.owner in equipmentList:
+        elif 'armor' in self.type and self.owner in equipmentList:
             bonus = (5 * player.Player.getTrait('skill', 'Armor efficiency').amount) / 100
         if self.enchant:
             return round(self.baseArmorBonus * bonus + self.baseArmorBonus + self.enchant.arm)
@@ -7659,10 +7712,28 @@ class Equipment:
                             message('You can only wield several light weapons.', colors.yellow)
                             possible = False
             if possible:
-                if not handed:
+                needSpecialTorso = self.slot == 'torso' and player.Player.getTrait('trait', 'Heavy defense') != 'not found'
+                if not handed and not needSpecialTorso:
                     oldEquipment = getEquippedInSlot(self.slot)
                     if oldEquipment is not None:
                         oldEquipment.unequip()
+                elif not handed and needSpecialTorso:
+                    newLight = 'cloth armor' in self.type or 'leather armor' in self.type
+                    
+                    oldEquipment = None
+                    for obj in equipmentList:
+                        if obj.Equipment and obj.Equipment.slot == 'torso' and ('cloth armor' in obj.Equipment.type or 'leather armor' in obj.Equipment.type) == newLight:
+                            oldEquipment = obj.Equipment
+                    
+                    if oldEquipment is not None:
+                        oldEquipment.unequip()
+                    otherPiece = getEquippedInSlot('torso')
+                    if otherPiece and newLight and not silent:
+                        message('Equipped {} on torso, under {}.'.format(self.owner.name, otherPiece.owner.name), colors.light_green)
+                        silent = True
+                    elif otherPiece and not silent:
+                        message('Equipped {} on torso, above {}.'.format(self.owner.name, otherPiece.owner.name), colors.light_green)
+                        silent = True
                 else:
                     rightEquipment = None
                     leftEquipment = None
@@ -7682,8 +7753,8 @@ class Equipment:
                         rightEquipment.unequip()
                     if leftEquipment is not None:
                         leftEquipment.unequip()
-                    if oldEquipment is not None:
-                        oldEquipment.unequip()
+                    #if oldEquipment is not None:
+                    #    oldEquipment.unequip()
                 
                 if self.owner in inventory:
                     inventory.remove(self.owner)
@@ -8605,8 +8676,10 @@ def getInput():
     FOV_recompute = True
 
 def projectile(sourceX, sourceY, destX, destY, char, color, continues = False, passesThrough = False, ghost = False, line = None, maxRange = None):
-    if not line:
-        line = tdl.map.bresenham(sourceX, sourceY, destX, destY).remove((sourceX, sourceY))
+    if line is None:
+        line = tdl.map.bresenham(sourceX, sourceY, destX, destY)#.remove((sourceX, sourceY))
+        line.remove((sourceX, sourceY))
+        print(line)
     if len(line) > 1:
         (firstX, firstY)= line[0]
         inclX = firstX - sourceX
@@ -9360,7 +9433,7 @@ def castCreateWeapon():
     else:
         (x,y) = target
         #weapon = createWeapon(x=x, y=y)
-        weapon = convertItemTemplate(itemGen.generateMeleeWeapon(depthLevel, player.level))
+        weapon = convertItemTemplate(itemGen.generateArmor(depthLevel, player.level))
         weapon.x, weapon.y = x, y
         if weapon is not None:
             objects.append(weapon)

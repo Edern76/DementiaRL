@@ -17,7 +17,7 @@ branchMapTemplate = {'wallFG': colors.grey, 'wallDarkFG': colors.darker_grey, 'w
 class Branch:
     def __init__(self, shortName, name = None, maxDepth = 99999, branchesFrom = None, branchesTo = None,
                  monsterChances = {'darksoul': 600, 'ogre': 200, 'snake': 50, 'cultist': 150, 'highCultist' : 0}, 
-                 itemChances = {'potion': 150, 'scroll': 200, 'weapon': 100, 'shield': 50, 'spellbook': 100, 'food': 250, 'armor': 100, 'rangedWeapon': 1050},
+                 itemChances = {'potion': 150, 'scroll': 200, 'weapon': 100, 'shield': 50, 'spellbook': 100, 'food': 250, 'armor': 100, 'rangedWeapon': 50},
                  potionChances = {'heal': 70, 'mana': 30}, 
                  spellbookChances = {'healSelf': 8, 'fireball': 30, 'lightning': 13, 'confuse': 22, 'ice': 22},
                  scrollChances = {'lightning': 12, 'confuse': 12, 'fireball': 25, 'armageddon': 10, 'ice': 25, 'none': 1}, 
