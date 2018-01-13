@@ -4045,7 +4045,7 @@ def initializeTraits():
     volleySkill = UnlockableTrait('Volley', 'You shoot three times in a row.', 'trait', requiredTraits = {'Light ranged weapons': 7}, spells = [volley])
     pistolero = UnlockableTrait('Pistolero', 'You can wield two light ranged weapons at the same time.', 'trait', requiredTraits = {'Light ranged weapons': 10})
     # heavy
-    recoil = UnlockableTrait('Heavy recoil', 'Your have learnt to master the recoil of your weapons to your advantage.', 'trait', requiredTraits = {'Heavy ranged weapons': 4}, rangedAtkFuncs = [lambda caster, target: autoKB(caster, target, 'Heavy ranged weapons')])
+    recoil = UnlockableTrait('Heavy recoil', 'You have learned to master the recoil of your weapons to your advantage.', 'trait', requiredTraits = {'Heavy ranged weapons': 4}, rangedAtkFuncs = [lambda caster, target: autoKB(caster, target, 'Heavy ranged weapons')])
     ## armor wearing
     heavyDef = UnlockableTrait('Heavy defense', 'You can wear a light chest armor under a heavy one for maximum protection.', 'trait', requiredTraits = {'Armor wearing': 10})
     
@@ -4081,8 +4081,16 @@ def initializeTraits():
     for skill in skills:
         for unlock in unlockableTraits:
             if skill.name in list(unlock.requiredTraits.keys()):
+                level = unlock.requiredTraits[skill.name]
                 print(skill.name, 'can unlock', unlock.name)
-                skill.unlockables.append((unlock, unlock.requiredTraits[skill.name]))
+                skill.unlockables.append((unlock, level))
+                try:
+                    for prevUnlock, prevLevel in skill.owner.unlockables:
+                        if prevLevel == level - 3:
+                            unlock.requiredTraits[prevUnlock.name] = 1
+                    print(unlock.name, unlock.requiredTraits)
+                except:
+                    print(skill.name, 'is basic')
     
     return allTraits, leftTraits, rightTraits, races, attributes, skills, classes, traits, human, unlockableTraits #skilled, human, unlockableTraits
 
@@ -7478,7 +7486,7 @@ class Equipment:
     
     @property
     def slot(self):
-        if self.baseSlot == 'two handed' and player.Player.getTrait('trait', 'Firm grip') != 'not found':
+        if self.baseSlot == 'two handed' and not 'gloves' in self.type and player.Player.getTrait('trait', 'Firm grip') != 'not found':
             return 'one handed'
         return self.baseSlot
     
@@ -7851,7 +7859,7 @@ class Equipment:
                 if obj.Equipment != self:
                     state, line = obj.Equipment.shoot(line, spendAtkPoints, False)
                     if line == 'cancelled':
-                        return 'didnt-take-turn'
+                        return 'didnt-take-turn', None
                     shot = state != 'didnt-take-turn' or shot
             if shot:
                 spendAtkPoints = False
@@ -9493,12 +9501,15 @@ def castCreateWeapon():
     else:
         (x,y) = target
         #weapon = createWeapon(x=x, y=y)
-        weapon = convertItemTemplate(itemGen.generateRangedWeapon(depthLevel, player.level))
-        ammoName = weapon.Equipment.ammo
-        if ammoName and ammoName != 'none':
-            itemComponent = Item(stackable = True, amount = 30)
-            ammo = GameObject(x, y, '^', ammoName, colors.light_orange, Item = itemComponent)
-            objects.append(ammo)
+        if randint(0, 1):
+            weapon = convertItemTemplate(itemGen.generateRangedWeapon(depthLevel, player.level))
+            ammoName = weapon.Equipment.ammo
+            if ammoName and ammoName != 'none':
+                itemComponent = Item(stackable = True, amount = 30)
+                ammo = GameObject(x, y, '^', ammoName, colors.light_orange, Item = itemComponent)
+                objects.append(ammo)
+        else:
+            weapon = convertItemTemplate(itemGen.generateMeleeWeapon(depthLevel, player.level))
         weapon.x, weapon.y = x, y
         if weapon is not None:
             objects.append(weapon)
