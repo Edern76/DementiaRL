@@ -1250,7 +1250,7 @@ class Spell:
             if self.checkCast():
                 message('You are not skilled enough to cast {}.'.format(self.name))
                 return 'cancelled'
-            if self.type == 'martial' and player.Player.getTrait('trait', 'Combat knowledge') != 'not found':
+            if (self.type == 'martial' and player.Player.getTrait('trait', 'Combat knowledge') != 'not found') or (self.type == 'physical' and player.Player.getTrait('trait', 'Greater efficiency') != 'not found'):
                 ressourceCost = ressourceCost//2
                 maxCooldown = maxCooldown//2
         #    self.updateSpellStats()
@@ -2608,6 +2608,8 @@ def castMultipleAttacks(caster = None, monsterTarget = None, attacksNum = 3):
         else: return 'didnt-take-turn'
     else:
         target = monsterTarget
+    if not target:
+        return
     for attack in range(attacksNum):
         caster.Fighter.attack(target, fromFreeAtk = True)
     return
@@ -3100,7 +3102,7 @@ class Trait():
     '''
     Actually used for everything in the character creation, from race to skills etc
     '''
-    def __init__(self, name, description, type, x = 0, y = 0, underCursor = False, selectable = True, selected = False, allowsSelection = [], amount = 0, maxAmount = 1, tier = 1, power = (0, 0), acc = (0, 0), ev = (0, 0), arm = (0, 0), hp = (0, 0), mp = (0, 0), crit = (0, 0), stren = (0, 0), dex = (0, 0), vit = (0, 0), will = (0, 0), spells = None, load = 0, ap = (0, 0), stealth = 0, stam = (0, 0), bonusSkill = [], dmgTypes = {}, resistances = {}, critMult = 0, attackFuncs = [], buffsOnAttack = []):
+    def __init__(self, name, description, type, x = 0, y = 0, underCursor = False, selectable = True, selected = False, allowsSelection = [], amount = 0, maxAmount = 1, tier = 1, power = (0, 0), acc = (0, 0), ev = (0, 0), arm = (0, 0), hp = (0, 0), mp = (0, 0), crit = (0, 0), stren = (0, 0), dex = (0, 0), vit = (0, 0), will = (0, 0), spells = None, load = 0, ap = (0, 0), stealth = 0, stam = (0, 0), bonusSkill = [], dmgTypes = {}, resistances = {}, critMult = 0, attackFuncs = [], buffsOnAttack = [], rangedAtkFuncs = []):
         self.name = name
         self.desc = description
         self.type = type
@@ -3140,6 +3142,7 @@ class Trait():
         self.critMult = critMult
         self.attackFuncs = attackFuncs
         self.buffsOnAttack = buffsOnAttack #[[chance, name]]
+        self.rangedAtkFuncs = rangedAtkFuncs
     
     def description(self):
         wrappedText = textwrap.wrap(self.desc, 25)
@@ -3269,6 +3272,7 @@ class Trait():
             
             player.Fighter.attackFunctions.extend(self.attackFuncs)
             player.Fighter.buffsOnAttack.extend(self.buffsOnAttack)
+            player.Player.shootFunctions.extend(self.rangedAtkFuncs)
 
             self.amount += 1
             if self.spells is not None:
@@ -3425,6 +3429,11 @@ class Trait():
                     player.Fighter.attackFunctions.remove(buff)
                 except:
                     print('could not remove buff from created char template:', buff)
+            for func in self.rangedAtkFuncs:
+                try:
+                    player.Player.shootFunctions.remove(func)
+                except:
+                    print('could not remove function from created char template:', func)
                 
             self.amount -= 1
             player.Player.baseMaxWeight -= self.load
@@ -3609,9 +3618,9 @@ class UnlockableTrait(Trait):
                  amount = 0, maxAmount = 1, tier = 1, power = (0, 0), acc = (0, 0), ev = (0, 0), arm = (0, 0), hp = (0, 0), mp = (0, 0), crit = (0, 0),
                   stren = (0, 0), dex = (0, 0), vit = (0, 0), will = (0, 0), spells = None, load = 0, ap = (0, 0), stealth = 0, stam = (0, 0),
                   bonusSkill = [], dmgTypes = {}, resistances = {}, critMult = 0,
-                  requiredTraits = {}, attackFuncs = [], buffsOnAttack = []): #requiredTraits = {'player level': 5, 'Light weapons': 4}
+                  requiredTraits = {}, attackFuncs = [], buffsOnAttack = [], rangedAtkFuncs = []): #requiredTraits = {'player level': 5, 'Light weapons': 4}
         
-        Trait.__init__(self, name, description, type, x, y, underCursor, selectable, selected, allowsSelection, amount, maxAmount, tier, power, acc, ev, arm, hp, mp, crit, stren, dex, vit, will, spells, load, ap, stealth, stam, bonusSkill, dmgTypes, resistances, critMult, attackFuncs, buffsOnAttack)
+        Trait.__init__(self, name, description, type, x, y, underCursor, selectable, selected, allowsSelection, amount, maxAmount, tier, power, acc, ev, arm, hp, mp, crit, stren, dex, vit, will, spells, load, ap, stealth, stam, bonusSkill, dmgTypes, resistances, critMult, attackFuncs, buffsOnAttack, rangedAtkFuncs)
         self.requiredTraits = requiredTraits
     
     def checkForRequirements(self):
@@ -3961,15 +3970,22 @@ def initializeTraits():
                 buff.removeBuff()
                 return
     
-    def autoKB(caster = None, target = None, fromTrait = 'Strength'): #caster is a fighter comp
+    def autoKB(caster = None, target = None, fromTrait = 'Strength', maxDist = None): #caster is a fighter comp
+        if fromTrait == 'Ranged heavy weapons':
+            for eq in getEquippedInHands():
+                if eq.Equipment.meleeWeapon or (eq.Equipment.ranged and not 'heavy' in eq.Equipment.type):
+                    return
         baseChance = 12
         traitAmount = player.Player.getTrait('skill', fromTrait).amount
         chance = baseChance + (traitAmount-3) * 3
         dice = randint(1, 100)
         print('KNOCKBACK:', dice, chance)
         if dice <= chance:
+            totalDist = 1 + (traitAmount-3)//2
+            if maxDist and totalDist > maxDist:
+                totalDist = maxDist
             message('{} is pushed back!'.format(target.name.capitalize()), colors.green)
-            knockBack(player.x, player.y, target, 1 + (traitAmount-3)//2, True, 2 + (traitAmount-3)//2)
+            knockBack(player.x, player.y, target, totalDist, True, 2 + (traitAmount-3)//2)
     
     def autoStun(caster = None, target = None, fromTrait = 'Heavy weapons'): #caster is a fighter comp
         baseChance = 12
@@ -4004,9 +4020,9 @@ def initializeTraits():
         
     
     shapeshift = Spell(ressourceCost=10, cooldown = 100, useFunction=castShapeshift, name = 'Shapeshift', ressource='MP', type = 'racial')
-    spellRegenStam = Spell(ressourceCost = 0, cooldown = 100, useFunction = lambda caster, target: regen(caster, target, 'Physical training', ['stamina'], 'gathering forces', colors.lighter_yellow), name = 'Gather forces', ressource = 'Stamina', type = 'trait')
+    spellRegenStam = Spell(ressourceCost = 0, cooldown = 100, useFunction = lambda caster, target: regen(caster, target, 'Physical training', ['stamina'], 'gathering forces', colors.lighter_yellow), name = 'Gather forces', ressource = 'Stamina', type = 'physical')
     spellRegenMP = Spell(ressourceCost = 0, cooldown = 100, useFunction = lambda caster, target: regen(caster, target, 'Power of will', ['MP'], 'meditating', colors.blue), name = 'Meditate', ressource = 'MP', type = 'trait')
-    spellRegenHP = Spell(ressourceCost = 0, cooldown = 100, useFunction = regen, name = 'Regenerate', ressource = 'HP', type = 'trait')
+    spellRegenHP = Spell(ressourceCost = 0, cooldown = 100, useFunction = regen, name = 'Regenerate', ressource = 'HP', type = 'physical')
     castCombatFocus = Spell(ressourceCost = 10, cooldown = 80, useFunction = combatFocus, name = 'Combat focus', ressource = 'Stamina', type = 'martial')
     
     ###  race  ###
@@ -4027,6 +4043,9 @@ def initializeTraits():
     ## ranged
     # light
     volleySkill = UnlockableTrait('Volley', 'You shoot three times in a row.', 'trait', requiredTraits = {'Light ranged weapons': 7}, spells = [volley])
+    pistolero = UnlockableTrait('Pistolero', 'You can wield two light ranged weapons at the same time.', 'trait', requiredTraits = {'Light ranged weapons': 10})
+    # heavy
+    recoil = UnlockableTrait('Heavy recoil', 'Your have learnt to master the recoil of your weapons to your advantage.', 'trait', requiredTraits = {'Heavy ranged weapons': 4}, rangedAtkFuncs = [lambda caster, target: autoKB(caster, target, 'Heavy ranged weapons')])
     ## armor wearing
     heavyDef = UnlockableTrait('Heavy defense', 'You can wear a light chest armor under a heavy one for maximum protection.', 'trait', requiredTraits = {'Armor wearing': 10})
     
@@ -4038,6 +4057,7 @@ def initializeTraits():
     
     ###  physical  ###
     regenStam = UnlockableTrait('Gather forces', 'Your stamina regenerates extremely rapidly', 'trait', requiredTraits = {'Physical training': 7}, spells = [spellRegenStam])
+    efficiency = UnlockableTrait('Greater efficiency', 'You know very well your physical abilities and can use them to their best.', 'trait', requiredTraits = {'Physical training': 10})
     ## cunning
     shadowstepTrait = UnlockableTrait('Shadow step', 'When concealed, you can move through the shadows at incredible speed.', 'trait', requiredTraits={'Cunning': 7}, spells = [shadowStep])
     shadowCrit = UnlockableTrait('Surprise attack', 'When concealed, you have a greater chance to inflinct critical damage.', 'trait', requiredTraits = {'Cunning': 4})
@@ -4056,7 +4076,7 @@ def initializeTraits():
 
     unlockableTraits.extend([controllableWerewolf, dual, aware, flurryTrait, seismicTrait, ignoreSlow, shadowstepTrait, shadowCrit, greaterCrit, meleeKB,
                              freeAtk, glovesDmg, throwEnemySkill, volleySkill, resistDebuff, regenStam, regenHP, regenMP, ignoreTwoHanded, combatFocusTrait,
-                             combatKnowledge, heavyDef])
+                             combatKnowledge, heavyDef, efficiency, recoil, pistolero])
     
     for skill in skills:
         for unlock in unlockableTraits:
@@ -6537,6 +6557,8 @@ class Player:
             print('Player component initialized')
         
         self.hitThisTurn = False
+        
+        self.shootFunctions = []
 
     @property
     def maxWeight(self):
@@ -7688,29 +7710,45 @@ class Equipment:
             leftEquipment = None
             extraEquipment = None
             if handed:
-                if self.meleeWeapon and handSlot == 'right hand':
+                weapon = self.meleeWeapon or self.ranged
+                if weapon and handSlot == 'right hand':
                     leftEquipment = getEquippedInSlot('left hand', hand = True)
                     extraEquipment = getEquippedInSlot('extra limb', hand = True)
-                elif self.meleeWeapon and handSlot == 'left hand':
+                elif weapon and handSlot == 'left hand':
                     rightEquipment = getEquippedInSlot('right hand', hand = True)
                     extraEquipment = getEquippedInSlot('extra limb', hand = True)
-                elif extra and self.meleeWeapon and handSlot == 'extra limb':
+                elif extra and weapon and handSlot == 'extra limb':
                     leftEquipment = getEquippedInSlot('left hand', hand = True)
                     rightEquipment = getEquippedInSlot('right hand', hand = True)
-            rightIsWeapon = rightEquipment and rightEquipment.meleeWeapon
-            leftIsWeapon = leftEquipment and leftEquipment.meleeWeapon
-            extraIsWeapon = extraEquipment and extraEquipment.meleeWeapon
+                
+            rightIsWeapon = False
+            leftIsWeapon = False
+            extraIsWeapon = False
+            if self.meleeWeapon:
+                rightIsWeapon = rightEquipment and rightEquipment.meleeWeapon
+                leftIsWeapon = leftEquipment and leftEquipment.meleeWeapon
+                extraIsWeapon = extraEquipment and extraEquipment.meleeWeapon
+            elif self.ranged:
+                rightIsWeapon = rightEquipment and rightEquipment.ranged
+                leftIsWeapon = leftEquipment and leftEquipment.ranged
+                extraIsWeapon = extraEquipment and extraEquipment.ranged
     
             possible = True
             if rightIsWeapon or leftIsWeapon or extraIsWeapon:
-                if player.Player.getTrait('trait', 'Dual wield') == 'not found':
-                    message('You cannot wield two weapons at the same time!', colors.yellow)
-                    possible = False
-                else:
-                    if self.type == 'light weapon':
-                        if rightIsWeapon and not 'light' in rightEquipment.type or leftIsWeapon and not 'light' in leftEquipment.type or rightIsWeapon and not 'light' in rightEquipment.type:
-                            message('You can only wield several light weapons.', colors.yellow)
-                            possible = False
+                if self.meleeWeapon:
+                    if player.Player.getTrait('trait', 'Dual wield') == 'not found':
+                        message('You cannot wield two melee weapons at the same time!', colors.yellow)
+                        possible = False
+                    elif (rightIsWeapon and not 'light' in rightEquipment.type) or (leftIsWeapon and not 'light' in leftEquipment.type) or (extraIsWeapon and not 'light' in extraEquipment.type) or not 'light' in self.type:
+                        message('You can only wield several light weapons.', colors.yellow)
+                        possible = False
+                elif self.ranged:
+                    if player.Player.getTrait('trait', 'Pistolero') == 'not found':
+                        message('You cannot wield two ranged weapons at the same time.', colors.yellow)
+                        possible = False
+                    elif (rightIsWeapon and not 'light' in rightEquipment.type) or (leftIsWeapon and not 'light' in leftEquipment.type) or (extraIsWeapon and not 'light' in extraEquipment.type) or not 'light' in self.type:
+                        message('You can only wield several light ranged weapons.', colors.yellow)
+                        possible = False
             if possible:
                 needSpecialTorso = self.slot == 'torso' and player.Player.getTrait('trait', 'Heavy defense') != 'not found'
                 if not handed and not needSpecialTorso:
@@ -7736,8 +7774,9 @@ class Equipment:
                         silent = True
                 else:
                     rightEquipment = None
-                    leftEquipment = None
+                    leftEquipment = None 
                     bothEquipment = None
+                    oldEquipment = None
             
                     if self.slot == 'one handed':
                         bothEquipment = getEquippedInSlot('both hands', hand = True)
@@ -7753,8 +7792,8 @@ class Equipment:
                         rightEquipment.unequip()
                     if leftEquipment is not None:
                         leftEquipment.unequip()
-                    #if oldEquipment is not None:
-                    #    oldEquipment.unequip()
+                    if oldEquipment is not None:
+                        oldEquipment.unequip()
                 
                 if self.owner in inventory:
                     inventory.remove(self.owner)
@@ -7799,13 +7838,27 @@ class Equipment:
         if self.maxMP_Bonus != 0:
             player.Fighter.MP -= self.maxMP_Bonus
     
-    def shoot(self, line = None, spendAtkPoints = True):
+    def shoot(self, line = None, spendAtkPoints = True, shootOthers = True):
         '''
         @param: if precised, line must contain player's coords
         '''
         global FOV_recompute, explodingTiles
+        
+        didntTakeTurn = 'didnt-take-turn'
+        if shootOthers: #only the first weapon shot will execute this part
+            shot = False
+            for obj in getEquippedInHands():
+                if obj.Equipment != self:
+                    state, line = obj.Equipment.shoot(line, spendAtkPoints, False)
+                    if line == 'cancelled':
+                        return 'didnt-take-turn'
+                    shot = state != 'didnt-take-turn' or shot
+            if shot:
+                spendAtkPoints = False
+                didntTakeTurn = 'took-turn'
+        
         if not self.ranged:
-            return 'didnt-take-turn'
+            return didntTakeTurn, line
         ammo = self.ammo
         weapon = self.owner
         hit = False
@@ -7831,7 +7884,7 @@ class Equipment:
             if line == "cancelled":
                 FOV_recompute = True
                 message('Invalid target.')
-                return 'didnt-take-turn'
+                return 'didnt-take-turn', 'cancelled'
             else:
                 try:
                     line.remove((player.x, player.y))
@@ -7846,6 +7899,7 @@ class Equipment:
                         monsterTarget = object
                         break
                 
+                newLine = copy(line)
                 if monsterTarget:
                     [hit, criticalHit] = player.Fighter.toHit(monsterTarget, ranged = True)
                     dmgTxtFunc = lambda damageTaken: player.Fighter.formatAttackText(monsterTarget, hit, criticalHit, damageTaken, baseText = '{} {}shoot{} {} for {}!', baseNoDmgText = '{} shoot{} {} but it has no effect.')
@@ -7860,9 +7914,14 @@ class Equipment:
                         
                         monsterTarget.Fighter.lootFunction.append(newAmmo)
                         monsterTarget.Fighter.lootRate.append(100)
-                
+                        for func in player.Player.shootFunctions:
+                            func(player, monsterTarget)
+                        
                         damageDict = player.Fighter.computeDamageDict(damage)
-                        monsterTarget.Fighter.takeDamage(damageDict, player.name, armored = True, damageTextFunction = dmgTxtFunc)
+                        try:
+                            monsterTarget.Fighter.takeDamage(damageDict, player.name, armored = True, damageTextFunction = dmgTxtFunc)
+                        except:
+                            print('Fighter is NoneType! probably dead')
                     else:
                         possibleDeviations = [(1, 0), (1, 1), (1, -1),
                                               (-1, 0), (-1, 1), (-1, -1),
@@ -7874,8 +7933,8 @@ class Equipment:
                             deviationCoords = (monsterTarget.x + devX, monsterTarget.y + devY)
                             possibleDeviations.remove((devX, devY))
                         x, y = deviationCoords
-                        line = tdl.map.bresenham(player.x, player.y, x, y)
-                        line.remove((player.x, player.y))
+                        newLine = tdl.map.bresenham(player.x, player.y, x, y)
+                        newLine.remove((player.x, player.y))
                         message("Your shot didn't hit anything", colors.grey)
                 else:
                     message("Your shot didn't hit anything", colors.grey)
@@ -7890,8 +7949,8 @@ class Equipment:
                     except:
                         pass
 
-            lastX, lastY = line[len(line)-1]
-            dropX, dropY = projectile(player.x, player.y, lastX, lastY, '/', colors.light_orange, line = line)
+            lastX, lastY = newLine[len(newLine)-1]
+            dropX, dropY = projectile(player.x, player.y, lastX, lastY, '/', colors.light_orange, line = newLine)
             '''
             shot = False
             i = 0
@@ -7918,9 +7977,10 @@ class Equipment:
                 newAmmo.x, newAmmo.y = dropX, dropY
                 objects.append(newAmmo)
                 newAmmo.sendToBack()
+            return None, line
         else:
             message('You have no ammunition for your ' + weapon.name + '!', colors.red)
-            return 'didnt-take-turn'
+            return didntTakeTurn, None
 
 class Money(Item):
     def __init__(self, moneyAmount):
@@ -8399,17 +8459,17 @@ def getInput():
                 chosenSpell.displayInfo()
     elif userInput.keychar.upper() == 'X':
         print('SHOOTING')
-        #shooting = shoot()
-        #if shooting == 'didnt-take-turn':
-        #    return 'didnt-take-turn'
-        #else:
-        #    return
-        for obj in getEquippedInHands():
-            if obj.Equipment.shoot() != 'didnt-take-turn':
-                break
-        else:
-            return 'didnt-take-turn'
-        return
+        #tookTurn = False
+        #for obj in getEquippedInHands():
+            #if obj.Equipment.ranged:
+                #tookTurn = obj.Equipment.shoot() != 'didnt-take-turn' or tookTurn
+        #if tookTurn:
+            #player.Fighter.actionPoints -= player.Fighter.rangedSpeed
+            #return
+        weapons = getEquippedInHands()
+        if weapons:
+            shot, line = weapons[0].Equipment.shoot()
+        return shot
     
     elif userInput.keychar.upper() == 'TAB':
         currentSidepanelMode += 1
@@ -9433,7 +9493,12 @@ def castCreateWeapon():
     else:
         (x,y) = target
         #weapon = createWeapon(x=x, y=y)
-        weapon = convertItemTemplate(itemGen.generateArmor(depthLevel, player.level))
+        weapon = convertItemTemplate(itemGen.generateRangedWeapon(depthLevel, player.level))
+        ammoName = weapon.Equipment.ammo
+        if ammoName and ammoName != 'none':
+            itemComponent = Item(stackable = True, amount = 30)
+            ammo = GameObject(x, y, '^', ammoName, colors.light_orange, Item = itemComponent)
+            objects.append(ammo)
         weapon.x, weapon.y = x, y
         if weapon is not None:
             objects.append(weapon)

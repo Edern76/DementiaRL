@@ -796,7 +796,7 @@ def generateMeleeWeapon(level, playerLevel, weaponType = None, weapon = None):
     weaponLevel = playerLevel + randint(-3 + raritySmallAdd[stringRarity]//2, raritySmallAdd[stringRarity]//2)
     
     weaponDict = weaponAttributes[weapon]
-    weaponEquipment = EquipmentTemplate(weaponDict['slot'], stringRarity + ' level ' + str(weaponLevel) + ' ' + weaponDict['type'] + ' ' + weaponType, meleeWeapon = True)
+    weaponEquipment = EquipmentTemplate(weaponDict['slot'], stringRarity + ' ' + weaponDict['type'] + ' ' + weaponType, meleeWeapon = True)
     
     try:
         weaponEquipment.atkSpeed = weaponDict['atkSpeed']
@@ -944,7 +944,7 @@ def generateRangedWeapon(level, playerLevel, weaponType = None, weapon = None):
             melee = False
     except KeyError:
         melee = False
-    weaponEquipment = EquipmentTemplate(weaponDict['slot'], stringRarity + ' level ' + str(weaponLevel) + ' ' + weaponDict['type'] + ' ' + weaponType, ranged=True, maxRange = maxRange, ammo = ammo, meleeWeapon = melee)
+    weaponEquipment = EquipmentTemplate(weaponDict['slot'], stringRarity + ' ' + weaponDict['type'] + ' ' + weaponType, ranged=True, maxRange = maxRange, ammo = ammo, meleeWeapon = melee)
     
     try:
         weaponEquipment.atkSpeed = weaponDict['atkSpeed']
@@ -1071,7 +1071,7 @@ def generateArmor(level, playerLevel, armorType = None, slot = None):
             slot = randItemFrom(armorSlots)
 
     armorDict = armorAttributes[armorType][slot]
-    armorEquipment = EquipmentTemplate(slot, stringRarity + ' level ' + str(armorLevel) + ' ' + armorType + ' armor')
+    armorEquipment = EquipmentTemplate(slot, stringRarity + ' ' + armorType + ' armor')
     
     adj = []
     passiveNumber = 1
@@ -1171,7 +1171,7 @@ def generateArmor(level, playerLevel, armorType = None, slot = None):
 if __name__ == '__main__':
     level = 1
     for i in range(10):
-        print(generateArmor(level + i * 2, i*10))
+        print(generateRangedWeapon(level + i * 2, i*10))
         print()
 
 
