@@ -1264,7 +1264,8 @@ class Spell:
             return 'cancelled'
 
         if self.arg1 is None:
-            if self.useFunction(caster, target) != 'cancelled':
+            state = self.useFunction(caster, target)
+            if state != 'cancelled' and state != 'didnt-take-turn':
                 caster.Fighter.actionPoints -= self.castSpeed
                 FOV_recompute = True
                 self.setOnCooldown(caster.Fighter, maxCooldown)
@@ -1278,7 +1279,8 @@ class Spell:
             else:
                 return 'cancelled'
         elif self.arg2 is None and self.arg1 is not None:
-            if self.useFunction(self.arg1, caster, target) != 'cancelled':
+            state = self.useFunction(self.arg1, caster, target)
+            if state != 'cancelled' and state != 'didnt-take-turn':
                 caster.Fighter.actionPoints -= self.castSpeed
                 FOV_recompute = True
                 self.setOnCooldown(caster.Fighter, maxCooldown)
@@ -1292,7 +1294,8 @@ class Spell:
             else:
                 return 'cancelled'
         elif self.arg3 is None and self.arg2 is not None:
-            if self.useFunction(self.arg1, self.arg2, caster, target) != 'cancelled':
+            state = self.useFunction(self.arg1, self.arg2, caster, target)
+            if state != 'cancelled' and state != 'didnt-take-turn':
                 caster.Fighter.actionPoints -= self.castSpeed
                 FOV_recompute = True
                 self.setOnCooldown(caster.Fighter, maxCooldown)
@@ -1306,7 +1309,8 @@ class Spell:
             else:
                 return 'cancelled'
         elif self.arg3 is not None:
-            if self.useFunction(self.arg1, self.arg2, self.arg3, caster, target) != 'cancelled':
+            state = self.useFunction(self.arg1, self.arg2, self.arg3, caster, target)
+            if state != 'cancelled' and state != 'didnt-take-turn':
                 caster.Fighter.actionPoints -= self.castSpeed
                 FOV_recompute = True
                 self.setOnCooldown(caster.Fighter, maxCooldown)
@@ -2698,11 +2702,117 @@ def castThrowEnemy(caster, monsterTarget, rangeThrow = 6):
             target.x, target.y = x, y
             animStep()
 
+def castCharge(caster = None, target = None, line = None, drag = False, freeAtk = True, maxRange = 10):
+    global FOV_recompute
+    if caster is None:
+        caster = player
+    if caster == player:
+        if not line:
+            message('Choose a target for your charge.', colors.cyan)
+            line = targetTile(maxRange, showBresenham=True, returnBresenham = True)
+        if line == "cancelled":
+            FOV_recompute = True
+            #message('Invalid target.')
+            return 'didnt-take-turn'
+        else:
+            try:
+                line.remove((player.x, player.y))
+            except:
+                print('player coords not in shooting line')
+        if drag:
+            (firstX, firstY)= line[0]
+            inclX = firstX - player.x
+            inclY = firstY - player.y
+            incl = (inclX, inclY)
+            print(incl)
+            if incl == (1, 0) or incl == (-1, 0):
+                possibleKnock = [[0, -1], [0, 1]]
+            elif incl == (0, 1) or incl == (0, -1):
+                possibleKnock = [[1, 0], [-1, 0]]
+            elif incl == (1, -1) or incl == (-1, 1):
+                possibleKnock = [[-1, -1], [1, 1]]
+            else:
+                possibleKnock = [[1, -1], [-1, 1]]
+            print(possibleKnock)
+            dragging = False
+            dragged = None
+            for i in range(len(line)):
+                (x, y) = line.pop(0)
+                try:
+                    (pinnedX, pinnedY) = line[0]
+                except:
+                    pinnedX = x + inclX
+                    pinnedY = y + inclY
+                for object in objects:
+                    if object.x == x and object.y == y and object.Fighter and not object == player:
+                        if not dragging:
+                            dragging = True
+                            dragged = object
+                            message('You pin {}!'.format(object.name.capitalize()), colors.red)
+                        elif not object == dragged:
+                            choice = randint(0, 1)
+                            newX = x + possibleKnock[choice][0]
+                            newY = y + possibleKnock[choice][1]
+                            otherX = x + possibleKnock[(choice-1) ** 2][0]
+                            otherY = y + possibleKnock[(choice-1) ** 2][1]
+                            if not isBlocked(newX, newY):
+                                object.x = newX
+                                object.y = newY
+                            elif not isBlocked(otherX, otherY):
+                                object.x = otherX
+                                object.y = otherY
+                            else:
+                                myMap[newX][newY].baseBlocked = False
+                                myMap[newX][newY].block_sight = False
+                                myMap[newX][newY].baseCharacter = None
+                                myMap[newX][newY].wall = False
+                                for cx in range(newX - 1, newX + 1):
+                                    for cy in range(newY -1, newY + 1):
+                                        myMap[cx][cy].clearance = checkTileClearance(myMap, cx, cy)
+                                object.x = newX
+                                object.y = newY
+                                damageDict = player.Fighter.computeDamageDict(randint(player.Fighter.power - 5, player.Fighter.power + 5))
+                                dmgTxtFunc = lambda damageTaken: object.Fighter.formatRawDamageText(damageTaken, '{} slammed into the wall for {}!', colors.red, '{} is slammed into the wall but it has no effect', colors.white, True)
+                                object.Fighter.takeDamage(damageDict, "{}'s charge".format(player.name), damageTextFunction = dmgTxtFunc)
+                                
+                if not myMap[x][y].blocked:
+                    player.x, player.y = x, y
+                    if dragging:
+                        dragged.x, dragged.y = pinnedX, pinnedY
+                    animStep(.01)
+                else:
+                    if dragging:
+                        print(x, y)
+                        myMap[x][y].baseBlocked = False
+                        myMap[x][y].block_sight = False
+                        myMap[x][y].baseCharacter = None
+                        myMap[x][y].wall = False
+                        dragged.x = x
+                        dragged.y = y
+                        damageDict = player.Fighter.computeDamageDict(randint(player.Fighter.power , player.Fighter.power + 10))
+                        dmgTxtFunc = lambda damageTaken: dragged.Fighter.formatRawDamageText(damageTaken, '{} slammed into the wall by the force of the charge!', colors.red, '{} slammed into the wall but it has no effect.', colors.white, True)
+                        dragged.Fighter.takeDamage(damageDict, "{}'s charge".format(player.name), damageTextFunction = dmgTxtFunc)
+                        
+                    break
+        else:
+            (x, y) = line.pop(0)
+            while not isBlocked(x, y) and not myMap[x][y].chasm and line:
+                player.x, player.y = x, y
+                animStep(0.01)
+                (x, y) = line.pop(0)
+            
+        FOV_recompute = True
+        if freeAtk:
+            castMultipleAttacks(player, None, attacksNum = 1)
+        return
+
 flurry = Spell(ressourceCost=15, cooldown=50, useFunction=castMultipleAttacks, name = 'Flurry', ressource = 'Stamina', type = 'martial')
 seismic = Spell(ressourceCost=20, cooldown=60, useFunction=castSeismicSlam, name='Seismic slam', ressource='Stamina', type='martial')
 shadowStep = Spell(ressourceCost = 12, cooldown = 70, useFunction = castShadowStep, name = 'Shadow step', ressource = 'MP', type = 'physical')
 throwEnemy = Spell(ressourceCost=23, cooldown = 40, useFunction = castThrowEnemy, name = 'Throw enemy', ressource = 'Stamina', type = 'physical')
 volley = Spell(ressourceCost=20, cooldown = 50, useFunction = castMultipleShots, name = 'Volley', ressource = 'Stamina', type = 'martial')
+strongCharge = Spell(ressourceCost = 50, cooldown = 100, useFunction = castCharge, name = 'Charge', ressource = 'Stamina', type = 'physical')
+tackleCharge = Spell(ressourceCost = 70, cooldown = 100, useFunction = lambda caster, target: castCharge(caster, target, drag = True, freeAtk = False), name = 'Tackle', ressource = 'Stamina', type = 'physical')
 
 ### TRAITS UNLOCKABLE SPELLS ###
 ### DEBUG SPELLS ###
@@ -3088,7 +3198,7 @@ drawRect = Spell(ressourceCost = 0, cooldown = 1, useFunction=castDrawRectangle,
 
 spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport, djik, dispDjik, djikProf,
                detDjik, yellowify, ram, leap, expandRootsDmg, expandRootsDummy, expandRootsRegen, insectFly, demonForm, spawnProj, placeIceWall, testCone,
-               flurry, seismic, shadowStep, throwEnemy, blizzard, flamethrower, volley])
+               flurry, seismic, shadowStep, throwEnemy, blizzard, flamethrower, volley, strongCharge, tackleCharge])
 #_____________SPELLS_____________
 
 #______________CHARACTER GENERATION____________
@@ -4048,6 +4158,7 @@ def initializeTraits():
     recoil = UnlockableTrait('Heavy recoil', 'You have learned to master the recoil of your weapons to your advantage.', 'trait', requiredTraits = {'Heavy ranged weapons': 4}, rangedAtkFuncs = [lambda caster, target: autoKB(caster, target, 'Heavy ranged weapons')])
     ## armor wearing
     heavyDef = UnlockableTrait('Heavy defense', 'You can wear a light chest armor under a heavy one for maximum protection.', 'trait', requiredTraits = {'Armor wearing': 10})
+    tackleTrait = UnlockableTrait('Tackle', 'You charge an ennemy with all your weight used as a weapon.', 'trait', requiredTraits = {'Armor wearing': 7}, spells = [tackleCharge])
     
     
     ###  mental  ###
@@ -4065,6 +4176,7 @@ def initializeTraits():
     greaterCrit = UnlockableTrait('Fatal precision', 'Your hits are so precise they can eviscerate your victim in one strike.', 'trait', requiredTraits = {'Critical': 4}, critMult = 1)
     ## strength
     meleeKB = UnlockableTrait('Mighty strikes', 'You smash so hard you can sometimes push back enemies', 'trait', requiredTraits = {'Strength': 4}, attackFuncs = [autoKB])
+    strongChargeTrait = UnlockableTrait('Charge', 'You charge an enemy and immediatly attack.', 'trait', requiredTraits = {'Strength': 7}, spells = [strongCharge])
     ignoreTwoHanded = UnlockableTrait('Firm grip', 'You are so strong you can wield two handed weapons in only one hand.', 'trait', requiredTraits = {'Strength': 10})
     # brawl
     glovesDmg = UnlockableTrait('Fist fighter', 'You know very well how to use your hands in a fight.', 'trait', requiredTraits = {'Brawling': 4})
@@ -4076,7 +4188,7 @@ def initializeTraits():
 
     unlockableTraits.extend([controllableWerewolf, dual, aware, flurryTrait, seismicTrait, ignoreSlow, shadowstepTrait, shadowCrit, greaterCrit, meleeKB,
                              freeAtk, glovesDmg, throwEnemySkill, volleySkill, resistDebuff, regenStam, regenHP, regenMP, ignoreTwoHanded, combatFocusTrait,
-                             combatKnowledge, heavyDef, efficiency, recoil, pistolero])
+                             combatKnowledge, heavyDef, efficiency, recoil, pistolero, strongChargeTrait, tackleTrait])
     
     for skill in skills:
         for unlock in unlockableTraits:
