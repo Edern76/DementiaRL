@@ -2602,6 +2602,7 @@ ram = Spell(ressourceCost=15, cooldown = 20, useFunction=castKnockback, name = '
 ### TRAITS UNLOCKABLE SPELLS ###
 
 def castMultipleAttacks(caster = None, monsterTarget = None, attacksNum = 3):
+    target = None
     if caster is None or caster == player:
         caster = player
         targetCoords = targetTile(1, melee = True)
@@ -2702,7 +2703,7 @@ def castThrowEnemy(caster, monsterTarget, rangeThrow = 6):
             target.x, target.y = x, y
             animStep()
 
-def castCharge(caster = None, target = None, line = None, drag = False, freeAtk = True, maxRange = 10):
+def castCharge(caster = None, target = None, line = None, drag = False, freeAtk = True, maxRange = 10, useWeight = True):
     global FOV_recompute
     if caster is None:
         caster = player
@@ -2736,6 +2737,7 @@ def castCharge(caster = None, target = None, line = None, drag = False, freeAtk 
             print(possibleKnock)
             dragging = False
             dragged = None
+            bonus = 0
             for i in range(len(line)):
                 (x, y) = line.pop(0)
                 try:
@@ -2749,6 +2751,7 @@ def castCharge(caster = None, target = None, line = None, drag = False, freeAtk 
                             dragging = True
                             dragged = object
                             message('You pin {}!'.format(object.name.capitalize()), colors.red)
+                            dmgTxtFunc = lambda damageTaken: player.Fighter.formatAttackText(dragged, True, False, damageTaken, '{} {}tackle{} {} for {}!', '{} tackle{} {} but it has no effect.')
                         elif not object == dragged:
                             choice = randint(0, 1)
                             newX = x + possibleKnock[choice][0]
@@ -2789,11 +2792,16 @@ def castCharge(caster = None, target = None, line = None, drag = False, freeAtk 
                         myMap[x][y].wall = False
                         dragged.x = x
                         dragged.y = y
-                        damageDict = player.Fighter.computeDamageDict(randint(player.Fighter.power , player.Fighter.power + 10))
+                        bonus = randint(player.Fighter.power , player.Fighter.power + 10)
                         dmgTxtFunc = lambda damageTaken: dragged.Fighter.formatRawDamageText(damageTaken, '{} slammed into the wall by the force of the charge!', colors.red, '{} slammed into the wall but it has no effect.', colors.white, True)
-                        dragged.Fighter.takeDamage(damageDict, "{}'s charge".format(player.name), damageTextFunction = dmgTxtFunc)
-                        
                     break
+            if dragging:
+                weight = 0
+                if useWeight:
+                    weight = round(getAllWeights(player, True))
+                damageDict = player.Fighter.computeDamageDict(weight + bonus)
+                dragged.Fighter.takeDamage(damageDict, "{}'s charge".format(player.name), damageTextFunction = dmgTxtFunc)
+                
         else:
             (x, y) = line.pop(0)
             while not isBlocked(x, y) and not myMap[x][y].chasm and line:
@@ -3747,6 +3755,8 @@ class UnlockableTrait(Trait):
                     unlocked += 1
                 elif player.Player.race == required:
                     unlocked += 1
+                elif player.Player.getTrait('trait', trait) != 'not found':
+                    unlocked += 1
             
             if unlocked == len(required):
                 self.addTraitToPlayer()
@@ -4186,13 +4196,14 @@ def initializeTraits():
     # const
     regenHP = UnlockableTrait('Regenerate', 'Your health regenerates extremely rapidly', 'trait', requiredTraits = {'Constitution': 7}, spells = [spellRegenHP])
 
-    unlockableTraits.extend([controllableWerewolf, dual, aware, flurryTrait, seismicTrait, ignoreSlow, shadowstepTrait, shadowCrit, greaterCrit, meleeKB,
-                             freeAtk, glovesDmg, throwEnemySkill, volleySkill, resistDebuff, regenStam, regenHP, regenMP, ignoreTwoHanded, combatFocusTrait,
-                             combatKnowledge, heavyDef, efficiency, recoil, pistolero, strongChargeTrait, tackleTrait])
-    
+    unlockableTraits.extend([controllableWerewolf, dual, aware, flurryTrait, seismicTrait, ignoreSlow, shadowstepTrait, shadowCrit, greaterCrit,
+                             throwEnemySkill, freeAtk, glovesDmg, meleeKB, volleySkill, resistDebuff, regenStam, regenHP, regenMP, ignoreTwoHanded,
+                             combatFocusTrait, combatKnowledge, heavyDef, efficiency, recoil, pistolero, strongChargeTrait, tackleTrait])
+    actualUnlock = [] #sorted list, in order not to mess with unlocking more advanced traits
     for skill in skills:
         for unlock in unlockableTraits:
             if skill.name in list(unlock.requiredTraits.keys()):
+                actualUnlock.append(unlock)
                 level = unlock.requiredTraits[skill.name]
                 print(skill.name, 'can unlock', unlock.name)
                 skill.unlockables.append((unlock, level))
@@ -4203,8 +4214,11 @@ def initializeTraits():
                     print(unlock.name, unlock.requiredTraits)
                 except:
                     print(skill.name, 'is basic')
-    
-    return allTraits, leftTraits, rightTraits, races, attributes, skills, classes, traits, human, unlockableTraits #skilled, human, unlockableTraits
+                    
+    for unlock in unlockableTraits:
+        if not unlock in actualUnlock:
+            actualUnlock.append(unlock)
+    return allTraits, leftTraits, rightTraits, races, attributes, skills, classes, traits, human, actualUnlock #unlockableTraits#skilled, human, unlockableTraits
 
 def characterCreation():
     global createdCharacter
@@ -5411,7 +5425,7 @@ class Fighter: #All NPCs, enemies and the player
         bonus = 0
         i = 0
         for equipment in getAllEquipped(self.owner):
-            if equipment.slot == 'one handed' or equipment.slot == 'two handed' and player.Player.getTrait('trait', 'Easy blows') != 'not found':
+            if equipment.meleeWeapon and player.Player.getTrait('trait', 'Easy blows') == 'not found': #throwing weapons which can be used in melee are not considered
                 i += 1
                 bonus += equipment.attackSpeed
         if i <= 1:
@@ -5426,6 +5440,14 @@ class Fighter: #All NPCs, enemies and the player
     
     @property
     def rangedSpeed(self):
+        bonus = 0
+        i = 0
+        for equipment in getAllEquipped(self.owner):
+            if equipment.ranged and (player.Player.getTrait('trait', 'Fast reload') == 'not found' or not equipment.rangedSpeed > 0):
+                i += 1
+                bonus += equipment.attackSpeed
+        if i <= 1:
+            i = 1
         buffBonus = sum(buff.rangedSpeed for buff in self.buffList)
         return self.baseRangedSpeed + buffBonus
     
@@ -6682,7 +6704,7 @@ class Player:
 
     @property
     def maxWeight(self):
-        return self.baseMaxWeight + 3 * self.strength
+        return round(self.baseMaxWeight + 3 * self.strength, 1)
     
     @property
     def strength(self):
@@ -7053,7 +7075,7 @@ class Item:
         if self.owner.Equipment and 'armor' in self.owner.Equipment.type:
             traitAmount = player.Player.getTrait('skill', 'Armor wearing').amount
             weight -= weight*5*traitAmount/100
-        return weight
+        return round(weight, 1)
     
     def identify(self):
         global identifiedItems
@@ -13361,16 +13383,18 @@ def getAllEquipped(object):  #returns a list of equipped items
 #_____________ EQUIPMENT ________________
 #EQUIPMENT CLASS WAS HERE, CUT PASTE AT THIS LINE IN CASE OF PROBLM
 
-def getAllWeights(object):
+def getAllWeights(object, onlyArmor = False):
     if object == player:
         totalWeight = 0.0
-        for item in inventory:
-            totalWeight = math.fsum([totalWeight, item.Item.weight])
+        if not onlyArmor:
+            for item in inventory:
+                totalWeight = math.fsum([totalWeight, item.Item.weight])
         equippedList = getAllEquipped(player)
         for equipment in equippedList:
             item = equipment.owner
-            totalWeight = math.fsum([totalWeight, item.Item.weight])
-        return totalWeight
+            if not onlyArmor or 'armor' in equipment.type:
+                totalWeight = math.fsum([totalWeight, item.Item.weight])
+        return round(totalWeight, 1)
     else:
         return 0.0
 
