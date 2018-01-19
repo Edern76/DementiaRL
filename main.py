@@ -176,7 +176,7 @@ LOOK_X = MAP_WIDTH - LOOK_WIDTH + 1
 SIDE_PANEL_WIDTH = WIDTH - MAP_WIDTH #Default: WIDTH - PANEL_WIDTH
 SIDE_PANEL_X = MAP_WIDTH
 SIDE_PANEL_Y = 0
-SIDE_PANEL_MODES = ['enemies', 'items', 'inventory', 'equipment', 'spells', 'stealth'] #, 'buffs']
+SIDE_PANEL_MODES = ['stats', 'enemies', 'items', 'inventory', 'equipment', 'spells', 'stealth'] #, 'buffs']
 currentSidepanelMode = 0
 SIDE_PANEL_TEXT_WIDTH = SIDE_PANEL_WIDTH - 5
 SIDE_PANEL_INFO_Y = 4 #Default: 5
@@ -1057,7 +1057,7 @@ def addSlot(fighter, slot):
 
 class Buff: #also (and mainly) used for debuffs
     def __init__(self, name, color, owner = None, cooldown = 20, showCooldown = True, showBuff = True,
-                 applyFunction = None, continuousFunction = None, removeFunction = None,
+                 applyFunction = None, continuousFunction = None, removeFunction = None, type = 'None',
                  strength = 0, dexterity = 0, constitution = 0, willpower = 0, hp = 0, armor = 0, power = 0, accuracy = 0, evasion = 0, maxMP = 0,
                  critical = 0, armorPenetration = 0, rangedPower = 0, stamina = 0, stealth = 0, attackSpeed = 0, moveSpeed = 0, rangedSpeed = 0,
                  resistances = {'physical': 0, 'poison': 0, 'fire': 0, 'cold': 0, 'lightning': 0, 'light': 0, 'dark': 0, 'none': 0},
@@ -1075,6 +1075,7 @@ class Buff: #also (and mainly) used for debuffs
         self.owner = owner
         self.showCooldown = showCooldown
         self.showBuff = showBuff
+        self.type = type
         
         self.strength = strength
         self.dexterity = dexterity
@@ -1203,7 +1204,7 @@ class TileBuff:
 
 class Spell:
     "Class used by all active abilites (not just spells)"
-    def __init__(self,  ressourceCost, cooldown, useFunction, name, ressource = 'MP', type = 'Magic', magicLevel = 0, arg1 = None, arg2 = None, arg3 = None, hiddenName = None, onRecoverLearn = [], castSpeed = 100, template = None, requirements = {}):
+    def __init__(self,  ressourceCost, cooldown, useFunction, name, ressource = 'MP', type = 'Magic', subtype = None, magicLevel = 0, arg1 = None, arg2 = None, arg3 = None, hiddenName = None, onRecoverLearn = [], castSpeed = 100, template = None, requirements = {}):
         self.ressource = ressource
         self.ressourceCost = ressourceCost
         self.maxCooldown = cooldown
@@ -1211,6 +1212,7 @@ class Spell:
         self.useFunction = useFunction
         self.name = name
         self.type = type
+        self.subtype = subtype
         self.magicLevel = magicLevel
         self.arg1 = arg1
         self.arg2 = arg2
@@ -2095,6 +2097,15 @@ def castFlamethrower(caster = None, monsterTarget = None, shotRange = 4, damage 
         else:
             return 'didnt-take-turn'
 
+def castShield(caster = None, monsterTarget = None, shieldType = 'Fire', explode = False):
+    if caster is None:
+        caster = player
+    if caster == player:
+        fromTrait = {'Fire': ''}
+        #traitAmount = 
+    #if shieldType == 'Fire':
+        #buff = Buff('Fire shielded', colors.flame, cooldown = 10, power = )
+
 def castArmageddon(radius = 4, damage = 80, caster = None, monsterTarget = None):
     global FOV_recompute
     if caster is None or caster == player:
@@ -2200,13 +2211,13 @@ def castBlizzard(caster = None, monsterTarget = None, shotRange = 10, tileBuffCD
                 print('tile is out of map')
 
 placeIceWall = Spell(ressourceCost=0, cooldown=0, useFunction=castPlaceIceWall, name = 'Place ice wall') 
-fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Magic', magicLevel = 1, arg1 = 1, arg2 = 12, arg3 = 4)
+fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Fire', magicLevel = 1, arg1 = 1, arg2 = 12, arg3 = 4)
 heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 20)
 darkPact = Spell(ressourceCost = DARK_PACT_DAMAGE, cooldown = 8, useFunction = castDarkRitual, name = "Dark ritual", ressource = 'HP', type = "Occult", magicLevel = 2, arg1 = 5, arg2 = DARK_PACT_DAMAGE)
-lightning = Spell(ressourceCost = 10, cooldown = 7, useFunction = castLightning, name = 'Lightning bolt', ressource = 'MP', type = 'Magic', magicLevel = 3)
-confuse = Spell(ressourceCost = 5, cooldown = 4, useFunction = castConfuse, name = 'Confusion', ressource = 'MP', type = 'Magic', magicLevel = 1)
-ice = Spell(ressourceCost = 9, cooldown = 5, useFunction = castFreeze, name = 'Ice bolt', ressource = 'MP', type = 'Magic', magicLevel = 2)
-blizzard = Spell(ressourceCost = 40, cooldown = 80, useFunction = castBlizzard, name = 'Blizzard', ressource = 'MP', type = 'Ice')
+lightning = Spell(ressourceCost = 10, cooldown = 7, useFunction = castLightning, name = 'Lightning bolt', ressource = 'MP', type = 'Air', magicLevel = 3)
+confuse = Spell(ressourceCost = 5, cooldown = 4, useFunction = castConfuse, name = 'Confusion', ressource = 'MP', type = 'Dark', magicLevel = 1)
+ice = Spell(ressourceCost = 9, cooldown = 5, useFunction = castFreeze, name = 'Ice bolt', ressource = 'MP', type = 'Water', magicLevel = 2)
+blizzard = Spell(ressourceCost = 40, cooldown = 80, useFunction = castBlizzard, name = 'Blizzard', ressource = 'MP', type = 'Water')
 flamethrower = Spell(ressourceCost = 5, cooldown = 20, useFunction = castFlamethrower, name = 'Flamethrower', ressource  ='MP', type = 'Fire')
 
 ### GENERIC SPELLS ###
@@ -2252,7 +2263,7 @@ def castRessurect(shotRange = 4, caster = None, monsterTarget = None):
             if monster is not None:
                 objects.append(monster)
 
-ressurect = Spell(ressourceCost = 10, cooldown = 15, useFunction=castRessurect, name = "Dark ressurection", ressource = 'MP', type = "Occult", arg1 = 4)
+ressurect = Spell(ressourceCost = 10, cooldown = 15, useFunction=castRessurect, name = "Dark ressurection", ressource = 'MP', type = "Necromancy", arg1 = 4)
 enrage = Spell(ressourceCost = 5, cooldown = 30, useFunction = castEnrage, name = 'Enrage', ressource = 'MP', type = 'Class', magicLevel = 0, arg1 = 10)
 
 ### CLASS SPECIFIC SPELLS ###
@@ -2642,7 +2653,6 @@ def castMultipleShots(caster = None, monsterTarget = None, attacksNum = 3):
         for attack in range(attacksNum):
             caster.Ranged.shoot(monsterTarget)
     return
-    
 
 def castSeismicSlam(caster, monsterTarget, AOErange = 6, damage = 10, stunCooldown = 4):
     if caster is None or caster == player:
@@ -4136,14 +4146,39 @@ def initializeTraits():
         buff = Buff('focused', colors.white, cooldown = 16, accuracy = bonus)
         buff.applyBuff(caster)
     
-    #def powerShot(caster = None, target = None):
-        
+    def powerShot(caster = None, target = None, fromTrait = 'Heavy ranged weapons'):
+        if caster is None or caster == player:
+            traitAmount = player.Player.getTrait('skill', fromTrait).amount - 6
+            caster = player
+            weapon = None
+            for wep in getEquippedInHands():
+                if wep.Equipment.ranged and 'heavy' in wep.Equipment.type:
+                    weapon = wep.Equipment
+                    break
+            if weapon:
+                line = targetTile(weapon.maxRange, showBresenham=True, returnBresenham = True)
+                if line == 'cancelled':
+                    return 'didnt-take-turn'
+            else:
+                message('You have no weapons able to perform power shots.')
+                return 'didnt-take-turn'
+            
+            weapon.baseRangedPower += 5 * traitAmount
+            weapon.baseArmorPenetrationBonus += 2 * traitAmount
+            weapon.shoot(line)
+            weapon.baseRangedPower -= 5 * traitAmount
+            weapon.baseArmorPenetrationBonus -= 2 * traitAmount
+                
+        elif caster.Ranged:
+            caster.Ranged.shoot(target)
+        return
     
     shapeshift = Spell(ressourceCost=10, cooldown = 100, useFunction=castShapeshift, name = 'Shapeshift', ressource='MP', type = 'racial')
     spellRegenStam = Spell(ressourceCost = 0, cooldown = 100, useFunction = lambda caster, target: regen(caster, target, 'Physical training', ['stamina'], 'gathering forces', colors.lighter_yellow), name = 'Gather forces', ressource = 'Stamina', type = 'physical')
     spellRegenMP = Spell(ressourceCost = 0, cooldown = 100, useFunction = lambda caster, target: regen(caster, target, 'Power of will', ['MP'], 'meditating', colors.blue), name = 'Meditate', ressource = 'MP', type = 'trait')
     spellRegenHP = Spell(ressourceCost = 0, cooldown = 100, useFunction = regen, name = 'Regenerate', ressource = 'HP', type = 'physical')
     castCombatFocus = Spell(ressourceCost = 10, cooldown = 80, useFunction = combatFocus, name = 'Combat focus', ressource = 'Stamina', type = 'martial')
+    spellPowerShot = Spell(ressourceCost = 25, cooldown = 100, useFunction = powerShot, name = 'Power shot', ressource = 'Stamina', type = 'martial', castSpeed = 0)
     
     ###  race  ###
     controllableWerewolf = UnlockableTrait('Shape control', 'You are able to shapeshift at will.', type = 'trait', spells = [shapeshift], requiredTraits={'player level': 5, 'Werewolf': 1})
@@ -4166,10 +4201,11 @@ def initializeTraits():
     pistolero = UnlockableTrait('Pistolero', 'You can wield two light ranged weapons at the same time.', 'trait', requiredTraits = {'Light ranged weapons': 10})
     # heavy
     recoil = UnlockableTrait('Heavy recoil', 'You have learned to master the recoil of your weapons to your advantage.', 'trait', requiredTraits = {'Heavy ranged weapons': 4}, rangedAtkFuncs = [lambda caster, target: autoKB(caster, target, 'Heavy ranged weapons')])
+    powerShotTrait = UnlockableTrait('Power shot', 'You use your gun to a new maximum.', 'trait', requiredTraits = {'Heavy ranged weapons': 7}, spells = [spellPowerShot])
+    reload = UnlockableTrait('Fast reload', 'You shoot as fast with small pistols as with huge culverins.', 'trait', requiredTraits = {'Heavy ranged weapons': 10})
     ## armor wearing
     heavyDef = UnlockableTrait('Heavy defense', 'You can wear a light chest armor under a heavy one for maximum protection.', 'trait', requiredTraits = {'Armor wearing': 10})
     tackleTrait = UnlockableTrait('Tackle', 'You charge an ennemy with all your weight used as a weapon.', 'trait', requiredTraits = {'Armor wearing': 7}, spells = [tackleCharge])
-    
     
     ###  mental  ###
     ## will
@@ -4191,6 +4227,7 @@ def initializeTraits():
     # brawl
     glovesDmg = UnlockableTrait('Fist fighter', 'You know very well how to use your hands in a fight.', 'trait', requiredTraits = {'Brawling': 4})
     throwEnemySkill = UnlockableTrait('Throw enemy', 'You can grab an enemy and throw it across rooms, sometimes into his fellow companions.', 'trait', requiredTraits = {'Brawling': 7}, spells = [throwEnemy])
+    fistsOfSteel = UnlockableTrait('Fists of steel', 'You can use the weight of your armor gloves as a weapon.', 'trait', requiredTraits = {'Brawling': 10})
     ## endurance
     resistDebuff = UnlockableTrait('Physical withstandingness', 'You are used to facing harsh physical conditions and can easily resist them.', 'trait', requiredTraits = {'Endurance': 4})
     # const
@@ -4198,7 +4235,8 @@ def initializeTraits():
 
     unlockableTraits.extend([controllableWerewolf, dual, aware, flurryTrait, seismicTrait, ignoreSlow, shadowstepTrait, shadowCrit, greaterCrit,
                              throwEnemySkill, freeAtk, glovesDmg, meleeKB, volleySkill, resistDebuff, regenStam, regenHP, regenMP, ignoreTwoHanded,
-                             combatFocusTrait, combatKnowledge, heavyDef, efficiency, recoil, pistolero, strongChargeTrait, tackleTrait])
+                             combatFocusTrait, combatKnowledge, heavyDef, efficiency, recoil, pistolero, strongChargeTrait, tackleTrait, reload,
+                             powerShotTrait, fistsOfSteel])
     actualUnlock = [] #sorted list, in order not to mess with unlocking more advanced traits
     for skill in skills:
         for unlock in unlockableTraits:
@@ -5443,7 +5481,7 @@ class Fighter: #All NPCs, enemies and the player
         bonus = 0
         i = 0
         for equipment in getAllEquipped(self.owner):
-            if equipment.ranged and (player.Player.getTrait('trait', 'Fast reload') == 'not found' or not equipment.rangedSpeed > 0):
+            if equipment.ranged and (player.Player.getTrait('trait', 'Fast reload') == 'not found' or not equipment.attackSpeed > 0):
                 i += 1
                 bonus += equipment.attackSpeed
         if i <= 1:
@@ -7627,6 +7665,14 @@ class Equipment:
     @property
     def powerBonus(self):
         multiplier = 1
+        add = 0
+        if 'armor' in self.type and self.slot == 'hands':
+            eqList = getEquippedInHands()
+            i = 0
+            while i < len(eqList) and (not eqList[i].Equipment.meleeWeapon or 'gloves' in eqList[i].Equipment.type):
+                i += 1
+            if i == len(eqList):
+                add = self.baseArmorBonus
         if 'gloves' in self.type and player.Player.getTrait('trait', 'Fist fighter') != 'not found':
             multiplier = 2
         if 'light' in self.type and self.owner in equipmentList:
@@ -7636,9 +7682,9 @@ class Equipment:
         else:
             bonus = 0
         if self.enchant:
-            return round((self.basePowerBonus * bonus + self.basePowerBonus + self.enchant.power)*multiplier)
+            return round((self.basePowerBonus * bonus + self.basePowerBonus + self.enchant.power)*multiplier + add)
         else:
-            return round((self.basePowerBonus * bonus + self.basePowerBonus) * multiplier)
+            return round((self.basePowerBonus * bonus + self.basePowerBonus) * multiplier + add)
     
     @property
     def rangedPower(self):
@@ -9643,7 +9689,7 @@ def castCreateWeapon():
                 ammo = GameObject(x, y, '^', ammoName, colors.light_orange, Item = itemComponent)
                 objects.append(ammo)
         else:
-            weapon = convertItemTemplate(itemGen.generateMeleeWeapon(depthLevel, player.level))
+            weapon = convertItemTemplate(itemGen.generateMeleeWeapon(depthLevel, player.level, 'gloves'))
         weapon.x, weapon.y = x, y
         if weapon is not None:
             objects.append(weapon)
@@ -14999,16 +15045,6 @@ def Update(explodeColor = colors.red, explodeChar = '*'):
         
     #for dx in range(len(mode) + 1):
     #    sidePanel.draw_char(2 + dx, 6, chr(249), colors.amber)
-    if mode == 'equipment':
-        panelY = 6
-        for equipment in equipmentList:
-            name = textwrap.wrap(equipment.name, SIDE_PANEL_TEXT_WIDTH)
-            if not panelY + len(name) >= HEIGHT:
-                sidePanel.draw_char(2, panelY, equipment.char, fg = equipment.color)
-                for line in name:
-                    sidePanel.draw_str(4, panelY, line, fg = colors.white)
-                    panelY += 1
-                panelY += 1
     '''
     if mode == 'buffs':
         panelY = 6
@@ -15026,7 +15062,32 @@ def Update(explodeColor = colors.red, explodeChar = '*'):
                         panelY += 1
                     panelY += 1
     '''
-    if mode == 'inventory':
+    if mode == 'stats':
+        panelY = 6
+        f = player.Fighter
+        p = player.Player
+        listed = [('Power', f.power), ('Acc', f.accuracy), ('Evasion', f.evasion), ('Armor', f.armor), ('Crit', f.critical), ('Mvt spd', f.moveSpeed), ('Atk spd', f.attackSpeed)]
+        for string, stat in listed:
+            sidePanel.draw_str(2, panelY, string+':', colors.light_amber)
+            sidePanel.draw_str(2+len(string)+2, panelY, str(stat))
+            panelY += 2
+        '''
+        for res in list(f.resistances.keys()):
+            sidePanel.draw_str(2, panelY, res+' res:', colors.light_amber)
+            sidePanel.draw_str(2+len(res)+5, panelY, str(f.resistances[res]))
+            panelY += 2
+        '''
+    elif mode == 'equipment':
+        panelY = 6
+        for equipment in equipmentList:
+            name = textwrap.wrap(equipment.name, SIDE_PANEL_TEXT_WIDTH)
+            if not panelY + len(name) >= HEIGHT:
+                sidePanel.draw_char(2, panelY, equipment.char, fg = equipment.color)
+                for line in name:
+                    sidePanel.draw_str(4, panelY, line, fg = colors.white)
+                    panelY += 1
+                panelY += 1
+    elif mode == 'inventory':
         panelY = 6
         for item in inventory:
             name = textwrap.wrap(item.name, SIDE_PANEL_TEXT_WIDTH)
@@ -15036,14 +15097,14 @@ def Update(explodeColor = colors.red, explodeChar = '*'):
                     sidePanel.draw_str(4, panelY, line, fg = colors.white)
                     panelY += 1
                 panelY += 1
-    if mode == 'stealth':
+    elif mode == 'stealth':
         panelY = 6
         detected, numberEnemies = checkPlayerDetected(True)
         if not detected:
             sidePanel.draw_str(2, panelY, 'Concealed', fg = colors.white)
         else:
             sidePanel.draw_str(2, panelY, 'Spotted! ({})'.format(str(numberEnemies)), fg = colors.red)
-    if mode == 'spells':
+    elif mode == 'spells':
         panelY = 6
         allSpells = []
         allSpells.extend(player.Fighter.knownSpells)
@@ -16902,8 +16963,9 @@ def playGame(noSave = False):
                 mustCalculate = False
                 print(len(mobsToCalculate))
                 for mob in mobsToCalculate:
-                    newPathfinder = Pathfinder(mob, mob.AI.selectedTarget.x, mob.AI.selectedTarget.y, mapToUse= myMap)
-                    pathfinders.append(newPathfinder)
+                    if mob.AI:
+                        newPathfinder = Pathfinder(mob, mob.AI.selectedTarget.x, mob.AI.selectedTarget.y, mapToUse= myMap)
+                        pathfinders.append(newPathfinder)
                     
                 for pathfind in pathfinders:
                     pathfind.start()

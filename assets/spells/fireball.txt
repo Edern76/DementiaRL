@@ -3,7 +3,8 @@ fireball
 1
 MP
 10
-Attack
+Fire
+*
 False
 Select
 AOE

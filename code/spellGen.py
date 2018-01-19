@@ -2,6 +2,7 @@ import copy
 import code.custom_except
 from random import randint
 from code.constants import *
+from code.classes import *
 import colors
 import os, sys
 
@@ -26,119 +27,6 @@ BUFF_POTENTIAL_ATTENUATION_COEFFICIENT = 2
 curDir = findCurrentDir()
 relSpellsPath = "assets\\spells"
 absSpellsPath = os.path.join(curDir, relSpellsPath)
-
-class WeightedChoice:
-    def __init__(self, name, prob):
-        self.name = name
-        self.prob = prob
-        
-        #print("FUCKING INITIALIZED AS A {}".format(self.__class__.__name__))
-    '''
-    def __iter__(self):
-        print("Iterating")
-        return iter([self.name, self.prob]) #For some reason Python wants this class to be iterable, or else it won't put it into my custom list classes. So I made it iterable, though you probably don't want to use that as an iterator ever.
-    '''
-    def __str__(self):
-        return "{} : {} AS STRING".format(self.name, self.prob)
-    
-class SpellTemplate:
-    def __init__(self, level = None, cost = None, type = None, ressourceType = None):
-        self.type = type
-        self.targeting = None
-        self.zone = None
-        self.eff1 = None
-        self.eff2 = None
-        self.eff3 = None
-        self.level = level
-        self.impure = False
-        self.cost = cost
-        self.color = None
-        self.ressource = ressourceType
-        self.name = None
-    
-    def __str__(self):
-        text = "Level {} spell costing {} {} \n \n".format(self.level, self.cost, self.ressource)
-        if self.impure:
-            text += "Is an impure {} spell (-1 level) \n".format(self.type)
-        else:
-            text += "Is a classic {} spell \n".format(self.type)
-        text += "Targeting type: {} \n".format(self.targeting)
-        text += "Affects entities in a {} \n \n".format(self.zone)
-        text += "Effect 1: {} ({}) \n".format(self.eff1.name, self.eff1.amount)
-        if self.eff2 is not None:
-            text += "Effect 2: {} ({}) \n".format(self.eff2.name, self.eff2.amount)
-        if self.eff3 is not None:
-            text += "Effect 3: {} ({}) \n".format(self.eff3.name, self.eff3.amount)
-        
-        return text
-
-class NumberedEffect:
-    def __init__(self, name, amount):
-        self.name = name
-        self.amount = amount
-
-class DoubleNumberedEffect(NumberedEffect):
-    def __init__(self, name, initAmount, overtimeAmount):
-        NumberedEffect.__init__(self, name, initAmount)
-        self.overtimeAmount = overtimeAmount
-        
-class BetterList(list):
-    def __init__(self, *args):
-        #super(BetterList, self).__init__(args[0])
-        selfList = []
-        savedArgs = locals()
-        for thing in savedArgs["args"]:
-            selfList.append(thing)
-            if SPELL_GEN_DEBUG:
-                print(thing)
-        list.__init__(self, selfList)
-    
-    def removeFrom(self, element):
-        ind = self.index(element)
-        self.remove(self[ind])
-        
-    def randFrom(self):
-        ind = randint(0, len(self) - 1)
-        return self[ind]
-
-class EvenBetterList(list): #DON'T EVER MAKE THIS INHERIT FROM BETTERLIST IF YOU VALUE YOUR SANITY. (it's probably going to crash this way too though) (actually nvm it's a real pain that way too)
-    def __init__(self, *args):
-        self.selfList = []
-        savedArgs = locals()
-        for thing in savedArgs["args"]:
-            self.selfList.append(thing)
-            if SPELL_GEN_DEBUG:
-                print(thing)
-        list.__init__(self, self.selfList)
-        if SPELL_GEN_DEBUG:
-            print("Initialized EBL !")
-            for stuffThatShouldBeAWeightedChoiceAndNotAFuckingStringIHateYouPython in self:
-                print("PRINTING")
-                print(stuffThatShouldBeAWeightedChoiceAndNotAFuckingStringIHateYouPython)
-        for thing in self:
-            if not thing.__class__.__name__ == "WeightedChoice":
-                print(thing)
-                print(thing.__class__.__name__)
-                raise code.custom_except.WrongElementTypeException(thing)
-            elif SPELL_GEN_DEBUG:
-                print("{} : {}".format(thing.name, thing.prob))
-    
-    def removeFrom(self, element):
-        ind = self.index(element)
-        self.remove(self[ind])
-
-    def randFrom(self):
-        chances = []
-        for choice in self:
-            chances.append(choice.prob)
-        dice = randint(1, sum(chances))
-        runningSum = 0
-        choice = 0
-        for chance in chances:
-            runningSum += chance
-            if dice <= runningSum:
-                return self[choice]
-            choice += 1
         
     
     
@@ -494,6 +382,23 @@ def convertColorString(string):
             return (int(color['r']), int(color['g']), int(color['b']))
 
 def readSpellFile(fileName):  #without .txt
+    '''
+    name
+    color (tuple)
+    level (int) #level needed in the major type to cast. will be divided by 2 to get level needed in subType
+    ressource (MP/HP/stamina)
+    ressourceCost (int)
+    type (School)
+    subtype
+    impure (True/False)
+    targeting (Select/Self/Closest/Farthest)
+    zone (SingleTile, Cross, X, AOE, Line, Cone)
+    eff1,amount1  (string, int) WITHOUT SPACE
+    eff2,amount2    default: None or *
+    eff3,amount3    default: None or *
+    #always keep this line filled
+    '''
+    
     file = open(os.path.join(absSpellsPath, fileName+'.txt'), 'r')
     file = [line[:len(line)-1] for line in file]
     print(file)
@@ -505,16 +410,18 @@ def readSpellFile(fileName):  #without .txt
     template.ressource = file[3]
     template.cost = file[4]
     template.type = file[5]
-    if file[6] == 'True':
+    if file[6] != '*':
+        template.subtype = file[6]
+    if file[7] == 'True':
         template.impure = True
     else:
         template.impure = False
-    template.targeting = file[7]
-    template.zone = file[8]
+    template.targeting = file[8]
+    template.zone = file[9]
     
     for i in range(3):
-        if file[9+i] != 'None' and file[9+i] != '*' and file[9+i] != '':
-            textList = file[9+i].split(',')
+        if file[10+i] != 'None' and file[10+i] != '*' and file[10+i] != '':
+            textList = file[10+i].split(',')
             effect = NumberedEffect(textList[0], str(textList[1]))
         else:
             effect = None
@@ -527,6 +434,30 @@ def readSpellFile(fileName):  #without .txt
             template.eff3 = effect
     
     return template
+
+
+'''
+@Fire is the simple minded school. It revolves around dealing damage in area of effects and burning its targets, and, when used at its best,
+can wreak havoc on hordes of foes, all of this while empowering it's master's strength.
+
+@Air is subtler. While it can damage and stun its targets with electricity, it can also be used to fasten movements and increase dexterity,
+or to push back enemies.
+
+@Water is all about control. Rarely damaging, it can however slow or even freeze its targets. Water mages are also often the ones with the
+most willpower.
+
+@Earth is not as smart as Air and Water, but draws its powers from earth's energy flux. It is a passive school, based on vital strength,
+and can either regenerate wounded tissues or poison enemies.
+
+@Arcane or Light magic is more about energy. While it can blind or damage enemies, it will most often be used to gather mana or to block
+certain areas thaks to force fields.
+
+@Necromancy is the school of the undead. Unlike most other schools, it drains energy directly from the caster's vital energy, so as to raise 
+dead foes to life or to wither its targets.
+
+@Dark magic is schools of shadows, and, like the Necromancy school, draws its powers from the caster's vital energy. No harm can be suffered from
+its spells directly, but it can conceal the caster, or even make him invisible.
+'''
 
 if __name__ == '__main__':
     templates = ['fireball']

@@ -3,6 +3,7 @@ import colors, copy, pdb, traceback, os, sys, time, math
 from random import randint
 import code.constants as constants
 import tdlib as tdl
+import code.custom_except
 
 color_dark_wall = dBr.mainDungeon.mapGeneration['wallDarkFG']
 color_light_wall = dBr.mainDungeon.mapGeneration['wallFG']
@@ -14,6 +15,7 @@ maxRooms = dBr.mainDungeon.maxRooms
 roomMinSize = dBr.mainDungeon.roomMinSize
 roomMaxSize = dBr.mainDungeon.roomMaxSize
 
+SPELL_GEN_DEBUG = False
 
 
 def printTileWhenWalked(tile):
@@ -382,5 +384,119 @@ class NamedConsole(tdl.Console):
         self.name = name
         self.type = type
         tdl.Console.__init__(self, width, height)
+
+class WeightedChoice:
+    def __init__(self, name, prob):
+        self.name = name
+        self.prob = prob
+        
+        #print("FUCKING INITIALIZED AS A {}".format(self.__class__.__name__))
+    '''
+    def __iter__(self):
+        print("Iterating")
+        return iter([self.name, self.prob]) #For some reason Python wants this class to be iterable, or else it won't put it into my custom list classes. So I made it iterable, though you probably don't want to use that as an iterator ever.
+    '''
+    def __str__(self):
+        return "{} : {} AS STRING".format(self.name, self.prob)
+    
+class SpellTemplate:
+    def __init__(self, level = None, cost = None, type = None, ressourceType = None):
+        self.type = type
+        self.targeting = None
+        self.zone = None
+        self.eff1 = None
+        self.eff2 = None
+        self.eff3 = None
+        self.level = level
+        self.impure = False
+        self.cost = cost
+        self.color = None
+        self.ressource = ressourceType
+        self.name = None
+        self.subtype = None
+    
+    def __str__(self):
+        text = "Level {} spell costing {} {} \n \n".format(self.level, self.cost, self.ressource)
+        if self.impure:
+            text += "Is an impure {} and {} spell (-1 level) \n".format(self.type, str(self.subtype))
+        else:
+            text += "Is a classic {} and {} spell \n".format(self.type, str(self.subtype))
+        text += "Targeting type: {} \n".format(self.targeting)
+        text += "Affects entities in a {} \n \n".format(self.zone)
+        text += "Effect 1: {} ({}) \n".format(self.eff1.name, self.eff1.amount)
+        if self.eff2 is not None:
+            text += "Effect 2: {} ({}) \n".format(self.eff2.name, self.eff2.amount)
+        if self.eff3 is not None:
+            text += "Effect 3: {} ({}) \n".format(self.eff3.name, self.eff3.amount)
+        
+        return text
+
+class NumberedEffect:
+    def __init__(self, name, amount):
+        self.name = name
+        self.amount = amount
+
+class DoubleNumberedEffect(NumberedEffect):
+    def __init__(self, name, initAmount, overtimeAmount):
+        NumberedEffect.__init__(self, name, initAmount)
+        self.overtimeAmount = overtimeAmount
+        
+class BetterList(list):
+    def __init__(self, *args):
+        #super(BetterList, self).__init__(args[0])
+        selfList = []
+        savedArgs = locals()
+        for thing in savedArgs["args"]:
+            selfList.append(thing)
+            if SPELL_GEN_DEBUG:
+                print(thing)
+        list.__init__(self, selfList)
+    
+    def removeFrom(self, element):
+        ind = self.index(element)
+        self.remove(self[ind])
+        
+    def randFrom(self):
+        ind = randint(0, len(self) - 1)
+        return self[ind]
+
+class EvenBetterList(list): #DON'T EVER MAKE THIS INHERIT FROM BETTERLIST IF YOU VALUE YOUR SANITY. (it's probably going to crash this way too though) (actually nvm it's a real pain that way too)
+    def __init__(self, *args):
+        self.selfList = []
+        savedArgs = locals()
+        for thing in savedArgs["args"]:
+            self.selfList.append(thing)
+            if SPELL_GEN_DEBUG:
+                print(thing)
+        list.__init__(self, self.selfList)
+        if SPELL_GEN_DEBUG:
+            print("Initialized EBL !")
+            for stuffThatShouldBeAWeightedChoiceAndNotAFuckingStringIHateYouPython in self:
+                print("PRINTING")
+                print(stuffThatShouldBeAWeightedChoiceAndNotAFuckingStringIHateYouPython)
+        for thing in self:
+            if not thing.__class__.__name__ == "WeightedChoice":
+                print(thing)
+                print(thing.__class__.__name__)
+                raise code.custom_except.WrongElementTypeException(thing)
+            elif SPELL_GEN_DEBUG:
+                print("{} : {}".format(thing.name, thing.prob))
+    
+    def removeFrom(self, element):
+        ind = self.index(element)
+        self.remove(self[ind])
+
+    def randFrom(self):
+        chances = []
+        for choice in self:
+            chances.append(choice.prob)
+        dice = randint(1, sum(chances))
+        runningSum = 0
+        choice = 0
+        for chance in chances:
+            runningSum += chance
+            if dice <= runningSum:
+                return self[choice]
+            choice += 1
 
 

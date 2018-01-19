@@ -1,12 +1,13 @@
 name
 color (tuple)
-level (int)
+level (int) #level needed in the major type to cast. will be divided by 2 to get level needed in subType
 ressource (MP/HP/stamina)
 ressourceCost (int)
-type (Attack/Defense)
+type (School)
+subtype #default: * = None
 impure (True/False)
 targeting (Select/Self/Closest/Farthest)
-zone (SingleTile, Cross, X, AOE, Line)
+zone (SingleTile, Cross, X, AOE, Line, Cone)
 eff1,amount1  (string, int) WITHOUT SPACE
 eff2,amount2	default: None or *
 eff3,amount3	default: None or *
