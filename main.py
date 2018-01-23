@@ -12252,7 +12252,7 @@ def makeHiddenTown(fall = False):
     for attributeList in objectsToCreate:
         object = createNPCFromMapReader(attributeList)
         objects.append(object)
-    upStairs = GameObject(10, 26, '<', 'stairs', currentBranch.mapGeneration['stairsColor'], alwaysVisible = True, darkColor = currentBranch.mapGeneration['stairsDarkColor'], Stairs=Stairs(climb='up', branchesFrom=dBr.mainDungeon, branchesTo=dBr.hiddenTown))
+    upStairs = GameObject(10, 26, '<', 'stairs', currentBranch.mapGeneration['stairsColor'], alwaysVisible = True, darkColor = currentBranch.mapGeneration['stairsDarkColor'], Stairs=Stairs(climb='up', branchesFrom=dBr.hiddenTown, branchesTo=dBr.mainDungeon))
     objects.append(upStairs)
     upStairs.sendToBack()
     '''
@@ -15193,7 +15193,7 @@ def chat():
                 ty = (CON_HEIGHT // 2) - (dialLength // 2)
                 for line in tree.currentScreen.dialogText:
                     if line != 'BREAK':
-                        drawCentered(con, y = ty, text = line.replace("[HERO_NAME]", heroName))
+                        drawCentered(con, y = ty, text = line.replace("[HERO_NAME]", heroName), fg = colors.light_amber)
                     ty += 1
                 root.blit(con, 0, 0, WIDTH, HEIGHT, 0, 0)
                 chosen = False
@@ -15210,11 +15210,13 @@ def chat():
                         prefix = str(showInd) + ') '
                         strShown = prefix + dchoice.text
                         if selectedIndex == ind:
-                            background = colors.dark_azure
+                            background = colors.white
+                            foreground = colors.black
                         else:
                             background = Ellipsis
+                            foreground = colors.white
                         panel.draw_str(0, 1 + ind, prefix, fg = Ellipsis, bg = background)
-                        panel.draw_str(len(prefix), 1 + ind, dchoice.text.replace("[HERO_NAME]", heroName), fg = Ellipsis, bg = background)
+                        panel.draw_str(len(prefix), 1 + ind, dchoice.text.replace("[HERO_NAME]", heroName), fg = foreground, bg = background)
                     root.blit(panel, 0, PANEL_Y, WIDTH, PANEL_HEIGHT, 0, 0)
                     tdl.flush()
                     key = tdl.event.key_wait()
