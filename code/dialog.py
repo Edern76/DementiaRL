@@ -68,7 +68,7 @@ class DialogScreen:
         self.choicesList = choicesList
         self.parentTree = dummyTree
         self.prevScreen = prevScreen
-        self.onEnterFunctionName = "Erwan"
+        self.onEnterFunctionName = "dialogTestFunction"
         
         for choice in self.choicesList:
             choice.parentScreen = self

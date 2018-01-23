@@ -212,6 +212,12 @@ CLASS_LEVEL_HEIGHT = 60
 
 SOUND_ENABLED = True
 
+def dialogTestFunction():
+    '''
+    PLEASE DO NOT DELETE, REQUIRED FOR DIALOG MODULE
+    '''
+    print("Successfully triggered function call on dialog screen enter")
+
 def getHeroName():
     hiddenPath = findHiddenOptionsPath()
     if not os.path.exists(hiddenPath):
@@ -12236,7 +12242,7 @@ def makeHiddenTown(fall = False):
     upStairs = GameObject(10, 26, '<', 'stairs', currentBranch.mapGeneration['stairsColor'], alwaysVisible = True, darkColor = currentBranch.mapGeneration['stairsDarkColor'], Stairs=Stairs(climb='up', branchesFrom=dBr.mainDungeon, branchesTo=dBr.hiddenTown))
     objects.append(upStairs)
     upStairs.sendToBack()
-    
+    '''
     bigFighter = Fighter(hp = 50, armor = 0, power = 0, accuracy=0, evasion=0, xp=0, deathFunction=monsterDeath)
     bigThing = GameObject(MID_MAP_WIDTH, MID_MAP_HEIGHT, chr(179), 'The Big Fat Stuff', color = colors.blue, blocks = True, Fighter = bigFighter, AI = BasicMonster(), size = 3, sizeChar=[chr(179), chr(192), None, chr(179), '^', chr(179), chr(179), chr(217)], smallChar = 'W')
     objects.append(bigThing)
@@ -12245,6 +12251,7 @@ def makeHiddenTown(fall = False):
         for y in range(MAP_HEIGHT):
             myMap[x][y].unbreakable = True
     myMap = clearanceMap(myMap)
+    '''
 
 def makeShrineMap():
     global myMap, objects, upStairs, rooms, numberRooms, bossRoom
