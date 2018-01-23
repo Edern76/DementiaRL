@@ -28,6 +28,8 @@ def sigmoidProgress(level, startSlowness = 50, increaseSlowness = 30):
     c = 100*exp((1-startSlowness)/increaseSlowness)
     return (((100+c)/(1+exp(-(level-startSlowness)/increaseSlowness))) - c)/100
 
+
+
 if __name__ == '__main__':
     for i in range(10):
         level = i*10

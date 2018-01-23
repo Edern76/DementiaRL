@@ -1231,12 +1231,6 @@ class Spell:
         self.castSpeed = castSpeed
         self.template = template
         self.requirements = requirements
-
-    def updateSpellStats(self):
-        if self.name == 'Fireball':
-            self.arg1 = FIREBALL_SPELL_BASE_RADIUS + player.Player.getTrait('skill', 'Magic ').amount
-            self.arg2 = FIREBALL_SPELL_BASE_DAMAGE * player.Player.getTrait('skill', 'Magic ').amount
-            self.arg3 = FIREBALL_SPELL_BASE_RANGE + player.Player.getTrait('skill', 'Magic ').amount
     
     def checkCast(self):
         if not self.requirements:
@@ -4124,6 +4118,10 @@ def initializeTraits():
             knockBack(player.x, player.y, target, totalDist, True, 2 + (traitAmount-3)//2)
     
     def autoStun(caster = None, target = None, fromTrait = 'Heavy weapons'): #caster is a fighter comp
+        if fromTrait == 'Heavy weapons':
+            for eq in getEquippedInHands():
+                if eq.Equipment.ranged or (eq.Equipment.meleeWeapon and not 'heavy' in eq.Equipment.type):
+                    return
         baseChance = 12
         traitAmount = player.Player.getTrait('skill', fromTrait).amount
         chance = baseChance + (traitAmount-3) * 3
@@ -4133,6 +4131,20 @@ def initializeTraits():
             stunned = Buff('stunned', colors.light_yellow, cooldown = 4)
             stunned.applyBuff(target)
     
+    def autoBleed(caster = None, target = None, fromTrait = 'Light ranged weapons'):
+        if fromTrait == 'Ranged light weapons':
+            for eq in getEquippedInHands():
+                if eq.Equipment.meleeWeapon or (eq.Equipment.ranged and not 'light' in eq.Equipment.type):
+                    return
+        baseChance = 12
+        traitAmount = player.Player.getTrait('skill', fromTrait).amount
+        chance = baseChance + (traitAmount-3) * 3
+        dice = randint(1, 100)
+        #message('dice: {}, chance: {}'.format(str(dice), str(chance)))
+        if dice <= chance:
+            bleeding = Buff('bleeding', colors.red, cooldown = randint(6, 10), continuousFunction = lambda fighter: randomDamage('bleed', fighter, chance = 100, minDamage=5, maxDamage=15, dmgMessage = 'You take {} damage from bleeding !'))
+            bleeding.applyBuff(target)
+            
     def regen(caster = None, target = None, fromTrait = 'Constitution', ressources = ['HP'], name = 'regenerating', color = colors.green):
         #stamina without capitalization
         if caster is None:
@@ -4203,6 +4215,7 @@ def initializeTraits():
     ignoreSlow = UnlockableTrait('Easy blows', 'You are used to the weight of heavy weapons and thus can strike with them at a fast speed.', 'trait', requiredTraits={'Heavy weapons': 10})
     ## ranged
     # light
+    bleed = UnlockableTrait('Open wounds', 'Your shots make your enemies bleed.', 'trait', requiredTraits = {'Light ranged weapons': 4}, rangedAtkFuncs = [autoBleed])
     volleySkill = UnlockableTrait('Volley', 'You shoot three times in a row.', 'trait', requiredTraits = {'Light ranged weapons': 7}, spells = [volley])
     pistolero = UnlockableTrait('Pistolero', 'You can wield two light ranged weapons at the same time.', 'trait', requiredTraits = {'Light ranged weapons': 10})
     # heavy
@@ -4242,7 +4255,7 @@ def initializeTraits():
     unlockableTraits.extend([controllableWerewolf, dual, aware, flurryTrait, seismicTrait, ignoreSlow, shadowstepTrait, shadowCrit, greaterCrit,
                              throwEnemySkill, freeAtk, glovesDmg, meleeKB, volleySkill, resistDebuff, regenStam, regenHP, regenMP, ignoreTwoHanded,
                              combatFocusTrait, combatKnowledge, heavyDef, efficiency, recoil, pistolero, strongChargeTrait, tackleTrait, reload,
-                             powerShotTrait, fistsOfSteel])
+                             powerShotTrait, fistsOfSteel, bleed])
     actualUnlock = [] #sorted list, in order not to mess with unlocking more advanced traits
     for skill in skills:
         for unlock in unlockableTraits:
