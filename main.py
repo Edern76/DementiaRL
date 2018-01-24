@@ -4736,6 +4736,7 @@ class Stairs:
         self.branchesFrom = branchesFrom                #previous floor, as in the one above
         self.branchesTo = branchesTo
         self.stairsOf = self.branchesTo.shortName
+        self.stairsFrom = self.branchesFrom.shortName
         if self.branchesFrom != self.branchesTo:
             self.changeBranch = self.branchesTo
             self.changeBranchLevel = changeBranchLevel
@@ -16090,7 +16091,7 @@ def saveLevel(level = branchLevel):
     
     return "completed"
 
-def loadLevel(level, save = True, branch = currentBranch, fall = False, fromStairs = None):
+def loadLevel(level, save = True, branch = currentBranch, fall = False, fromStairs = None, direction = 'down'):
     '''
     @attention : See loadGame() docstring
     '''
@@ -16134,7 +16135,7 @@ def loadLevel(level, save = True, branch = currentBranch, fall = False, fromStai
         for object in newObjects:
             if object.Stairs is not None:
                 print('stairs found: {}'.format(object.name))
-                if object.Stairs.stairsOf == fromStairs.stairsOf and object.Stairs.climb != fromStairs.climb:
+                if (direction == 'down' and object.Stairs.stairsOf == fromStairs.stairsOf and object.Stairs.climb != fromStairs.climb) or (direction == 'up' and object.Stairs.stairsOf == fromStairs.stairsFrom and object.Stairs.climb != fromStairs.climb) :
                     print('these are the corresponding stairs')
                     player.x, player.y = object.x, object.y
     elif not fall:
@@ -16297,7 +16298,7 @@ def previousLevel(changeBranch = None, fromStairs = None, changeBranchLevel = No
     #    lvlToLoad = currentBranch.origDepth
     print("Before try/except block")
     try:
-        loadLevel(lvlToLoad, save = False, branch = changeBranch, fromStairs = fromStairs)
+        loadLevel(lvlToLoad, save = False, branch = changeBranch, fromStairs = fromStairs, direction = 'up')
         print("Loaded existing level {}".format(branchLevel))
     except Exception as error:
         if DEBUG:
