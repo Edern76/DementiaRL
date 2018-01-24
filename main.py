@@ -429,6 +429,13 @@ branchLevel = 1
 totalLevel = 1
 depthLevel = 1
 
+def flipDebug():
+    global DEBUG
+    DEBUG = not DEBUG
+
+def checkDebug():
+    return DEBUG
+
 def deleteSaves():
     if not os.path.isdir(absDirPath):
         os.makedirs(absDirPath)
@@ -15204,9 +15211,10 @@ def chat():
                     panel.clear()
                     for x in range(WIDTH):
                         panel.draw_char(x, 0, chr(196))
-                    for dchoice in tree.currentScreen.choicesList:
+                    selectableChoices = [i for i in tree.currentScreen.choicesList if (i.conditionName is None or getattr(mainModule, i.conditionName)())]
+                    for dchoice in selectableChoices:
                         #assert isinstance(dchoice, dial.DialogChoice)
-                        ind = tree.currentScreen.choicesList.index(dchoice)
+                        ind = selectableChoices.index(dchoice)
                         showInd = ind + 1
                         prefix = str(showInd) + ') '
                         strShown = prefix + dchoice.text
@@ -15236,7 +15244,7 @@ def chat():
                             selectedIndex = 0
                         playWavSound('selectClic.wav')
                     elif actualKey == 'ENTER':
-                        state = tree.currentScreen.choicesList[selectedIndex].select()
+                        state = selectableChoices[selectedIndex].select()
                         chosen = True
                     
         elif baddie is not None:

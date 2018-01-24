@@ -80,6 +80,7 @@ class DialogChoice:
         self.idT = idT
         self.text = text #Please make sure this text is on a single line
         self.parentScreen = dummyScreen
+        self.conditionName = None
         
     def select(self):
         rootTree = self.parentScreen.parentTree
@@ -198,15 +199,26 @@ pukTree = DialogTree(screenList= pukScrList, name = 'Pukil', origScreen= pukScrL
 TO-DO : Add more dialog than just the 'enter shop' option     
 '''
 
-ayeIntText = 'Greetings adventurer ! Would you buy me a little something ? I make the best pies of all [INSERT WORLD NAME HERE] !'
+ayeIntText = 'Greetings adventurer ! Would you buy me a little something ? I make the best pies of all Ashotara !'
 ayeIntId = 'intro'
 ayeIntCh1 = DialogChoice(idT= 'SHOP', text = 'Sure, let me take a look at your wares. (Enter shop)')
-ayeIntCh2 = DialogChoice(idT = 'END', text = "I'm busy right now, maybe at a later time ? (End conversation)")
+ayeIntCh2 = DialogChoice(idT = 'condTest', text = 'This choice shows up because you are in debug mode')
+ayeIntCh2.conditionName = 'checkDebug'
+ayeIntCh3 = DialogChoice(idT = 'END', text = "I'm busy right now, maybe at a later time ? (End conversation)")
 
-ayeIntClist = [ayeIntCh1, ayeIntCh2]
-ayeIntScr = DialogScreen(idT= 'intro', dialogText= ayeIntText, choicesList = ayeIntClist)
+ayeIntClist = [ayeIntCh1, ayeIntCh2, ayeIntCh3]
+ayeIntScr = DialogScreen(idT= ayeIntId, dialogText= ayeIntText, choicesList = ayeIntClist)
 
-ayeScrList = [ayeIntScr]
+
+ayeTstText = "You are no longer in debug mode ! "
+ayeTstId = 'condTest'
+ayeTstCh1 = DialogChoice(idT = 'BACK', text = '(Back)')
+ayeTstCh2 = DialogChoice(idT = 'END', text = '(End)')
+ayeTstClist = [ayeTstCh1, ayeTstCh2]
+ayeTstScr = DialogScreen(idT = ayeTstId, dialogText=ayeTstText, choicesList = ayeTstClist, prevScreen = ayeIntScr)
+ayeTstScr.onEnterFunctionName = "flipDebug"
+
+ayeScrList = [ayeIntScr, ayeTstScr]
 ayeTree = DialogTree(screenList = ayeScrList, name = 'Ayeth', origScreen= ayeScrList[0])
 
 ######################TUTORIAL SOLDIERS#########################
