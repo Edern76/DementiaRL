@@ -429,6 +429,8 @@ branchLevel = 1
 totalLevel = 1
 depthLevel = 1
 
+########QUEST RELATED FUNCTION########
+# Yes it's an awful way to do it. Yes it's only going to get worse. Yes it's absolute spaghetti code, but so is the rest of the codebase.
 def flipDebug():
     global DEBUG
     DEBUG = not DEBUG
@@ -436,6 +438,38 @@ def flipDebug():
 def checkDebug():
     return DEBUG
 
+def checkStackableItemInInventory(nameToFind, amount):
+    for item in inventory:
+        if item.name == nameToFind:
+            if item.Item.amount >= amount:
+                return True
+    return False
+
+def checkQuestStarted(nameToFind):
+    for quest in player.Player.questList:
+        if quest.name == nameToFind and quest.state == 'active':
+            return True
+    return False
+
+def startBaking():
+    testQuest.take()
+
+def checkBakingStarted():
+    return checkQuestStarted("Baking 101")
+
+def checkBakingStartable():
+    return not checkBakingStarted()
+
+def checkBakingInProgress():
+    return (checkBakingStarted() and not (checkStackableItemInInventory('crawling horror heart', 1) and checkStackableItemInInventory('snake tooth', 2)))
+            
+def checkBakingCompletable():
+    return (checkBakingStarted() and (checkStackableItemInInventory('crawling horror heart', 1) and checkStackableItemInInventory('snake tooth', 2)))
+
+def actuallyValidBaking():
+    testQuest.valid()
+
+########
 def deleteSaves():
     if not os.path.isdir(absDirPath):
         os.makedirs(absDirPath)
@@ -3206,6 +3240,20 @@ def profileDjik(caster = None, target = None):
     
 def detailedProfilerWrapperDjik(caster = None, target = None):
     calcDjikPlayer(profile = True)
+    
+def createHorror(caster = None, target = None):
+    (x,y) = targetAnyTile(player.x, player.y)
+    monster = convertMobTemplate(mobGen.generateMonster(player.level, 'horror'))
+    monster.x, monster.y = x,y
+    objects.append(monster)
+
+def createSnake(caster = None, target = None):
+    (x,y) = targetAnyTile(player.x, player.y)
+    monster = convertMobTemplate(mobGen.generateMonster(player.level, 'snake'))
+    monster.x, monster.y = x,y
+    objects.append(monster)
+    
+
 
 drawAstarPath = Spell(ressourceCost = 0, cooldown = 1, useFunction=castAstarPath, name = 'DEBUG : Draw A* path', ressource = 'MP', type = 'Occult')
 teleport = Spell(ressourceCost = 0, cooldown = 1, useFunction=castTeleportTo, name = 'DEBUG : Teleport', ressource = 'HP', type = 'Occult')
@@ -3218,12 +3266,14 @@ testCone = Spell(ressourceCost= 0, cooldown = 1, useFunction=castConeAOE, name =
 spawnProj = Spell(ressourceCost=0, cooldown=0, useFunction=castSpawnProjectile, name = 'Spawn projectile')
 placeTag = Spell(ressourceCost = 0, cooldown = 1, useFunction=castPlaceTag, name = 'DEBUG : Place tag', ressource = 'MP', type = 'Occult')
 drawRect = Spell(ressourceCost = 0, cooldown = 1, useFunction=castDrawRectangle, name = 'DEBUG : Draw Rectangle', ressource = 'MP', type = 'Occult')
+placeHorror = Spell(ressourceCost = 0, cooldown = 1, useFunction=createHorror, name = 'DEBUG : Place crawling horror', ressource = 'MP', type = 'Occult')
+placeSnake = Spell(ressourceCost = 0, cooldown = 1, useFunction=createSnake, name = 'DEBUG : Place snake', ressource = 'MP', type = 'Occult')
 
 ### DEBUG SPELLS ###
 
 spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport, djik, dispDjik, djikProf,
                detDjik, yellowify, ram, leap, expandRootsDmg, expandRootsDummy, expandRootsRegen, insectFly, demonForm, spawnProj, placeIceWall, testCone,
-               flurry, seismic, shadowStep, throwEnemy, blizzard, flamethrower, volley, strongCharge, tackleCharge])
+               flurry, seismic, shadowStep, throwEnemy, blizzard, flamethrower, volley, strongCharge, tackleCharge, placeHorror, placeSnake])
 #_____________SPELLS_____________
 
 #______________CHARACTER GENERATION____________
@@ -7110,7 +7160,7 @@ class Essence:
                     player.Player.speedChance += boost
 
 class Item:
-    def __init__(self, useFunction = None,  arg1 = None, arg2 = None, arg3 = None, stackable = False, amount = 1, weight = 0, description = 'Placeholder.', pic = 'trollMace.xp', itemtype = None, identified = True, unIDName = 'Unidentified', unIDpName = 'UnidentifiedS', unIDdesc='Unidentified placeholder.', useText = 'Use'):
+    def __init__(self, useFunction = None,  arg1 = None, arg2 = None, arg3 = None, stackable = False, amount = 1, weight = 0, description = 'Placeholder.', pic = 'trollMace.xp', itemtype = None, identified = True, unIDName = 'Unidentified', unIDpName = 'UnidentifiedS', unIDdesc='Unidentified placeholder.', useText = 'Use', unlimitedUses = False):
         self.useFunction = useFunction
         self.arg1 = arg1
         self.arg2 = arg2
@@ -7126,6 +7176,7 @@ class Item:
         self.unIDpName = unIDpName
         self.unIDdesc = unIDdesc
         self.useText = useText
+        self.unlimited = unlimitedUses
     
     @property
     def description(self):
@@ -7236,54 +7287,58 @@ class Item:
         else:
             if self.arg1 is None:
                 if self.useFunction() != 'cancelled':
-                    if not self.stackable or self.amount == 0:
-                        inventory.remove(self.owner)
-                    else:
-                        self.amount -= 1
-                        if self.amount < 0:
-                            self.amount = 0
-                        if self.amount == 0:
+                    if not self.unlimited:
+                        if not self.stackable or self.amount == 0:
                             inventory.remove(self.owner)
+                        else:
+                            self.amount -= 1
+                            if self.amount < 0:
+                                self.amount = 0
+                            if self.amount == 0:
+                                inventory.remove(self.owner)
                     self.identify()    
                 else:
                     return 'cancelled'
             elif self.arg2 is None and self.arg1 is not None:
                 if self.useFunction(self.arg1) != 'cancelled':
-                    if not self.stackable or self.amount == 0:
-                        inventory.remove(self.owner)
-                    else:
-                        self.amount -= 1
-                        if self.amount < 0:
-                            self.amount = 0
-                        if self.amount == 0:
+                    if not self.unlimited:
+                        if not self.stackable or self.amount == 0:
                             inventory.remove(self.owner)
+                        else:
+                            self.amount -= 1
+                            if self.amount < 0:
+                                self.amount = 0
+                            if self.amount == 0:
+                                inventory.remove(self.owner)
                     self.identify()
                 else:
                     return 'cancelled'
             elif self.arg3 is None and self.arg2 is not None:
                 if self.useFunction(self.arg1, self.arg2) != 'cancelled':
-                    if not self.stackable or self.amount == 0:
-                        inventory.remove(self.owner)
-                    else:
-                        self.amount -= 1
-                        if self.amount < 0:
-                            self.amount = 0
-                        if self.amount == 0:
+                    if not self.unlimited:
+                        if not self.stackable or self.amount == 0:
                             inventory.remove(self.owner)
+                        else:
+                            self.amount -= 1
+                            if self.amount < 0:
+                                self.amount = 0
+                            if self.amount == 0:
+                                inventory.remove(self.owner)
                     self.identify()
                 else:
                     return 'cancelled'
             elif self.arg3 is not None:
                 if self.useFunction(self.arg1, self.arg2, self.arg3) != 'cancelled':
-                    if not self.stackable or self.amount == 0:
-                        inventory.remove(self.owner)
-                    else:
-                        self.amount -= 1
-                        if self.amount < 0:
-                            self.amount = 0
-                        if self.amount == 0:
+                    if not self.unlimited:
+                        if not self.stackable or self.amount == 0:
                             inventory.remove(self.owner)
-                    self.identify()
+                        else:
+                            self.amount -= 1
+                            if self.amount < 0:
+                                self.amount = 0
+                            if self.amount == 0:
+                                inventory.remove(self.owner)
+                        self.identify()
                 else:
                     return 'cancelled'
                 
@@ -8346,12 +8401,7 @@ class Shop:
 
 def vomit(amount = 30):
     ### HUNGER REMOVED ###
-    '''
     message('You throw up !', colors.darker_lime)
-    player.Player.hunger -= amount
-    if player.Player.hunger < 0:
-        player.Player.hunger = 0
-    '''
     pass
 
 #ISN project
@@ -8367,7 +8417,7 @@ def badPieEffect(): #Presentation de l'initialisation d'un buff (poison)
         poisoned = Buff('poisoned', colors.purple, cooldown=randint(5, 10), continuousFunction=lambda fighter: randomDamage('poison', fighter, chance = 100, minDamage=1, maxDamage=10, dmgType={'poison': 100}))
         poisoned.applyBuff(player)
 
-badPie = GameObject(None, None, ',', "awful pie", colors.dark_fuchsia, Item = Item(useFunction = lambda : badPieEffect(), weight = 0.4, stackable=True, amount = 1, description = "This pie looks barely edible. Whoever baked it deserves the title of the worst baker of all this world.", itemtype = 'food', pic = 'pie.xp'), blocks = False, pName = "awful pies") # TO-DO : Once we find the name of the world, change description
+badPie = GameObject(None, None, ',', "awful pie", colors.dark_fuchsia, Item = Item(useFunction = lambda : badPieEffect(), weight = 0.4, stackable=True, amount = 1, description = "This pie looks barely edible. Whoever baked it deserves the title of the worst baker of all Ashotara.", itemtype = 'food', pic = 'pie.xp'), blocks = False, pName = "awful pies")
 badPieChoice = ShopChoice(gObject = badPie, price = 100, stock = 20)
 
 salad = GameObject(None, None, ',', "'herb salad", colors.green, Item = Item(useFunction = lambda : satiateHunger(100, 'the herb salad'), weight = 0.05, stackable=True, amount = 1, description = "A salad made out of the herbs that grow all arount this place. Oddly enough, this looks like it won't make you die of poisoning as soon as you eat it.", itemtype = 'food'), blocks = False, pName = "herb salads")
@@ -8385,71 +8435,56 @@ ayethShopChoices = [badPieChoice, saladChoice, breadChoice, cSwordChoice]
 ayethShop = Shop(choicesList=ayethShopChoices)
 
 
-
 class Quest:
-    def __init__(self, name, choiceGive, choiceCompleted, screenGive, screenCompleted, rewardList, rewardXP, validateFunction):
+    def __init__(self, name, rewardList, rewardXP):
         self.name = name
-        self.choiceGive = choiceGive
-        self.choiceCompleted = choiceCompleted
-        self.screenGive = screenGive
-        self.screenCompleted = screenCompleted
+        self.description = 'Placeholder'
         self.rewardList = rewardList
         self.rewardXP = rewardXP
-        self.validateFunction = validateFunction
+        self.state = 'inactive'
         self.onValid = doNothing
-        self.onValid2 = doNothing
     
     def valid(self):
         self.onValid()
-        self.onValid2()
         for item in self.rewardList:
             item.pickUp()
         
         player.Fighter.xp += self.rewardXP
         message('You completed {} !'.format(self.name))
-        ind = player.Player.questList.index(self)
-        del player.Player.questList[ind]
+        self.state = 'completed'
+        
+
     
     def take(self):
         message('You started a new quest ! {} added to quest log.')
         player.Player.questList.append(self)
-        
-    def removeObjects(self):
-        print("Doing nothing but printing this message because I am not supposed to remove objects because this is not a fetch quest")
-    
-    def appendToTree(self, treeToAppend, entryPoint):
-        pass #My whole body is noping at the mere idea of implementing this. Why do we need quests anyways ?
-    
-class FetchQuest(Quest):
-    def __init__(self, name, choiceGive, choiceCompleted, screenGive, screenCompleted, rewardList, rewardXP, validateFunction, itemName, amountWanted):    
-        self.itemName = itemName
-        self.amountWanted = amountWanted
-        Quest.__init__(self, name, choiceGive, choiceCompleted, screenGive, screenCompleted, rewardList, rewardXP, validateFunction)
-        self.onValid = doNothing #TEMPORARY
-        self.onValid2 = self.removeObjects
-        
-    def removeObjects(self):
-        foundItem = None
-        for item in inventory:
-            if item.name == self.itemName:
-                foundItem = item
-                break
-        try:
-            if foundItem is None:
-                raise ValueError('No item found')
-            else:
-                foundItem.Item.amount -= self.amountWanted
-                if foundItem.Item.amount < 0:
-                    raise ValueError('Item in too low quantity')
-                elif foundItem.Item.amount == 0:
-                    inventory.remove(foundItem)
-        except ValueError:
-            traceback.print_exc()
-            pdb.set_trace()
-        
-                
-        
-    
+        self.state = 'active'
+
+def removeItem(nameToFind, amount):
+    foundItem = None
+    for item in inventory:
+        if item.name == nameToFind:
+            foundItem = item
+            break
+        if foundItem is None:
+            for item in inventory:
+                print(item.name)
+            raise ValueError('No item found')
+        else:
+            foundItem.Item.amount -= amount
+            if foundItem.Item.amount < 0:
+                raise ValueError('Item in too low quantity')
+            elif foundItem.Item.amount == 0:
+                inventory.remove(foundItem)
+
+def validBaking():
+    removeItem('crawling horror heart', 1)
+    removeItem('snake tooth', 2)
+
+testQuestReward = [GameObject(x = None, y = None, char = '$', name = 'gold coin', color = colors.gold, Item= Money(10), blocks = False, pName = 'gold coins'), badPie]
+testQuest = Quest('Baking 101', rewardList=testQuestReward, rewardXP = 200)
+testQuest.description = "Ayeth asked you to find some ingredients for her 'new recipe'. You can't help but feel sorry for anyone who is gonna have to eat the final product. \n You'll need to find : \n \n    - 1 crawling horror heart \n    - 2 snake teeth "
+testQuest.onValid = validBaking
 
 def quitGame(message, backToMainMenu = False, noSave = False):
     global objects

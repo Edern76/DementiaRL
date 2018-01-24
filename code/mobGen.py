@@ -215,7 +215,7 @@ def convertListString(string):
     for i, char in enumerate(usedString):
         if i in innerListInd:
             continue
-        if char in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.$=' or (char in ''','"''' and inParenthesis >= 1):
+        if char in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.$=_' or (char in ''','"''' and inParenthesis >= 1):
             text += char
         elif char == ' ' and text != '':
             text += char
@@ -274,7 +274,7 @@ def convertDictString(string):
     value = BetterStr('')
     usedText = key
     for char in string[1:len(string)-1]:
-        if char in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.':
+        if char in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._':
             usedText.string += char
         elif char == ' ' and usedText.string != '':
             usedText.string += char

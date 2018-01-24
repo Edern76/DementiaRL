@@ -10,7 +10,7 @@ BasicMonster()
 \
 10
 0
-4
+20
 30
 65
 10
@@ -19,8 +19,8 @@ monsterDeath
 *
 7
 0
-*
-*
+[GameObject(0, 0, ',', 'snake tooth', colors.gray, Item = Item(useFunction=message, arg1 = "You can't find a use to this" , weight = 0.2, stackable=True, amount = 1, description = "A tooth from a snake of some sorts. You don't see how it could be useful", itemtype = 'junk', useText = 'Use', unlimitedUses = True), blocks = False, pName = 'snake teeth')]
+[75]
 *
 *
 *

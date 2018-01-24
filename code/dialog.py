@@ -199,16 +199,50 @@ pukTree = DialogTree(screenList= pukScrList, name = 'Pukil', origScreen= pukScrL
 TO-DO : Add more dialog than just the 'enter shop' option     
 '''
 
-ayeIntText = 'Greetings adventurer ! Would you buy me a little something ? I make the best pies of all Ashotara !'
+ayeIntText = 'Greetings stranger ! I make the best pies of all Ashotara, do you want some ?'
 ayeIntId = 'intro'
-ayeIntCh1 = DialogChoice(idT= 'SHOP', text = 'Sure, let me take a look at your wares. (Enter shop)')
+ayeIntCh1 = DialogChoice(idT= 'SHOP', text = 'Sure, let me take a look at what you have. (Enter shop)')
 ayeIntCh2 = DialogChoice(idT = 'condTest', text = 'This choice shows up because you are in debug mode')
 ayeIntCh2.conditionName = 'checkDebug'
-ayeIntCh3 = DialogChoice(idT = 'END', text = "I'm busy right now, maybe at a later time ? (End conversation)")
+ayeIntCh3 = DialogChoice(idT = 'tstQstPrompt', text = 'Do you need help with anything ?')
+ayeIntCh3.conditionName = 'checkBakingStartable'
+ayeIntCh4 = DialogChoice(idT = 'tstQstProgress', text = 'About the task you gave me...')
+ayeIntCh4.conditionName = 'checkBakingInProgress'
+ayeIntCh5 = DialogChoice(idT = 'tstQstDone', text = 'I have gathered the ingredients')
+ayeIntCh5.conditionName = 'checkBakingCompletable'
+ayeIntEndCh = DialogChoice(idT = 'END', text = "I'm busy right now, maybe at a later time ? (End conversation)")
 
-ayeIntClist = [ayeIntCh1, ayeIntCh2, ayeIntCh3]
+ayeIntClist = [ayeIntCh1, ayeIntCh2, ayeIntCh3, ayeIntCh4, ayeIntCh5, ayeIntEndCh]
 ayeIntScr = DialogScreen(idT= ayeIntId, dialogText= ayeIntText, choicesList = ayeIntClist)
 
+
+ayePrmpt1Text = "Yes, I'd really want to try out a new recipe, but I'm too weak to go in the outside world fetch the ingredients. Could you please go and find me a heart of one of these crawling things and two snake teeth ? I'll give you a few coins and a free pie if you do it."
+ayePrmpt1Ch1 = DialogChoice(idT = 'ayeAcc1', text = "Sure.")
+ayePrmpt1Ch2 = DialogChoice(idT = 'ayeDny1', text = "Sorry but I'm too busy right now.")
+ayePrmpt1Clist = [ayePrmpt1Ch1, ayePrmpt1Ch2]
+ayePrmpt1Scr = DialogScreen(idT = 'tstQstPrompt', dialogText = ayePrmpt1Text, choicesList = ayePrmpt1Clist, prevScreen= ayeIntScr)
+
+ayeAcc1Text = "Awesome ! I can't wait to make everyone taste my new recipe !"
+ayeAcc1Ch1 = DialogChoice(idT = 'INTRO', text = "I'm sure people will be as enthousiastic to try it out...")
+ayeAcc1Clist = [ayeAcc1Ch1]
+ayeAcc1Scr = DialogScreen(idT= 'ayeAcc1', dialogText = ayeAcc1Text, choicesList = ayeAcc1Clist, prevScreen = ayePrmpt1Scr)
+ayeAcc1Scr.onEnterFunctionName = 'startBaking'
+
+ayeDny1Text = "'You know where to find me if you change your mind' says the insectoid child, as disappointment and sadness become apparent on her face. " #TO-DO : Separate dialog text from description text
+ayeDny1Ch1 = DialogChoice(idT = 'INTRO', text = "...")
+ayeDny1Clist = [ayeDny1Ch1]
+ayeDny1Scr = DialogScreen(idT= 'ayeDny1', dialogText = ayeDny1Text, choicesList = ayeDny1Clist, prevScreen = ayePrmpt1Scr)
+
+ayePrg1Text = "Have you found all the ingredients yet ?"
+ayePrg1Ch1 = DialogChoice(idT = 'BACK', text = "Not yet, but I'm working on it")
+ayePrg1Clist = [ayePrg1Ch1]
+ayePrg1Scr = DialogScreen(idT= 'tstQstProgress', dialogText = ayePrg1Text, choicesList = ayePrg1Clist, prevScreen = ayeIntScr)
+
+ayeDone1Text = "Thanks a lot !! Here's your reward, as promised. "
+ayeDone1Ch1 = DialogChoice(idT = 'BACK', text = "(Back)")
+ayeDone1Clist = [ayeDone1Ch1]
+ayeDone1Scr = DialogScreen(idT= 'tstQstDone', dialogText = ayeDone1Text, choicesList = ayeDone1Clist, prevScreen = ayeIntScr)
+ayeDone1Scr.onEnterFunctionName = 'actuallyValidBaking'
 
 ayeTstText = "You are no longer in debug mode ! "
 ayeTstId = 'condTest'
@@ -218,7 +252,7 @@ ayeTstClist = [ayeTstCh1, ayeTstCh2]
 ayeTstScr = DialogScreen(idT = ayeTstId, dialogText=ayeTstText, choicesList = ayeTstClist, prevScreen = ayeIntScr)
 ayeTstScr.onEnterFunctionName = "flipDebug"
 
-ayeScrList = [ayeIntScr, ayeTstScr]
+ayeScrList = [ayeIntScr, ayeTstScr, ayePrmpt1Scr, ayeAcc1Scr, ayeDny1Scr, ayePrg1Scr, ayeDone1Scr]
 ayeTree = DialogTree(screenList = ayeScrList, name = 'Ayeth', origScreen= ayeScrList[0])
 
 ######################TUTORIAL SOLDIERS#########################

@@ -1,0 +1,55 @@
+crawling horror
+h
+(255, 255, 191)
+BasicMonster()
+*
+*
+*
+*
+*
+\
+25
+0
+6
+30
+30
+25
+monsterDeath
+0
+*
+5
+0
+[GameObject(0, 0, ',', 'crawling horror heart', colors.dark_red, Item = Item(useFunction=satiateHunger, arg1 = 10, arg2 = "a disgusting thing", weight = 0.2, stackable=True, amount = 1, description = "A heart extracted from a disgusting creature. Perhaps you can eat it, but you REALLY don't want to", itemtype = 'food', useText = 'Eat'), blocks = False)]
+[75]
+*
+*
+*
+*
+*
+*
+*
+*
+A slow, bloated, larva like creature.
+*
+0
+100
+50
+100
+*
+*
+\
+***
+shotRange
+power
+accuracy
+crit
+armorPen
+buffsOnAttack		#list as [[chance, 'name']]
+leechRessource		#default: None, string ('hunger'/'HP'/'MP')
+attackFunctions		#list
+shootMessage		#d: ' shoots {} for '
+projChar		#d: '/'
+projColor
+continues		#d: False
+passesThrough		#d: False
+ghost			#d: False
