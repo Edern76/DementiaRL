@@ -13025,22 +13025,29 @@ def convertMobTemplate(template):
         for eq in fi.equipmentList:
             print(eq)
             if eq[1] == 'armor':
-                eqTemp = itemGen.generateArmor(totalLevel, player.level, eq[2], eq[3])
-                picInd = 4
+                armorType = eq[2]
+                if armorType == '*':
+                    armorType = None
+                slot = eq[3]
+                if slot == '*':
+                    slot = None
+                eqTemp = itemGen.generateArmor(totalLevel, player.level, armorType, slot)
             elif eq[1] == 'weapon':
-                try:
-                    weapon = eq[4]
-                except IndexError:
+                weaponType = eq[2]
+                if weaponType == '*':
+                    weaponType = None
+                weapon = eq[5]
+                if weapon == '*':
                     weapon = None
-                eqTemp = itemGen.generateMeleeWeapon(totalLevel, player.level, eq[2], weapon)
-                picInd = 3
+                eqTemp = itemGen.generateMeleeWeapon(totalLevel, player.level, weaponType, weapon)
             try:
                 equipment = convertItemTemplate(eqTemp)
             except:
                 raise UnrecognizedElement("Equipment of {} is not recognized: \n{}".format(template.name, eq))
-            equipment.trueName = eq[0]
+            if eq[0] != '*':
+                equipment.trueName = eq[0]
             try:
-                equipment.Item.pic = eq[picInd]
+                equipment.Item.pic = eq[4]
             except:
                 pass
             toEquip.append(equipment)

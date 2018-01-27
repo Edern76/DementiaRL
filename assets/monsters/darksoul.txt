@@ -26,7 +26,7 @@ monsterDeath
 *
 *
 ['head', 'torso', 'left hand', 'right hand', 'legs', 'feet']
-[['darksoul helmet', 'armor', 'leather', 'head', 'darksoulHelmet.xp']]
+[['darksoul helmet', 'armor', '*', 'head', 'darksoulHelmet.xp', '*']]
 *
 *
 A darksoul
