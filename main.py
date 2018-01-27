@@ -8310,9 +8310,12 @@ class Money(Item):
         self.stackable = True
         Item.__init__(self, amount = self.amount, stackable = self.stackable)
         
-    def pickUp(self):
+    def pickUp(self, *args, **kwargs):
         player.Player.money += self.amount
-        objects.remove(self.owner)
+        try:
+            objects.remove(self.owner)
+        except ValueError:
+            print('Money not in objects list.')
         message('You pick up ' + str(self.amount) + ' gold coins !')
     
     def use(self):
@@ -8499,7 +8502,7 @@ class Quest:
     def valid(self):
         self.onValid()
         for item in self.rewardList:
-            item.pickUp()
+            item.Item.pickUp(inObjects = False)
         
         player.Fighter.xp += self.rewardXP
         message('You completed {} !'.format(self.name))
@@ -8508,7 +8511,7 @@ class Quest:
 
     
     def take(self):
-        message('You started a new quest ! {} added to quest log.')
+        message('You started a new quest ! {} added to quest log.'.format(self.name))
         player.Player.questList.append(self)
         self.state = 'active'
 
@@ -8518,16 +8521,16 @@ def removeItem(nameToFind, amount):
         if item.name == nameToFind:
             foundItem = item
             break
-        if foundItem is None:
-            for item in inventory:
-                print(item.name)
-            raise ValueError('No item found')
-        else:
-            foundItem.Item.amount -= amount
-            if foundItem.Item.amount < 0:
-                raise ValueError('Item in too low quantity')
-            elif foundItem.Item.amount == 0:
-                inventory.remove(foundItem)
+    if foundItem is None:
+        for item in inventory:
+            print(item.name)
+        raise ValueError('No item found')
+    else:
+        foundItem.Item.amount -= amount
+        if foundItem.Item.amount < 0:
+            raise ValueError('Item in too low quantity')
+        elif foundItem.Item.amount == 0:
+            inventory.remove(foundItem)
 
 def validBaking():
     removeItem('crawling horror heart', 1)
