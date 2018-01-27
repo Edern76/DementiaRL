@@ -229,7 +229,10 @@ adjEffects = {'regular': {},
               'padded': {'HP': 10},
               'riveted': {'arm': 5},
               'reinforced': {'arm': 5, 'weight': 0.5},
-              'bulky': {'arm': 4, 'stam': 15, 'weight': 0.8}
+              'bulky': {'arm': 4, 'stam': 15, 'weight': 0.8},
+              
+              'pure': {'MP': 10, 'will': 2, 'res': {'dark': 20}},
+              'rotten': {'arm': -3}
               }
 
 adjActive = {'regular': {'name': 'none'},
@@ -257,7 +260,8 @@ adjActive = {'regular': {'name': 'none'},
               'sharpened': {'name': ' of bite'}, #same as sharp?
               'piercing': {'name': ' of pain'}, #same as spiked?
               'repeating': {'name': ' of barrage'},
-              'explosive': {'name': ' of burst'}}
+              'explosive': {'name': ' of burst'},
+              'pure': {'name': 'of light'}}
 ### weapons ###
 
 ### ranged weapons ###
@@ -567,11 +571,85 @@ armorAdj = {'cloth': {'head': {'junk': {'regular': 50, 'tattered': 50},
 armorDictTemplate = ['pow', 'arm', 'HP', 'acc', 'ev', 'crit', 'MP', 'strength', 'dex', 'vit', 'will', 'ap', 'stam', 'stealth', 'dmgTypes', 'res', 'atkSpeed']
 ### armors ###
 
+### shields ###
+shieldTypes = ['buckler', 'round', 'kite', 'heater', 'war-door']
+shieldMaterials = ['leather', 'wooden', 'copper', 'iron', 'steel', 'crystal']
+
+shieldMatProb = {'junk': {'leather': 80, 'wooden': 20},
+                 'common': {'leather': 70, 'wooden': 25, 'copper': 5},
+                 'uncommon': {'wooden': 30, 'copper': 55, 'iron': 15},
+                 'rare': {'wooden': 30, 'copper': 20, 'iron': 30, 'steel': 20},
+                 'epic': {'copper': 25, 'iron': 25, 'steel': 45, 'crystal': 5},
+                 'legendary': {'iron': 15, 'steel': 50, 'crystal': 35}
+                 }
+
+shieldTypeProb = {'junk': {'buckler': 80, 'round': 20},
+                 'common': {'buckler': 70, 'round': 25, 'kite': 5},
+                 'uncommon': {'buckler': 30, 'round': 55, 'kite': 15},
+                 'rare': {'buckler': 15, 'round': 30, 'kite': 35, 'heater': 20},
+                 'epic': {'round': 25, 'kite': 25, 'heater': 45, 'war-door': 5},
+                 'legendary': {'kite': 15, 'heater': 50, 'war-door': 35}
+                 }
+
+shieldAttributes = {'buckler': {'pic': 'shield.xp', 'acc': 5, 'arm': 3, 'evas': 10, 'weight': 0.5},
+                    'round': {'pic': 'shield.xp', 'arm': 13, 'weight': 1.2},
+                    'kite': {'pic': 'shield.xp', 'arm': 9, 'evas': 15, 'weight': 0.9},
+                    'heater': {'pic': 'shield.xp', 'acc': 7, 'arm': 18, 'evas': -8, 'weight': 1.6},
+                    'war-door': {'pic': 'shield.xp', 'arm': 23, 'evas': -20, 'weight': 3.2},
+                    
+                    'leather': {'arm': 0, 'evas': 5, 'weight': 0.0},
+                    'wooden': {'arm': 2, 'evas': 0, 'weight': 0.5},
+                    'copper': {'arm': 5, 'evas': -2, 'weight': 0.2},
+                    'iron': {'arm': 7, 'evas': -7, 'weight': 0.9},
+                    'steel': {'arm': 10, 'evas': -5, 'weight': 0.7},
+                    'crystal': {'arm': 14, 'evas': 0, 'weight': 0.8}
+                    }
+
+shieldAdj = {'leather': {'junk': {'regular': 50, 'tattered': 50},
+                        'common': {'regular': 80, 'tattered': 10, 'boiled': 5, 'lightweight': 5},
+                        'uncommon': {'regular': 71, 'tattered': 5, 'boiled': 12, 'lightweight': 12},
+                        'rare': {'regular': 50, 'tattered': 2, 'boiled': 16, 'lightweight': 16, 'lamellar': 16}, 
+                        'epic': {'boiled': 14, 'lightweight': 15, 'lamellar': 14, 'ethereal': 14, 'ignited': 14, 'frozen': 14, 'shadow': 15},
+                        'legendary': {'boiled': 10, 'lightweight': 10, 'lamellar': 10, 'ethereal': 10, 'ignited': 10, 'frozen': 10, 'shadow': 10, 'nimble': 10, 'runic': 10, 'barbed': 10}},
+             
+             'wooden': {'junk': {'regular': 50, 'rotten': 50},
+                        'common': {'regular': 80, 'rotten': 10, 'reinforced': 5, 'lightweight': 5},
+                        'uncommon': {'regular': 71, 'rotten': 5, 'reinforced': 12, 'lightweight': 12},
+                        'rare': {'regular': 50, 'rotten': 2, 'reinforced': 16, 'lightweight': 16, 'padded': 16}, 
+                        'epic': {'reinforced': 14, 'lightweight': 15, 'padded': 14, 'ethereal': 14, 'ignited': 14, 'frozen': 14, 'shadow': 15},
+                        'legendary': {'reinforced': 10, 'lightweight': 10, 'padded': 10, 'ethereal': 10, 'ignited': 10, 'frozen': 10, 'shadow': 10, 'nimble': 10, 'runic': 10, 'barbed': 10}},
+             
+             'copper': {'junk': {'regular': 50, 'rusted': 50},
+                        'common': {'regular': 80, 'rusted': 10, 'bulky': 5, 'padded': 5},
+                        'uncommon': {'regular': 71, 'rusted': 5, 'bulky': 12, 'padded': 12},
+                        'rare': {'regular': 50, 'rusted': 2, 'bulky': 12, 'padded': 12, 'reinforced': 12, 'sharp': 12}, 
+                        'epic': {'bulky': 13, 'padded': 12, 'reinforced': 13, 'barbed': 12, 'ignited': 12, 'frozen': 13, 'telluric': 13, 'sharp': 12},
+                        'legendary': {'bulky': 11, 'padded': 11, 'reinforced': 11, 'barbed': 11, 'ignited': 11, 'frozen': 11, 'telluric': 11, 'healthful': 11, 'sharp': 12}},
+             
+             'iron': {'junk': {'regular': 50, 'rusted': 50},
+                        'common': {'regular': 80, 'rusted': 10, 'bulky': 5, 'padded': 5},
+                        'uncommon': {'regular': 71, 'rusted': 5, 'bulky': 12, 'padded': 12},
+                        'rare': {'regular': 50, 'rusted': 2, 'bulky': 12, 'padded': 12, 'reinforced': 12, 'sharp': 12}, 
+                        'epic': {'bulky': 13, 'padded': 12, 'reinforced': 13, 'barbed': 12, 'ignited': 12, 'frozen': 13, 'telluric': 13, 'sharp': 12},
+                        'legendary': {'bulky': 11, 'padded': 11, 'reinforced': 11, 'barbed': 11, 'ignited': 11, 'frozen': 11, 'telluric': 11, 'healthful': 11, 'sharp': 12}},
+             
+             'steel': {'junk': {'regular': 50, 'rusted': 50},
+                        'common': {'regular': 80, 'rusted': 10, 'bulky': 5, 'padded': 5},
+                        'uncommon': {'regular': 71, 'rusted': 5, 'bulky': 12, 'padded': 12},
+                        'rare': {'regular': 50, 'rusted': 2, 'bulky': 12, 'padded': 12, 'reinforced': 12, 'sharp': 12}, 
+                        'epic': {'bulky': 13, 'padded': 12, 'reinforced': 13, 'barbed': 12, 'ignited': 12, 'frozen': 13, 'telluric': 13, 'sharp': 12},
+                        'legendary': {'bulky': 11, 'padded': 11, 'reinforced': 11, 'barbed': 11, 'ignited': 11, 'frozen': 11, 'telluric': 11, 'healthful': 11, 'sharp': 12}},
+             
+             'crystal': {'epic': {'bulky': 13, 'padded': 13, 'reinforced': 13, 'barbed': 13, 'pure': 12, 'frozen': 12, 'telluric': 12, 'sharp': 12},
+                        'legendary': {'bulky': 11, 'padded': 11, 'reinforced': 11, 'barbed': 11, 'pure': 11, 'frozen': 131, 'telluric': 11, 'healthful': 11, 'sharp': 12}}}
+
+shieldDictTemplate = ['pow', 'arm', 'HP', 'acc', 'ev', 'crit', 'MP', 'strength', 'dex', 'vit', 'will', 'ap', 'stam', 'stealth', 'dmgTypes', 'res', 'atkSpeed']
+### shields ###
+
+
 potionTypes = ['heal HP', 'heal MP', 'heal stamina', 'cure poison', 'poison', 'cure fire', 'fire', 'frost', 'speed fast', 'speed slow', 'strength', 'constitution', 'dexterity', 'willpower']
 
 
-shieldTypes = ['buckler', 'round', 'heater', 'war-door']
-shieldMaterials = ['leather', 'wooden', 'copper', 'iron', 'steel', 'crystal']
 
 
 foodTypes = ['bread', 'herbs', 'rMeat', 'pie', 'pasta', 'meat', 'hBaguette']
@@ -1168,10 +1246,133 @@ def generateArmor(level, playerLevel, armorType = None, slot = None):
     weaponObject = GameObjectTemplate(']', addToName + armorNames[slot][armorType], armorRarity.color, Item = weaponItem, Equipment = armorEquipment)
     return weaponObject
 
+def generateShield(level, playerLevel, shieldType = None, material = None):
+    updateRarityChances(level)
+    shieldRarity = randomChoice(rarity)
+    stringRarity = str(shieldRarity)
+    armorLevel = playerLevel + randint(-3 + raritySmallAdd[stringRarity]//2, raritySmallAdd[stringRarity]//2)
+    
+    if shieldType is None:
+        shieldType = randomChoice(shieldTypeProb[stringRarity])
+    
+    if material is None:
+        material = randomChoice(shieldMatProb[stringRarity])
+
+    shieldDict = shieldAttributes[shieldType]
+    shieldEquipment = EquipmentTemplate('one handed', stringRarity + ' shield')
+    
+    adj = []
+    passiveNumber = 1
+    try:
+        rareCombo = randomChoice(rarityCombo[stringRarity])
+    except:
+        rareCombo = 'none'
+    
+    if '2 passive' in rareCombo:
+        passiveNumber = 2
+    if '3 passive' in rareCombo:
+        passiveNumber = 3
+    
+    adjDict = shieldAdj[material][stringRarity]
+    for i in range(passiveNumber):
+        bonus = randomChoice(adjDict)
+        while bonus in adj or (bonus == 'frozen' and 'ignited' in adj) or (bonus == 'ignited' and 'frozen' in adj) or (bonus == 'etheral' and 'telluric' in adj) or (bonus == 'telluric' and 'ethereal' in adj):
+            bonus = randomChoice(adjDict)
+        adj.append(bonus)
+    
+    addToName = ''
+    for adjective in adj:
+        if adjective != 'regular':
+            addToName += adjective + ' '
+    
+    i = 0
+    for stat in shieldEquipment.stats:
+        moddedStat = equipmentStatsStrings[i]
+        
+        try:
+            bonus = shieldAttributes[material][moddedStat]
+        except:
+            bonus = 0
+        
+        try:
+            dictToUse = raritySmallAdd
+            if moddedStat == 'HP' or moddedStat == 'MP' or moddedStat == 'stam':
+                dictToUse = rarityBigAdd
+            stat.value = shieldDict[equipmentStatsStrings[i]] + randint(-2 + dictToUse[stringRarity], 2 + dictToUse[stringRarity]) + bonus
+            if moddedStat in toBeBuffedStats:
+                stat.value += round(sigmoidProgress(armorLevel) * stat.value)
+            if (stat < 0 and shieldDict[equipmentStatsStrings[i]] > 0) or (stat > 0 and shieldDict[equipmentStatsStrings[i]] < 0): #if a postive value becomes negative or vice versa
+                stat.value = 0
+        except:
+            pass
+        i += 1
+    
+    tempWeight = shieldDict['weight']
+    
+    i = 0
+    for stat in shieldEquipment.stats:
+        for adjective in adj:
+            dictToUse = raritySmallAdd
+            moddedStat = equipmentStatsStrings[i]
+            if moddedStat == 'HP' or moddedStat == 'MP' or moddedStat == 'stam':
+                dictToUse = rarityBigAdd
+            try:
+                bonus = adjEffects[adjective][equipmentStatsStrings[i]]
+                toAdd = randint(0, dictToUse[stringRarity]//2)
+                if bonus < 0 and bonus + toAdd > 0:
+                    toAdd = -bonus
+                stat += bonus + toAdd
+            except:
+                pass
+        i += 1
+    
+    resist = {}
+    for adjective in adj:
+        try:
+            tempWeight += adjEffects[adjective]['weight']
+        except:
+            pass
+        
+        try:
+            tempWeight += shieldAttributes[material]['weight']
+        except:
+            pass
+        
+        try:
+            for key in list(adjEffects[adjective]['res']):
+                if key in list(resist.keys()):
+                    resist[key] += adjEffects[adjective]['res'][key]
+                else:
+                    resist[key] = adjEffects[adjective]['res'][key]
+        except:
+            pass
+    
+    shieldEquipment.res = resist.copy()
+    
+    if tempWeight < 0:
+        tempWeight = 0
+    weaponItem = ItemTemplate('Equip', weight = round(tempWeight, 1), itemtype = 'armor', useText = 'Equip')
+
+    try:
+        weaponItem.description = shieldDict['desc']
+    except:
+        pass
+    try:
+        weaponItem.pic = shieldDict['pic']
+    except:
+        pass
+    
+    endName = ''
+    if shieldType in ['round', 'kite', 'heater']:
+        endName = ' shield'
+    
+    weaponObject = GameObjectTemplate(']', addToName + material + ' ' + shieldType + endName, shieldRarity.color, Item = weaponItem, Equipment = shieldEquipment)
+    return weaponObject
+
 if __name__ == '__main__':
     level = 1
     for i in range(10):
-        print(generateArmor(level + i * 2, i*10, slot = 'hands'))
+        print(generateShield(level + i * 2, i*10))
         print()
 
 

@@ -680,13 +680,28 @@ def menu(header, options, width, usedList = None, noItemMessage = None, inGame =
     print('Not loop menu option draw')
     
     if displayItem and usedList:
+        '''
+        if menuWindows:
+            for mWindow in menuWindows:
+                if not mWindow.name == 'inventory' and not mWindow.type == 'menu':
+                    mWindow.clear()
+                    print('CLEARED {} WINDOW OF TYPE {}'.format(mWindow.name, mWindow.type))
+                    if mWindow.name == 'displayItemInInventory':
+                        ind = menuWindows.index(mWindow)
+                        del menuWindows[ind]
+                        print('Deleted')
+                tdl.flush()
+        '''
         if itemDisplayed == 'item':
             item = usedList[0].Item
             item.displayItem(posX = MID_WIDTH + width//2 - 15)
         elif itemDisplayed == 'spell':
             usedList[0].displayInfo(MID_WIDTH + width//2 - 15)
         elif itemDisplayed == 'weapon':
-            usedList[0].Item.displayItem(posX = MID_WIDTH + width//2 - 15)
+            try:
+                usedList[0].Item.displayItem(posX = MID_WIDTH + width//2 - 15)
+            except:
+                pass
     print('Not loop item disp')
     tdl.flush()
     
@@ -754,7 +769,8 @@ def menu(header, options, width, usedList = None, noItemMessage = None, inGame =
                     try:
                         usedList[index + page*26].Item.displayItem(posX = MID_WIDTH + width//2 - 15)
                     except:
-                        usedList[0+page*26].Item.displayItem(posX = MID_WIDTH + width//2 - 15)
+                        #usedList[0+page*26].Item.displayItem(posX = MID_WIDTH + width//2 - 15)
+                        pass
             print('Loop item disp')
             
             if not arrow:
@@ -4282,6 +4298,8 @@ def initializeTraits():
     ## armor wearing
     heavyDef = UnlockableTrait('Heavy defense', 'You can wear a light chest armor under a heavy one for maximum protection.', 'trait', requiredTraits = {'Armor wearing': 10})
     tackleTrait = UnlockableTrait('Tackle', 'You charge an ennemy with all your weight used as a weapon.', 'trait', requiredTraits = {'Armor wearing': 7}, spells = [tackleCharge])
+    # shield
+    backShield = UnlockableTrait('Back shield', 'You can wear a shield on your back for more protection.', 'trait', requiredTraits = {'Shield mastery': 10})
     
     ###  mental  ###
     ## will
@@ -4312,7 +4330,7 @@ def initializeTraits():
     unlockableTraits.extend([controllableWerewolf, dual, aware, flurryTrait, seismicTrait, ignoreSlow, shadowstepTrait, shadowCrit, greaterCrit,
                              throwEnemySkill, freeAtk, glovesDmg, meleeKB, volleySkill, resistDebuff, regenStam, regenHP, regenMP, ignoreTwoHanded,
                              combatFocusTrait, combatKnowledge, heavyDef, efficiency, recoil, pistolero, strongChargeTrait, tackleTrait, reload,
-                             powerShotTrait, fistsOfSteel, bleed])
+                             powerShotTrait, fistsOfSteel, bleed, backShield])
     actualUnlock = [] #sorted list, in order not to mess with unlocking more advanced traits
     for skill in skills:
         for unlock in unlockableTraits:
@@ -7276,8 +7294,8 @@ class Item:
             equipping = self.owner.Equipment.toggleEquip()
             if equipping == 'didnt-take-turn' or equipping == 'cancelled':
                 return 'didnt-take-turn'
-            elif equipping == 'back':
-                return 'back'
+            elif equipping == 'go back':
+                return 'go back'
             else:
                 self.identify()
                 return 'Equip'
@@ -7896,8 +7914,8 @@ class Equipment:
             equipping = self.equip()
             if equipping == 'didnt-take-turn':
                 return 'didnt-take-turn'
-            elif equipping == 'back':
-                return 'back'
+            elif equipping == 'go back':
+                return 'go back'
         return
 
     def equip(self, fighter = None, silent = False):
@@ -7922,56 +7940,83 @@ class Equipment:
         
         handed = self.slot == 'one handed' or self.slot == 'two handed'
         extra = 'extra limb' in fighter.slots
+        backShield = 'shield' in self.type and player.Player.getTrait('trait', 'Back shield') != 'not found'
         
         if playerEquipping:
             print('player is equipping')
             if self.slot == 'one handed':
-                inHands = getEquippedInHands()
+                inHands = [None, None, None, None]
                 rightText = "right hand"
                 leftText = "left hand"
                 extraText = 'extra limb'
+                backText = 'on your back'
                 for object in equipmentList:
                     if object.Equipment.curSlot == "right hand":
                         rightText = rightText + " (" + object.name + ")"
+                        inHands[0] = object
                     if object.Equipment.curSlot == "left hand":
                         leftText = leftText + " (" + object.name + ")"
+                        inHands[1] = object
                     if object.Equipment.curSlot == 'both hands':
                         rightText = rightText + " (" + object.name + ")"
                         leftText = leftText + " (" + object.name + ")"
+                        inHands[0] = object
+                        inHands[1] = object
                     if extra and object.Equipment.curSlot == 'extra limb':
                         extraText = extraText + ' (' + object.name + ')'
-                if extra:
-                    handList = [rightText, leftText, extraText, 'back']
+                        inHands[2] = object
+                    if backShield and (object.Equipment.slot == 'back' or object.Equipment.curSlot == 'back'):
+                        backText = backText + ' (' + object.name + ')'
+                        inHands[3] = object
+                if extra and not backShield:
+                    handList = [rightText, leftText, extraText, 'go back']
+                    del inHands[3]
+                elif backShield:
+                    handList = [rightText, leftText, backText, 'go back']
+                    del inHands[2]
+                elif extra:
+                    handList = [rightText, leftText, extraText, backText, 'go back']
                 else:
-                    handList = [rightText, leftText, 'back']
+                    handList = [rightText, leftText, 'go back']
+                    del inHands[2]
+                    del inHands[2] #because the list has changed
                 handIndex = menu('What slot do you want to equip this ' + self.owner.name + ' in?', handList, 40, usedList = inHands, displayItem = True, itemDisplayed = 'weapon')
-                if handIndex == 0:
-                    handSlot = 'right hand'
-                elif handIndex == 1:
-                    handSlot = 'left hand'
-                elif extra and handIndex == 2:
-                    handSlot = 'extra limb'
-                elif handIndex == 2 or handIndex == 3:
-                    print('back from equipping prompt')
-                    return 'back'
-                else:
+                try:
+                    chosen = handList[handIndex]
+                except:
                     return 'didnt-take-turn'
+                if chosen == 'go back':
+                    print('back from equipping prompt')
+                    return 'go back'
+                elif 'back' in chosen:
+                    handSlot = 'back'
+                    handed = False
+                elif 'right' in chosen:
+                    handSlot = 'right hand'
+                elif 'left' in chosen:
+                    handSlot = 'left hand'
+                elif 'extra' in chosen:
+                    handSlot = 'extra limb'
             elif self.slot == 'two handed':
-                inHands = getEquippedInHands()
+                inHands = [None, None]
                 rightText = "right hand"
                 leftText = "left hand"
                 for object in equipmentList:
                     if object.Equipment.curSlot == "right hand":
                         rightText = rightText + " (" + object.name + ")"
+                        inHands[0] = object
                     if object.Equipment.curSlot == "left hand":
                         leftText = leftText + " (" + object.name + ")"
+                        inHands[1] = object
                     if object.Equipment.curSlot == 'both hands':
                         rightText = rightText + " (" + object.name + ")"
                         leftText = leftText + " (" + object.name + ")"
-                handList = [rightText, leftText, 'back']
+                        inHands[0] = object
+                        inHands[1] = object
+                handList = [rightText, leftText, 'go back']
                 handIndex = menu('Equipping this ' + self.owner.name + ' will unequip these items.', handList, 40, usedList = inHands, displayItem = True, itemDisplayed = 'weapon')
                 if handIndex == 2:
-                    return 'back'
+                    return 'go back'
                 elif handIndex != 0 and handIndex != 1:
                     return 'didnt-take-turn'
                 handSlot = 'both hands'
@@ -8021,7 +8066,14 @@ class Equipment:
                         possible = False
             if possible:
                 needSpecialTorso = self.slot == 'torso' and player.Player.getTrait('trait', 'Heavy defense') != 'not found'
-                if not handed and not needSpecialTorso:
+                if not handed and backShield:
+                    oldEquipment = getEquippedInSlot('back')
+                    if oldEquipment is not None:
+                        oldEquipment.unequip()
+                    self.curSlot = 'back'
+                    message('Equipped ' + self.owner.name + ' on back.', colors.light_green)
+                    silent = True
+                elif not handed and not needSpecialTorso:
                     oldEquipment = getEquippedInSlot(self.slot)
                     if oldEquipment is not None:
                         oldEquipment.unequip()
@@ -8912,14 +8964,14 @@ def getInput():
                 chosenItem = inventoryMenu('Press the key next to an item to use it, or any other to cancel.\n')
                 if chosenItem is not None:
                     choseOrQuit = True
-                    usage = chosenItem.display([chosenItem.useText, 'Drop', 'Back'])
+                    usage = chosenItem.display([chosenItem.useText, 'Drop', 'Go back'])
                     if usage == 0:
                         using = chosenItem.use()
                         print('using:', using)
                         if using == 'cancelled' or using == 'didnt-take-turn':
                             FOV_recompute = True
                             return 'didnt-take-turn'
-                        elif using == 'back':
+                        elif using == 'go back':
                             choseOrQuit = False
                         else:
                             return chosenItem.useText
@@ -8956,7 +9008,7 @@ def getInput():
                 choseOrQuit = True
                 chosenItem = equipmentMenu('This is the equipment you are currently wielding.')
                 if chosenItem is not None:
-                    usage = chosenItem.display(['Unequip', 'Drop', 'Back'])
+                    usage = chosenItem.display(['Unequip', 'Drop', 'Go back'])
                     if usage == 0:
                         using = chosenItem.use()
                         if using == 'cancelled' or using == 'didnt-take-turn':
@@ -13334,8 +13386,8 @@ def placeObjects(room, first = False):
                 item = GameObject(x, y, char = '$', name = 'gold coin', color = colors.gold, Item=Money(randint(15, 30)), blocks = False, pName = 'gold coins')
                 print("MON")
             elif itemChoice == 'shield':
-                equipmentComponent = Equipment(slot = 'one handed', type = 'shield', armorBonus=3)
-                item = GameObject(x, y, '[', 'shield', colors.darker_orange, Equipment=equipmentComponent, Item=Item(weight = 3.0, pic = 'shield.xp', useText = 'Equip'))
+                #equipmentComponent = Equipment(slot = 'one handed', type = 'shield', armorBonus=3)
+                item = convertItemTemplate(itemGen.generateShield(totalLevel, player.level))
                 print("SHI")
             elif itemChoice == 'spellbook':
                 item = createSpellbook(x, y)
@@ -13453,7 +13505,7 @@ def applyIdentification():
 def getEquippedInSlot(slot, hand = False):
     if not hand:
         for object in equipmentList:
-            if object.Equipment and object.Equipment.slot == slot and object.Equipment.isEquipped:
+            if object.Equipment and (object.Equipment.slot == slot or object.Equipment.curSlot == slot) and object.Equipment.isEquipped:
                 return object.Equipment
     else:
         for object in equipmentList:
@@ -13465,7 +13517,7 @@ def getEquippedInHands():
     inHands = []
     print('SEARCHING IN HANDS')
     for object in equipmentList:
-        if object.Equipment and (object.Equipment.slot == 'one handed' or object.Equipment.slot == 'two handed') and object.Equipment.isEquipped:
+        if object.Equipment and (object.Equipment.slot == 'one handed' or object.Equipment.slot == 'two handed') and object.Equipment.isEquipped and object.Equipment.curSlot != 'back':
             inHands.append(object)
             print('FOUND ITEM IN HANDS')
     return inHands
