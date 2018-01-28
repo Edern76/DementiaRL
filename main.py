@@ -1055,6 +1055,52 @@ def convertTilesToCoords(tilesList):
         newList.append((tile.x, tile.y))
     return newList
 
+## ----- ELEMENTS ------
+# -- Fire --
+def burningBuff(cooldown, minDamage, maxDamage, chance):
+    continuousFunction = lambda fighter: randomDamage('fire', fighter, chance = chance, minDamage=minDamage, maxDamage=maxDamage, dmgMessage = 'You take {} damage from burning !', dmgColor = colors.flame, elemental = True)
+    burning = Buff('burning', colors.flame, cooldown = cooldown, continuousFunction = continuousFunction, elemental = True)
+    return burning
+
+# -- Water --
+def explodeOnFrozenDeath(fighter, explosionRange = 5, damage = 12):
+    monster = fighter.owner
+    mX, mY = monster.x, monster.y
+    for object in objects:
+        if object.Fighter and object.distanceTo(monster) <= explosionRange:
+            object.Fighter.takeDamage({'cold': damage}, "{}'s death".format(monster.name))
+    for x in range(mX - explosionRange - 1, mX + explosionRange + 2):
+        for y in range(mY - explosionRange - 1, mY + explosionRange + 2):
+            if monster.distanceToCoords(x, y) <= explosionRange:
+                explodingTiles.append((x, y))
+    message("{}'s ice shatters, damaging every nearby creature for {} cold damage!".format(monster.name.capitalize(), str(damage)), colors.light_violet)
+    explode(colors.light_violet)
+
+def frozenBuff(cooldown):
+    removeFunc = None
+    if player.Player.getTrait('trait', 'Bone chill') != 'not found':
+        removeFunc = lambda fighter: explodeOnFrozenDeath(fighter)
+    frozen = Buff('frozen', colors.light_violet, cooldown = cooldown, removeFunction = removeFunc, elemental = True)
+    return frozen
+
+# -- Earth --
+def leaveGasCloud(fighter, cooldown, minDamage, maxDamage, chance):
+    contFunc = lambda tile: tileRandomDamage('poison cloud', tile, chance, minDamage, maxDamage, dmgMessage = 'You take {} damage from poison cloud!', dmgType = {'poison': 100}, elemental = True)
+    poison = poisonBuff(5, 3, 6, 25, True)
+    cloud = TileBuff('poison cloud', fg = colors.darker_lime, char = chr(176), cooldown = cooldown, buffsWhenWalked = [poison], buffChance = [33], continuousFunc = contFunc)
+    cloud.applyTileBuff(fighter.owner.x, fighter.owner.y)
+    message('{} dies, leaving a poisonous cloud behind.'.format(fighter.owner.name.capitalize()), colors.darker_lime)
+    
+def poisonBuff(cooldown, minDamage, maxDamage, chance, noGas = False):
+    removeFunc = None
+    if player.Player.getTrait('trait', 'Bone chill') != 'not found' and not noGas:
+        removeFunc = lambda fighter: leaveGasCloud(fighter, 20, 4, 10, 100)
+    contFunc = lambda fighter: randomDamage('poison', fighter, chance = chance, minDamage=minDamage, maxDamage=maxDamage, dmgMessage = 'You take {} damage from poison !', dmgColor = colors.purple, elemental = True)
+    poisoned = Buff('poisoned', colors.purple, cooldown = cooldown, continuousFunction = contFunc, removeFunction = removeFunc, elemental = True)
+    return poisoned
+    
+## ----- ELEMENTS ------
+
 def consumeRessource(fighter, buff, ressources = {'stamina': 1}):
     ressourcelist = list(ressources.keys())
     for ressource in ressourcelist:
@@ -1093,7 +1139,20 @@ def regenRessource(fighter, ressources = {'stamina': 1}):
                 fighter.hp = fighter.maxHP
                 #buff.removeBuff()
 
-def randomDamage(name, fighter = None, chance = 33, minDamage = 1, maxDamage = 1, dmgMessage = None, dmgColor = colors.red, msgPlayerOnly = True, dmgType = {'fire': 100}):
+def randomDamage(name, fighter = None, chance = 33, minDamage = 1, maxDamage = 1, dmgMessage = None, dmgColor = colors.red, msgPlayerOnly = True, dmgType = {'fire': 100}, elemental = False):
+    if elemental:
+        for buff in player.Fighter.buffList:
+            if buff.name == 'Elements catalyst':
+                chance += 25
+                minDamage *= 2
+                maxDamage *= 3
+                break
+        
+        if player.Player.getTrait('trait', 'Elements initiate') != 'not found':
+            chance += 25
+            minDamage += 5
+            maxDamage += 10
+
     dice = randint(1, 100)
     if dice <= chance:
         damage = randint(minDamage, maxDamage)
@@ -1124,7 +1183,7 @@ class Buff: #also (and mainly) used for debuffs
                  strength = 0, dexterity = 0, constitution = 0, willpower = 0, hp = 0, armor = 0, power = 0, accuracy = 0, evasion = 0, maxMP = 0,
                  critical = 0, armorPenetration = 0, rangedPower = 0, stamina = 0, stealth = 0, attackSpeed = 0, moveSpeed = 0, rangedSpeed = 0,
                  resistances = {'physical': 0, 'poison': 0, 'fire': 0, 'cold': 0, 'lightning': 0, 'light': 0, 'dark': 0, 'none': 0},
-                 attackTypes = {}, flight = None, resistible = True):
+                 attackTypes = {}, flight = None, resistible = True, elemental = False):
         '''
         Function used to initialize a new instance of the Buff class
         '''
@@ -1163,8 +1222,12 @@ class Buff: #also (and mainly) used for debuffs
         self.flight = flight
         self.resistible = resistible
         
+        self.elemental = elemental #cooldown will be extended when player is near him with some training in elemntal magic
+        
         self.hpDiff = 0
         self.mpDiff = 0
+        
+        self.halfCD = False
     
     def applyBuff(self, target):
         '''
@@ -1199,7 +1262,7 @@ class Buff: #also (and mainly) used for debuffs
                 bIndex = convertBuffsToNames(self.owner.Fighter).index(self.name)
                 target.Fighter.buffList[bIndex].curCooldown += self.baseCooldown #Extend duration of the buff
     
-    def removeBuff(self):
+    def removeBuff(self, silent = False):
         '''
         Method allowing to remove the buff from target creature
         '''
@@ -1208,7 +1271,7 @@ class Buff: #also (and mainly) used for debuffs
         self.owner.Fighter.buffList.remove(self) #Delete the buff from target creature's buffs list
         if self.owner.Fighter.buffList is None:
             self.owner.Fighter.buffList = []
-        if self.showBuff:
+        if self.showBuff and not silent:
             message(self.owner.name.capitalize() + ' is no longer ' + self.name + '.', self.color) #Inform the player
         
         hpBonus = 0
@@ -1225,14 +1288,57 @@ class Buff: #also (and mainly) used for debuffs
         Method called each turn
         '''
         self.curCooldown -= 1 #Decrease from 1 the buff cooldown
+        
+        if self.elemntal and self.owner.distanceTo(player) <= player.Player.getTrait('skill', 'Elemental magic').amount * 2:
+            if self.halfCD:                     #adds 1 to CD every other turn
+                self.curCooldown += 1
+            self.halfCD = not self.halfCD
+        
         if self.curCooldown <= 0: #If buff reached its time, call the removeBuff method
             self.removeBuff()
         else: #If buff has not yet reached its time limit, we call the continuousFunction if it exists
             if self.continuousFunction is not None:
                 self.continuousFunction(self.owner.Fighter)
 
+def tileRandomDamage(name, tile = None, chance = 33, minDamage = 1, maxDamage = 1, dmgMessage = None, dmgColor = colors.red, msgPlayerOnly = True, dmgType = {'fire': 100}, elemental = False):
+    if elemental:
+        for buff in player.Fighter.buffList:
+            if buff.name == 'Elements catalyst':
+                chance += 25
+                minDamage *= 2
+                maxDamage *= 3
+                break
+        
+        if player.Player.getTrait('trait', 'Elements initiate') != 'not found':
+            chance += 25
+            minDamage += 5
+            maxDamage += 10
+    
+    for object in objects:
+        if object != player and (object.x, object.y) == (tile.x, tile.y) and object.Fighter:
+            if randint(1, 100) <= chance:
+                fighter = object.Fighter
+                damage = randint(minDamage, maxDamage)
+                damageDict = {}
+                keyList = list(dmgType.keys())
+                i = 0
+                for key in keyList:
+                    if i == len(keyList)-1:
+                        dmgList = [damageDict[dmgKey] for dmgKey in keyList if dmgKey != key]
+                        damageDict[key] = damage - sum(dmg for dmg in dmgList)
+                    else:
+                        damageDict[key] = round((dmgType[key] * damage)/100)
+                    i += 1
+                damageTaken = fighter.takeDamage(damageDict, name)
+                totalDmg = 0
+                for key in list(damageTaken.keys()):
+                    totalDmg += damageTaken[key]
+                if (dmgMessage is not None) and (fighter == player.Fighter or (not msgPlayerOnly)):
+                    message(dmgMessage.format(totalDmg), dmgColor)
+            break
+
 class TileBuff:
-    def __init__(self, name, fg = None, bg = None, char = None, owner = None, cooldown = 20, blocksTile = False, buffsWhenWalked=[], addMoveCost = 0, continuousFunc = []):
+    def __init__(self, name, fg = None, bg = None, char = None, owner = None, cooldown = 20, blocksTile = False, buffsWhenWalked=[], buffChance = [], addMoveCost = 0, continuousFunc = []):
         self.name = name
         self.fg = fg
         self.bg = bg
@@ -1244,6 +1350,7 @@ class TileBuff:
         self.buffsWhenWalked = buffsWhenWalked
         self.addMoveCost = addMoveCost
         self.continuousFunc = continuousFunc
+        self.buffChance = buffChance
     
     def applyTileBuff(self, x, y):
         global myMap
@@ -1267,7 +1374,7 @@ class TileBuff:
 
 class Spell:
     "Class used by all active abilites (not just spells)"
-    def __init__(self,  ressourceCost, cooldown, useFunction, name, ressource = 'MP', type = 'Magic', subtype = None, magicLevel = 0, arg1 = None, arg2 = None, arg3 = None, hiddenName = None, onRecoverLearn = [], castSpeed = 100, template = None, requirements = {}):
+    def __init__(self, ressourceCost, cooldown, useFunction, name, ressource = 'MP', type = 'Magic', subtype = None, magicLevel = 0, arg1 = None, arg2 = None, arg3 = None, hiddenName = None, onRecoverLearn = [], castSpeed = 100, template = None, requirements = {}):
         self.ressource = ressource
         self.ressourceCost = ressourceCost
         self.maxCooldown = cooldown
@@ -1492,8 +1599,35 @@ class Spell:
             tdl.flush()
             #tdl.event.key_wait()
             
-
-
+class MagicSpell(Spell):
+    def __init__(self, ressourceCost, cooldown, useFunction, name, ressource = 'MP', type = 'Magic', subtype = None, onRecoverLearn = [], castSpeed = 100, requirements = {},
+                 buffs = [], shotRange = 20, zone = 'singletile', AOErange = 1, AOEwidth = 1, damage = {}, heal = {}, tileBuffs = [], shield = False):
+        Spell.__init__( ressourceCost, cooldown, useFunction, name, ressource, type, subtype, 0, None, None, None, None, onRecoverLearn, castSpeed, None, requirements)
+        self.baseBuffs = buffs
+        self.shotRange = shotRange
+        self.zone = zone
+        self.baseAOErange = AOErange #radius of a circle etc
+        self.baseAOEwidth = AOEwidth #width of a cone or ray mostly
+        self.baseDamage = damage #{'fire': 12, 'lightning': 24}
+        self.baseHeal = heal #{'MP': 12, 'HP': 5, 'stamina': 50}
+        self.tileBuffs = tileBuffs
+        self.shield = shield
+    
+    @property
+    def damage(self):
+        corres = {'fire': 'Fire', 'lightning': 'Air', 'poison': 'Earth', 'dark': 'Dark', 'light': 'Arcane', 'cold': 'Water'}
+        damage = {}
+        fireBonus = player.Player.getTrait('trait', 'Pyromaniac') != 'not found'
+        for eff in list(self.baseDamage.keys()):
+            bonus = 0
+            if fireBonus and eff == 'fire':
+                bonus = 20
+            damage[eff] = self.baseDamage[eff] + 5 * player.Player.getTrait('skill', corres[eff]) + bonus #temp
+        return damage
+    
+    
+        
+        
 def rSpellDamage(amount, caster, target, type, dmgTypes = {'physical': 100}):
         if caster is None:
             caster = player
@@ -13046,10 +13180,8 @@ def convertMobTemplate(template):
                 raise UnrecognizedElement("Equipment of {} is not recognized: \n{}".format(template.name, eq))
             if eq[0] != '*':
                 equipment.trueName = eq[0]
-            try:
+            if eq[4] != '*':
                 equipment.Item.pic = eq[4]
-            except:
-                pass
             toEquip.append(equipment)
         lootFunction = []
         for item in fi.lootFunction:
@@ -13832,6 +13964,8 @@ def monsterDeath(monster, alreadyDropped = False):
                 if loot <= monster.Fighter.lootRate[itemIndex]:
                     lootItem(item, monster.x, monster.y)
                 itemIndex += 1
+    for buff in monster.Fighter.buffList:
+        buff.removeBuff(silent = True)
     #except:
     #    pass
     monster.char = '%'
@@ -17077,8 +17211,11 @@ def playGame(noSave = False):
                         buff.passTurn() #Call passTurn method of each of his buffs
                 
                     for tileBuff in myMap[object.x][object.y].buffList:
+                        i = 0
                         for buff in tileBuff.buffsWhenWalked:
-                            buff.applyBuff(object)
+                            if randint(1, 100) <= tileBuff.buffChance[i]:
+                                buff.applyBuff(object)
+                            i += 1
     
             for x in range(MAP_WIDTH):
                 for y in range(MAP_HEIGHT):

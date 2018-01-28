@@ -50,7 +50,7 @@ class Rarity:
 
 junk = Rarity('junk', colors.copper)
 common = Rarity('common', colors.silver)
-uncommon = Rarity('uncommon', colors.darker_green)
+uncommon = Rarity('uncommon', colors.dark_green)
 rare = Rarity('rare', colors.azure)
 epic = Rarity('epic', colors.dark_purple)
 legendary = Rarity('legendary', colors.orange)

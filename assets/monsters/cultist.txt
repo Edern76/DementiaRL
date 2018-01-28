@@ -26,7 +26,7 @@ monsterDeath
 *
 *
 *
-[['cultist robe', 'armor', 'cloth', 'torso', 'cultistRobe.xp', '*'], ['cultist knife', 'weapon', 'dagger', '*', '*', '*']]
+[['cultist robe', 'armor', 'cloth', 'torso', 'cultistRobe.xp', '*'], ['*', 'weapon', 'dagger', '*', '*', '*']]
 *
 *
 A cultist
