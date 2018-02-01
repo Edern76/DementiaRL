@@ -1085,19 +1085,23 @@ def frozenBuff(cooldown):
 
 # -- Earth --
 def leaveGasCloud(fighter, cooldown, minDamage, maxDamage, chance):
-    contFunc = lambda tile: tileRandomDamage('poison cloud', tile, chance, minDamage, maxDamage, dmgMessage = 'You take {} damage from poison cloud!', dmgType = {'poison': 100}, elemental = True)
-    poison = poisonBuff(5, 3, 6, 25, True)
-    cloud = TileBuff('poison cloud', fg = colors.darker_lime, char = chr(176), cooldown = cooldown, buffsWhenWalked = [poison], buffChance = [33], continuousFunc = contFunc)
-    cloud.applyTileBuff(fighter.owner.x, fighter.owner.y)
+    affectedTiles = [(0, 0), (-1, -1), (-1, 0), (-1, 1), (0, 1), (0, -1), (1, -1), (1, 0), (1, 1)]
+    x, y = fighter.owner.x, fighter.owner.y
+    for dx, dy in affectedTiles:
+        contFunc = lambda tile: tileRandomDamage('poison cloud', tile, chance, minDamage, maxDamage, dmgMessage = 'You take {} damage from poison cloud!', dmgType = {'poison': 100}, elemental = True)
+        poison = poisonBuff(5, 3, 6, 25, True)
+        cloud = TileBuff('poison cloud', fg = colors.darker_lime, char = chr(176), cooldown = cooldown, buffsWhenWalked = [poison], buffChance = [33], continuousFunc = contFunc)
+        cloud.applyTileBuff(x+dx, y+dy)
     message('{} dies, leaving a poisonous cloud behind.'.format(fighter.owner.name.capitalize()), colors.darker_lime)
     
 def poisonBuff(cooldown, minDamage, maxDamage, chance, noGas = False):
     removeFunc = None
-    if player.Player.getTrait('trait', 'Bone chill') != 'not found' and not noGas:
+    if player.Player.getTrait('trait', 'Deadly spores') != 'not found' and not noGas:
         removeFunc = lambda fighter: leaveGasCloud(fighter, 20, 4, 10, 100)
     contFunc = lambda fighter: randomDamage('poison', fighter, chance = chance, minDamage=minDamage, maxDamage=maxDamage, dmgMessage = 'You take {} damage from poison !', dmgColor = colors.purple, elemental = True)
     poisoned = Buff('poisoned', colors.purple, cooldown = cooldown, continuousFunction = contFunc, removeFunction = removeFunc, elemental = True)
     return poisoned
+
     
 ## ----- ELEMENTS ------
 
@@ -1222,7 +1226,7 @@ class Buff: #also (and mainly) used for debuffs
         self.flight = flight
         self.resistible = resistible
         
-        self.elemental = elemental #cooldown will be extended when player is near him with some training in elemntal magic
+        self.elemental = elemental #cooldown will be extended when player is near him with some training in elemental magic
         
         self.hpDiff = 0
         self.mpDiff = 0
@@ -1289,7 +1293,7 @@ class Buff: #also (and mainly) used for debuffs
         '''
         self.curCooldown -= 1 #Decrease from 1 the buff cooldown
         
-        if self.elemntal and self.owner.distanceTo(player) <= player.Player.getTrait('skill', 'Elemental magic').amount * 2:
+        if self.elemental and self.owner.distanceTo(player) <= player.Player.getTrait('skill', 'Elemental magic').amount * 2:
             if self.halfCD:                     #adds 1 to CD every other turn
                 self.curCooldown += 1
             self.halfCD = not self.halfCD
@@ -1600,33 +1604,165 @@ class Spell:
             #tdl.event.key_wait()
             
 class MagicSpell(Spell):
-    def __init__(self, ressourceCost, cooldown, useFunction, name, ressource = 'MP', type = 'Magic', subtype = None, onRecoverLearn = [], castSpeed = 100, requirements = {},
-                 buffs = [], shotRange = 20, zone = 'singletile', AOErange = 1, AOEwidth = 1, damage = {}, heal = {}, tileBuffs = [], shield = False):
-        Spell.__init__( ressourceCost, cooldown, useFunction, name, ressource, type, subtype, 0, None, None, None, None, onRecoverLearn, castSpeed, None, requirements)
-        self.baseBuffs = buffs
+    def __init__(self, ressourceCost, cooldown, useFunction = None, name = 'Name', ressource = 'MP', type = 'Magic', subtype = None, onRecoverLearn = [], castSpeed = 100, requirements = {},
+                 buffs = {}, shotRange = 20, zone = 'singletile', AOErange = 1, AOEwidth = 1, damage = {}, heal = {}, tileBuffs = [], shield = False):
+        Spell.__init__(self, ressourceCost, cooldown, useFunction, name, ressource, type, subtype, 0, None, None, None, None, onRecoverLearn, castSpeed, None, requirements)
+        
+        '''
+        Only put a buff dictionary if you want the buff to be applied directly to targeted entites. For example, the spell blizzard does not need it
+        because of how it works.
+        '''
+        
+        self.baseBuffs = buffs #{'burning': 20}
         self.shotRange = shotRange
-        self.zone = zone
         self.baseAOErange = AOErange #radius of a circle etc
         self.baseAOEwidth = AOEwidth #width of a cone or ray mostly
-        self.baseDamage = damage #{'fire': 12, 'lightning': 24}
+        self.baseDamage = damage #{'fire': 12, 'lightning': 24} ##putting 'knockback' will not deal damage but instead push the enemy for the given distance
         self.baseHeal = heal #{'MP': 12, 'HP': 5, 'stamina': 50}
         self.tileBuffs = tileBuffs
         self.shield = shield
+        
+        zone = zone.upper()
+        if zone == 'SINGLETILE':
+            self.zone = singleTarget
+        elif zone == 'CONE':
+            self.zone = cone
+        elif zone == 'AOE' or zone == 'CIRCLE' or zone == 'AREAOFEFFECT':
+            self.zone = areaOfEffect
+        elif zone == 'RAY' or zone == 'LINE':
+            self.zone = raySpell
+        
+        typeColors = {'Fire': colors.flame, 'Air': colors.light_sky, 'Earth': colors.darker_chartreuse, 'Dark': colors.darker_grey,
+                      'Arcane': colors.dark_yellow, 'Necromancy': colors.darkest_violet, 'Water': colors.light_violet}
+        self.color = typeColors[self.type]
+        
+        self.corres = {'fire': 'Fire', 'lightning': 'Air', 'poison': 'Earth', 'dark': 'Dark', 'light': 'Arcane', 'cold': 'Water'}
+    
+    @property
+    def AOErange(self):
+        if (type == 'Fire' or self.subtype == 'Fire') and player.Player.getTrait('trait', 'Pyromaniac') != 'not found':
+            return self.baseAOErange + 3
+        return self.baseAOErange
+    
+    @property
+    def AOEwidth(self):
+        if (type == 'Fire' or self.subtype == 'Fire') and player.Player.getTrait('trait', 'Pyromaniac') != 'not found':
+            return self.baseAOEwidth + 2
+        return self.baseAOEwidth
     
     @property
     def damage(self):
-        corres = {'fire': 'Fire', 'lightning': 'Air', 'poison': 'Earth', 'dark': 'Dark', 'light': 'Arcane', 'cold': 'Water'}
         damage = {}
         fireBonus = player.Player.getTrait('trait', 'Pyromaniac') != 'not found'
         for eff in list(self.baseDamage.keys()):
-            bonus = 0
-            if fireBonus and eff == 'fire':
-                bonus = 20
-            damage[eff] = self.baseDamage[eff] + 5 * player.Player.getTrait('skill', corres[eff]) + bonus #temp
+            if eff != 'knockback':
+                bonus = 0
+                if fireBonus and eff == 'fire':
+                    bonus = 20
+                damage[eff] = self.baseDamage[eff] + 5 * player.Player.getTrait('skill', self.corres[eff]).amount + bonus #temp
         return damage
     
-    
+    @property
+    def buffs(self):
+        buffDict = {}
+        buffList = list(self.baseBuffs.keys())
+        for buff in buffList:
+            if buff == 'burning':
+                traitAmount = player.Player.getTrait('skill', 'Fire').amount
+
+                cooldown = randint(10 + traitAmount, 15 + traitAmount)
+                minDamage = 5 + traitAmount
+                maxDamage = 15 + traitAmount
+                chance = 33 + traitAmount * 3
+                
+                bonus = 0
+                if player.Player.getTrait('trait', 'Pyromaniac') != 'not found':
+                    bonus = 15
+                buffDict[burningBuff(cooldown, minDamage + bonus, maxDamage + bonus, chance)] = self.baseBuffs[buff]
+                
+            elif buff == 'poisoned':
+                traitAmount = player.Player.getTrait('skill', 'Earth').amount
+
+                cooldown = randint(15 + traitAmount, 20 + traitAmount)
+                minDamage = 1 + traitAmount
+                maxDamage = 10 + traitAmount
+                chance = 33 + traitAmount * 3
+                
+                buffDict[poisonBuff(cooldown, minDamage + bonus, maxDamage + bonus, chance)] = self.baseBuffs[buff]
+            
+            elif buff == 'frozen':
+                traitAmount = player.Player.getTrait('skill', 'Earth').amount
+
+                cooldown = randint(15 + traitAmount, 20 + traitAmount)
+                
+                buffDict[frozenBuff(cooldown)] = self.baseBuffs[buff]
         
+        return buffDict
+    
+    def cast(self, caster = player, target = player):
+        global FOV_recompute
+        
+        CHAIN_DIST = 5
+        
+        ressourceCost = self.ressourceCost
+        maxCooldown = self.maxCooldown
+        if caster == player:
+            if self.checkCast():
+                message('You are not skilled enough to cast {}.'.format(self.name))
+                return 'cancelled'
+            if (self.type == 'martial' and player.Player.getTrait('trait', 'Combat knowledge') != 'not found') or (self.type == 'physical' and player.Player.getTrait('trait', 'Greater efficiency') != 'not found'):
+                ressourceCost = ressourceCost//2
+                maxCooldown = maxCooldown//2
+            if not target:
+                target = targetTile(self.shotRange, rangeAOE = self.AOErange, styleAOE = self.zone, returnAOE = True)
+                if target == 'cancelled':
+                    return 'cancelled'
+        #    self.updateSpellStats()
+        if self.ressource == 'MP' and caster.Fighter.MP < ressourceCost:
+            FOV_recompute = True
+            message(caster.name.capitalize() + ' does not have enough MP to cast ' + self.name +'.')
+            return 'cancelled'
+        if self.ressource == 'Stamina' and caster.Fighter.stamina < ressourceCost:
+            FOV_recompute = True
+            message(caster.name.capitalize() + ' does not have enough stamina to cast ' + self.name +'.')
+            return 'cancelled'
+
+        #state = self.useFunction(caster, target)
+        #if state != 'cancelled' and state != 'didnt-take-turn':
+        
+        #affectedMobs = []
+        damage = self.damage
+        buffs = self.buffs
+        buffList = list(buffs.keys())
+        for obj in objects:
+            if obj.Fighter and (obj.x, obj.y) in target:
+                for buff in buffList:
+                    dice = randint(1, 100)
+                    if buff != 'knockback' and dice <= buffs[buff]:
+                        buff.applyBuff(obj)
+                    elif buff == 'knockback' and dice <= buffs[buff]:
+                        KBrange = self.baseDamage['knockback']
+                        knockBack(caster.x, caster.y, obj, KBrange, False)
+                        
+                dmgTxtFunc = lambda damageTaken: obj.Fighter.formatRawDamageText(damageTaken, '{} suffers {} from your ' + self.name + ' spell.', self.color, '', colors.grey)
+                obj.Fighter.takeDamage(damage, 'your spell', damageTextFunction = dmgTxtFunc)
+                #affectedMobs.append(obj)
+        
+        explodingTiles.extend(target)
+        explode(self.color)
+                
+        caster.Fighter.actionPoints -= self.castSpeed
+        FOV_recompute = True
+        self.setOnCooldown(caster.Fighter, maxCooldown)
+        if self.ressource == 'MP':
+            caster.Fighter.MP -= ressourceCost
+        elif self.ressource == 'HP':
+            caster.Fighter.takeDamage({'none': ressourceCost}, 'your spell')
+        elif self.ressource == 'Stamina':
+            caster.Fighter.stamina -= ressourceCost
+        return 'used'
+        #else:
+            #return 'cancelled'
         
 def rSpellDamage(amount, caster, target, type, dmgTypes = {'physical': 100}):
         if caster is None:
@@ -1796,6 +1932,22 @@ def raySpell(startPoint, caster, shotRange = None):
     print(startPoint, caster, shotRange)
     (sourceX, sourceY) = (caster.x, caster.y)
     (destX, destY) = (startPoint.x, startPoint.y)
+    
+    '''
+    inclX = firstX - monster.x
+    inclY = firstY - monster.y
+    incl = (inclX, inclY)
+    print(incl)
+    if incl == (1, 0) or incl == (-1, 0):
+        possibleKnock = [[0, -1], [0, 1]]
+    elif incl == (0, 1) or incl == (0, -1):
+        possibleKnock = [[1, 0], [-1, 0]]
+    elif incl == (1, -1) or incl == (-1, 1):
+        possibleKnock = [[-1, -1], [1, 1]]
+    else:
+        possibleKnock = [[1, -1], [-1, 1]]
+    '''
+    
     line = tdl.map.bresenham(sourceX, sourceY, destX, destY)
     newLine = []
     if len(line) > 1:
@@ -1909,6 +2061,31 @@ Then find everything in affected tiles, fill in the targets list and return said
         k += 1
     '''
     return affectedTiles
+
+def cone(startPoint, caster, shotRange):
+        pointA, pointB = arcCoordinates(player.distanceTo(startPoint), startPoint.x - player.x, startPoint.y - player.y, (startPoint.x, startPoint.y))
+        xA, yA = pointA
+        xB, yB = pointB
+        lineA = tdl.map.bresenham(player.x, player.y, xA, yA)
+        while player.distanceToCoords(xA, yA) > shotRange:
+            lineA.pop()
+            pointA = lineA[len(lineA) - 1]
+            xA, yA = pointA
+        lineB = tdl.map.bresenham(player.x, player.y, xB, yB)
+        while player.distanceToCoords(xB, yB) > shotRange:
+            lineB.pop()
+            pointB = lineB[len(lineB) - 1]
+            xB, yB = pointB
+        
+        lineAB = tdl.map.bresenham(xA, yA, xB, yB)
+        
+        AOE = []
+        for x in range(player.x - shotRange - 1, player.x + shotRange + 2):
+            for y in range(player.y - shotRange - 1, player.y + shotRange + 2):
+                if (isInTriangle((x, y), (player.x, player.y), pointA, pointB) or (x, y) in lineA or (x, y) in lineB or (x, y) in lineAB) and not myMap[x][y].blocked:
+                    AOE.append((x, y))
+        
+        return AOE
 
 def cleanList(entryList):
     "For when duplicates are still showing up in a list after you've tried everything else"
@@ -2232,7 +2409,7 @@ def castFireball(radius = 3, damage = 24, shotRange = 4, caster = None, monsterT
     if caster is None or caster == player:
         caster = player
         message('Choose a target for your spell, press Escape to cancel.', colors.light_cyan)
-        target = targetTile(maxRange = shotRange, styleAOE = 'circle', rangeAOE=radius)
+        target = targetTile(maxRange = shotRange, styleAOE = areaOfEffect, rangeAOE=radius)
     else:
         if caster.distanceTo(monsterTarget) <= shotRange:
             target = (monsterTarget.x, monsterTarget.y)
@@ -2271,7 +2448,7 @@ def castFireball(radius = 3, damage = 24, shotRange = 4, caster = None, monsterT
 def castFlamethrower(caster = None, monsterTarget = None, shotRange = 4, damage = 8):
     if caster is None or caster == player:
         caster = player
-        targetZone = targetTile(SIGHT_RADIUS, AOE = True, rangeAOE = shotRange, styleAOE = 'cone', returnAOE = True)
+        targetZone = targetTile(SIGHT_RADIUS, AOE = True, rangeAOE = shotRange, styleAOE = cone, returnAOE = True)
         if targetZone != 'cancelled':
             affectedMonsters = []
             
@@ -2402,12 +2579,14 @@ def castBlizzard(caster = None, monsterTarget = None, shotRange = 10, tileBuffCD
                 print('tile is out of map')
 
 placeIceWall = Spell(ressourceCost=0, cooldown=0, useFunction=castPlaceIceWall, name = 'Place ice wall') 
-fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Fire', magicLevel = 1, arg1 = 1, arg2 = 12, arg3 = 4)
+#fireball = Spell(ressourceCost = 7, cooldown = 5, useFunction = castFireball, name = "Fireball", ressource = 'MP', type = 'Fire', magicLevel = 1, arg1 = 1, arg2 = 12, arg3 = 4)
+fireball = MagicSpell(ressourceCost = 7, cooldown = 5, name = 'Fireball', type = 'Fire', buffs = {'burning': 50}, zone = 'circle', AOErange = 2, damage = {'fire': 12})
 heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 20)
 darkPact = Spell(ressourceCost = DARK_PACT_DAMAGE, cooldown = 8, useFunction = castDarkRitual, name = "Dark ritual", ressource = 'HP', type = "Occult", magicLevel = 2, arg1 = 5, arg2 = DARK_PACT_DAMAGE)
 lightning = Spell(ressourceCost = 10, cooldown = 7, useFunction = castLightning, name = 'Lightning bolt', ressource = 'MP', type = 'Air', magicLevel = 3)
 confuse = Spell(ressourceCost = 5, cooldown = 4, useFunction = castConfuse, name = 'Confusion', ressource = 'MP', type = 'Dark', magicLevel = 1)
-ice = Spell(ressourceCost = 9, cooldown = 5, useFunction = castFreeze, name = 'Ice bolt', ressource = 'MP', type = 'Water', magicLevel = 2)
+#ice = Spell(ressourceCost = 9, cooldown = 5, useFunction = castFreeze, name = 'Ice bolt', ressource = 'MP', type = 'Water', magicLevel = 2)
+ice = MagicSpell(ressourceCost = 5, cooldown = 10, name = 'Icebolt', type = 'Water', buffs = {'frozen': 100}, damage = {'cold': 5})
 blizzard = Spell(ressourceCost = 40, cooldown = 80, useFunction = castBlizzard, name = 'Blizzard', ressource = 'MP', type = 'Water')
 flamethrower = Spell(ressourceCost = 5, cooldown = 20, useFunction = castFlamethrower, name = 'Flamethrower', ressource  ='MP', type = 'Fire')
 
@@ -2848,7 +3027,7 @@ def castMultipleShots(caster = None, monsterTarget = None, attacksNum = 3):
 def castSeismicSlam(caster, monsterTarget, AOErange = 6, damage = 10, stunCooldown = 4):
     if caster is None or caster == player:
         caster = player
-        targetZone = targetTile(SIGHT_RADIUS, AOE = True, rangeAOE = AOErange, styleAOE = 'cone', returnAOE = True)
+        targetZone = targetTile(SIGHT_RADIUS, AOE = True, rangeAOE = AOErange, styleAOE = cone, returnAOE = True)
         if targetZone != 'cancelled':
             affectedMonsters = []
             
@@ -3133,7 +3312,7 @@ def castConeAOE(caster = None, monsterTarget = None):
     if caster is None:
         caster = player
     
-    x, y = targetTile(SIGHT_RADIUS, AOE = True, rangeAOE = 6, styleAOE = 'cone')
+    x, y = targetTile(SIGHT_RADIUS, AOE = True, rangeAOE = 6, styleAOE = cone)
 
 def resetDjik():
     global djikVisitedTiles
@@ -4903,6 +5082,7 @@ def closestMonster(max_range):
                 found = True
                 closestEnemy = object
                 closestDistance = dist
+                break
     if found:
         return closestEnemy
     else:
@@ -12642,13 +12822,13 @@ class Gluttony():
                             for fighter in objects:
                                 if (fighter.x == x and fighter.y == y) and not (fighter.x == object.x and fighter.y == object.y):
                                     if fighter.Fighter:
-                                        dmgTextFunc = lambda damageTaken: fighter.Fighter.formatRawDamageText(damageTaken, " touched by the vomit splatters and suffers {}!", colors.orange, " touched by the vomit splatters but it has no effect.", colors.white, True)
+                                        dmgTextFunc = lambda damageTaken: fighter.Fighter.formatRawDamageText(damageTaken, "{} touched by the vomit splatters and suffers {}!", colors.orange, "{} touched by the vomit splatters but it has no effect.", colors.white, True)
                                         fighter.Fighter.takeDamage({'poison': 2}, "Gluttony's vomit", damageTextFunction = dmgTextFunc)
                                         fighter.Fighter.acidify()
                 for fighter in objects:
                     if fighter.x == object.x and fighter.y == object.y:
                         if fighter.Fighter and not fighter == object:
-                            dmgTextFunc = lambda damageTaken: fighter.Fighter.formatRawDamageText(damageTaken, " touched by the vomit splatters and suffers {}!", colors.orange, " touched by the vomit splatters but it has no effect.", colors.white, True)
+                            dmgTextFunc = lambda damageTaken: fighter.Fighter.formatRawDamageText(damageTaken, " touched by the vomit splatters and suffers {}!", colors.orange, "{} touched by the vomit splatters but it has no effect.", colors.white, True)
                             damageTaken = fighter.Fighter.takeDamage({'poison': 15}, "Gluttony's vomit", damageTextFunction = dmgTextFunc)
                             fighter.Fighter.acidify()
                 objects.remove(object)
@@ -14574,7 +14754,7 @@ def controlBox():
     displayControl(1, 21, 's', 'Open skills and level up menu')
     displayControl(1, 23, 'l', 'Enter look mode')
     displayControl(1, 25, 'L', 'Display message log')
-    displayControl(1, 27, 'Tab', 'Circle through side panel informations')
+    displayControl(1, 27, 'Tab', 'Cycle through side panel informations')
     displayControl(1, 29, '>', 'Climb up stairs')
     displayControl(1, 31, '<', 'Climb down stairs')
     x = MID_WIDTH - int(width/2)
@@ -15823,7 +16003,6 @@ def targetTile(maxRange = None, showBresenham = False, unlimited = False, AOE = 
                                     dot.sendToBack()
                             except IndexError:
                                     pass
-                    '''
                     if styleAOE == 'circle':
                         for tx in range(cursor.x - rangeAOE - 1, cursor.x + rangeAOE + 1):
                             for ty in range(cursor.y - rangeAOE - 1, cursor.y + rangeAOE + 1):
@@ -15835,7 +16014,7 @@ def targetTile(maxRange = None, showBresenham = False, unlimited = False, AOE = 
                                         dot.sendToBack()
                                 except IndexError:
                                     pass
-                    elif styleAOE == 'cone':
+                    if styleAOE == 'cone':
                         if not (cursor.x == player.x and cursor.y == player.y):
                             pointA, pointB = arcCoordinates(player.distanceTo(cursor), cursor.x - player.x, cursor.y - player.y, (cursor.x, cursor.y))
                             xA, yA = pointA
@@ -15852,31 +16031,6 @@ def targetTile(maxRange = None, showBresenham = False, unlimited = False, AOE = 
                                 xB, yB = pointB
                             
                             lineAB = tdl.map.bresenham(xA, yA, xB, yB)
-                                
-                            '''
-                            middleLine = list(deepcopy(brLine))
-                            xM, yM = middleLine[len(middleLine) - 1]
-                            while player.distanceToCoords(xM, yM) > rangeAOE:
-                                middleLine.pop()
-                                xM, yM = middleLine[len(middleLine) - 1]
-                            
-                            newLine = tdl.map.bresenham(xA, yA, xM, yM)
-                            lines.extend(newLine)
-                            newLine = tdl.map.bresenham(xB, yB, xM, yM)
-                            lines.extend(newLine)
-                            
-                            for x, y in lines:
-                                if not myMap[x][y].blocked:
-                                    found = False
-                                    for obj in dotsAOE:
-                                        if obj.x == x and obj.y == y:
-                                            found = True
-                                    if not found:
-                                        dot = GameObject(x = x, y = y, char = '.', name = 'AOE dot', color = colors.yellow, Ghost = True)
-                                        objects.append(dot)
-                                        dotsAOE.append(dot)
-                                        dot.sendToBack()
-                            '''
                             
                             for x in range(player.x - rangeAOE - 1, player.x + rangeAOE + 2):
                                 for y in range(player.y - rangeAOE - 1, player.y + rangeAOE + 2):
@@ -15886,18 +16040,19 @@ def targetTile(maxRange = None, showBresenham = False, unlimited = False, AOE = 
                                         dotsAOE.append(dot)
                                         dot.sendToBack()
                     else:
-                        #try:
-                        for (x, y) in styleAOE(cursor, player):
-                            try:
-                                if not myMap[x][y].blocked:
-                                    dot = GameObject(x = x, y = y, char = '.', name = 'AOE dot', color = colors.yellow, Ghost = True)
-                                    objects.append(dot)
-                                    dotsAOE.append(dot)
-                                    dot.sendToBack()
-                            except IndexError:
-                                    pass
-                        #except:
-                        #    raise UnrecognizedElement('targeting is neither a cone nor a known function')
+                    '''
+                    #try:
+                    for (x, y) in styleAOE(cursor, player, rangeAOE):
+                        try:
+                            if not myMap[x][y].blocked:
+                                dot = GameObject(x = x, y = y, char = '.', name = 'AOE dot', color = colors.yellow, Ghost = True)
+                                objects.append(dot)
+                                dotsAOE.append(dot)
+                                dot.sendToBack()
+                        except IndexError:
+                                pass
+                    #except:
+                    #    raise UnrecognizedElement('targeting is neither a cone nor a known function')
 
                 Update()
                 tdl.flush()
@@ -17238,7 +17393,8 @@ def playGame(noSave = False):
                     pathfind.join()
                 
                 for mob in mobsToCalculate:
-                    mob.AI.tryMove()
+                    if mob.AI:
+                        mob.AI.tryMove()
                 
             global stairCooldown
             if stairCooldown > 0:
