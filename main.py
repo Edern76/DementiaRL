@@ -1064,10 +1064,12 @@ def burningBuff(cooldown, minDamage, maxDamage, chance):
 
 # -- Water --
 def explodeOnFrozenDeath(fighter, explosionRange = 5, damage = 12):
+    print('frozen {} exploding'.format(fighter.owner.name))
     monster = fighter.owner
     mX, mY = monster.x, monster.y
     for object in objects:
-        if object.Fighter and object.distanceTo(monster) <= explosionRange:
+        if object.Fighter and object.Fighter != fighter and object.distanceTo(monster) <= explosionRange:
+            print(object.name)
             object.Fighter.takeDamage({'cold': damage}, "{}'s death".format(monster.name))
     for x in range(mX - explosionRange - 1, mX + explosionRange + 2):
         for y in range(mY - explosionRange - 1, mY + explosionRange + 2):
@@ -1090,7 +1092,7 @@ def leaveGasCloud(fighter, cooldown, minDamage, maxDamage, chance):
     for dx, dy in affectedTiles:
         contFunc = lambda tile: tileRandomDamage('poison cloud', tile, chance, minDamage, maxDamage, dmgMessage = 'You take {} damage from poison cloud!', dmgType = {'poison': 100}, elemental = True)
         poison = poisonBuff(5, 3, 6, 25, True)
-        cloud = TileBuff('poison cloud', fg = colors.darker_lime, char = chr(176), cooldown = cooldown, buffsWhenWalked = [poison], buffChance = [33], continuousFunc = contFunc)
+        cloud = TileBuff('poison cloud', fg = colors.darker_lime, char = chr(176), cooldown = cooldown, buffsWhenWalked = [poison], buffChance = [33], continuousFunc = [contFunc])
         cloud.applyTileBuff(x+dx, y+dy)
     message('{} dies, leaving a poisonous cloud behind.'.format(fighter.owner.name.capitalize()), colors.darker_lime)
     
@@ -1102,7 +1104,11 @@ def poisonBuff(cooldown, minDamage, maxDamage, chance, noGas = False):
     poisoned = Buff('poisoned', colors.purple, cooldown = cooldown, continuousFunction = contFunc, removeFunction = removeFunc, elemental = True)
     return poisoned
 
-    
+# -- Air --
+def stunBuff(cooldown):
+    stun = Buff('stunned', colors.yellow, cooldown = cooldown, elemental = True)
+    return stun
+
 ## ----- ELEMENTS ------
 
 def consumeRessource(fighter, buff, ressources = {'stamina': 1}):
@@ -1187,7 +1193,7 @@ class Buff: #also (and mainly) used for debuffs
                  strength = 0, dexterity = 0, constitution = 0, willpower = 0, hp = 0, armor = 0, power = 0, accuracy = 0, evasion = 0, maxMP = 0,
                  critical = 0, armorPenetration = 0, rangedPower = 0, stamina = 0, stealth = 0, attackSpeed = 0, moveSpeed = 0, rangedSpeed = 0,
                  resistances = {'physical': 0, 'poison': 0, 'fire': 0, 'cold': 0, 'lightning': 0, 'light': 0, 'dark': 0, 'none': 0},
-                 attackTypes = {}, flight = None, resistible = True, elemental = False):
+                 attackTypes = {}, flight = None, resistible = True, elemental = False, attackMultiplier = 0):
         '''
         Function used to initialize a new instance of the Buff class
         '''
@@ -1225,6 +1231,7 @@ class Buff: #also (and mainly) used for debuffs
         self.attackTypes = attackTypes
         self.flight = flight
         self.resistible = resistible
+        self.attackMultiplier = attackMultiplier
         
         self.elemental = elemental #cooldown will be extended when player is near him with some training in elemental magic
         
@@ -1680,7 +1687,7 @@ class MagicSpell(Spell):
                     bonus = 15
                 buffDict[burningBuff(cooldown, minDamage + bonus, maxDamage + bonus, chance)] = self.baseBuffs[buff]
                 
-            elif buff == 'poisoned':
+            elif buff == 'poison' or buff == 'poisoned':
                 traitAmount = player.Player.getTrait('skill', 'Earth').amount
 
                 cooldown = randint(15 + traitAmount, 20 + traitAmount)
@@ -1688,7 +1695,7 @@ class MagicSpell(Spell):
                 maxDamage = 10 + traitAmount
                 chance = 33 + traitAmount * 3
                 
-                buffDict[poisonBuff(cooldown, minDamage + bonus, maxDamage + bonus, chance)] = self.baseBuffs[buff]
+                buffDict[poisonBuff(cooldown, minDamage, maxDamage, chance)] = self.baseBuffs[buff]
             
             elif buff == 'frozen':
                 traitAmount = player.Player.getTrait('skill', 'Earth').amount
@@ -1696,6 +1703,11 @@ class MagicSpell(Spell):
                 cooldown = randint(15 + traitAmount, 20 + traitAmount)
                 
                 buffDict[frozenBuff(cooldown)] = self.baseBuffs[buff]
+            
+            elif buff == 'stunned':
+                traitAmount = player.Player.getTrait('skill', 'Air').amount
+                
+                cooldown = randint(5 + traitAmount, 10 + traitAmount)
         
         return buffDict
     
@@ -2589,6 +2601,7 @@ confuse = Spell(ressourceCost = 5, cooldown = 4, useFunction = castConfuse, name
 ice = MagicSpell(ressourceCost = 5, cooldown = 10, name = 'Icebolt', type = 'Water', buffs = {'frozen': 100}, damage = {'cold': 5})
 blizzard = Spell(ressourceCost = 40, cooldown = 80, useFunction = castBlizzard, name = 'Blizzard', ressource = 'MP', type = 'Water')
 flamethrower = Spell(ressourceCost = 5, cooldown = 20, useFunction = castFlamethrower, name = 'Flamethrower', ressource  ='MP', type = 'Fire')
+poisonbolt = MagicSpell(ressourceCost = 12, cooldown = 20, name = 'Poisonbolt', ressource = 'MP', type = 'Earth', buffs = {'poison': 100}, damage = {'poison': 15})
 
 ### GENERIC SPELLS ###
 ### CLASS SPECIFIC SPELLS ###
@@ -2720,9 +2733,10 @@ def bump(x, y, monster, damage = 0, moveContactedMob = False, destroyContactedWa
             monster.y = y
                 
         #bumping mob damage
-        damageDict = {'physical': damage + randint(monster.Fighter.basePower, monster.Fighter.basePower*2)}
-        dmgTxtFunc = lambda damageTaken: monster.Fighter.formatRawDamageText(damageTaken, '{} slammed into the wall for {}!', colors.red, '', colors.white, True)
-        monster.Fighter.takeDamage(damageDict, "wall contact".format(monster.name), damageTextFunction = dmgTxtFunc)
+        if monster.Fighter:
+            damageDict = {'physical': damage + randint(monster.Fighter.basePower, monster.Fighter.basePower*2)}
+            dmgTxtFunc = lambda damageTaken: monster.Fighter.formatRawDamageText(damageTaken, '{} slammed into the wall for {}!', colors.red, '', colors.white, True)
+            monster.Fighter.takeDamage(damageDict, "wall contact".format(monster.name), damageTextFunction = dmgTxtFunc)
         
     return continueMovement
 
@@ -2982,9 +2996,14 @@ ram = Spell(ressourceCost=15, cooldown = 20, useFunction=castKnockback, name = '
 ### RACE SPECIFIC SPELLS ###
 ### TRAITS UNLOCKABLE SPELLS ###
 
-def castMultipleAttacks(caster = None, monsterTarget = None, attacksNum = 3):
+def castMultipleAttacks(caster = None, monsterTarget = None, attacksNum = 3, lightRequired = True):
     target = None
     if caster is None or caster == player:
+        if lightRequired:
+            for eq in getEquippedInHands():
+                if 'heavy' in eq.Equipment.type and not eq.Equipment.ranged:
+                    message("You cannot cast Flurry with heavy weapons!")
+                    return 'didnt-take-turn'
         caster = player
         targetCoords = targetTile(1, melee = True)
         if targetCoords != 'cancelled':
@@ -3602,7 +3621,7 @@ placeSnake = Spell(ressourceCost = 0, cooldown = 1, useFunction=createSnake, nam
 
 spells.extend([fireball, heal, darkPact, enrage, lightning, confuse, ice, ressurect, placeTag, drawRect, drawAstarPath, teleport, djik, dispDjik, djikProf,
                detDjik, yellowify, ram, leap, expandRootsDmg, expandRootsDummy, expandRootsRegen, insectFly, demonForm, spawnProj, placeIceWall, testCone,
-               flurry, seismic, shadowStep, throwEnemy, blizzard, flamethrower, volley, strongCharge, tackleCharge, placeHorror, placeSnake])
+               flurry, seismic, shadowStep, throwEnemy, blizzard, flamethrower, volley, strongCharge, tackleCharge, placeHorror, placeSnake, poisonbolt])
 #_____________SPELLS_____________
 
 #______________CHARACTER GENERATION____________
@@ -3616,7 +3635,7 @@ class Trait():
     '''
     Actually used for everything in the character creation, from race to skills etc
     '''
-    def __init__(self, name, description, type, x = 0, y = 0, underCursor = False, selectable = True, selected = False, allowsSelection = [], amount = 0, maxAmount = 1, tier = 1, power = (0, 0), acc = (0, 0), ev = (0, 0), arm = (0, 0), hp = (0, 0), mp = (0, 0), crit = (0, 0), stren = (0, 0), dex = (0, 0), vit = (0, 0), will = (0, 0), spells = None, load = 0, ap = (0, 0), stealth = 0, stam = (0, 0), bonusSkill = [], dmgTypes = {}, resistances = {}, critMult = 0, attackFuncs = [], buffsOnAttack = [], rangedAtkFuncs = []):
+    def __init__(self, name, description, type, x = 0, y = 0, underCursor = False, selectable = True, selected = False, allowsSelection = [], amount = 0, maxAmount = 1, tier = 1, power = (0, 0), acc = (0, 0), ev = (0, 0), arm = (0, 0), hp = (0, 0), mp = (0, 0), crit = (0, 0), stren = (0, 0), dex = (0, 0), vit = (0, 0), will = (0, 0), spells = None, load = 0, ap = (0, 0), stealth = 0, stam = (0, 0), bonusSkill = [], dmgTypes = {}, resistances = {}, attackFuncs = [], buffsOnAttack = [], rangedAtkFuncs = []):
         self.name = name
         self.desc = description
         self.type = type
@@ -3653,7 +3672,7 @@ class Trait():
         self.unlockables = []
         self.dmgTypes = dmgTypes
         self.resistances = resistances
-        self.critMult = critMult
+        #self.critMult = critMult
         self.attackFuncs = attackFuncs
         self.buffsOnAttack = buffsOnAttack #[[chance, name]]
         self.rangedAtkFuncs = rangedAtkFuncs
@@ -3768,7 +3787,7 @@ class Trait():
             player.Player.baseStealth += self.stealth
             player.Fighter.BASE_STAMINA += self.stamina
             player.Fighter.noConstStamina += self.stamina
-            player.Fighter.critMultiplier += self.critMult
+            #player.Fighter.critMultiplier = self.critMult
                 
             types = player.Fighter.baseResistances
             for key in list(self.resistances.keys()):
@@ -3917,7 +3936,7 @@ class Trait():
             player.Player.baseStealth -= self.stealth
             player.Fighter.noConstStamina -= self.stamina
             player.Fighter.BASE_STAMINA -= self.stamina
-            player.Fighter.critMultiplier -= self.critMult
+            #player.Fighter.critMultiplier = {CRITICAL_MULTIPLIER: 100}
                 
             types = player.Fighter.baseResistances
             for key in list(self.resistances.keys()):
@@ -4131,10 +4150,10 @@ class UnlockableTrait(Trait):
     def __init__(self, name, description, type, x = 0, y = 0, underCursor = False, selectable = False, selected = False, allowsSelection = [],
                  amount = 0, maxAmount = 1, tier = 1, power = (0, 0), acc = (0, 0), ev = (0, 0), arm = (0, 0), hp = (0, 0), mp = (0, 0), crit = (0, 0),
                   stren = (0, 0), dex = (0, 0), vit = (0, 0), will = (0, 0), spells = None, load = 0, ap = (0, 0), stealth = 0, stam = (0, 0),
-                  bonusSkill = [], dmgTypes = {}, resistances = {}, critMult = 0,
+                  bonusSkill = [], dmgTypes = {}, resistances = {}, #critMult = {CRITICAL_MULTIPLIER: 100},
                   requiredTraits = {}, attackFuncs = [], buffsOnAttack = [], rangedAtkFuncs = []): #requiredTraits = {'player level': 5, 'Light weapons': 4}
         
-        Trait.__init__(self, name, description, type, x, y, underCursor, selectable, selected, allowsSelection, amount, maxAmount, tier, power, acc, ev, arm, hp, mp, crit, stren, dex, vit, will, spells, load, ap, stealth, stam, bonusSkill, dmgTypes, resistances, critMult, attackFuncs, buffsOnAttack, rangedAtkFuncs)
+        Trait.__init__(self, name, description, type, x, y, underCursor, selectable, selected, allowsSelection, amount, maxAmount, tier, power, acc, ev, arm, hp, mp, crit, stren, dex, vit, will, spells, load, ap, stealth, stam, bonusSkill, dmgTypes, resistances, attackFuncs, buffsOnAttack, rangedAtkFuncs)
         self.requiredTraits = requiredTraits
     
     def checkForRequirements(self):
@@ -4162,10 +4181,10 @@ class PlayerClass(Trait):
     def __init__(self, name, description, type, x = 0, y = 0, underCursor = False, selectable = False, selected = False, allowsSelection = [],
                  amount = 0, maxAmount = 1, tier = 1, power = (0, 0), acc = (0, 0), ev = (0, 0), arm = (0, 0), hp = (0, 0), mp = (0, 0), crit = (0, 0),
                   stren = (0, 0), dex = (0, 0), vit = (0, 0), will = (0, 0), spells = None, load = 0, ap = (0, 0), stealth = 0, stam = (0, 0),
-                  bonusSkill = [], dmgTypes = {}, resistances = {}, critMult = 0, attackFuncs = [], buffsOnAttack = [],
+                  bonusSkill = [], dmgTypes = {}, resistances = {}, attackFuncs = [], buffsOnAttack = [],
                   trees = {}): #trees = {'class': {level: trait, etc}, 'subclass1': {level: trait, etc}, etc}
         
-        Trait.__init__(self, name, description, type, x, y, underCursor, selectable, selected, allowsSelection, amount, maxAmount, tier, power, acc, ev, arm, hp, mp, crit, stren, dex, vit, will, spells, load, ap, stealth, stam, bonusSkill, dmgTypes, resistances, critMult, attackFuncs, buffsOnAttack)
+        Trait.__init__(self, name, description, type, x, y, underCursor, selectable, selected, allowsSelection, amount, maxAmount, tier, power, acc, ev, arm, hp, mp, crit, stren, dex, vit, will, spells, load, ap, stealth, stam, bonusSkill, dmgTypes, resistances, attackFuncs, buffsOnAttack)
         self.trees = trees
         names = self.trees.keys()
         
@@ -4577,12 +4596,27 @@ def initializeTraits():
             caster.Ranged.shoot(target)
         return
     
+    def castPowerAttack(caster, target):
+        attackBonus = Buff('power attacking', colors.white, cooldown = 1, showBuff = False, attackMultiplier = .5)
+        attackBonus.applyBuff(caster)
+        state = castMultipleAttacks(caster, target, 1, False)
+        if state == 'didnt-take-turn':
+            return 'didnt-take-turn'
+        caster.Fighter.actionPoints -= caster.Fighter.attackSpeed + 50
+    
+    def castElementCatalyst(caster, target):
+        traitAmount = player.Player.getTrait('skill', 'Elemental magic').amount - 6
+        buff = Buff('Elements catalyst', colors.light_sea, cooldown = traitAmount*10)
+        buff.applyBuff(player)
+    
     shapeshift = Spell(ressourceCost=10, cooldown = 100, useFunction=castShapeshift, name = 'Shapeshift', ressource='MP', type = 'racial')
     spellRegenStam = Spell(ressourceCost = 0, cooldown = 100, useFunction = lambda caster, target: regen(caster, target, 'Physical training', ['stamina'], 'gathering forces', colors.lighter_yellow), name = 'Gather forces', ressource = 'Stamina', type = 'physical')
     spellRegenMP = Spell(ressourceCost = 0, cooldown = 100, useFunction = lambda caster, target: regen(caster, target, 'Power of will', ['MP'], 'meditating', colors.blue), name = 'Meditate', ressource = 'MP', type = 'trait')
     spellRegenHP = Spell(ressourceCost = 0, cooldown = 100, useFunction = regen, name = 'Regenerate', ressource = 'HP', type = 'physical')
     castCombatFocus = Spell(ressourceCost = 10, cooldown = 80, useFunction = combatFocus, name = 'Combat focus', ressource = 'Stamina', type = 'martial')
     spellPowerShot = Spell(ressourceCost = 25, cooldown = 100, useFunction = powerShot, name = 'Power shot', ressource = 'Stamina', type = 'martial', castSpeed = 0)
+    powerAttack = Spell(ressourceCost = 5, cooldown = 3, useFunction = castPowerAttack, name = 'Power attack', ressource = 'Stamina', type = 'martial', castSpeed = 0)
+    elemCatal = Spell(ressourceCost = 30, cooldown = 50, useFunction = castElementCatalyst, name = 'Elements catalyst', ressource = 'MP', type = 'mental')
     
     ###  race  ###
     controllableWerewolf = UnlockableTrait('Shape control', 'You are able to shapeshift at will.', type = 'trait', spells = [shapeshift], requiredTraits={'player level': 5, 'Werewolf': 1})
@@ -4591,6 +4625,7 @@ def initializeTraits():
     combatFocusTrait = UnlockableTrait('Combat focus', 'You can focus extremely well on your fights for small amounts of time.', 'trait', requiredTraits = {'Martial training': 7}, spells = [castCombatFocus])
     combatKnowledge = UnlockableTrait('Combat knowledge', 'You are so efficient when fighting that you can better use your abilities', 'trait', requiredTraits = {'Martial training': 10})
     ## melee
+    powerAttackTrait = UnlockableTrait('Power attack', 'You gather your strength to deal a powerful blow.', 'trait', requiredTraits = {'Melee weaponry': 7}, spells = [powerAttack])
     # light
     freeAtk = UnlockableTrait('Blade storm', 'You are so used to light weaponry you can sometimes attack twice in rapid succession.', 'trait', requiredTraits={'Light weapons': 4}) #, attackFuncs = [autoFreeAttack])
     flurryTrait = UnlockableTrait('Flurry', 'You unleash three deadly attacks on the target.', 'trait', requiredTraits={'Light weapons': 7}, spells = [flurry])
@@ -4615,6 +4650,15 @@ def initializeTraits():
     backShield = UnlockableTrait('Back shield', 'You can wear a shield on your back for more protection.', 'trait', requiredTraits = {'Shield mastery': 10})
     
     ###  mental  ###
+    ## elemental
+    elementsInitiate = UnlockableTrait('Elements initiate', 'Elemental affliction last longer near you.', 'trait', requiredTraits = {'Elemental magic': 4})
+    elemCatalystTrait = UnlockableTrait('Elements catalyst', 'You can temporarily empower all nearby elemental afflictions.', 'trait', requiredTraits = {'Elemental magic': 7}, spells = [elemCatal])
+    # fire
+    pyromaniac = UnlockableTrait('Pyromaniac', 'Your mastery of the fire element is unrivalled.', 'trait', requiredTraits = {'Fire': 10})
+    # earth
+    spores = UnlockableTrait('Deadly spores', 'Your poisons are so virulent they can generate clous of spores.', 'trait', requiredTraits = {'Earth': 10})
+    # water
+    boneChill = UnlockableTrait('Bone chill', 'Frozen enemies shatter on death.', 'trait', requiredTraits = {'Water': 10})
     ## will
     aware = UnlockableTrait('Self aware', 'Allows to see the buffs and debuffs cooldowns.', 'trait', requiredTraits={'Power of will': 4})
     regenMP = UnlockableTrait('Meditate', 'Your mental energy regenerates extremely rapidly', 'trait', requiredTraits = {'Power of will': 7}, spells = [spellRegenMP])
@@ -4626,7 +4670,7 @@ def initializeTraits():
     shadowstepTrait = UnlockableTrait('Shadow step', 'When concealed, you can move through the shadows at incredible speed.', 'trait', requiredTraits={'Cunning': 7}, spells = [shadowStep])
     shadowCrit = UnlockableTrait('Surprise attack', 'When concealed, you have a greater chance to inflinct critical damage.', 'trait', requiredTraits = {'Cunning': 4})
     # crit
-    greaterCrit = UnlockableTrait('Fatal precision', 'Your hits are so precise they can eviscerate your victim in one strike.', 'trait', requiredTraits = {'Critical': 4}, critMult = 1)
+    greaterCrit = UnlockableTrait('Fatal precision', 'Your hits are so precise they can eviscerate your victim in one strike.', 'trait', requiredTraits = {'Critical': 4})
     ## strength
     meleeKB = UnlockableTrait('Mighty strikes', 'You smash so hard you can sometimes push back enemies', 'trait', requiredTraits = {'Strength': 4}, attackFuncs = [autoKB])
     strongChargeTrait = UnlockableTrait('Charge', 'You charge an enemy and immediatly attack.', 'trait', requiredTraits = {'Strength': 7}, spells = [strongCharge])
@@ -4643,7 +4687,8 @@ def initializeTraits():
     unlockableTraits.extend([controllableWerewolf, dual, aware, flurryTrait, seismicTrait, ignoreSlow, shadowstepTrait, shadowCrit, greaterCrit,
                              throwEnemySkill, freeAtk, glovesDmg, meleeKB, volleySkill, resistDebuff, regenStam, regenHP, regenMP, ignoreTwoHanded,
                              combatFocusTrait, combatKnowledge, heavyDef, efficiency, recoil, pistolero, strongChargeTrait, tackleTrait, reload,
-                             powerShotTrait, fistsOfSteel, bleed, backShield])
+                             powerShotTrait, fistsOfSteel, bleed, backShield, powerAttackTrait, pyromaniac, spores, elemCatalystTrait, boneChill,
+                             elementsInitiate])
     actualUnlock = [] #sorted list, in order not to mess with unlocking more advanced traits
     for skill in skills:
         for unlock in unlockableTraits:
@@ -5636,7 +5681,8 @@ class Fighter: #All NPCs, enemies and the player
         self.noConstStamina = stamina
         self.stamina = stamina
         
-        self.critMultiplier = CRITICAL_MULTIPLIER
+        self.baseAttackMultiplier = 0
+        self.baseCritMultiplier = {CRITICAL_MULTIPLIER: 100}
         
         self.baseAttackSpeed = attackSpeed
         self.baseMoveSpeed = moveSpeed
@@ -5738,6 +5784,11 @@ class Fighter: #All NPCs, enemies and the player
         return self.noConstStamina + bonus
     
     @property
+    def attackMultiplier(self):
+        bonus = sum(buff.attackMultiplier for buff in self.buffList)
+        return self.baseAttackMultiplier + bonus
+    
+    @property
     def knownSpellsToNames(self, returnActualSpell=False):
         '''
         Convert list of fighter's known spells to list of names of said spells.
@@ -5763,7 +5814,7 @@ class Fighter: #All NPCs, enemies and the player
     def power(self):
         bonus = sum(equipment.powerBonus for equipment in getAllEquipped(self.owner))
         buffBonus = sum(buff.power for buff in self.buffList)
-        return self.basePower + bonus + buffBonus
+        return round((self.basePower + bonus) * (1+self.attackMultiplier)) + buffBonus
  
     @property
     def armor(self):
@@ -5813,7 +5864,16 @@ class Fighter: #All NPCs, enemies and the player
             bonus += SURPRISE_ATTACK_CRIT
             print('player can backstab')
         return self.baseCritical + bonus + buffBonus
-
+    
+    @property
+    def critMultiplier(self):
+        critDict = self.baseCritMultiplier
+        if self.owner == player and player.Player.getTrait('trait', 'Fatal precision') != 'not found':
+            critDict = {CRITICAL_MULTIPLIER: 80, CRITICAL_MULTIPLIER+1: 20}
+            bonus = (player.Player.getTrait('skill', 'Critical').amount - 4) * 5
+            critDict = {CRITICAL_MULTIPLIER: critDict[CRITICAL_MULTIPLIER] - bonus, 4: critDict[CRITICAL_MULTIPLIER+1] + bonus}
+        return critDict
+    
     @property
     def maxMP(self):
         bonus = sum(equipment.maxMP_Bonus for equipment in getAllEquipped(self.owner))
@@ -6161,10 +6221,11 @@ class Fighter: #All NPCs, enemies and the player
         if hit:
             if not self.noDirectDamage:
                 if criticalHit:
+                    critMult = randomChoice(self.critMultiplier)
                     if self.owner.Player and player.Player.getTrait('trait', 'Aggressive').selected:
-                        damage = (randint(self.power - 2, self.power + 2) + 4) * self.critMultiplier
+                        damage = (randint(self.power - 2, self.power + 2) + 4) * critMult
                     else:
-                        damage = (randint(self.power - 2, self.power + 2)) * self.critMultiplier
+                        damage = (randint(self.power - 2, self.power + 2)) * critMult
                 else:
                     if self.owner.Player and player.Player.getTrait('trait', 'Aggressive').selected:
                         damage = randint(self.power - 2, self.power + 2) + 4
@@ -6204,7 +6265,7 @@ class Fighter: #All NPCs, enemies and the player
                     onlyLight = False
             if dice <= (traitAmount-3)*chancePerLvl and onlyLight:
                 message('You gain a free attack!', colors.green)
-                castMultipleAttacks(player, None, attacksNum = 1)
+                castMultipleAttacks(player, None, 1, False)
             
     def heal(self, amount):
         self.hp += amount
@@ -6422,7 +6483,8 @@ class RangedNPC:
             if penetratedArmor < 0:
                 penetratedArmor = 0
             if criticalHit:
-                damage = (randint(self.power - 2, self.power + 2) * self.critMultiplier)
+                critMult = randomChoice(self.owner.Fighter.critMultiplier)
+                damage = (randint(self.power - 2, self.power + 2) * critMult)
             else:
                 damage = randint(self.power - 2, self.power + 2)
             if self.owner.canTakeTurn:
@@ -8546,7 +8608,8 @@ class Equipment:
                             damage = randint(self.rangedPower - 2, self.rangedPower + 2)
 
                         if criticalHit:
-                            damage = damage * player.Fighter.critMultiplier
+                            critMult = randomChoice(player.Fighter.critMultiplier)
+                            damage = damage * critMult
                         
                         monsterTarget.Fighter.lootFunction.append(newAmmo)
                         monsterTarget.Fighter.lootRate.append(100)
