@@ -1062,8 +1062,12 @@ def burningBuff(cooldown, minDamage, maxDamage, chance):
     burning = Buff('burning', colors.flame, cooldown = cooldown, continuousFunction = continuousFunction, elemental = True)
     return burning
 
+def fireShield(cooldown):
+    buff = Buff('under fire shield', colors.flame, cooldown = cooldown, strength = 5, power = 10, resistances = {'physical':0, 'poison':0, 'fire':25, 'cold':0, 'lightning':0, 'light':0, 'dark':0, 'none':0})
+    return buff
+
 # -- Water --
-def explodeOnFrozenDeath(fighter, explosionRange = 5, damage = 12):
+def explodeOnFrozenDeath(fighter, explosionRange = 3, damage = 12):
     print('frozen {} exploding'.format(fighter.owner.name))
     monster = fighter.owner
     mX, mY = monster.x, monster.y
@@ -1085,6 +1089,10 @@ def frozenBuff(cooldown):
     frozen = Buff('frozen', colors.light_violet, cooldown = cooldown, removeFunction = removeFunc, elemental = True)
     return frozen
 
+def waterShield(cooldown):
+    buff = Buff('under water shield', colors.light_violet, cooldown = cooldown, willpower = 5, maxMP = 50, resistances = {'physical':0, 'poison':0, 'fire':0, 'cold':25, 'lightning':0, 'light':0, 'dark':0, 'none':0})
+    return buff
+
 # -- Earth --
 def leaveGasCloud(fighter, cooldown, minDamage, maxDamage, chance):
     affectedTiles = [(0, 0), (-1, -1), (-1, 0), (-1, 1), (0, 1), (0, -1), (1, -1), (1, 0), (1, 1)]
@@ -1094,7 +1102,7 @@ def leaveGasCloud(fighter, cooldown, minDamage, maxDamage, chance):
         poison = poisonBuff(5, 3, 6, 25, True)
         cloud = TileBuff('poison cloud', fg = colors.darker_lime, char = chr(176), cooldown = cooldown, buffsWhenWalked = [poison], buffChance = [33], continuousFunc = [contFunc])
         cloud.applyTileBuff(x+dx, y+dy)
-    message('{} dies, leaving a poisonous cloud behind.'.format(fighter.owner.name.capitalize()), colors.darker_lime)
+    message('{} dies, leaving a poisonous cloud behind.'.format(fighter.owner.name.capitalize()), colors.purple)
     
 def poisonBuff(cooldown, minDamage, maxDamage, chance, noGas = False):
     removeFunc = None
@@ -1104,10 +1112,19 @@ def poisonBuff(cooldown, minDamage, maxDamage, chance, noGas = False):
     poisoned = Buff('poisoned', colors.purple, cooldown = cooldown, continuousFunction = contFunc, removeFunction = removeFunc, elemental = True)
     return poisoned
 
+def earthShield(cooldown):
+    regen = lambda fighter: regenRessource(fighter, {'HP': 15})
+    buff = Buff('under earth shield', colors.purple, cooldown = cooldown, constitution = 5, hp = 50, resistances = {'physical':0, 'poison':25, 'fire':0, 'cold':0, 'lightning':0, 'light':0, 'dark':0, 'none':0}, continuousFunction = regen)
+    return buff
+
 # -- Air --
 def stunBuff(cooldown):
     stun = Buff('stunned', colors.yellow, cooldown = cooldown, elemental = True)
     return stun
+
+def airShield(cooldown):
+    buff = Buff('under air shield', colors.light_sky, cooldown = cooldown, dexterity = 5, acc = 20, evasion = 20, resistances = {'physical':0, 'poison':0, 'fire':0, 'cold':0, 'lightning':25, 'light':0, 'dark':0, 'none':0})
+    return buff
 
 ## ----- ELEMENTS ------
 

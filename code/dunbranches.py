@@ -213,7 +213,7 @@ def getFloorBranches(branch, floor): # !! floor is the one being generated
 
 if __name__ == '__main__':
     for i in range(15):
-        brList, origBr = getFloorBranches(temple, i)
+        brList, origBr = getFloorBranches(mainDungeon, i)
         try:
             name = origBr.name
         except:

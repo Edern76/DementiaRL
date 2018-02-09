@@ -295,7 +295,7 @@ def checkStairsRooms(mapToUse, currentBranch, currentLevel, rooms):
         return roomsForStairs
 
 if __name__ == '__main__':
-    myMap, rooms, roomsForStairs = generateMap(dBr.temple)
+    myMap, rooms, roomsForStairs = generateMap(dBr.mainDungeon)
     while not tdl.event.is_window_closed():
         update(myMap)
     
