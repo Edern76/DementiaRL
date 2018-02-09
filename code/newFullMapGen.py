@@ -133,11 +133,12 @@ def generateMap(currentBranch = dBr.mainDungeon, level = 2):
     
     if pillars:
         #baseMap = list(deepcopy(myMap))
+        '''
         for x in range(1, MAP_WIDTH-1):
             for y in range(1, MAP_HEIGHT-1):
                 if myMap[x][y].blocked and myMap[x][y].neighbours(myMap, True) == 3:
                     myMap[x][y].pillar = True
-        
+        '''
         for room in rooms:
             centerPillar = randint(0, 2)
             offsetW = ((room.x2 - room.x1) - 4) // 2
@@ -166,10 +167,10 @@ def updateTiles(mapToUse, branch):
             tile = mapToUse[x][y]
             if tile.pillar and not tile.chasm:
                 tile.baseCharacter = mapDict['pillarChar']
-                tile.baseFg = mapDict['pillarColor']
                 tile.baseBg = mapDict['groundBG']
-                tile.baseDark_fg = mapDict['pillarDarkColor']
+                tile.baseFg = mapDict['pillarColor']
                 tile.baseDark_bg = mapDict['groundDarkBG']
+                tile.baseDark_fg = mapDict['pillarDarkColor']
                 tile.pillar = True
                 tile.block_sight = True
             elif tile.blocked and not (x, y) in roomEdges and not (x, y) in tunnelEdges:
@@ -294,7 +295,7 @@ def checkStairsRooms(mapToUse, currentBranch, currentLevel, rooms):
         return roomsForStairs
 
 if __name__ == '__main__':
-    myMap, rooms, roomsForStairs = generateMap(dBr.mainDungeon)
+    myMap, rooms, roomsForStairs = generateMap(dBr.temple)
     while not tdl.event.is_window_closed():
         update(myMap)
     

@@ -1742,7 +1742,7 @@ class MagicSpell(Spell):
         #state = self.useFunction(caster, target)
         #if state != 'cancelled' and state != 'didnt-take-turn':
         
-        #affectedMobs = []
+        chainMobs = []
         damage = self.damage
         buffs = self.buffs
         buffList = list(buffs.keys())
@@ -1758,7 +1758,32 @@ class MagicSpell(Spell):
                         
                 dmgTxtFunc = lambda damageTaken: obj.Fighter.formatRawDamageText(damageTaken, '{} suffers {} from your ' + self.name + ' spell.', self.color, '', colors.grey)
                 obj.Fighter.takeDamage(damage, 'your spell', damageTextFunction = dmgTxtFunc)
-                #affectedMobs.append(obj)
+                chainMobs.append(obj)
+        
+        if 'lightning' in list(damage.keys()) and player.Player.getTrait('trait', 'Chain lightning') != 'not found':
+            affectedMobs = []
+            affectedMobs.extend(chainMobs)
+            for obj in objects:
+                if obj.Fighter and obj != caster and not obj in affectedMobs:
+                    for near in chainMobs:
+                        if near.distanceTo(obj) <= CHAIN_DIST:
+                            affectedMobs.append(obj)
+                            
+                            for buff in buffList:
+                                dice = randint(1, 100)
+                                if buff != 'knockback' and dice <= buffs[buff]:
+                                    buff.applyBuff(obj)
+                                elif buff == 'knockback' and dice <= buffs[buff]:
+                                    KBrange = self.baseDamage['knockback']
+                                    knockBack(caster.x, caster.y, obj, KBrange, False)
+                                    
+                            dmgTxtFunc = lambda damageTaken: obj.Fighter.formatRawDamageText(damageTaken, '{} suffers {} from your ' + self.name + ' spell.', self.color, '', colors.grey)
+                            obj.Fighter.takeDamage(damage, 'your spell', damageTextFunction = dmgTxtFunc)
+                            chainMobs.append(obj)
+                            
+                            chainMobs.remove(near)
+                            target.extend(tdl.map.bresenham(obj.x, obj.y, near.x, near.y))
+                            break
         
         explodingTiles.extend(target)
         explode(self.color)
@@ -2595,13 +2620,15 @@ placeIceWall = Spell(ressourceCost=0, cooldown=0, useFunction=castPlaceIceWall, 
 fireball = MagicSpell(ressourceCost = 7, cooldown = 5, name = 'Fireball', type = 'Fire', buffs = {'burning': 50}, zone = 'circle', AOErange = 2, damage = {'fire': 12})
 heal = Spell(ressourceCost = 15, cooldown = 12, useFunction = castHeal, name = 'Heal self', ressource = 'MP', type = 'Magic', magicLevel = 2, arg1 = 20)
 darkPact = Spell(ressourceCost = DARK_PACT_DAMAGE, cooldown = 8, useFunction = castDarkRitual, name = "Dark ritual", ressource = 'HP', type = "Occult", magicLevel = 2, arg1 = 5, arg2 = DARK_PACT_DAMAGE)
-lightning = Spell(ressourceCost = 10, cooldown = 7, useFunction = castLightning, name = 'Lightning bolt', ressource = 'MP', type = 'Air', magicLevel = 3)
+#lightning = Spell(ressourceCost = 10, cooldown = 7, useFunction = castLightning, name = 'Lightning bolt', ressource = 'MP', type = 'Air', magicLevel = 3)
+lightning = MagicSpell(ressourceCost = 10, cooldown = 7, name = 'Lightning bolt', type = 'Air', buffs = {'stunned': 10}, zone = 'singletile', damage = {'lightning': 15})
 confuse = Spell(ressourceCost = 5, cooldown = 4, useFunction = castConfuse, name = 'Confusion', ressource = 'MP', type = 'Dark', magicLevel = 1)
 #ice = Spell(ressourceCost = 9, cooldown = 5, useFunction = castFreeze, name = 'Ice bolt', ressource = 'MP', type = 'Water', magicLevel = 2)
 ice = MagicSpell(ressourceCost = 5, cooldown = 10, name = 'Icebolt', type = 'Water', buffs = {'frozen': 100}, damage = {'cold': 5})
 blizzard = Spell(ressourceCost = 40, cooldown = 80, useFunction = castBlizzard, name = 'Blizzard', ressource = 'MP', type = 'Water')
 flamethrower = Spell(ressourceCost = 5, cooldown = 20, useFunction = castFlamethrower, name = 'Flamethrower', ressource  ='MP', type = 'Fire')
 poisonbolt = MagicSpell(ressourceCost = 12, cooldown = 20, name = 'Poisonbolt', ressource = 'MP', type = 'Earth', buffs = {'poison': 100}, damage = {'poison': 15})
+
 
 ### GENERIC SPELLS ###
 ### CLASS SPECIFIC SPELLS ###
@@ -4659,6 +4686,8 @@ def initializeTraits():
     spores = UnlockableTrait('Deadly spores', 'Your poisons are so virulent they can generate clous of spores.', 'trait', requiredTraits = {'Earth': 10})
     # water
     boneChill = UnlockableTrait('Bone chill', 'Frozen enemies shatter on death.', 'trait', requiredTraits = {'Water': 10})
+    # air
+    chainLightning = UnlockableTrait('Chain lightning', 'Lightning chains through enemies', 'trait', requiredTraits = {'Air': 10})
     ## will
     aware = UnlockableTrait('Self aware', 'Allows to see the buffs and debuffs cooldowns.', 'trait', requiredTraits={'Power of will': 4})
     regenMP = UnlockableTrait('Meditate', 'Your mental energy regenerates extremely rapidly', 'trait', requiredTraits = {'Power of will': 7}, spells = [spellRegenMP])
@@ -4688,7 +4717,7 @@ def initializeTraits():
                              throwEnemySkill, freeAtk, glovesDmg, meleeKB, volleySkill, resistDebuff, regenStam, regenHP, regenMP, ignoreTwoHanded,
                              combatFocusTrait, combatKnowledge, heavyDef, efficiency, recoil, pistolero, strongChargeTrait, tackleTrait, reload,
                              powerShotTrait, fistsOfSteel, bleed, backShield, powerAttackTrait, pyromaniac, spores, elemCatalystTrait, boneChill,
-                             elementsInitiate])
+                             elementsInitiate, chainLightning])
     actualUnlock = [] #sorted list, in order not to mess with unlocking more advanced traits
     for skill in skills:
         for unlock in unlockableTraits:

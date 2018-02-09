@@ -9,7 +9,7 @@ branchMapTemplate = {'wallFG': colors.grey, 'wallDarkFG': colors.darker_grey, 'w
                      'chasm': True, 'chasmColor': (0, 0, 16),
                      'dungeon': True, 'caves': False,
                      'mines': False, 'mineWallFG': colors.dark_sepia, 'mineWallDarkFG': colors.darkest_sepia, 'mineWallBG': colors.darkest_sepia, 'mineWallDarkBG': (14, 11, 7),
-                     'pillars': False, 'pillarChar': 'o', 'pillarColor': colors.darker_grey, 'pillarDarkColor': (16, 16, 16),
+                     'pillars': False, 'pillarChar': chr(4), 'pillarColor': colors.darker_grey, 'pillarDarkColor': (16, 16, 16),
                      'holes': False,
                      'doors': True, 'doorChar': '+', 'doorColor': colors.darker_flame, 'doorDarkColor': colors.darkest_flame,
                      'fixedMap': None}
@@ -74,7 +74,7 @@ gluttMapTemplate = {'wallFG': colors.grey, 'wallDarkFG': colors.darker_grey, 'wa
                      'chasm': True, 'chasmColor': (0, 0, 16),
                      'dungeon': True, 'caves': False,
                      'mines': False, 'mineWallFG': colors.dark_sepia, 'mineWallDarkFG': colors.darkest_sepia, 'mineWallBG': colors.darkest_sepia, 'mineWallDarkBG': (14, 11, 7),
-                     'pillars': False, 'pillarChar': 'o', 'pillarColor': colors.grey, 'pillarDarkColor': colors.darker_grey,
+                     'pillars': False, 'pillarChar': chr(4), 'pillarColor': colors.grey, 'pillarDarkColor': colors.darker_grey,
                      'holes': False,
                      'doors': True, 'doorChar': '+', 'doorColor': colors.darker_flame, 'doorDarkColor': colors.darker_flame,
                      'fixedMap': None}
@@ -88,7 +88,7 @@ townMapTemplate = {'wallFG': colors.grey, 'wallDarkFG': colors.darker_grey, 'wal
                      'chasm': True, 'chasmColor': (0, 0, 16),
                      'dungeon': True, 'caves': False,
                      'mines': False, 'mineWallFG': colors.dark_sepia, 'mineWallDarkFG': colors.darkest_sepia, 'mineWallBG': colors.darkest_sepia, 'mineWallDarkBG': (14, 11, 7),
-                     'pillars': False, 'pillarChar': 'o', 'pillarColor': colors.grey, 'pillarDarkColor': colors.darker_grey,
+                     'pillars': False, 'pillarChar': chr(4), 'pillarColor': colors.grey, 'pillarDarkColor': colors.darker_grey,
                      'holes': False,
                      'doors': True, 'doorChar': '+', 'doorColor': colors.darker_flame, 'doorDarkColor': colors.darker_flame,
                      'fixedMap': 'town'}
@@ -116,7 +116,7 @@ wrathMapTemplate = {'wallFG': colors.grey, 'wallDarkFG': colors.darker_grey, 'wa
                      'chasm': True, 'chasmColor': (0, 0, 16),
                      'dungeon': True, 'caves': False,
                      'mines': False, 'mineWallFG': colors.dark_sepia, 'mineWallDarkFG': colors.darkest_sepia, 'mineWallBG': colors.darkest_sepia, 'mineWallDarkBG': (14, 11, 7),
-                     'pillars': False, 'pillarChar': 'o', 'pillarColor': colors.grey, 'pillarDarkColor': colors.darker_grey,
+                     'pillars': False, 'pillarChar': chr(4), 'pillarColor': colors.grey, 'pillarDarkColor': colors.darker_grey,
                      'holes': True,
                      'doors': True, 'doorChar': '+', 'doorColor': colors.darker_flame, 'doorDarkColor': colors.darker_flame,
                      'fixedMap': None}
@@ -125,12 +125,12 @@ wrathDungeon = Branch(shortName = "wrath", name = "Wrath Ruins", maxDepth = 5, b
 
 templeMapTemplate = {'wallFG': colors.light_grey, 'wallDarkFG': colors.dark_grey, 'wallBG': colors.darker_grey, 'wallDarkBG': (16, 16, 16), 'wallChar': '#',
                      'groundBG': colors.dark_grey, 'groundDarkBG': colors.darkest_grey,
-                     'gravelFG': (140, 140, 140), 'gravelDarkFG': (76, 76, 76), 'gravelChars': [chr(254), chr(250)],
+                     'gravelFG': (140, 140, 140), 'gravelDarkFG': (76, 76, 76), 'gravelChars': [chr(250), chr(249)],
                      'stairsColor': colors.han, 'stairsDarkColor': colors.darker_han,
                      'chasm': True, 'chasmColor': (0, 0, 16),
                      'dungeon': True, 'caves': False,
                      'mines': False, 'mineWallFG': colors.dark_sepia, 'mineWallDarkFG': colors.darkest_sepia, 'mineWallBG': colors.darkest_sepia, 'mineWallDarkBG': (14, 11, 7),
-                     'pillars': True, 'pillarChar': 'o', 'pillarColor': colors.light_grey, 'pillarDarkColor': colors.dark_grey,
+                     'pillars': True, 'pillarChar': chr(4), 'pillarColor': colors.light_grey, 'pillarDarkColor': colors.dark_grey,
                      'holes': False,
                      'doors': True, 'doorChar': '+', 'doorColor': colors.darker_flame, 'doorDarkColor': colors.darkest_flame,
                      'fixedMap': None}
@@ -144,7 +144,7 @@ lustMapTemplate = {'wallFG': colors.grey, 'wallDarkFG': colors.darker_grey, 'wal
                      'chasm': False, 'chasmColor': (0, 0, 16),
                      'dungeon': True, 'caves': False,
                      'mines': False, 'mineWallFG': colors.dark_sepia, 'mineWallDarkFG': colors.darkest_sepia, 'mineWallBG': colors.darkest_sepia, 'mineWallDarkBG': (14, 11, 7),
-                     'pillars': False, 'pillarChar': 'o', 'pillarColor': colors.grey, 'pillarDarkColor': colors.darker_grey,
+                     'pillars': False, 'pillarChar': chr(4), 'pillarColor': colors.grey, 'pillarDarkColor': colors.darker_grey,
                      'holes': False,
                      'doors': True, 'doorChar': '+', 'doorColor': colors.darker_flame, 'doorDarkColor': colors.darker_flame,
                      'fixedMap': None}
@@ -158,7 +158,7 @@ shrineMapTemplate = {'wallFG': colors.light_grey, 'wallDarkFG': colors.dark_grey
                      'chasm': True, 'chasmColor': (0, 0, 16),
                      'dungeon': True, 'caves': False,
                      'mines': False, 'mineWallFG': colors.dark_sepia, 'mineWallDarkFG': colors.darkest_sepia, 'mineWallBG': colors.darkest_sepia, 'mineWallDarkBG': (14, 11, 7),
-                     'pillars': True, 'pillarChar': 'o', 'pillarColor': colors.light_grey, 'pillarDarkColor': colors.dark_grey,
+                     'pillars': True, 'pillarChar': chr(4), 'pillarColor': colors.light_grey, 'pillarDarkColor': colors.dark_grey,
                      'holes': False,
                      'doors': True, 'doorChar': '+', 'doorColor': colors.darker_flame, 'doorDarkColor': colors.darkest_flame,
                      'fixedMap': 'shrine'}

@@ -20,6 +20,9 @@ MID_MAP_WIDTH, MID_MAP_HEIGHT = MAP_WIDTH//2, MAP_HEIGHT//2
 if __name__ == '__main__':
     root = tdl.init(WIDTH, HEIGHT, 'Dementia')
 
+def distance(x1, y1, x2, y2):
+    return math.sqrt((x2-x1)**2 + (y2-y1)**2)
+
 def createRoom(room):
     global myMap, roomTiles
     for x in range(room.x1 + 1, room.x2):
@@ -52,6 +55,36 @@ def createVerticalTunnel(y1, y2, x, maxWidth = 2):
             tX = x + wX
             myMap[tX][y].baseBlocked = False
             tunnelTiles.append((tX, y))
+
+def createMazeTunnel(x1, y1, x2, y2, targetList):
+    MIN_DUG_DIST = 5
+    directions = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+    TURN_CHANCE = 20
+    def closestDir(x, y, x2, y2, currentDir = (0, 0)):
+        bestDir = currentDir
+        cx, cy = currentDir
+        minDist = distance(x+cx, y+cy, x2, y2)
+        for dir in directions:
+            dx, dy = dir
+            dist = distance(x+dx, y+dy, x2, y2)
+            if dist < minDist and dir != currentDir and not (dx == -cx and dy == -cy):
+                minDist = dist
+                bestDir = dir
+        return bestDir
+    
+    x, y = x1, y1
+    dugDist = 0
+    dx, dy = closestDir(x1, y1, x2, y2)
+    while (x, y) not in targetList:
+        print(x, y)
+        x, y = x+dx, y+dy
+        myMap[x][y].baseBlocked = False
+        #myMap[x][y].baseBg = colors.red
+        tunnelTiles.append((x, y))
+        dugDist += 1
+        if (dugDist >= MIN_DUG_DIST and randint(1, 100) <= TURN_CHANCE) or (x+dx < 1 or x+dx >= MAP_WIDTH-2 or y+dy < 1 or y+dy >= MAP_HEIGHT-2):
+            dx, dy = closestDir(x, y, x2, y2, (dx, dy))
+            dugDist = 0
 
 def cleanTunnels():
     global tunnelTiles, myMap
@@ -116,9 +149,9 @@ def encaseRoom(room):
     lowOpen = []
     
     for y in range(room.y1, room.y2+1):
-        if not myMap[room.x1][y].blocked and (room.x1, y) in tunnelTiles:
+        if not myMap[room.x1][y].blocked and (room.x1, y) in tunnelTiles: # and (room.x1 - 1, y) in tunnelTiles:
             leftOpen.append(y)
-        if not myMap[room.x2][y].blocked and (room.x2, y) in tunnelTiles:
+        if not myMap[room.x2][y].blocked and (room.x2, y) in tunnelTiles: # and (room.x1 + 1, y) in tunnelTiles:
             rightOpen.append(y)
     
     leftOpenings = {}
@@ -166,9 +199,9 @@ def encaseRoom(room):
                 lastY -= 1
     
     for x in range(room.x1, room.x2+1):
-        if not myMap[x][room.y1].blocked and (x, room.y1) in tunnelTiles:
+        if not myMap[x][room.y1].blocked and (x, room.y1) in tunnelTiles: # and (x, room.y1 - 1) in tunnelTiles:
             upOpen.append(x)
-        if not myMap[x][room.y2].blocked and (x, room.y2) in tunnelTiles:
+        if not myMap[x][room.y2].blocked and (x, room.y2) in tunnelTiles: # and (x, room.y1 + 1) in tunnelTiles:
             lowOpen.append(x)
     
     upOpenings = {}
@@ -223,7 +256,12 @@ def checkDoors(mapToUse):
     
     return mapToUse
 
-def makeTunnelMap(messyTunnels = False, returnTunTiles = False, roomNumber = MIN_ROOM_NUM, minSize = 6, maxSize = 17, maxTunWidth = 2):
+HORIZ_TUN = 10
+MAZE_TUN = 60
+MESSY_TUN = 20
+VERT_TUN = 10
+
+def makeTunnelMap(messyTunnels = False, returnTunTiles = False, roomNumber = MIN_ROOM_NUM, minSize = 6, maxSize = 17, maxTunWidth = 1):
     global myMap, rooms, roomTiles, tunnelTiles
 
     myMap = [[Tile(blocked = True, x = x, y = y) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
@@ -259,17 +297,25 @@ def makeTunnelMap(messyTunnels = False, returnTunTiles = False, roomNumber = MIN
             (new_x, new_y) = newRoom.center()
             if numberRooms != 0:
                 (previous_x, previous_y) = rooms[numberRooms-1].center()
-                tunnel = randint(0, 2)
-                if tunnel == 0:
+                tunnel = randint(1, 100)
+                if tunnel <= HORIZ_TUN:
+                    print('horiz')
                     createHorizontalTunnel(previous_x, new_x, previous_y, maxTunWidth)
                     createVerticalTunnel(previous_y, new_y, new_x, maxTunWidth)
-                elif tunnel == 1 and messyTunnels:
+                elif tunnel <= MAZE_TUN:
+                    print('maze')
+                    createMazeTunnel(previous_x, previous_y, new_x, new_y, newRoom.tiles)
+                elif tunnel <= MESSY_TUN and messyTunnels:
+                    print('messy')
                     myMap = caveGen.createTunnel((new_x, new_y), (previous_x, previous_y), newRoom.tiles, myMap)
                 else:
+                    print('vert')
                     createVerticalTunnel(previous_y, new_y, previous_x, maxTunWidth)
                     createHorizontalTunnel(previous_x, new_x, new_y, maxTunWidth)
+                #createMazeTunnel(previous_x, previous_y, new_x, new_y)
             rooms.append(newRoom)
             numberRooms += 1
+            #update(myMap)
 
     cleanTunnels()
     for room in rooms:
