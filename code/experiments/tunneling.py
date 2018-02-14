@@ -114,32 +114,38 @@ def openRooms(room):
                 except IndexError:
                     pass
 
-def placeDoors(prob = 100):
+def placeDoors(prob = 100, pillars = False):
     global myMap
     for x in range(MAP_WIDTH):
         for y in range(MAP_HEIGHT):
             neighborInRoom = False
-            for neighbor in myMap[x][y].neighbors(myMap, cardinal = True):
+            neighbors = myMap[x][y].neighbors(myMap, cardinal = True)
+            
+            for neighbor in neighbors:
                 if (neighbor.x, neighbor.y) in roomTiles:
                     neighborInRoom = True
                     break
             
             blockedNeighbors = 0
             dX, dY = 0, 0
-            for neighbor in myMap[x][y].neighbors(myMap, cardinal = True):
+            for neighbor in neighbors:
                 ndX, ndY = neighbor.x - x, neighbor.y - y
                 if neighbor.blocked and ((dX, dY) == (0, 0) or (ndX, ndY) == (-dX, -dY)):
                     blockedNeighbors += 1
                     dX, dY = ndX, ndY
             
             neighborDoor = False
-            for neighbor in myMap[x][y].neighbors(myMap, cardinal = True):
+            for neighbor in neighbors:
                 if neighbor.door:
                     neighborDoor = True
                     break
             
             if (x, y) in tunnelTiles and neighborInRoom and (x, y) not in roomTiles and blockedNeighbors == 2 and randint(1, 100) <= prob and not neighborDoor:
                 myMap[x][y].door = True
+                if pillars:
+                    for neighbor in neighbors:
+                        if neighbor.blocked:
+                            neighbor.pillar = True
 
 def encaseRoom(room):
     global myMap, tunnelTiles
@@ -261,7 +267,7 @@ MAZE_TUN = 60
 MESSY_TUN = 20
 VERT_TUN = 10
 
-def makeTunnelMap(messyTunnels = False, returnTunTiles = False, roomNumber = MIN_ROOM_NUM, minSize = 6, maxSize = 17, maxTunWidth = 1):
+def makeTunnelMap(messyTunnels = False, returnTunTiles = False, roomNumber = MIN_ROOM_NUM, minSize = 6, maxSize = 17, maxTunWidth = 1, pillars = False):
     global myMap, rooms, roomTiles, tunnelTiles
 
     myMap = [[Tile(blocked = True, x = x, y = y) for y in range(MAP_HEIGHT)]for x in range(MAP_WIDTH)] #Creates a rectangle of blocking tiles from the Tile class, aka walls. Each tile is accessed by myMap[x][y], where x and y are the coordinates of the tile.
@@ -321,7 +327,7 @@ def makeTunnelMap(messyTunnels = False, returnTunTiles = False, roomNumber = MIN
     for room in rooms:
         openRooms(room)
         encaseRoom(room)
-    placeDoors()
+    placeDoors(100, pillars)
     myMap = checkDoors(myMap)
     
     if returnTunTiles:

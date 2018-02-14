@@ -1,5 +1,6 @@
 from math import *
 from random import randint
+import colors
 
 alphabet = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", 'x', "y", "z"]
 
@@ -20,6 +21,19 @@ DIAL_TEXT_WIDTH = 170 - int(DIAL_TEXT_START) * 2
 
 ACTION_COSTS = {'Drop': 50, 'Equip': 150, 'Eat': 25, 'Drink': 25, 'Read': 50, 'Pick Up': 25, 'Unequip': 150}
 WATER_WALK_COST = 50
+
+
+FIRECAMP_TILES = {(0, 0): {'char': chr(15), 'fg': colors.orange, 'bg': colors.darker_grey, 'dark_fg': colors.darker_orange, 'dark_bg': colors.darkest_grey},
+                  (1, 0): {'char': chr(254), 'fg': colors.light_grey, 'bg': colors.darker_grey, 'dark_fg': colors.dark_grey, 'dark_bg': colors.darkest_grey},
+                  (0, 1): {'char': chr(254), 'fg': colors.light_grey, 'bg': colors.darker_grey, 'dark_fg': colors.dark_grey, 'dark_bg': colors.darkest_grey},
+                  (-1, 0): {'char': chr(254), 'fg': colors.light_grey, 'bg': colors.darker_grey, 'dark_fg': colors.dark_grey, 'dark_bg': colors.darkest_grey},
+                  (0, -1): {'char': chr(254), 'fg': colors.light_grey, 'bg': colors.darker_grey, 'dark_fg': colors.dark_grey, 'dark_bg': colors.darkest_grey},
+                  (1, 1): {'char': chr(226), 'fg': colors.light_grey, 'bg': colors.darker_grey, 'dark_fg': colors.dark_grey, 'dark_bg': colors.darkest_grey},
+                  (1, -1): {'char': chr(232), 'fg': colors.light_grey, 'bg': colors.darker_grey, 'dark_fg': colors.dark_grey, 'dark_bg': colors.darkest_grey},
+                  (-1, 1): {'char': chr(227), 'fg': colors.light_grey, 'bg': colors.darker_grey, 'dark_fg': colors.dark_grey, 'dark_bg': colors.darkest_grey},
+                  (-1, -1): {'char': chr(229), 'fg': colors.light_grey, 'bg': colors.darker_grey, 'dark_fg': colors.dark_grey, 'dark_bg': colors.darkest_grey}}
+
+SLEEP_REGEN = .5 #regenerate .5*vit % of health when sleeping 1 turn
 
 def exponentialProgress(level, levelDivisor=8):
     return (exp(level/levelDivisor)-exp(1/levelDivisor))/100

@@ -9,6 +9,7 @@ import code.experiments.tunneling as tunneling
 import code.chasmGen as chasmGen
 import code.holeGen as holeGen
 from copy import deepcopy
+from code.constants import FIRECAMP_TILES
 import os, sys
 
 def findCurrentDir():
@@ -119,11 +120,11 @@ def initializeMapGen(currentBranch):
     
     return chasms, holes, cave, mine, temple
 
-def generateMap(currentBranch = dBr.mainDungeon, level = 2):
+def generateMap(currentBranch = dBr.mainDungeon, level = 2, firecamp = True):
     global roomEdges, tunnelEdges
     chasms, holes, cave, mine, pillars = initializeMapGen(currentBranch)
     if not cave and not mine:
-        myMap, tunnelTiles, roomTiles, rooms = tunneling.makeTunnelMap(holes, True, maxRooms, roomMinSize, roomMaxSize, maxTunWidth)
+        myMap, tunnelTiles, roomTiles, rooms = tunneling.makeTunnelMap(holes, True, maxRooms, roomMinSize, roomMaxSize, maxTunWidth, pillars)
         if holes:
             myMap = holeGen.createHoles(myMap)
         if chasms:
@@ -140,19 +141,61 @@ def generateMap(currentBranch = dBr.mainDungeon, level = 2):
                     myMap[x][y].pillar = True
         '''
         for room in rooms:
-            centerPillar = randint(0, 2)
-            offsetW = ((room.x2 - room.x1) - 4) // 2
-            offsetH = ((room.y2 - room.y1) - 4) // 2
+            centerPillar = randint(0, 5)
             if centerPillar != 0:
-                myMap[room.x1 + offsetW][room.y1 + offsetH].pillar = True
-                myMap[room.x1 + offsetW][room.y2 - offsetH].pillar = True
-                myMap[room.x2 - offsetW][room.y1 + offsetH].pillar = True
-                myMap[room.x2 - offsetW][room.y2 - offsetH].pillar = True
+                offsetW = ((room.x2 - room.x1) - 6) // 2
+                offsetH = ((room.y2 - room.y1) - 6) // 2
+                offsetCorners = [(room.x1 + offsetW, room.y1 + offsetH), (room.x1 + offsetW, room.y2 - offsetH), (room.x2 - offsetW, room.y1 + offsetH), (room.x2 - offsetW, room.y2 - offsetH)]
+                for x, y in offsetCorners:
+                    myMap[x][y].pillar = True
+                
             else:
                 x, y = room.center()
                 myMap[x][y].pillar = True
-    
+            
     myMap = updateTiles(myMap, currentBranch)
+    
+    if firecamp:
+        directions = [(0, 0), (1, 0), (1, 1), (1, -1), (0, 1), (0, -1), (-1, 0), (-1, 1), (-1, -1)]
+        def eligibleFireCamp(x, y):
+            eligible = True
+            for dx, dy in directions:
+                tile = myMap[x+dx][y+dy]
+                if tile.chasm or tile.blocked or tile.pillar:
+                    eligible = False
+                    break
+            return eligible
+        
+        FIRECAMP_PROP = 10 #1 firecamp for every 10 rooms
+        firecampNum = len(rooms)//FIRECAMP_PROP
+        for _ in range(firecampNum):
+            tryAgain = True
+            while tryAgain:
+                tryAgain = False
+                room = rooms[randint(0, len(rooms)-1)]
+                tileList = deepcopy(room.tiles)
+                x, y = tileList.pop(randint(0, len(tileList)-1))
+                while tileList and not eligibleFireCamp(x, y):
+                    x, y = tileList.pop(randint(0, len(tileList)-1))
+                
+                if not tileList:
+                    tryAgain = True
+                    continue
+                
+                for dx, dy in directions:
+                    tile = myMap[x+dx][y+dy]
+                    tileDict = FIRECAMP_TILES[(dx, dy)]
+                    
+                    tile.firecamp=True
+                    tile.baseCharacter = tileDict['char']
+                    tile.baseFg = tileDict['fg']
+                    tile.baseBg = tileDict['bg']
+                    tile.baseDark_fg = tileDict['dark_fg']
+                    tile.baseDark_bg = tileDict['dark_bg']
+                    
+                    if (dx, dy) == (0, 0):
+                        tile.baseBlocked = True
+                        tile.firecampLit = True
     
     roomsForStairs = checkStairsRooms(myMap, currentBranch, level, rooms)
     if roomsForStairs == 'abort':
@@ -165,7 +208,12 @@ def updateTiles(mapToUse, branch):
     for x in range(MAP_WIDTH):
         for y in range(MAP_HEIGHT):
             tile = mapToUse[x][y]
-            if tile.pillar and not tile.chasm:
+            doorNeighbor = False
+            for neighbor in tile.neighbors(mapToUse, cardinal = True):
+                if neighbor.door:
+                    doorNeighbor = True
+                    break
+            if tile.pillar and (not tile.chasm or doorNeighbor):
                 tile.baseCharacter = mapDict['pillarChar']
                 tile.baseBg = mapDict['groundBG']
                 tile.baseFg = mapDict['pillarColor']
@@ -181,7 +229,7 @@ def updateTiles(mapToUse, branch):
                 tile.baseDark_bg = mapDict['wallDarkBG']
                 tile.wall = True
                 tile.block_sight = True
-            elif tile.blocked and (x, y) in roomEdges:
+            elif tile.blocked and (x, y) in roomEdges:      #mine walls
                 tile.baseCharacter = mapDict['wallChar']
                 tile.baseFg = mapDict['mineWallFG']
                 tile.baseBg = mapDict['mineWallBG']
@@ -189,7 +237,7 @@ def updateTiles(mapToUse, branch):
                 tile.baseDark_bg = mapDict['mineWallDarkBG']
                 tile.wall = True
                 tile.block_sight = True
-            elif tile.blocked and (x, y) in tunnelEdges:
+            elif tile.blocked and (x, y) in tunnelEdges:    #mine walls
                 tile.baseCharacter = mapDict['pillarChar']
                 tile.baseFg = mapDict['pillarColor']
                 tile.baseBg = mapDict['groundBG']
@@ -279,7 +327,8 @@ def checkStairsRooms(mapToUse, currentBranch, currentLevel, rooms):
         curRoom = rooms[randint(0, len(rooms)-1)]
         if not curRoom in chosenRooms:
             centerX, centerY = curRoom.center()
-            if not mapToUse[centerX][centerY].blocked and not mapToUse[centerX][centerY].chasm and not mapToUse[centerX][centerY].pillar:
+            tile = mapToUse[centerX][centerY]
+            if not tile.blocked and not tile.chasm and not tile.pillar and not tile.firecamp:
                 chosenRooms.append(curRoom)
         l += 1
     

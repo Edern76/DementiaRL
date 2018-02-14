@@ -14,7 +14,7 @@ from copy import copy, deepcopy
 from os import makedirs
 from collections import deque
 
-from code.constants import MAX_HIGH_CULTIST_MINIONS, ACTION_COSTS
+from code.constants import MAX_HIGH_CULTIST_MINIONS, ACTION_COSTS, SLEEP_REGEN
 import code.nameGen as nameGen
 import code.xpLoaderPy3 as xpL
 import code.dunbranches as dBr
@@ -185,6 +185,10 @@ MSG_X = BAR_WIDTH + 9 #Default : BAR_WIDTH + 10
 MSG_WIDTH = WIDTH - BAR_WIDTH - 10 - 40 #Default : WIDTH - BAR_WIDTH - 10 - 40
 MSG_HEIGHT = PANEL_HEIGHT - 2 #Default : PANEL_HEIGHT - 1
 
+SLEEP_MENU_WIDTH = 60
+SLEEP_BAR_WIDTH = SLEEP_MENU_WIDTH - 10
+SLEEP_MENU_HEIGHT = 6
+
 BUFF_WIDTH = 30 #Default : 30
 BUFF_X = WIDTH - 35 #Default : WIDTH - 35
 
@@ -327,7 +331,7 @@ GRAPHICS = 'modern'
 LEVEL_UP_BASE = 200 # Set to 200 once testing complete
 LEVEL_UP_FACTOR = 150 #Default : 150
 SKILLPOINTS_PER_LEVEL = 10 #Default: 2
-NATURAL_REGEN = True
+NATURAL_REGEN = False
 BASE_HIT_CHANCE = 50 #Default : 50
 
 boss_FOV_recompute = True
@@ -7297,26 +7301,24 @@ class Player:
             dex = 0
         return round(5*sqrt(dex) * math.log(player.distanceTo(monster) + 1) + self.stealth)
     
-    def changeColor(self):
-        self.hpRatio = ((self.owner.Fighter.hp / self.owner.Fighter.maxHP) * 100)
-        if self.hpRatio == 100:
-            self.owner.color = (0, 210, 0)
-            self.hpTextColor = colors.darker_green
+    def getHPcolor(self, hp):
+        self.hpRatio = ((hp / self.owner.Fighter.maxHP) * 100)
+        print(self.hpRatio )
+        if self.hpRatio >= 95:
+            return ((0, 210, 0), colors.darker_green)
         elif self.hpRatio < 95 and self.hpRatio >= 75:
-            self.owner.color = colors.chartreuse
-            self.hpTextColor = colors.darker_chartreuse
+            return colors.chartreuse, colors.darker_chartreuse
         elif self.hpRatio < 75 and self.hpRatio >= 50:
-            self.owner.color = colors.yellow
-            self.hpTextColor = colors.darker_yellow
+            return colors.yellow, colors.darker_yellow
         elif self.hpRatio < 50 and self.hpRatio >= 25:
-            self.owner.color = colors.orange
-            self.hpTextColor = colors.darker_orange
+            return colors.orange, colors.darker_orange
         elif self.hpRatio < 25 and self.hpRatio > 0:
-            self.owner.color = colors.red
-            self.hpTextColor = colors.darker_red
+            return colors.red, colors.darker_red
         elif self.hpRatio == 0:
-            self.owner.color = colors.darker_red
-            self.hpTextColor = colors.darkest_red
+            return colors.darker_red, colors.darkest_red
+    
+    def changeColor(self):
+        self.owner.color, self.hpTextColor = self.getHPcolor(self.owner.Fighter.hp)
     
     def takeControl(self, target):
         player.Fighter.noVitHP = int(target.Fighter.BASE_MAX_HP)
@@ -15673,7 +15675,63 @@ def Update(explodeColor = colors.red, explodeChar = '*'):
     root.blit(sidePanel, SIDE_PANEL_X, SIDE_PANEL_Y, SIDE_PANEL_WIDTH, HEIGHT, 0, 0)
     root.blit(panel, 0, PANEL_Y, PANEL_WIDTH, PANEL_HEIGHT, 0, 0)
     root.blit(lookPanel, LOOK_X, LOOK_Y, LOOK_WIDTH, LOOK_HEIGHT, 0, 0)
+
+def sleepMenu():
+    global menuWindows, FOV_recompute
+    vit = player.Player.vitality
+    if vit <= 0:
+        vit = 1
+    regenPercent = SLEEP_REGEN * vit
+    quitted = False
+    if menuWindows:
+        for mWindow in menuWindows:
+            mWindow.clear()
+        FOV_recompute = True
+        #Update()
+        tdl.flush()
+    width = SLEEP_MENU_WIDTH
+    height = SLEEP_MENU_HEIGHT
+    window = NamedConsole('sleepMenu', width, height)
+    menuWindows.append(window)
     
+    maxHP = player.Fighter.maxHP
+    curHP = player.Fighter.hp
+    mult = 0
+    sleep = False
+    while not quitted:
+        window.clear()
+        drawActualRectangle(window, width, height)
+    
+        window.draw_str(1, 1, 'How long do you want to rest?', colors.amber)
+        window.draw_str(31, 1, '{} turns'.format(str(mult)), colors.white)
+        
+        bonus = round(mult * regenPercent * maxHP/100)
+        value = curHP + bonus
+        if value > maxHP:
+            value = maxHP
+        #print('### sleep menu: regen% = {}, mult = {}, bonus = {} ###'.format(str(regenPercent), str(mult), str(bonus)))
+        barColor, textColor = player.Player.getHPcolor(value)
+        renderBar(window, 5, 3, SLEEP_BAR_WIDTH, '+ {} HP'.format(str(bonus)), value, maxHP, barColor, colors.darkest_grey,textColor)
+        
+        windowX = MID_WIDTH - int(width/2)
+        windowY = MID_HEIGHT - int(height/2)
+        root.blit(window, windowX, windowY, width, height, 0, 0)
+    
+        tdl.flush()
+        key = tdl.event.key_wait()
+        if key.keychar.upper() == 'RIGHT':
+            if value < maxHP:
+                mult += 1
+        elif key.keychar.upper() == 'LEFT':
+            if mult > 0:
+                mult -= 1
+        elif key.keychar.upper() == 'ESCAPE':
+            quitted = True
+        elif key.keychar.upper() == 'ENTER':
+            quitted = True
+            sleep = True
+    
+
 def chat():
     '''
     Meow
@@ -15773,6 +15831,8 @@ def chat():
         elif item is not None:
             msgString = 'You receive no answer.'
             message(msgString)
+        elif myMap[tarX][tarY].firecampLit:
+            sleepMenu()
         else:
             msgString = 'You start a heated philosophical debate with yourself.'
             message(msgString)

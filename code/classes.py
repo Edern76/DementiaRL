@@ -78,6 +78,8 @@ class Tile:
         self.buffList = []
         self.water = False
         self.lava = False
+        self.firecamp = False
+        self.firecampLit = False
     
     #@property
     def moveCost(self, flying=False):
